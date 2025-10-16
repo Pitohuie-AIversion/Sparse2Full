@@ -1,0 +1,369 @@
+config:
+  data:
+    boundary_conditions: periodic
+    channels: 1
+    citation: 'PDEBench: An Extensive Benchmark for Scientific Machine Learning'
+    data_range:
+    - -3.0
+    - 3.0
+    dataset_name: PDEBench
+    degradation_params:
+      downsampling:
+        align_corners: false
+        mode: bilinear
+        scale_factor: 4
+      gaussian_blur:
+        kernel_size: 5
+        sigma: 1.0
+    license: MIT
+    mean: 0.0
+    normalization: z_score
+    observation_operator:
+      blur_kernel_size: 5
+      blur_sigma: 1.0
+      interpolation: bilinear
+      scale_factor: 4
+      type: super_resolution
+    source_url: https://github.com/pdebench/PDEBench
+    spatial_resolution:
+    - 256
+    - 256
+    split_method: random
+    split_seed: 42
+    std: 1.0
+    task_type: sparse_observation_reconstruction
+    temporal_steps: 1
+    test_split: 0.15
+    total_samples: 10000
+    train_split: 0.7
+    val_split: 0.15
+    variables:
+    - u
+    - v
+    - p
+    version: '1.0'
+  environment:
+    cuda_version: '>=11.8'
+    python_version: '>=3.10'
+    pytorch_version: '>=2.1.0'
+    required_packages:
+    - torch>=2.1.0
+    - torchvision
+    - numpy
+    - scipy
+    - matplotlib
+    - seaborn
+    - pandas
+    - scikit-learn
+    - hydra-core
+    - omegaconf
+    - tensorboard
+    - tqdm
+    - h5py
+    - netcdf4
+    - xarray
+  evaluation:
+    boundary_width: 16
+    frequency_bands:
+      high:
+      - 0.5
+      - 1.0
+      low:
+      - 0
+      - 0.25
+      mid:
+      - 0.25
+      - 0.5
+    metrics:
+    - rel_l2
+    - mae
+    - mse
+    - psnr
+    - ssim
+    - frmse_low
+    - frmse_mid
+    - frmse_high
+    - brmse
+    - crmse
+    - dc_error
+  experiment:
+    device: cuda
+    log_memory_usage: true
+    monitor_resources: true
+    name: PDEBench_SR_SwinUNet
+    num_workers: 4
+    profile_inference: true
+    seeds:
+    - 42
+    - 123
+    - 456
+  golden_rules:
+    consistency_check:
+      enabled: true
+      max_samples: 100
+      tolerance: 1.0e-08
+    interface_check:
+      enabled: true
+      expected_input_shape:
+      - null
+      - 1
+      - 256
+      - 256
+      expected_output_shape:
+      - null
+      - 1
+      - 256
+      - 256
+    reproducibility_check:
+      enabled: true
+      num_runs: 3
+      variance_threshold: 0.0001
+    resource_reporting:
+      enabled: true
+      include_flops: true
+      include_latency: true
+      include_memory: true
+      include_params: true
+  logging:
+    format: '%(asctime)s - %(levelname)s - %(message)s'
+    level: INFO
+    log_file: paper_package_generation.log
+    save_to_file: true
+  model:
+    attn_drop_rate: 0.0
+    depths:
+    - 2
+    - 2
+    - 6
+    - 2
+    drop_path_rate: 0.1
+    drop_rate: 0.0
+    embed_dim: 96
+    image_size: 256
+    in_channels: 1
+    mlp_ratio: 4.0
+    name: SwinUNet
+    num_heads:
+    - 3
+    - 6
+    - 12
+    - 24
+    out_channels: 1
+    patch_size: 4
+    window_size: 8
+  output_dir: ./paper_package
+  paper_package:
+    anonymize: false
+    compress: false
+    compression_format: zip
+    include_checkpoints: true
+    include_configs: true
+    include_data_cards: true
+    include_figures: true
+    include_metrics: true
+    include_scripts: true
+    reproduction:
+      include_evaluation_script: true
+      include_setup_script: true
+      include_training_script: true
+      include_visualization_script: true
+    visualization:
+      dpi: 300
+      figure_formats:
+      - png
+      - pdf
+      num_samples: 10
+  quality_assurance:
+    code_quality:
+      run_linting: true
+      run_tests: true
+      run_type_checking: true
+    documentation:
+      check_completeness: true
+      generate_api_docs: true
+    experiment_quality:
+      check_statistical_significance: true
+      validate_metrics: true
+      verify_reproducibility: true
+  training:
+    batch_size: 8
+    epochs: 100
+    gradient_clip_norm: 1.0
+    loss:
+      data_consistency_weight: 1.0
+      low_freq_modes: 16
+      reconstruction_weight: 1.0
+      spectral_weight: 0.5
+    mixed_precision: true
+    optimizer:
+      betas:
+      - 0.9
+      - 0.999
+      lr: 0.001
+      name: AdamW
+      weight_decay: 0.0001
+    scheduler:
+      T_max: 100
+      eta_min: 1.0e-06
+      name: CosineAnnealingLR
+      warmup_epochs: 10
+environment:
+  git:
+    branch: main
+    commit_hash: e1b80c2c2cf47abf002c6c44320639041b4e6bfd
+  platform:
+    machine: AMD64
+    processor: Intel64 Family 6 Model 183 Stepping 1, GenuineIntel
+    release: '11'
+    system: Windows
+    version: 10.0.26100
+  python:
+    executable: F:\ProgramData\anaconda3\python.exe
+    implementation: CPython
+    version: 3.12.7
+  pytorch:
+    cuda_available: true
+    cuda_version: '12.6'
+    cudnn_version: 90501
+    device_count: 1
+    gpu_info:
+    - compute_capability: '8.9'
+      memory_free: 24146083840
+      memory_total: 24146083840
+      name: NVIDIA GeForce RTX 4090
+    version: !!python/object/new:torch.torch_version.TorchVersion
+    - 2.6.0+cu126
+git_info:
+  branch: main
+  commit_hash: e1b80c2c2cf47abf002c6c44320639041b4e6bfd
+  has_uncommitted_changes: true
+  status: 'M ".trae/documents/PDEBench\347\250\200\347\226\217\350\247\202\346\265\213\351\207\215\345\273\272\347\263\273\347\273\237-\346\212\200\346\234\257\346\236\266\346\236\204\346\226\207\346\241\243.md"
+
+    AM paper_package/README.md
+
+    ?? .coverage
+
+    ?? Makefile
+
+    ?? README.md
+
+    ?? __init__.py
+
+    ?? __pycache__/
+
+    ?? benchmark_models.log
+
+    ?? benchmark_report.md
+
+    ?? benchmark_results.csv
+
+    ?? benchmark_results.json
+
+    ?? benchmark_results/
+
+    ?? configs/
+
+    ?? consistency_check_results/
+
+    ?? create_dummy_data.py
+
+    ?? create_mock_data.py
+
+    ?? create_sample_data.py
+
+    ?? create_test_data.py
+
+    ?? data/
+
+    ?? datasets/
+
+    ?? debug_data.py
+
+    ?? debug_loss.py
+
+    ?? debug_test.py
+
+    ?? debug_train.py
+
+    ?? docs/
+
+    ?? error.log
+
+    ?? error2.log
+
+    ?? error3.log
+
+    ?? eval.py
+
+    ?? external/
+
+    ?? models/
+
+    ?? ops/
+
+    ?? outputs/
+
+    ?? paper_package/checkpoints/
+
+    ?? paper_package/configs/
+
+    ?? paper_package/consistency_check/
+
+    ?? paper_package/data_cards/
+
+    ?? paper_package/logs/
+
+    ?? paper_package/metrics/
+
+    ?? paper_package/package_meta.json
+
+    ?? paper_package/scripts/
+
+    ?? paper_package_generation.log
+
+    ?? paper_package_test/
+
+    ?? pyproject.toml
+
+    ?? pytest.ini
+
+    ?? requirements.txt
+
+    ?? requirements_test.txt
+
+    ?? runs/
+
+    ?? scripts/
+
+    ?? test_e2e.py
+
+    ?? test_imports.py
+
+    ?? test_model_interface.py
+
+    ?? test_outputs/
+
+    ?? test_report.json
+
+    ?? test_report.md
+
+    ?? test_simple.py
+
+    ?? test_simple_model.py
+
+    ?? test_system.py
+
+    ?? test_train_minimal.py
+
+    ?? test_training_simple.py
+
+    ?? tests/
+
+    ?? tools/
+
+    ?? train.py
+
+    ?? train_complete.py
+
+    ?? utils/'
+timestamp: '2025-10-12T02:18:45.817058'

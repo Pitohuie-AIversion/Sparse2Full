@@ -1,0 +1,106 @@
+{
+  "dataset_name": "PDEBench",
+  "version": "1.0",
+  "source": {
+    "url": "https://github.com/pdebench/PDEBench",
+    "license": "MIT",
+    "citation": "PDEBench: An Extensive Benchmark for Scientific Machine Learning"
+  },
+  "description": {
+    "task_type": "sparse_observation_reconstruction",
+    "variables": [
+      "u",
+      "v",
+      "p"
+    ],
+    "spatial_resolution": [
+      256,
+      256
+    ],
+    "temporal_steps": 1,
+    "boundary_conditions": "periodic"
+  },
+  "splits": {
+    "train": 0.7,
+    "val": 0.15,
+    "test": 0.15,
+    "split_method": "random",
+    "split_seed": 42
+  },
+  "preprocessing": {
+    "normalization": "z_score",
+    "observation_operator": {
+      "type": "super_resolution",
+      "scale_factor": 4,
+      "blur_kernel_size": 5,
+      "blur_sigma": 1.0,
+      "interpolation": "bilinear"
+    },
+    "degradation_params": {
+      "gaussian_blur": {
+        "kernel_size": 5,
+        "sigma": 1.0
+      },
+      "downsampling": {
+        "scale_factor": 4,
+        "mode": "bilinear",
+        "align_corners": false
+      }
+    }
+  },
+  "statistics": {
+    "total_samples": 10000,
+    "train_samples": 7000,
+    "val_samples": 1500,
+    "test_samples": 1500,
+    "data_shape": [
+      256,
+      256
+    ],
+    "channels": 1,
+    "data_range": [
+      -3.0,
+      3.0
+    ],
+    "mean": 0.0,
+    "std": 1.0,
+    "note": "Statistics computed from configuration (actual data not found)"
+  },
+  "meta": {
+    "generated_at": "2025-10-12T02:18:45.815059",
+    "generator_version": "1.0",
+    "environment": {
+      "platform": {
+        "system": "Windows",
+        "release": "11",
+        "version": "10.0.26100",
+        "machine": "AMD64",
+        "processor": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel"
+      },
+      "python": {
+        "version": "3.12.7",
+        "implementation": "CPython",
+        "executable": "F:\\ProgramData\\anaconda3\\python.exe"
+      },
+      "pytorch": {
+        "version": "2.6.0+cu126",
+        "cuda_available": true,
+        "cuda_version": "12.6",
+        "cudnn_version": 90501,
+        "device_count": 1,
+        "gpu_info": [
+          {
+            "name": "NVIDIA GeForce RTX 4090",
+            "memory_total": 24146083840,
+            "memory_free": 24146083840,
+            "compute_capability": "8.9"
+          }
+        ]
+      },
+      "git": {
+        "commit_hash": "e1b80c2c2cf47abf002c6c44320639041b4e6bfd",
+        "branch": "main"
+      }
+    }
+  }
+}

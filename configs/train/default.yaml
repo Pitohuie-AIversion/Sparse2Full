@@ -1,0 +1,153 @@
+# @package train
+
+# 训练配置 - 按照技术架构文档标准
+epochs: 200
+early_stopping:
+  enabled: true
+  patience: 20
+  min_delta: 1e-6
+  monitor: "val_loss"
+
+# 优化器配置 - 严格按照文档标准：AdamW(lr=1e-3, wd=1e-4)
+optimizer:
+  name: "adamw"  # AdamW优化器
+  lr: 1e-3  # 学习率1e-3（文档标准）
+  weight_decay: 1e-4  # 权重衰减1e-4（文档标准）
+  betas: [0.9, 0.999]
+  eps: 1e-8
+
+# 学习率调度器 - Cosine+1k warmup（文档标准）
+scheduler:
+  name: "cosine"  # Cosine调度器
+  T_max: ${train.epochs}
+  eta_min: 1e-6
+  # Step scheduler
+  step_size: 50
+  gamma: 0.5
+  # Plateau scheduler
+  factor: 0.5
+  patience: 10
+  # Warmup - 1k warmup（文档标准）
+  warmup_epochs: 10
+  warmup_steps: 1000  # 1k warmup steps
+  warmup_start_factor: 0.1
+
+# 梯度裁剪
+grad_clip_norm: 1.0
+
+# 混合精度训练
+amp:
+  enabled: true
+  init_scale: 65536.0
+  growth_factor: 2.0
+  backoff_factor: 0.5
+  growth_interval: 2000
+
+# 分布式训练
+distributed:
+  enabled: false  # 自动检测多GPU
+  backend: "nccl"
+  init_method: "env://"
+  world_size: -1
+  rank: -1
+
+# 损失函数权重 - 三件套标准配置（文档标准：1.0/0.5/1.0）
+loss_weights:
+  reconstruction: 1.0  # 重建损失权重（文档标准）
+  spectral: 0.5  # 频谱损失权重（文档标准）
+  data_consistency: 1.0  # 数据一致性损失权重（文档标准）
+  gradient: 0.0  # 梯度损失权重（可选）
+
+# 课程学习策略
+curriculum_learning:
+  enabled: true
+  
+  # SR任务课程学习：先x2后x4
+  sr_schedule:
+    enabled: true
+    stages:
+      - epochs: [0, 50]    # 前50个epoch
+        scale_factor: 2    # 使用2倍下采样
+      - epochs: [50, 200]  # 后150个epoch
+        scale_factor: 4    # 使用4倍下采样
+  
+  # Crop任务课程学习：先40%后20%
+  crop_schedule:
+    enabled: true
+    stages:
+      - epochs: [0, 100]   # 前100个epoch
+        crop_ratio: 0.4    # 保留40%像素
+      - epochs: [100, 200] # 后100个epoch
+        crop_ratio: 0.2    # 保留20%像素
+  
+  # 损失权重调度
+  loss_weight_schedule:
+    enabled: true
+    # DC损失权重随训练进度增加
+    data_consistency:
+      start_weight: 0.1
+      end_weight: 1.0
+      schedule_type: "linear"  # linear, cosine, exponential
+    # 频谱损失权重在中期达到峰值
+    spectral:
+      start_weight: 0.1
+      peak_weight: 0.5
+      end_weight: 0.3
+      peak_epoch_ratio: 0.5  # 在50%训练进度达到峰值
+      schedule_type: "peak"
+
+# 频谱损失配置 - 按照文档标准（仅比较kx=ky=16低频模）
+spectral_loss:
+  enabled: true
+  low_freq_modes: 16  # 低频模式数量 (kx=ky=16)（文档标准）
+  weight_low: 1.0     # 低频权重
+  weight_mid: 0.0     # 中频权重（文档标准：仅比较低频）
+  weight_high: 0.0    # 高频权重（文档标准：仅比较低频）
+  fft_norm: "ortho"   # FFT归一化方式
+
+# 数据一致性验证
+verify_data_consistency: true
+consistency_tolerance: 1e-8  # MSE(H(GT), y) < 1e-8
+
+# 验证配置
+validation:
+  frequency: 1  # 每N个epoch验证一次
+  save_samples: true  # 保存验证样本
+  num_samples: 5  # 保存的样本数量
+
+# 可视化配置
+visualization:
+  save_samples: true  # 保存训练样本
+  num_samples: 3  # 保存的样本数量
+
+# 日志配置
+logging:
+  log_interval: 50  # 每N个batch记录一次
+  save_samples_interval: 10  # 每N个epoch保存样本
+  use_tensorboard: true
+  use_wandb: false
+  wandb_project: "pdebench-sparse2full"
+  
+# 检查点配置
+checkpoint:
+  save_best: true  # 保存最佳模型
+  save_last: true  # 保存最后模型
+  max_keep: 3  # 最多保留3个检查点
+  save_interval: 10  # 每N个epoch保存一次
+
+# 性能优化
+performance:
+  # 数据加载优化
+  pin_memory: true
+  persistent_workers: true
+  
+  # 编译优化（PyTorch 2.0+）
+  compile_model: false  # 实验性功能
+  
+  # 内存优化
+  gradient_checkpointing: false  # 梯度检查点（节省显存）
+  
+# 复现性设置
+reproducibility:
+  deterministic: false  # 完全确定性（影响性能）
+  benchmark: true  # cuDNN benchmark（提升性能）

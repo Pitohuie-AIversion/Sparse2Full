@@ -1,0 +1,98 @@
+{
+  "FNO2D": {
+    "total_params_M": 8.413953,
+    "trainable_params_M": 8.413953,
+    "model_size_MB": 64.09668350219727,
+    "flops_G": 1102.833647616,
+    "gflops_per_sec": 12671.082112653978,
+    "training_memory_GB": 0.18900395557284355,
+    "inference_memory_GB": 0.06332683935761452,
+    "latency_ms": 87.03547477722168,
+    "latency_std_ms": 4.819528240008446,
+    "fps": 11.489567932611692
+  },
+  "SwinUNet": {
+    "total_params_M": 56.015893,
+    "trainable_params_M": 56.015893,
+    "model_size_MB": 217.30867385864258,
+    "flops_G": 14684.230254592,
+    "gflops_per_sec": 107992.23624156688,
+    "training_memory_GB": 0.6388437710702419,
+    "inference_memory_GB": 0.21343620494008064,
+    "latency_ms": 135.97486972808838,
+    "latency_std_ms": 2.280901121241219,
+    "fps": 7.354300114423493
+  },
+  "UNet": {
+    "total_params_M": 17.261825,
+    "trainable_params_M": 17.261825,
+    "model_size_MB": 65.88246536254883,
+    "flops_G": 2262.5419264,
+    "gflops_per_sec": 22396.32583529943,
+    "training_memory_GB": 0.19472401961684227,
+    "inference_memory_GB": 0.06531490758061409,
+    "latency_ms": 101.02290630340576,
+    "latency_std_ms": 0.9938376010130067,
+    "fps": 9.898745112288333
+  },
+  "MLP": {
+    "total_params_M": 0.58032,
+    "trainable_params_M": 0.58032,
+    "model_size_MB": 2.2137451171875,
+    "flops_G": 0.00116064,
+    "gflops_per_sec": 0.02802721679837753,
+    "training_memory_GB": 0.007706284523010254,
+    "inference_memory_GB": 0.002894282341003418,
+    "latency_ms": 41.41117572784424,
+    "latency_std_ms": 2.32582813044188,
+    "fps": 24.14807071820507
+  },
+  "MLP_Mixer": {
+    "total_params_M": 18.130688,
+    "trainable_params_M": 18.130688,
+    "model_size_MB": 69.1630859375,
+    "flops_G": 0.036261376,
+    "gflops_per_sec": 1.5066169596629737,
+    "training_memory_GB": 0.20384693145751953,
+    "inference_memory_GB": 0.06827449798583984,
+    "latency_ms": 24.068078994750977,
+    "latency_std_ms": 0.5209316831686381,
+    "fps": 41.548808287445404
+  },
+  "Hybrid": {
+    "total_params_M": 39.103297,
+    "trainable_params_M": 39.103297,
+    "model_size_MB": 181.19177627563477,
+    "flops_G": 5125.347344384,
+    "gflops_per_sec": 2669.0343642711114,
+    "training_memory_GB": 0.5320559851825237,
+    "inference_memory_GB": 0.17767751589417458,
+    "latency_ms": 1920.3002452850342,
+    "latency_std_ms": 18.02806815049317,
+    "fps": 0.5207518993216438
+  },
+  "UFNO_UNet": {
+    "total_params_M": 282.353025,
+    "trainable_params_M": 282.353025,
+    "model_size_MB": 2101.129550933838,
+    "flops_G": 37008.5756928,
+    "gflops_per_sec": 143178.74188931385,
+    "training_memory_GB": 6.157361965626478,
+    "inference_memory_GB": 2.052860889583826,
+    "latency_ms": 258.47814559936523,
+    "latency_std_ms": 3.1635515190062753,
+    "fps": 3.8687990339809053
+  },
+  "UNetPlusPlus": {
+    "total_params_M": 2.159009,
+    "trainable_params_M": 2.159009,
+    "model_size_MB": 8.24881362915039,
+    "flops_G": 282.985627648,
+    "gflops_per_sec": 4389.651028448434,
+    "training_memory_GB": 0.025875430554151535,
+    "inference_memory_GB": 0.009032044559717178,
+    "latency_ms": 64.46654319763184,
+    "latency_std_ms": 0.7543220826294337,
+    "fps": 15.51192215990782
+  }
+}

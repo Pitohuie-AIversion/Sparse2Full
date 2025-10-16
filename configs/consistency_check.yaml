@@ -1,0 +1,41 @@
+# PDEBench数据一致性检查配置
+# 严格按照黄金法则要求：一致性优先，观测算子H与训练DC必须复用同一实现与配置
+
+defaults:
+  - _self_
+
+# 数据配置
+data:
+  task: sr  # 任务类型: sr, crop
+  image_size: 256
+  batch_size: 1
+  num_workers: 0
+
+# 任务特定配置
+task:
+  super_resolution:
+    scale_factors: [4]
+    blur_sigma: 1.0
+    blur_kernel_size: 5
+    boundary_mode: mirror
+  
+  cropping:
+    crop_size: [64, 64]
+    boundary_mode: mirror
+
+# 一致性检查配置
+consistency_check:
+  tolerance: 1e-8  # MSE(H(GT), y) < tolerance
+  num_samples: 100  # 随机抽样数量
+  random_seed: 42   # 确保可复现性
+  
+# 输出配置
+output_dir: consistency_check_results
+
+# 设备配置
+device: auto  # auto, cpu, cuda
+
+# 日志配置
+logging:
+  level: INFO
+  format: '%(asctime)s - %(levelname)s - %(message)s'

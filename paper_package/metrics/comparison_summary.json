@@ -1,0 +1,9 @@
+{
+  "total_models": 8,
+  "best_model": "FNO2D",
+  "fastest_model": "MLP_Mixer",
+  "avg_rel_l2": 0.08881249999999999,
+  "avg_psnr": 29.89110625,
+  "avg_ssim": 0.7798875,
+  "avg_training_time": 6.0725
+}

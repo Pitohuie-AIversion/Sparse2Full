@@ -1,0 +1,16 @@
+[2025-10-13 21:31:11,980][__main__][INFO] - Using device: cuda
+[2025-10-13 21:31:11,984][__main__][INFO] - Using validation dataloader
+[2025-10-13 21:31:11,984][__main__][INFO] - Total batches available: 1
+[2025-10-13 21:31:11,986][__main__][INFO] - Starting data consistency check...
+[2025-10-13 21:31:11,986][root][INFO] - Starting consistency check with 100 samples...
+[2025-10-13 21:31:11,996][root][WARNING] - Dataset has only 1 batches, using all
+[2025-10-13 21:31:12,200][root][INFO] - Processed 0/1 samples
+[2025-10-13 21:31:12,254][root][INFO] - Consistency check report saved to consistency_check_results\consistency_check_report.md
+[2025-10-13 21:31:12,254][root][INFO] - Consistency check results saved to consistency_check_results
+[2025-10-13 21:31:12,254][__main__][INFO] - Data consistency check completed!
+[2025-10-13 21:31:12,254][__main__][INFO] - Overall pass: YES
+[2025-10-13 21:31:12,254][__main__][INFO] - Consistency rate: 100.00%
+[2025-10-13 21:31:12,254][__main__][INFO] - Degradation consistency rate: 100.00%
+[2025-10-13 21:31:12,254][__main__][INFO] - Mean MSE: 2.92e-17
+[2025-10-13 21:31:12,255][__main__][INFO] - Max MSE: 2.92e-17
+[2025-10-13 21:31:12,255][__main__][INFO] - Detailed results saved to: consistency_check_results

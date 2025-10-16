@@ -1,0 +1,19 @@
+# UNetFormer模型配置
+# 基于Transformer的U-Net架构
+
+name: "UNetFormer"
+
+params:
+  in_channels: 1
+  out_channels: 1
+  img_size: 128
+  base_channels: 8  # 极大减少基础通道数以节省内存
+  num_stages: 2  # 进一步减少阶段数
+  num_heads: 1  # 使用单头注意力
+  mlp_ratio: 1.0  # 最小MLP比例
+  drop_rate: 0.3  # 增加dropout以提高稳定性
+  attn_drop_rate: 0.3
+  
+  kwargs:
+    # 其他参数保持默认
+    use_checkpoint: false

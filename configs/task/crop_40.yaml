@@ -1,0 +1,42 @@
+# 裁剪任务配置 - 40%观测
+
+# 继承基础训练配置
+defaults:
+  - /train
+
+# 任务特定配置
+data:
+  task: "Crop"
+  task_params:
+    crop_ratio: 0.4  # 40%观测
+    crop_strategy: "mixed"  # uniform, boundary, high_gradient, mixed
+    crop_sampling:
+      uniform_ratio: 0.4      # 均匀采样40%
+      boundary_ratio: 0.3     # 边界采样30%
+      high_gradient_ratio: 0.3 # 高梯度采样30%
+    boundary_mode: "mirror"
+    boundary_width: 16  # 边界带宽度
+
+# 课程学习：先大窗后小窗
+training:
+  epochs: 150
+  
+  # Crop任务的优化器配置
+  optimizer:
+    params:
+      lr: 1.5e-3
+      
+  scheduler:
+    params:
+      T_max: 150
+      warmup_steps: 750
+
+# 损失函数权重
+loss:
+  rec_weight: 1.0
+  spec_weight: 0.4
+  dc_weight: 1.2  # Crop任务数据一致性更重要
+
+# 实验命名
+experiment:
+  name_template: "Crop40-{data}-{res}-{model}-s{seed}-{date}"

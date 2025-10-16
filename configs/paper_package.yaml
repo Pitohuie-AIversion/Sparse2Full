@@ -1,0 +1,275 @@
+# 论文材料包生成配置
+# 严格遵循黄金法则的论文材料包生成
+
+# 输出配置
+output:
+  base_dir: "paper_package"
+  
+  # 生成内容
+  generate:
+    data_cards: true
+    config_snapshots: true
+    checkpoints: true
+    metrics: true
+    figures: true
+    scripts: true
+    readme: true
+
+# 数据配置
+data:
+  _target_: datasets.pdebench.PDEBenchDataModule
+  data_path: "data/pdebench/data/sample_data_0.h5"
+  dataset_name: "data"
+  splits_dir: "splits"
+  keys: ["u"]
+  image_size: 256
+  use_official_format: false
+  train_split: "train"
+  val_split: "val"
+  test_split: "test"
+  
+  # 观测模式配置
+  observation:
+    mode: "SR"
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: "mirror"
+      noise_std: 0.0
+    crop:
+      crop_size: [64, 64]
+      patch_align: 8
+      crop_strategy: "mixed"
+      boundary_mode: "mirror"
+  
+  # 数据加载器配置
+  dataloader:
+    batch_size: 8
+    num_workers: 0
+    pin_memory: true
+    persistent_workers: false
+  
+  # 元数据配置
+  meta:
+    dataset_name: "PDEBench"
+    version: "1.0"
+    source_url: "https://github.com/pdebench/PDEBench"
+    license: "MIT"
+    citation: "PDEBench: An Extensive Benchmark for Scientific Machine Learning"
+    task_type: "sparse_observation_reconstruction"
+    variables: ["u", "v", "p"]  # 物理变量
+    spatial_resolution: [256, 256]
+    temporal_steps: 1
+    boundary_conditions: "periodic"
+    train_split: 0.7
+    val_split: 0.15
+    test_split: 0.15
+    split_method: "random"
+    split_seed: 42
+    normalization: "z_score"
+    channels: 1
+    total_samples: 10000
+    data_range: [-3.0, 3.0]
+    mean: 0.0
+    std: 1.0
+  
+  # 观测算子配置
+  observation_operator:
+    type: "super_resolution"
+    scale_factor: 4
+    blur_kernel_size: 5
+    blur_sigma: 1.0
+    interpolation: "bilinear"
+  
+  # 退化参数
+  degradation_params:
+    gaussian_blur:
+      kernel_size: 5
+      sigma: 1.0
+    downsampling:
+      scale_factor: 4
+      mode: "bilinear"
+      align_corners: false
+
+# 模型配置
+model:
+  name: "SwinUNet"
+  in_channels: 1
+  out_channels: 1
+  image_size: 256
+  patch_size: 4
+  embed_dim: 96
+  depths: [2, 2, 6, 2]
+  num_heads: [3, 6, 12, 24]
+  window_size: 8
+  mlp_ratio: 4.0
+  drop_rate: 0.0
+  attn_drop_rate: 0.0
+  drop_path_rate: 0.1
+
+# 训练配置
+training:
+  optimizer:
+    name: "AdamW"
+    lr: 1e-3
+    weight_decay: 1e-4
+    betas: [0.9, 0.999]
+  
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 100
+    eta_min: 1e-6
+    warmup_epochs: 10
+  
+  epochs: 100
+  batch_size: 8
+  gradient_clip_norm: 1.0
+  mixed_precision: true
+  
+  # 损失函数配置
+  loss:
+    reconstruction_weight: 1.0
+    spectral_weight: 0.5
+    data_consistency_weight: 1.0
+    low_freq_modes: 16
+
+# 评估配置
+evaluation:
+  metrics:
+    - "rel_l2"
+    - "mae" 
+    - "mse"
+    - "psnr"
+    - "ssim"
+    - "frmse_low"
+    - "frmse_mid"
+    - "frmse_high"
+    - "brmse"
+    - "crmse"
+    - "dc_error"
+  
+  boundary_width: 16
+  frequency_bands:
+    low: [0, 0.25]
+    mid: [0.25, 0.5]
+    high: [0.5, 1.0]
+
+# 实验配置
+experiment:
+  name: "PDEBench_SR_SwinUNet"
+  seeds: [42, 123, 456]  # 多种子实验
+  device: "cuda"
+  num_workers: 4
+  
+  # 资源监控
+  monitor_resources: true
+  log_memory_usage: true
+  profile_inference: true
+
+# 论文材料包配置
+paper_package:
+  # 包含的组件
+  include_data_cards: true
+  include_configs: true
+  include_checkpoints: true
+  include_metrics: true
+  include_figures: true
+  include_scripts: true
+  
+  # 可视化配置
+  visualization:
+    num_samples: 10
+    figure_formats: ["png", "pdf"]
+    dpi: 300
+    
+  # 复现脚本配置
+  reproduction:
+    include_setup_script: true
+    include_training_script: true
+    include_evaluation_script: true
+    include_visualization_script: true
+  
+  # 匿名化选项（盲审模式）
+  anonymize: false
+  
+  # 压缩选项
+  compress: false
+  compression_format: "zip"
+
+# 黄金法则验证配置
+golden_rules:
+  # 一致性检查
+  consistency_check:
+    enabled: true
+    tolerance: 1e-8
+    max_samples: 100
+  
+  # 可复现性检查
+  reproducibility_check:
+    enabled: true
+    variance_threshold: 1e-4
+    num_runs: 3
+  
+  # 接口统一性检查
+  interface_check:
+    enabled: true
+    expected_input_shape: [null, 1, 256, 256]  # [B, C, H, W]
+    expected_output_shape: [null, 1, 256, 256]
+  
+  # 资源成本报告
+  resource_reporting:
+    enabled: true
+    include_params: true
+    include_flops: true
+    include_memory: true
+    include_latency: true
+
+# 日志配置
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(levelname)s - %(message)s"
+  save_to_file: true
+  log_file: "paper_package_generation.log"
+
+# 环境配置
+environment:
+  python_version: ">=3.10"
+  pytorch_version: ">=2.1.0"
+  cuda_version: ">=11.8"
+  
+  required_packages:
+    - torch>=2.1.0
+    - torchvision
+    - numpy
+    - scipy
+    - matplotlib
+    - seaborn
+    - pandas
+    - scikit-learn
+    - hydra-core
+    - omegaconf
+    - tensorboard
+    - tqdm
+    - h5py
+    - netcdf4
+    - xarray
+
+# 质量保证
+quality_assurance:
+  # 代码质量
+  code_quality:
+    run_linting: true
+    run_type_checking: true
+    run_tests: true
+  
+  # 文档质量
+  documentation:
+    check_completeness: true
+    generate_api_docs: true
+  
+  # 实验质量
+  experiment_quality:
+    verify_reproducibility: true
+    check_statistical_significance: true
+    validate_metrics: true

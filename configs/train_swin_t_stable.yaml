@@ -1,0 +1,132 @@
+# Swin Transformer Tiny 稳定训练配置
+# 实验配置
+experiment:
+  name: "SwinT-DR2D-128-s2025-${now:%Y%m%d}"
+  seed: 2025
+  device: "cuda"
+  use_amp: true
+  output_dir: "runs/${experiment.name}"
+
+# 模型配置
+model:
+  name: "SwinT"  # SwinT模型
+  params:
+    in_channels: 1
+    out_channels: 1
+    img_size: 128
+    patch_size: 4
+    embed_dim: 96
+    depths: [2, 2, 6, 2]
+    num_heads: [3, 6, 12, 24]
+    window_size: 8
+    mlp_ratio: 4.0
+    qkv_bias: true
+    qk_scale: null
+    drop_rate: 0.0
+    attn_drop_rate: 0.0
+    drop_path_rate: 0.1
+    norm_layer: "LayerNorm"
+    ape: false
+    patch_norm: true
+    use_checkpoint: false
+
+# 数据配置
+data:
+  data_path: "E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5"
+  dataset_name: "PDEBench"
+  keys: ["tensor"]  # 数据变量键名
+  splits_dir: "splits"
+  image_size: 128
+  
+  # 观测配置
+  observation:
+    mode: "SR"  # SR (超分辨率) 或 Crop (裁剪)
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: "mirror"
+    crop:
+      crop_size: [64, 64]
+      crop_strategy: "uniform"  # uniform, boundary, high_gradient
+      boundary_mode: "mirror"
+  
+  # 预处理配置
+  preprocessing:
+    normalize: true
+    cache_data: false
+  
+  # 数据加载器配置
+  dataloader:
+    batch_size: 4  # 适中批次大小，适应1000样本训练集
+    num_workers: 4
+    pin_memory: true
+    persistent_workers: true
+
+# 训练配置
+training:
+  epochs: 200
+  batch_size: 4
+  
+  # 优化器配置
+  optimizer:
+    _target_: torch.optim.AdamW
+    lr: 0.0001
+    weight_decay: 0.0001
+    betas: [0.9, 0.999]
+    eps: 1e-8
+  
+  # 学习率调度器
+  scheduler:
+    _target_: null
+  
+  # 梯度裁剪
+  grad_clip_norm: 1.0  # 标准梯度裁剪
+  
+  # 日志和保存
+  log_interval: 50
+  save_interval: 20
+  plot_interval: 50
+  
+  # 混合精度训练
+  use_amp: true
+
+# 损失函数配置
+loss:
+  # 损失权重
+  rec_weight: 1.0      # 重建损失权重
+  spec_weight: 0.5     # 频域损失权重
+  dc_weight: 1.0       # 数据一致性损失权重
+  
+  # 重建损失
+  rec_loss:
+    _target_: torch.nn.MSELoss
+  
+  # 频域损失
+  spec_loss:
+    _target_: losses.spectral_loss
+    low_freq_modes: 16
+    high_freq_modes: 64
+    
+  # 数据一致性损失
+  dc_loss:
+    _target_: losses.data_consistency_loss
+
+# 输出路径
+output_dir: "runs/${experiment.name}"
+checkpoint_dir: "${output_dir}/checkpoints"
+log_dir: "${output_dir}/logs"
+
+# 日志配置
+logging:
+  level: "INFO"
+  use_tensorboard: true
+  use_wandb: false
+  wandb_project: "pdebench-sparse2full"
+
+# Hydra配置
+hydra:
+  run:
+    dir: ${output_dir}
+  job:
+    chdir: true

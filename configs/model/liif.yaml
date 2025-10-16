@@ -1,0 +1,41 @@
+# LIIF模型配置
+# 局部隐式图像函数
+
+name: "LIIF"
+
+params:
+  in_channels: 1
+  out_channels: 1
+  img_size: 128
+  
+  kwargs:
+    # 编码器参数
+    encoder_type: "resnet"  # resnet, efficientnet, swin
+    encoder_depth: 18       # ResNet深度
+    encoder_pretrained: false
+    
+    # LIIF核心参数
+    hidden_dim: 256         # 隐藏层维度
+    num_layers: 4           # MLP层数
+    
+    # 坐标编码
+    coord_dim: 2            # 坐标维度(x,y)
+    use_pe: true            # 位置编码
+    pe_dim: 10              # 位置编码维度
+    
+    # 特征融合
+    feat_unfold: true       # 特征展开
+    local_ensemble: true    # 局部集成
+    
+    # 激活函数
+    activation: "relu"
+    
+    # Dropout
+    dropout: 0.0
+    
+    # 归一化
+    norm: "batch"           # batch, instance, layer
+    
+    # 可选参数
+    use_skip_connections: true
+    interpolation_mode: "bilinear"

@@ -1,0 +1,82 @@
+# @package eval
+
+# 快速评测配置 - 用于开发调试和快速验证
+
+# 评测数据配置
+data:
+  split: "val"  # 使用验证集进行快速评测
+  batch_size: 4  # 较大batch提高效率
+  num_workers: 2
+  max_samples: 100  # 限制样本数量加速评测
+  
+# 指标计算配置（仅核心指标）
+metrics:
+  # 主要指标
+  primary:
+    - "rel_l2"      # 相对L2误差
+    - "mae"         # 平均绝对误差
+    
+  # 一致性指标
+  consistency:
+    - "dc_loss"     # 数据一致性损失
+
+# 频域分析配置（简化）
+frequency_analysis:
+  frequency_bands:
+    low: [0.0, 0.25]    # 仅计算低频段
+    
+  fft_modes: 8  # 减少FFT模式数
+  mirror_padding: true
+
+# 边界分析配置（简化）
+boundary_analysis:
+  boundary_width: 16
+  scale_with_resolution: false  # 固定边界宽度
+
+# 多通道聚合配置
+multichannel_aggregation:
+  method: "equal_weight"
+
+# 可视化配置（最小化）
+visualization:
+  enabled: true
+  
+  # 仅生成核心图表
+  plots:
+    - "gt_pred_error"     # GT/Pred/Error对比
+    
+  # 简化配置
+  heatmap:
+    colormap: "viridis"
+    unified_colorbar: true
+    dpi: 150  # 降低分辨率
+    
+  save_format: ["png"]  # 仅PNG格式
+  save_dpi: 150
+
+# 统计分析配置（关闭）
+statistical_analysis:
+  multi_seed: false
+  significance_test:
+    enabled: false
+  effect_size:
+    enabled: false
+
+# 输出配置（简化）
+output:
+  save_dir: "runs/quick_eval"
+  
+  formats:
+    - "json"      # 仅JSON格式
+    
+  report:
+    include_plots: true
+    include_statistics: false
+    include_raw_data: false
+    
+# 性能配置
+performance:
+  parallel: false  # 关闭并行以简化调试
+  num_processes: 1
+  batch_metrics: true
+  cache_results: false  # 关闭缓存节省内存

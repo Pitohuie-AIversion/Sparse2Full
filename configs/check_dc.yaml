@@ -1,0 +1,74 @@
+# PDEBench数据一致性检查配置
+
+# 基本设置
+seed: 42
+tolerance: 1e-8  # MSE容忍误差阈值
+verbose: true
+max_cases: 100  # 最大检查案例数
+random_sample: true  # 是否随机采样
+split: "test"  # 使用的数据集分割 (train/val/test)
+
+# 输出设置
+output_dir: "paper_package/consistency_check"
+
+# DC损失一致性检查
+check_dc_loss: true
+dc_loss_max_cases: 50
+
+# 数据配置
+data:
+  _target_: datasets.pdebench.PDEBenchDataModule
+  data_path: "data/pdebench/data/sample_data_0.h5"
+  dataset_name: "data"
+  splits_dir: "splits"
+  keys: ["u"]
+  image_size: 256
+  use_official_format: false
+  train_split: "train"
+  val_split: "val"
+  test_split: "test"
+  
+  # 观测模式配置
+  observation:
+    mode: "SR"
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: "mirror"
+      noise_std: 0.0
+    crop:
+      crop_size: [64, 64]
+      patch_align: 8
+      crop_strategy: "mixed"
+      boundary_mode: "mirror"
+  
+  # 数据加载器配置
+  dataloader:
+    batch_size: 1  # 使用batch_size=1便于逐案例检查
+    num_workers: 0
+    pin_memory: true
+    persistent_workers: false
+
+# 任务特定配置
+task_configs:
+  sr:  # 超分辨率
+    scale_factors: [2, 4, 8]
+    blur_sigmas: [0.5, 1.0, 1.5]
+    
+  crop:  # 裁剪重建
+    crop_ratios: [0.2, 0.4, 0.6]
+    sampling_strategies: ["uniform", "boundary", "gradient"]
+    
+# 报告配置
+report:
+  include_failed_cases: true
+  max_failed_cases_in_report: 10
+  generate_markdown: true
+  generate_plots: false  # 是否生成误差分布图
+
+# 日志配置
+logging:
+  level: "INFO"
+  save_to_file: true
+  log_file: "consistency_check.log"

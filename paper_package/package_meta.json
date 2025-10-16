@@ -1,0 +1,56 @@
+{
+  "package_info": {
+    "name": "PDEBench\u7a00\u758f\u89c2\u6d4b\u91cd\u5efa\u8bba\u6587\u6750\u6599\u5305",
+    "version": "1.0",
+    "generated_at": "2025-10-12T02:18:45.925078",
+    "generator": "PaperPackageGenerator",
+    "total_size_mb": 150.2166986465454
+  },
+  "contents": {
+    "data_cards": 4,
+    "configs": 5,
+    "checkpoints": 0,
+    "metrics": 5,
+    "figures": 2,
+    "scripts": 5
+  },
+  "environment": {
+    "platform": {
+      "system": "Windows",
+      "release": "11",
+      "version": "10.0.26100",
+      "machine": "AMD64",
+      "processor": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel"
+    },
+    "python": {
+      "version": "3.12.7",
+      "implementation": "CPython",
+      "executable": "F:\\ProgramData\\anaconda3\\python.exe"
+    },
+    "pytorch": {
+      "version": "2.6.0+cu126",
+      "cuda_available": true,
+      "cuda_version": "12.6",
+      "cudnn_version": 90501,
+      "device_count": 1,
+      "gpu_info": [
+        {
+          "name": "NVIDIA GeForce RTX 4090",
+          "memory_total": 24146083840,
+          "memory_free": 24146083840,
+          "compute_capability": "8.9"
+        }
+      ]
+    },
+    "git": {
+      "commit_hash": "e1b80c2c2cf47abf002c6c44320639041b4e6bfd",
+      "branch": "main"
+    }
+  },
+  "git_info": {
+    "commit_hash": "e1b80c2c2cf47abf002c6c44320639041b4e6bfd",
+    "branch": "main",
+    "has_uncommitted_changes": true,
+    "status": "M \".trae/documents/PDEBench\\347\\250\\200\\347\\226\\217\\350\\247\\202\\346\\265\\213\\351\\207\\215\\345\\273\\272\\347\\263\\273\\347\\273\\237-\\346\\212\\200\\346\\234\\257\\346\\236\\266\\346\\236\\204\\346\\226\\207\\346\\241\\243.md\"\nAM paper_package/README.md\n?? .coverage\n?? Makefile\n?? README.md\n?? __init__.py\n?? __pycache__/\n?? benchmark_models.log\n?? benchmark_report.md\n?? benchmark_results.csv\n?? benchmark_results.json\n?? benchmark_results/\n?? configs/\n?? consistency_check_results/\n?? create_dummy_data.py\n?? create_mock_data.py\n?? create_sample_data.py\n?? create_test_data.py\n?? data/\n?? datasets/\n?? debug_data.py\n?? debug_loss.py\n?? debug_test.py\n?? debug_train.py\n?? docs/\n?? error.log\n?? error2.log\n?? error3.log\n?? eval.py\n?? external/\n?? models/\n?? ops/\n?? outputs/\n?? paper_package/checkpoints/\n?? paper_package/configs/\n?? paper_package/consistency_check/\n?? paper_package/data_cards/\n?? paper_package/logs/\n?? paper_package/metrics/\n?? paper_package/package_meta.json\n?? paper_package/scripts/\n?? paper_package_generation.log\n?? paper_package_test/\n?? pyproject.toml\n?? pytest.ini\n?? requirements.txt\n?? requirements_test.txt\n?? runs/\n?? scripts/\n?? test_e2e.py\n?? test_imports.py\n?? test_model_interface.py\n?? test_outputs/\n?? test_report.json\n?? test_report.md\n?? test_simple.py\n?? test_simple_model.py\n?? test_system.py\n?? test_train_minimal.py\n?? test_training_simple.py\n?? tests/\n?? tools/\n?? train.py\n?? train_complete.py\n?? utils/"
+  }
+}

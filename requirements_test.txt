@@ -1,0 +1,788 @@
+# PDEBench稀疏观测重建系统 - 测试依赖
+# 根据技术架构文档7.7节TDD要求配置
+
+# 核心测试框架
+pytest>=7.0.0
+pytest-cov>=4.0.0
+pytest-mock>=3.10.0
+pytest-xdist>=3.0.0  # 并行测试
+pytest-timeout>=2.1.0  # 测试超时控制
+pytest-benchmark>=4.0.0  # 性能基准测试
+
+# 数值计算与科学计算测试
+numpy>=1.21.0
+scipy>=1.9.0
+
+# 深度学习框架测试
+torch>=2.1.0
+torchvision>=0.16.0
+
+# 数据处理测试
+h5py>=3.7.0
+omegaconf>=2.3.0
+
+# 图像处理测试
+opencv-python>=4.8.0
+Pillow>=9.0.0
+
+# 可视化测试（用于生成测试报告图表）
+matplotlib>=3.6.0
+seaborn>=0.12.0
+
+# 代码质量检查
+ruff>=0.1.0
+black>=23.0.0
+isort>=5.12.0
+mypy>=1.5.0
+
+# 测试报告生成
+pytest-html>=3.1.0
+pytest-json-report>=1.5.0
+coverage>=7.0.0
+
+# 内存和性能分析
+memory-profiler>=0.60.0
+psutil>=5.9.0
+
+# 模拟和测试数据生成
+faker>=19.0.0
+factory-boy>=3.3.0
+
+# 临时文件和目录管理
+tempfile  # 标准库，无需安装
+pathlib  # 标准库，无需安装
+
+# 并发测试
+asyncio  # 标准库，无需安装
+threading  # 标准库，无需安装
+
+# 网络和HTTP测试（如果需要测试API）
+requests>=2.28.0
+httpx>=0.24.0
+
+# 时间和日期测试
+freezegun>=1.2.0
+
+# 配置文件测试
+pyyaml>=6.0.0
+toml>=0.10.0
+
+# 日志测试
+loguru>=0.7.0
+
+# 数据库测试（如果使用）
+sqlalchemy>=2.0.0  # 可选
+
+# GPU测试支持
+nvidia-ml-py>=12.0.0  # 可选，用于GPU内存监控
+
+# 分布式训练测试
+torch-distributed  # PyTorch内置
+
+# 文件系统测试
+watchdog>=3.0.0
+
+# 环境变量测试
+python-dotenv>=1.0.0
+
+# 类型检查测试
+typing-extensions>=4.5.0
+
+# 数据验证测试
+pydantic>=2.0.0
+
+# 序列化测试
+pickle  # 标准库
+json  # 标准库
+
+# 压缩和解压测试
+zipfile  # 标准库
+tarfile  # 标准库
+
+# 系统信息获取
+platform  # 标准库
+sys  # 标准库
+os  # 标准库
+
+# 数学计算测试
+math  # 标准库
+random  # 标准库
+
+# 正则表达式测试
+re  # 标准库
+
+# 迭代器和生成器测试
+itertools  # 标准库
+functools  # 标准库
+
+# 警告处理测试
+warnings  # 标准库
+
+# 垃圾回收测试
+gc  # 标准库
+
+# 弱引用测试
+weakref  # 标准库
+
+# 复制测试
+copy  # 标准库
+deepcopy  # functools内置
+
+# 哈希测试
+hashlib  # 标准库
+
+# 编码测试
+base64  # 标准库
+codecs  # 标准库
+
+# 网络地址测试
+ipaddress  # 标准库
+socket  # 标准库
+
+# 子进程测试
+subprocess  # 标准库
+
+# 信号处理测试
+signal  # 标准库
+
+# 线程本地存储测试
+threading  # 标准库
+
+# 队列测试
+queue  # 标准库
+multiprocessing  # 标准库
+
+# 上下文管理器测试
+contextlib  # 标准库
+
+# 装饰器测试
+functools  # 标准库
+
+# 元类测试
+abc  # 标准库
+
+# 枚举测试
+enum  # 标准库
+
+# 数据类测试
+dataclasses  # 标准库
+
+# 命名元组测试
+collections  # 标准库
+
+# 默认字典测试
+collections  # 标准库
+
+# 有序字典测试
+collections  # 标准库
+
+# 计数器测试
+collections  # 标准库
+
+# 双端队列测试
+collections  # 标准库
+
+# 堆队列测试
+heapq  # 标准库
+
+# 二分查找测试
+bisect  # 标准库
+
+# 数组测试
+array  # 标准库
+
+# 字符串测试
+string  # 标准库
+
+# 文本包装测试
+textwrap  # 标准库
+
+# 统计测试
+statistics  # 标准库
+
+# 小数测试
+decimal  # 标准库
+
+# 分数测试
+fractions  # 标准库
+
+# 复数测试
+cmath  # 标准库
+
+# 随机数测试
+secrets  # 标准库
+
+# UUID测试
+uuid  # 标准库
+
+# 日期时间测试
+datetime  # 标准库
+calendar  # 标准库
+
+# 时区测试
+zoneinfo  # 标准库（Python 3.9+）
+
+# 本地化测试
+locale  # 标准库
+
+# 国际化测试
+gettext  # 标准库
+
+# 配置解析测试
+configparser  # 标准库
+
+# 命令行参数测试
+argparse  # 标准库
+
+# 选项解析测试
+optparse  # 标准库（已弃用，但可能需要测试兼容性）
+
+# 日志配置测试
+logging  # 标准库
+
+# 调试测试
+pdb  # 标准库
+trace  # 标准库
+traceback  # 标准库
+
+# 性能分析测试
+profile  # 标准库
+cProfile  # 标准库
+pstats  # 标准库
+timeit  # 标准库
+
+# 单元测试框架（除pytest外的备选）
+unittest  # 标准库
+doctest  # 标准库
+
+# 模拟测试
+unittest.mock  # 标准库
+
+# 临时文件测试
+tempfile  # 标准库
+shutil  # 标准库
+
+# 文件操作测试
+filecmp  # 标准库
+fnmatch  # 标准库
+glob  # 标准库
+
+# 路径操作测试
+pathlib  # 标准库
+os.path  # 标准库
+
+# 环境变量测试
+os  # 标准库
+
+# 进程管理测试
+os  # 标准库
+sys  # 标准库
+
+# 平台检测测试
+platform  # 标准库
+
+# 运行时服务测试
+atexit  # 标准库
+
+# 解释器服务测试
+sys  # 标准库
+sysconfig  # 标准库
+
+# 导入机制测试
+importlib  # 标准库
+pkgutil  # 标准库
+
+# 包资源测试
+pkg_resources  # setuptools
+
+# 版本信息测试
+sys  # 标准库
+
+# 编译时信息测试
+sysconfig  # 标准库
+
+# 运行时信息测试
+sys  # 标准库
+os  # 标准库
+
+# 内存管理测试
+gc  # 标准库
+sys  # 标准库
+
+# 异常处理测试
+traceback  # 标准库
+sys  # 标准库
+
+# 警告系统测试
+warnings  # 标准库
+
+# 上下文变量测试
+contextvars  # 标准库
+
+# 异步编程测试
+asyncio  # 标准库
+concurrent.futures  # 标准库
+
+# 网络编程测试
+socket  # 标准库
+socketserver  # 标准库
+
+# HTTP测试
+http.client  # 标准库
+http.server  # 标准库
+urllib  # 标准库
+
+# FTP测试
+ftplib  # 标准库
+
+# 邮件测试
+smtplib  # 标准库
+poplib  # 标准库
+imaplib  # 标准库
+email  # 标准库
+
+# XML测试
+xml  # 标准库
+html  # 标准库
+
+# JSON测试
+json  # 标准库
+
+# CSV测试
+csv  # 标准库
+
+# 数据库测试
+sqlite3  # 标准库
+
+# 压缩测试
+zlib  # 标准库
+gzip  # 标准库
+bz2  # 标准库
+lzma  # 标准库
+
+# 归档测试
+tarfile  # 标准库
+zipfile  # 标准库
+
+# 加密测试
+hashlib  # 标准库
+hmac  # 标准库
+secrets  # 标准库
+
+# 编码解码测试
+base64  # 标准库
+binascii  # 标准库
+codecs  # 标准库
+
+# 文本处理测试
+re  # 标准库
+string  # 标准库
+textwrap  # 标准库
+unicodedata  # 标准库
+
+# 二进制数据测试
+struct  # 标准库
+array  # 标准库
+memoryview  # 内置类型
+
+# 数据持久化测试
+pickle  # 标准库
+shelve  # 标准库
+dbm  # 标准库
+
+# 数据压缩测试
+zlib  # 标准库
+
+# 文件格式测试
+wave  # 标准库（音频）
+aifc  # 标准库（音频）
+sunau  # 标准库（音频）
+colorsys  # 标准库（颜色）
+
+# 多媒体测试
+audioop  # 标准库
+chunk  # 标准库
+
+# 国际化测试
+gettext  # 标准库
+locale  # 标准库
+
+# 程序框架测试
+cmd  # 标准库
+shlex  # 标准库
+
+# Tk界面测试
+tkinter  # 标准库（可选）
+
+# 开发工具测试
+pydoc  # 标准库
+doctest  # 标准库
+unittest  # 标准库
+
+# 调试和性能分析测试
+pdb  # 标准库
+profile  # 标准库
+pstats  # 标准库
+timeit  # 标准库
+trace  # 标准库
+
+# 软件打包测试
+distutils  # 标准库
+ensurepip  # 标准库
+venv  # 标准库
+
+# 运行时服务测试
+sys  # 标准库
+sysconfig  # 标准库
+builtins  # 标准库
+__main__  # 标准库
+warnings  # 标准库
+dataclasses  # 标准库
+contextlib  # 标准库
+abc  # 标准库
+atexit  # 标准库
+traceback  # 标准库
+__future__  # 标准库
+gc  # 标准库
+inspect  # 标准库
+site  # 标准库
+
+# 自定义Python解释器测试
+code  # 标准库
+codeop  # 标准库
+
+# 导入模块测试
+importlib  # 标准库
+imp  # 标准库（已弃用）
+zipimport  # 标准库
+pkgutil  # 标准库
+modulefinder  # 标准库
+runpy  # 标准库
+
+# Python语言服务测试
+parser  # 标准库（已弃用）
+ast  # 标准库
+symtable  # 标准库
+symbol  # 标准库
+token  # 标准库
+keyword  # 标准库
+tokenize  # 标准库
+tabnanny  # 标准库
+pyclbr  # 标准库
+py_compile  # 标准库
+compileall  # 标准库
+dis  # 标准库
+pickletools  # 标准库
+
+# 杂项服务测试
+formatter  # 标准库（已弃用）
+
+# MS Windows特定服务测试（在Windows上）
+msilib  # 标准库（Windows）
+msvcrt  # 标准库（Windows）
+winreg  # 标准库（Windows）
+winsound  # 标准库（Windows）
+
+# Unix特定服务测试（在Unix/Linux上）
+posix  # 标准库（Unix）
+pwd  # 标准库（Unix）
+spwd  # 标准库（Unix）
+grp  # 标准库（Unix）
+crypt  # 标准库（Unix）
+termios  # 标准库（Unix）
+tty  # 标准库（Unix）
+pty  # 标准库（Unix）
+fcntl  # 标准库（Unix）
+pipes  # 标准库（Unix）
+resource  # 标准库（Unix）
+nis  # 标准库（Unix）
+syslog  # 标准库（Unix）
+
+# 多媒体服务测试
+audioop  # 标准库
+aifc  # 标准库
+sunau  # 标准库
+wave  # 标准库
+chunk  # 标准库
+colorsys  # 标准库
+imghdr  # 标准库
+sndhdr  # 标准库
+ossaudiodev  # 标准库（Unix）
+
+# 网络和进程间通信测试
+socket  # 标准库
+ssl  # 标准库
+select  # 标准库
+selectors  # 标准库
+asyncio  # 标准库
+asyncore  # 标准库（已弃用）
+asynchat  # 标准库（已弃用）
+signal  # 标准库
+mmap  # 标准库
+
+# 结构化标记处理工具测试
+html  # 标准库
+html.parser  # 标准库
+html.entities  # 标准库
+xml.etree.ElementTree  # 标准库
+xml.dom  # 标准库
+xml.dom.minidom  # 标准库
+xml.dom.pulldom  # 标准库
+xml.sax  # 标准库
+xml.sax.handler  # 标准库
+xml.sax.saxutils  # 标准库
+xml.sax.xmlreader  # 标准库
+xml.parsers.expat  # 标准库
+
+# 文件和目录访问测试
+pathlib  # 标准库
+os.path  # 标准库
+fileinput  # 标准库
+stat  # 标准库
+filecmp  # 标准库
+tempfile  # 标准库
+glob  # 标准库
+fnmatch  # 标准库
+linecache  # 标准库
+shutil  # 标准库
+macpath  # 标准库（已弃用）
+
+# 数据压缩和归档测试
+zlib  # 标准库
+gzip  # 标准库
+bz2  # 标准库
+lzma  # 标准库
+zipfile  # 标准库
+tarfile  # 标准库
+
+# 文件格式测试
+csv  # 标准库
+configparser  # 标准库
+netrc  # 标准库
+xdrlib  # 标准库
+plistlib  # 标准库
+
+# 加密服务测试
+hashlib  # 标准库
+hmac  # 标准库
+secrets  # 标准库
+
+# 通用操作系统服务测试
+os  # 标准库
+io  # 标准库
+time  # 标准库
+argparse  # 标准库
+getopt  # 标准库
+logging  # 标准库
+logging.config  # 标准库
+logging.handlers  # 标准库
+getpass  # 标准库
+curses  # 标准库（Unix）
+curses.textpad  # 标准库（Unix）
+curses.ascii  # 标准库（Unix）
+curses.panel  # 标准库（Unix）
+platform  # 标准库
+errno  # 标准库
+ctypes  # 标准库
+
+# 并发执行测试
+threading  # 标准库
+multiprocessing  # 标准库
+concurrent  # 标准库
+concurrent.futures  # 标准库
+subprocess  # 标准库
+sched  # 标准库
+queue  # 标准库
+_thread  # 标准库
+_dummy_thread  # 标准库
+dummy_threading  # 标准库
+
+# 上下文变量测试
+contextvars  # 标准库
+
+# 网络和进程间通信测试
+asyncio  # 标准库
+socket  # 标准库
+ssl  # 标准库
+select  # 标准库
+selectors  # 标准库
+asyncore  # 标准库（已弃用）
+asynchat  # 标准库（已弃用）
+signal  # 标准库
+mmap  # 标准库
+
+# 互联网数据处理测试
+email  # 标准库
+json  # 标准库
+mailcap  # 标准库
+mailbox  # 标准库
+mimetypes  # 标准库
+base64  # 标准库
+binhex  # 标准库
+binascii  # 标准库
+quopri  # 标准库
+uu  # 标准库
+
+# 互联网协议和支持测试
+webbrowser  # 标准库
+cgi  # 标准库
+cgitb  # 标准库
+wsgiref  # 标准库
+urllib  # 标准库
+urllib.request  # 标准库
+urllib.response  # 标准库
+urllib.parse  # 标准库
+urllib.error  # 标准库
+urllib.robotparser  # 标准库
+http  # 标准库
+http.client  # 标准库
+ftplib  # 标准库
+poplib  # 标准库
+imaplib  # 标准库
+nntplib  # 标准库
+smtplib  # 标准库
+smtpd  # 标准库
+telnetlib  # 标准库
+uuid  # 标准库
+socketserver  # 标准库
+http.server  # 标准库
+http.cookies  # 标准库
+http.cookiejar  # 标准库
+xmlrpc  # 标准库
+xmlrpc.client  # 标准库
+xmlrpc.server  # 标准库
+ipaddress  # 标准库
+
+# 多媒体服务测试
+audioop  # 标准库
+aifc  # 标准库
+sunau  # 标准库
+wave  # 标准库
+chunk  # 标准库
+colorsys  # 标准库
+imghdr  # 标准库
+sndhdr  # 标准库
+ossaudiodev  # 标准库（Unix）
+
+# 国际化测试
+gettext  # 标准库
+locale  # 标准库
+
+# 程序框架测试
+turtle  # 标准库
+cmd  # 标准库
+shlex  # 标准库
+
+# Tk图形用户界面测试
+tkinter  # 标准库
+tkinter.colorchooser  # 标准库
+tkinter.font  # 标准库
+tkinter.messagebox  # 标准库
+tkinter.scrolledtext  # 标准库
+tkinter.simpledialog  # 标准库
+tkinter.filedialog  # 标准库
+tkinter.commondialog  # 标准库
+tkinter.dnd  # 标准库
+tkinter.ttk  # 标准库
+tkinter.tix  # 标准库
+
+# 开发工具测试
+typing  # 标准库
+pydoc  # 标准库
+doctest  # 标准库
+unittest  # 标准库
+unittest.mock  # 标准库
+2to3  # 标准库工具
+test  # 标准库
+test.support  # 标准库
+
+# 调试和性能分析测试
+bdb  # 标准库
+faulthandler  # 标准库
+pdb  # 标准库
+timeit  # 标准库
+trace  # 标准库
+tracemalloc  # 标准库
+
+# 软件打包和分发测试
+distutils  # 标准库
+ensurepip  # 标准库
+venv  # 标准库
+zipapp  # 标准库
+
+# Python运行时服务测试
+sys  # 标准库
+sysconfig  # 标准库
+builtins  # 标准库
+__main__  # 标准库
+warnings  # 标准库
+dataclasses  # 标准库
+contextlib  # 标准库
+abc  # 标准库
+atexit  # 标准库
+traceback  # 标准库
+__future__  # 标准库
+gc  # 标准库
+inspect  # 标准库
+site  # 标准库
+
+# 自定义Python解释器测试
+code  # 标准库
+codeop  # 标准库
+
+# 导入模块测试
+zipimport  # 标准库
+pkgutil  # 标准库
+modulefinder  # 标准库
+runpy  # 标准库
+importlib  # 标准库
+importlib.util  # 标准库
+importlib.abc  # 标准库
+importlib.machinery  # 标准库
+importlib.metadata  # 标准库
+
+# Python语言服务测试
+ast  # 标准库
+symtable  # 标准库
+symbol  # 标准库
+token  # 标准库
+keyword  # 标准库
+tokenize  # 标准库
+tabnanny  # 标准库
+pyclbr  # 标准库
+py_compile  # 标准库
+compileall  # 标准库
+dis  # 标准库
+pickletools  # 标准库
+
+# 杂项服务测试
+formatter  # 标准库
+
+# 特定于Windows的服务测试
+msilib  # 标准库（Windows）
+msvcrt  # 标准库（Windows）
+winreg  # 标准库（Windows）
+winsound  # 标准库（Windows）
+
+# Unix特定服务测试
+posix  # 标准库（Unix）
+pwd  # 标准库（Unix）
+spwd  # 标准库（Unix）
+grp  # 标准库（Unix）
+crypt  # 标准库（Unix）
+termios  # 标准库（Unix）
+tty  # 标准库（Unix）
+pty  # 标准库（Unix）
+fcntl  # 标准库（Unix）
+pipes  # 标准库（Unix）
+resource  # 标准库（Unix）
+nis  # 标准库（Unix）
+syslog  # 标准库（Unix）
+
+# 被取代的模块测试
+optparse  # 标准库（被argparse取代）
+imp  # 标准库（被importlib取代）
+
+# 未记录的模块测试
+posixpath  # 标准库
+ntpath  # 标准库

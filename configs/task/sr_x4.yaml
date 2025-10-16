@@ -1,0 +1,38 @@
+# 超分辨率任务配置 - 4倍放大
+
+# 继承基础训练配置
+defaults:
+  - /train
+
+# 任务特定配置
+data:
+  task: "SR"
+  task_params:
+    scale_factor: 4
+    blur_sigma: 1.0
+    blur_kernel_size: 5
+    boundary_mode: "mirror"
+
+# 4倍任务训练配置
+training:
+  epochs: 200
+  
+  # 4倍任务的优化器配置
+  optimizer:
+    params:
+      lr: 1.0e-3
+      
+  scheduler:
+    params:
+      T_max: 200
+      warmup_steps: 1000
+
+# 损失函数权重
+loss:
+  rec_weight: 1.0
+  spec_weight: 0.5
+  dc_weight: 1.0
+
+# 实验命名
+experiment:
+  name_template: "SRx4-{data}-{res}-{model}-s{seed}-{date}"

@@ -1,0 +1,71 @@
+# @package data
+
+# PDEBench数据配置
+_target_: datasets.pdebench.PDEBenchDataModule
+
+# 数据路径配置
+data_path: "data/pdebench/sample_data_0.h5"  # 直接指向HDF5文件
+dataset_name: "DarcyFlow_2D"  # 使用DarcyFlow数据集
+splits_dir: "splits"  # 数据切分目录
+
+# 数据键名 - 只使用tensor数据（主要的解数据）
+keys: ["tensor"]  # 只读取tensor数据，形状为(10000, 1, 128, 128)，不使用nu等其他参数
+
+# 图像尺寸 - 基于数据分析结果
+image_size: 128  # PDEBench数据的标准分辨率
+
+# 数据格式配置
+use_official_format: false  # 使用4D格式 [time, channels, height, width]
+
+# 数据切分
+train_split: "train"
+val_split: "val"
+test_split: "test"
+
+# 观测模式配置
+observation:
+  mode: "SR"  # "SR" 或 "Crop"
+  
+  # SR模式参数
+  sr:
+    scale_factor: 4  # 下采样倍率
+    blur_sigma: 1.0  # 高斯模糊标准差
+    blur_kernel_size: 5  # 模糊核大小
+    boundary_mode: "mirror"  # 边界策略: "mirror"/"wrap"/"zero"
+    noise_std: 0.0  # 噪声标准差
+  
+  # Crop模式参数
+  crop:
+    crop_size: [64, 64]  # 裁剪窗口尺寸
+    patch_align: 8  # patch对齐倍数
+    crop_strategy: "mixed"  # 中心采样策略
+    boundary_mode: "mirror"  # 边界处理策略
+
+# 数据加载器配置 - 基于144.85GB数据量优化
+dataloader:
+  batch_size: 4  # 减小批大小以适应大数据集
+  num_workers: 0  # 设置为0避免h5py pickle问题
+  pin_memory: false  # 关闭pin_memory
+  persistent_workers: false  # 关闭持久化worker
+  prefetch_factor: 2  # 预取因子
+
+# 归一化配置
+normalize: true
+
+# 数据目录配置（用于兼容）
+data_dir: "data/pdebench"
+
+# 其他参数
+params:
+  batch_size: 4
+  data_dir: data/PDEBench
+  img_size: 128
+  num_workers: 0
+  pin_memory: true
+  scale_factor: 4
+  task: sr
+  test_split: test
+  train_split: train
+  val_split: val
+  keys:
+  - tensor

@@ -1,0 +1,58 @@
+# 默认评测配置
+# PDEBench稀疏观测重建系统评测
+
+# 数据集配置
+dataset:
+  name: "darcy_flow_real"
+  params:
+    data_dir: "data/pdebench"
+    image_size: [256, 256]
+    normalize: true
+    return_coords: true
+    return_mask: true
+
+# 模型配置
+model:
+  name: "swin_unet"
+  params:
+    in_channels: 4  # baseline + coords + mask
+    out_channels: 1  # 重建场
+    img_size: 256
+    patch_size: 4
+    window_size: 8
+    depths: [2, 2, 6, 2]
+    num_heads: [3, 6, 12, 24]
+    mlp_ratio: 4.0
+    use_fno_bottleneck: false
+
+# 评测配置
+batch_size: 4
+num_workers: 4
+device: "cuda"  # auto, cuda, cpu
+
+# 指标配置
+metrics:
+  image_size: [256, 256]
+  boundary_width: 16
+  freq_bands:
+    low: [0, 16]
+    mid: [16, 64] 
+    high: [64, 128]
+
+# 计算选项
+compute_conservation: true  # 守恒量指标
+compute_spectral: true      # 频谱分析指标
+
+# 可视化配置
+generate_visualizations: true
+max_vis_cases: 10
+
+# 输出配置
+output_format: ["json", "jsonl", "txt", "yaml"]
+save_predictions: false  # 是否保存预测结果（占用大量空间）
+
+# 统计分析配置
+statistical_analysis:
+  confidence_level: 0.95
+  significance_test: true
+  effect_size: true

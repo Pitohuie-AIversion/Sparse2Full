@@ -1,0 +1,294 @@
+{
+  "config": {
+    "output_dir": "./paper_package",
+    "data": {
+      "dataset_name": "PDEBench",
+      "version": "1.0",
+      "source_url": "https://github.com/pdebench/PDEBench",
+      "license": "MIT",
+      "citation": "PDEBench: An Extensive Benchmark for Scientific Machine Learning",
+      "task_type": "sparse_observation_reconstruction",
+      "variables": [
+        "u",
+        "v",
+        "p"
+      ],
+      "spatial_resolution": [
+        256,
+        256
+      ],
+      "temporal_steps": 1,
+      "boundary_conditions": "periodic",
+      "train_split": 0.7,
+      "val_split": 0.15,
+      "test_split": 0.15,
+      "split_method": "random",
+      "split_seed": 42,
+      "normalization": "z_score",
+      "channels": 1,
+      "total_samples": 10000,
+      "data_range": [
+        -3.0,
+        3.0
+      ],
+      "mean": 0.0,
+      "std": 1.0,
+      "observation_operator": {
+        "type": "super_resolution",
+        "scale_factor": 4,
+        "blur_kernel_size": 5,
+        "blur_sigma": 1.0,
+        "interpolation": "bilinear"
+      },
+      "degradation_params": {
+        "gaussian_blur": {
+          "kernel_size": 5,
+          "sigma": 1.0
+        },
+        "downsampling": {
+          "scale_factor": 4,
+          "mode": "bilinear",
+          "align_corners": false
+        }
+      }
+    },
+    "model": {
+      "name": "SwinUNet",
+      "in_channels": 1,
+      "out_channels": 1,
+      "image_size": 256,
+      "patch_size": 4,
+      "embed_dim": 96,
+      "depths": [
+        2,
+        2,
+        6,
+        2
+      ],
+      "num_heads": [
+        3,
+        6,
+        12,
+        24
+      ],
+      "window_size": 8,
+      "mlp_ratio": 4.0,
+      "drop_rate": 0.0,
+      "attn_drop_rate": 0.0,
+      "drop_path_rate": 0.1
+    },
+    "training": {
+      "optimizer": {
+        "name": "AdamW",
+        "lr": 0.001,
+        "weight_decay": 0.0001,
+        "betas": [
+          0.9,
+          0.999
+        ]
+      },
+      "scheduler": {
+        "name": "CosineAnnealingLR",
+        "T_max": 100,
+        "eta_min": 1e-06,
+        "warmup_epochs": 10
+      },
+      "epochs": 100,
+      "batch_size": 8,
+      "gradient_clip_norm": 1.0,
+      "mixed_precision": true,
+      "loss": {
+        "reconstruction_weight": 1.0,
+        "spectral_weight": 0.5,
+        "data_consistency_weight": 1.0,
+        "low_freq_modes": 16
+      }
+    },
+    "evaluation": {
+      "metrics": [
+        "rel_l2",
+        "mae",
+        "mse",
+        "psnr",
+        "ssim",
+        "frmse_low",
+        "frmse_mid",
+        "frmse_high",
+        "brmse",
+        "crmse",
+        "dc_error"
+      ],
+      "boundary_width": 16,
+      "frequency_bands": {
+        "low": [
+          0,
+          0.25
+        ],
+        "mid": [
+          0.25,
+          0.5
+        ],
+        "high": [
+          0.5,
+          1.0
+        ]
+      }
+    },
+    "experiment": {
+      "name": "PDEBench_SR_SwinUNet",
+      "seeds": [
+        42,
+        123,
+        456
+      ],
+      "device": "cuda",
+      "num_workers": 4,
+      "monitor_resources": true,
+      "log_memory_usage": true,
+      "profile_inference": true
+    },
+    "paper_package": {
+      "include_data_cards": true,
+      "include_configs": true,
+      "include_checkpoints": true,
+      "include_metrics": true,
+      "include_figures": true,
+      "include_scripts": true,
+      "visualization": {
+        "num_samples": 10,
+        "figure_formats": [
+          "png",
+          "pdf"
+        ],
+        "dpi": 300
+      },
+      "reproduction": {
+        "include_setup_script": true,
+        "include_training_script": true,
+        "include_evaluation_script": true,
+        "include_visualization_script": true
+      },
+      "anonymize": false,
+      "compress": false,
+      "compression_format": "zip"
+    },
+    "golden_rules": {
+      "consistency_check": {
+        "enabled": true,
+        "tolerance": 1e-08,
+        "max_samples": 100
+      },
+      "reproducibility_check": {
+        "enabled": true,
+        "variance_threshold": 0.0001,
+        "num_runs": 3
+      },
+      "interface_check": {
+        "enabled": true,
+        "expected_input_shape": [
+          null,
+          1,
+          256,
+          256
+        ],
+        "expected_output_shape": [
+          null,
+          1,
+          256,
+          256
+        ]
+      },
+      "resource_reporting": {
+        "enabled": true,
+        "include_params": true,
+        "include_flops": true,
+        "include_memory": true,
+        "include_latency": true
+      }
+    },
+    "logging": {
+      "level": "INFO",
+      "format": "%(asctime)s - %(levelname)s - %(message)s",
+      "save_to_file": true,
+      "log_file": "paper_package_generation.log"
+    },
+    "environment": {
+      "python_version": ">=3.10",
+      "pytorch_version": ">=2.1.0",
+      "cuda_version": ">=11.8",
+      "required_packages": [
+        "torch>=2.1.0",
+        "torchvision",
+        "numpy",
+        "scipy",
+        "matplotlib",
+        "seaborn",
+        "pandas",
+        "scikit-learn",
+        "hydra-core",
+        "omegaconf",
+        "tensorboard",
+        "tqdm",
+        "h5py",
+        "netcdf4",
+        "xarray"
+      ]
+    },
+    "quality_assurance": {
+      "code_quality": {
+        "run_linting": true,
+        "run_type_checking": true,
+        "run_tests": true
+      },
+      "documentation": {
+        "check_completeness": true,
+        "generate_api_docs": true
+      },
+      "experiment_quality": {
+        "verify_reproducibility": true,
+        "check_statistical_significance": true,
+        "validate_metrics": true
+      }
+    }
+  },
+  "timestamp": "2025-10-12T02:18:45.817058",
+  "git_info": {
+    "commit_hash": "e1b80c2c2cf47abf002c6c44320639041b4e6bfd",
+    "branch": "main",
+    "has_uncommitted_changes": true,
+    "status": "M \".trae/documents/PDEBench\\347\\250\\200\\347\\226\\217\\350\\247\\202\\346\\265\\213\\351\\207\\215\\345\\273\\272\\347\\263\\273\\347\\273\\237-\\346\\212\\200\\346\\234\\257\\346\\236\\266\\346\\236\\204\\346\\226\\207\\346\\241\\243.md\"\nAM paper_package/README.md\n?? .coverage\n?? Makefile\n?? README.md\n?? __init__.py\n?? __pycache__/\n?? benchmark_models.log\n?? benchmark_report.md\n?? benchmark_results.csv\n?? benchmark_results.json\n?? benchmark_results/\n?? configs/\n?? consistency_check_results/\n?? create_dummy_data.py\n?? create_mock_data.py\n?? create_sample_data.py\n?? create_test_data.py\n?? data/\n?? datasets/\n?? debug_data.py\n?? debug_loss.py\n?? debug_test.py\n?? debug_train.py\n?? docs/\n?? error.log\n?? error2.log\n?? error3.log\n?? eval.py\n?? external/\n?? models/\n?? ops/\n?? outputs/\n?? paper_package/checkpoints/\n?? paper_package/configs/\n?? paper_package/consistency_check/\n?? paper_package/data_cards/\n?? paper_package/logs/\n?? paper_package/metrics/\n?? paper_package/package_meta.json\n?? paper_package/scripts/\n?? paper_package_generation.log\n?? paper_package_test/\n?? pyproject.toml\n?? pytest.ini\n?? requirements.txt\n?? requirements_test.txt\n?? runs/\n?? scripts/\n?? test_e2e.py\n?? test_imports.py\n?? test_model_interface.py\n?? test_outputs/\n?? test_report.json\n?? test_report.md\n?? test_simple.py\n?? test_simple_model.py\n?? test_system.py\n?? test_train_minimal.py\n?? test_training_simple.py\n?? tests/\n?? tools/\n?? train.py\n?? train_complete.py\n?? utils/"
+  },
+  "environment": {
+    "platform": {
+      "system": "Windows",
+      "release": "11",
+      "version": "10.0.26100",
+      "machine": "AMD64",
+      "processor": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel"
+    },
+    "python": {
+      "version": "3.12.7",
+      "implementation": "CPython",
+      "executable": "F:\\ProgramData\\anaconda3\\python.exe"
+    },
+    "pytorch": {
+      "version": "2.6.0+cu126",
+      "cuda_available": true,
+      "cuda_version": "12.6",
+      "cudnn_version": 90501,
+      "device_count": 1,
+      "gpu_info": [
+        {
+          "name": "NVIDIA GeForce RTX 4090",
+          "memory_total": 24146083840,
+          "memory_free": 24146083840,
+          "compute_capability": "8.9"
+        }
+      ]
+    },
+    "git": {
+      "commit_hash": "e1b80c2c2cf47abf002c6c44320639041b4e6bfd",
+      "branch": "main"
+    }
+  }
+}

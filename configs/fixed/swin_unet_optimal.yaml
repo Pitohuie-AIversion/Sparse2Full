@@ -1,0 +1,104 @@
+# @package _global_
+
+# 最佳配置 - 基于历史最佳表现（Rel-L2: 0.029051）
+experiment:
+  name: "SRx4-PDEBench-128-SwinUNet-Optimal-s2025-20251014"
+  device: "cuda"
+  seed: 2025
+  output_dir: "runs"
+
+# 数据配置
+data:
+  _target_: datasets.pdebench.PDEBenchDataModule
+  data_path: "data/pdebench/data/sample_data_0.h5"
+  data_dir: "data/pdebench/data"
+  keys: ["u"]
+  normalize: true
+  image_size: 128
+  dataloader:
+    batch_size: 4
+    num_workers: 0
+    pin_memory: false
+
+# 观测模式
+observation:
+  mode: "SR"
+  scale_factor: 4
+
+# 日志配置
+logging:
+  log_level: "INFO"
+  log_dir: "logs"
+
+# 最佳损失配置 - 基于历史最佳表现
+loss:
+  rec_weight: 1.0
+  spec_weight: 0.0      # 完全关闭频谱损失（历史最佳配置）
+  dc_weight: 0.0        # 完全关闭DC损失
+  gradient_weight: 0.002  # 轻微梯度损失（历史最佳配置中有）
+  
+  # 重建损失配置
+  reconstruction:
+    type: "mse"
+    weight: 1.0
+    
+  # 梯度损失配置
+  gradient:
+    type: "l1"
+    weight: 0.002
+
+# 模型配置
+model:
+  name: "SwinUNet"
+  _target_: models.swin_unet.SwinUNet
+  params:
+    attention_dropout: 0.0
+    img_size: 128
+    patch_size: 4
+    in_chans: 1
+    in_channels: 1
+    out_chans: 1
+    embed_dim: 96
+    depths: [2, 2, 6, 2]
+    num_heads: [3, 6, 12, 24]
+    window_size: 8
+    mlp_ratio: 4.0
+    qkv_bias: true
+    qk_scale: null
+    drop_rate: 0.0
+    attn_drop_rate: 0.0
+    drop_path_rate: 0.1
+
+    ape: false
+    patch_norm: true
+    use_checkpoint: false
+
+# 训练配置
+training:
+  early_stopping:
+    patience: 20
+    min_delta: 1e-6
+  epochs: 200
+  gradient_clip_val: 1.0
+  mixed_precision: true
+  reproducibility:
+    deterministic: false
+    benchmark: true
+  log_interval: 10
+  
+  optimizer:
+    _target_: torch.optim.AdamW
+    lr: 0.001
+    weight_decay: 0.0001
+  
+  scheduler:
+    _target_: torch.optim.lr_scheduler.CosineAnnealingLR
+    T_max: 200
+    eta_min: 0.00001
+
+# 验证指标
+val_metrics:
+  - "rel_l2"
+  - "mae"
+  - "psnr"
+  - "ssim"

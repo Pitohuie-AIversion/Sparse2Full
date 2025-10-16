@@ -1,0 +1,103 @@
+# PDEBench 训练配置文件
+# 基于数据分析报告的优化配置
+
+# 数据集特定配置
+datasets:
+  darcy_flow:
+    name: "DarcyFlow"
+    path: "E:/2D/DarcyFlow"
+    files: ["2D_DarcyFlow_beta100.0_Train.hdf5"]
+    size_gb: 6.10
+    batch_size: 16
+    num_workers: 4
+    learning_rate: 1e-3
+    epochs: 500
+    loss_functions: ["l2", "gradient"]
+    
+  diffusion_reaction:
+    name: "Diffusion-Reaction"
+    path: "E:/2D/diffusion-reaction"
+    size_gb: 12.33
+    batch_size: 8
+    num_workers: 4
+    learning_rate: 5e-4
+    epochs: 800
+    loss_functions: ["l2", "spectral"]
+    
+  ns_incompressible:
+    name: "NS_incom"
+    path: "E:/2D/NS_incom"
+    size_gb: 120.24
+    batch_size: 4
+    num_workers: 2
+    learning_rate: 1e-4
+    epochs: 1000
+    loss_functions: ["l2", "divergence", "spectral"]
+    
+  shallow_water:
+    name: "Shallow-Water"
+    path: "E:/2D/shallow-water"
+    size_gb: 6.17
+    batch_size: 16
+    num_workers: 4
+    learning_rate: 2e-3
+    epochs: 600
+    loss_functions: ["l2", "conservation"]
+
+# 通用配置
+common:
+  data_root: "E:/2D"
+  image_size: 128
+  coordinate_range: [0.003906, 0.996094]
+  data_type: "float32"
+  
+# 内存管理
+memory:
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 2
+  max_memory_gb: 32  # 建议最小内存
+  
+# 硬件要求
+hardware:
+  min_ram_gb: 32
+  min_vram_gb: 16
+  recommended_ram_gb: 64
+  recommended_vram_gb: 24
+  storage_gb: 200
+
+# 模型推荐
+model_recommendations:
+  darcy_flow: ["UNet", "FNO"]
+  diffusion_reaction: ["FNO", "Hybrid"]
+  ns_incompressible: ["SwinUNet", "Hybrid"]
+  shallow_water: ["FNO", "MLPMixer"]
+
+# 训练策略
+training:
+  scheduler: "cosine"
+  warmup_steps: 1000
+  gradient_clip: 1.0
+  amp: true  # 自动混合精度
+  checkpoint_every: 100
+  
+# 数据预处理
+preprocessing:
+  normalization: "z_score"
+  per_channel: true
+  save_stats: true
+  
+# 数据增强
+augmentation:
+  spatial:
+    rotation_range: [-10, 10]
+    flip: ["horizontal", "vertical"]
+  temporal:
+    time_shift_range: [-2, 2]
+    
+# 数据切分
+data_split:
+  train: 0.7
+  val: 0.2
+  test: 0.1
+  strategy: "stratified"

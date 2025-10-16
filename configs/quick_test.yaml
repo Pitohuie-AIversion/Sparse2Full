@@ -1,0 +1,123 @@
+# 快速测试配置文件
+# 用于验证编码问题和基本功能
+
+defaults:
+  - _self_
+
+# 实验配置
+experiment:
+  name: "quick_test"
+  device: "cuda:0"
+  seed: 2025
+  output_dir: "runs"
+
+# 数据配置
+data:
+  data_path: "E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5"
+  dataset_name: "PDEBench"
+  keys: ["tensor"]
+  splits_dir: "splits"
+  image_size: 128
+  
+  # 观测配置
+  observation:
+    mode: "SR"
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: "mirror"
+  
+  # 预处理配置
+  preprocessing:
+    normalize: false  # 关闭归一化以简化测试
+    cache_data: false
+  
+  # 数据加载器配置
+  dataloader:
+    batch_size: 1
+    num_workers: 0
+    pin_memory: false
+    persistent_workers: false
+
+# 模型配置
+model:
+  name: "UNet"
+  params:
+    in_channels: 4  # baseline(1) + coords(2) + mask(1) = 4
+    out_channels: 1
+
+# 训练配置
+training:
+  epochs: 1
+  batch_size: 1
+  seed: 2025
+  output_dir: "runs"
+  
+  # 优化器配置
+  optimizer:
+    name: "AdamW"
+    params:
+      lr: 1.0e-3
+      weight_decay: 1.0e-4
+      betas: [0.9, 0.999]
+  
+  # 学习率调度器
+  scheduler:
+    name: "cosine_warmup"
+    params:
+      T_max: 1
+      warmup_steps: 0
+      eta_min: 1.0e-6
+  
+  # 梯度裁剪
+  grad_clip_norm: 1.0
+  
+  # 日志和保存
+  log_interval: 1
+  save_interval: 1
+  plot_interval: 1
+  
+  # 混合精度训练
+  use_amp: false  # 关闭AMP以简化测试
+
+# 损失函数配置
+loss:
+  rec_weight: 1.0
+  spec_weight: 0.0  # 关闭频域损失以简化测试
+  dc_weight: 0.0    # 关闭DC损失以简化测试
+  
+  rec_loss_type: "l2"
+  spec_loss_type: "l2"
+  dc_loss_type: "l2"
+  
+  low_freq_modes: 16
+  mirror_padding: true
+  
+  use_gradient_loss: false
+  use_pde_residual_loss: false
+
+# 验证配置
+validation:
+  batch_size: 1
+  metrics:
+    - "rel_l2"
+    - "mae"
+
+# 设备配置
+device:
+  use_cuda: true
+  cuda_device: 0
+  num_workers: 0
+  pin_memory: false
+
+# 日志配置
+logging:
+  level: "INFO"
+  use_tensorboard: false
+  use_wandb: false
+  
+# 可复现性配置
+reproducibility:
+  deterministic: true
+  benchmark: false

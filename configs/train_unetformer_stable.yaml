@@ -1,0 +1,58 @@
+# UNetFormer稳定训练配置
+defaults:
+  - train
+  - model: unetformer
+  - _self_
+
+# 覆盖训练参数以提高稳定性
+training:
+  epochs: 100
+  batch_size: 1  # 使用最小批次大小以节省内存
+  learning_rate: 1e-4  # 降低学习率
+  weight_decay: 1e-3  # 增加权重衰减
+  
+  # 优化器设置
+  optimizer:
+    name: "AdamW"
+    params:
+      lr: 1e-5  # 进一步降低学习率
+      weight_decay: 1e-2   # 增加权重衰减
+      betas: [0.9, 0.999]
+      eps: 1e-8
+  
+  # 学习率调度器
+  scheduler:
+    name: "CosineAnnealingLR"
+    params:
+      T_max: 100
+      eta_min: 1e-6
+  
+  # 梯度裁剪
+  grad_clip_norm: 0.1  # 更严格的梯度裁剪
+  
+  # 混合精度训练
+  use_amp: false  # 暂时关闭AMP以提高稳定性
+  
+  # 检查点保存
+  save_every: 10
+
+# 数据加载器配置
+dataloader:
+  batch_size: 1  # 使用最小批次大小
+  num_workers: 1  # 减少工作进程数
+  pin_memory: false  # 关闭pin_memory以节省内存
+  
+# 损失函数权重调整
+loss:
+  reconstruction:
+    weight: 1.0
+  spectral:
+    weight: 0.1  # 降低频域损失权重
+  degradation_consistency:
+    weight: 0.1  # 降低DC损失权重
+
+# 实验配置
+experiment:
+  name: "UNetFormer-Stable"
+  output_dir: "runs/unetformer_stable"
+  seed: 42

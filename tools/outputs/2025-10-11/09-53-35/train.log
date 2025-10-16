@@ -1,0 +1,118 @@
+[2025-10-11 09:53:35,546][__main__][INFO] - Starting experiment: SR-PDEBench-256-SwinUNet-s2025
+[2025-10-11 09:53:35,548][__main__][INFO] - Config: data:
+  data_path: data/pdebench
+  dataset_name: PDEBench
+  keys:
+  - u
+  - v
+  - p
+  splits_dir: splits
+  image_size: 256
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+    crop:
+      crop_size:
+      - 64
+      - 64
+      crop_strategy: uniform
+      boundary_mode: mirror
+  preprocessing:
+    normalize: true
+    cache_data: false
+  dataloader:
+    batch_size: 8
+    num_workers: 4
+    pin_memory: true
+    persistent_workers: true
+model:
+  name: SwinUNet
+  params:
+    in_channels: 3
+    out_channels: 3
+    img_size: 256
+    kwargs:
+      patch_size: 4
+      window_size: 8
+      depths:
+      - 2
+      - 2
+      - 6
+      - 2
+      num_heads:
+      - 3
+      - 6
+      - 12
+      - 24
+      embed_dim: 96
+      mlp_ratio: 4.0
+      drop_rate: 0.0
+      attn_drop_rate: 0.0
+      drop_path_rate: 0.1
+training:
+  epochs: 200
+  batch_size: 8
+  seed: 2025
+  output_dir: runs
+  optimizer:
+    name: AdamW
+    params:
+      lr: 0.001
+      weight_decay: 0.0001
+      betas:
+      - 0.9
+      - 0.999
+  scheduler:
+    name: cosine_warmup
+    params:
+      T_max: 200
+      warmup_steps: 1000
+      eta_min: 1.0e-06
+  grad_clip_norm: 1.0
+  log_interval: 50
+  save_interval: 20
+  plot_interval: 50
+  use_amp: true
+loss:
+  rec_weight: 1.0
+  spec_weight: 0.5
+  dc_weight: 1.0
+  rec_loss_type: l2
+  spec_loss_type: l2
+  dc_loss_type: l2
+  low_freq_modes: 16
+  mirror_padding: true
+  use_gradient_loss: false
+  gradient_weight: 0.1
+  use_pde_residual_loss: false
+  pde_residual_weight: 0.1
+  pde_low_freq_weight: 2.0
+validation:
+  batch_size: 16
+  metrics:
+  - rel_l2
+  - mae
+  - psnr
+  - ssim
+  - frmse_low
+  - frmse_mid
+  - frmse_high
+device:
+  use_cuda: true
+  cuda_device: 0
+  num_workers: 4
+  pin_memory: true
+logging:
+  level: INFO
+  use_tensorboard: true
+  use_wandb: false
+  wandb_project: pdebench-sparse2full
+reproducibility:
+  deterministic: true
+  benchmark: false
+
+[2025-10-11 09:53:35,561][__main__][INFO] - Using device: cuda

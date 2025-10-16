@@ -1,0 +1,2882 @@
+2025-10-13 21:52:55,924 - INFO - 成功加载基础配置: configs\train.yaml
+2025-10-13 21:52:55,925 - INFO - 开始批量训练 12 个模型: ['unet', 'unet_plus_plus', 'fno2d', 'ufno_unet', 'segformer', 'unetformer', 'segformer_unetformer', 'mlp', 'mlp_mixer', 'liif', 'swin_unet', 'hybrid']
+2025-10-13 21:52:55,925 - INFO - 进度: 1/12 - 训练模型: unet
+2025-10-13 21:52:55,925 - INFO - 开始训练模型: unet
+2025-10-13 21:52:55,929 - INFO - 保存训练配置: runs\batch_training_results\config_unet.yaml
+2025-10-13 21:52:55,929 - INFO - 执行训练命令: F:\ProgramData\anaconda3\python.exe F:\Zhaoyang\Sparse2Full\train.py --config runs\batch_training_results\config_unet.yaml --output_dir runs\batch_training_results\unet
+2025-10-13 21:53:00,256 - ERROR - 模型 unet 训练失败:
+2025-10-13 21:53:00,256 - ERROR - stdout: 
+2025-10-13 21:53:00,256 - ERROR - stderr: usage: train.py [--help] [--hydra-help] [--version] [--cfg {job,hydra,all}]
+                [--resolve] [--package PACKAGE] [--run] [--multirun]
+                [--shell-completion] [--config-path CONFIG_PATH]
+                [--config-name CONFIG_NAME] [--config-dir CONFIG_DIR]
+                [--experimental-rerun EXPERIMENTAL_RERUN]
+                [--info [{all,config,defaults,defaults-tree,plugins,searchpath}]]
+                [overrides ...]
+train.py: error: ambiguous option: runs\batch_training_results\unet could match --config-path, --config-name, --config-dir
+
+2025-10-13 21:53:00,257 - INFO - 进度: 2/12 - 训练模型: unet_plus_plus
+2025-10-13 21:53:00,257 - INFO - 开始训练模型: unet_plus_plus
+2025-10-13 21:53:00,260 - INFO - 保存训练配置: runs\batch_training_results\config_unet_plus_plus.yaml
+2025-10-13 21:53:00,260 - INFO - 执行训练命令: F:\ProgramData\anaconda3\python.exe F:\Zhaoyang\Sparse2Full\train.py --config runs\batch_training_results\config_unet_plus_plus.yaml --output_dir runs\batch_training_results\unet_plus_plus
+2025-10-13 21:53:04,600 - ERROR - 模型 unet_plus_plus 训练失败:
+2025-10-13 21:53:04,600 - ERROR - stdout: 
+2025-10-13 21:53:04,600 - ERROR - stderr: usage: train.py [--help] [--hydra-help] [--version] [--cfg {job,hydra,all}]
+                [--resolve] [--package PACKAGE] [--run] [--multirun]
+                [--shell-completion] [--config-path CONFIG_PATH]
+                [--config-name CONFIG_NAME] [--config-dir CONFIG_DIR]
+                [--experimental-rerun EXPERIMENTAL_RERUN]
+                [--info [{all,config,defaults,defaults-tree,plugins,searchpath}]]
+                [overrides ...]
+train.py: error: ambiguous option: runs\batch_training_results\unet_plus_plus could match --config-path, --config-name, --config-dir
+
+2025-10-13 21:53:04,600 - INFO - 进度: 3/12 - 训练模型: fno2d
+2025-10-13 21:53:04,600 - INFO - 开始训练模型: fno2d
+2025-10-13 21:53:04,605 - INFO - 保存训练配置: runs\batch_training_results\config_fno2d.yaml
+2025-10-13 21:53:04,605 - INFO - 执行训练命令: F:\ProgramData\anaconda3\python.exe F:\Zhaoyang\Sparse2Full\train.py --config runs\batch_training_results\config_fno2d.yaml --output_dir runs\batch_training_results\fno2d
+2025-10-13 21:53:08,875 - ERROR - 模型 fno2d 训练失败:
+2025-10-13 21:53:08,876 - ERROR - stdout: 
+2025-10-13 21:53:08,876 - ERROR - stderr: usage: train.py [--help] [--hydra-help] [--version] [--cfg {job,hydra,all}]
+                [--resolve] [--package PACKAGE] [--run] [--multirun]
+                [--shell-completion] [--config-path CONFIG_PATH]
+                [--config-name CONFIG_NAME] [--config-dir CONFIG_DIR]
+                [--experimental-rerun EXPERIMENTAL_RERUN]
+                [--info [{all,config,defaults,defaults-tree,plugins,searchpath}]]
+                [overrides ...]
+train.py: error: ambiguous option: runs\batch_training_results\fno2d could match --config-path, --config-name, --config-dir
+
+2025-10-13 21:53:08,876 - INFO - 进度: 4/12 - 训练模型: ufno_unet
+2025-10-13 21:53:08,876 - INFO - 开始训练模型: ufno_unet
+2025-10-13 21:53:08,881 - INFO - 保存训练配置: runs\batch_training_results\config_ufno_unet.yaml
+2025-10-13 21:53:08,882 - INFO - 执行训练命令: F:\ProgramData\anaconda3\python.exe F:\Zhaoyang\Sparse2Full\train.py --config runs\batch_training_results\config_ufno_unet.yaml --output_dir runs\batch_training_results\ufno_unet
+2025-10-13 21:53:13,185 - ERROR - 模型 ufno_unet 训练失败:
+2025-10-13 21:53:13,185 - ERROR - stdout: 
+2025-10-13 21:53:13,185 - ERROR - stderr: usage: train.py [--help] [--hydra-help] [--version] [--cfg {job,hydra,all}]
+                [--resolve] [--package PACKAGE] [--run] [--multirun]
+                [--shell-completion] [--config-path CONFIG_PATH]
+                [--config-name CONFIG_NAME] [--config-dir CONFIG_DIR]
+                [--experimental-rerun EXPERIMENTAL_RERUN]
+                [--info [{all,config,defaults,defaults-tree,plugins,searchpath}]]
+                [overrides ...]
+train.py: error: ambiguous option: runs\batch_training_results\ufno_unet could match --config-path, --config-name, --config-dir
+
+2025-10-13 21:53:13,185 - INFO - 进度: 5/12 - 训练模型: segformer
+2025-10-13 21:53:13,185 - INFO - 开始训练模型: segformer
+2025-10-13 21:53:13,190 - INFO - 保存训练配置: runs\batch_training_results\config_segformer.yaml
+2025-10-13 21:53:13,190 - INFO - 执行训练命令: F:\ProgramData\anaconda3\python.exe F:\Zhaoyang\Sparse2Full\train.py --config runs\batch_training_results\config_segformer.yaml --output_dir runs\batch_training_results\segformer
+2025-10-13 21:53:17,563 - ERROR - 模型 segformer 训练失败:
+2025-10-13 21:53:17,563 - ERROR - stdout: 
+2025-10-13 21:53:17,563 - ERROR - stderr: usage: train.py [--help] [--hydra-help] [--version] [--cfg {job,hydra,all}]
+                [--resolve] [--package PACKAGE] [--run] [--multirun]
+                [--shell-completion] [--config-path CONFIG_PATH]
+                [--config-name CONFIG_NAME] [--config-dir CONFIG_DIR]
+                [--experimental-rerun EXPERIMENTAL_RERUN]
+                [--info [{all,config,defaults,defaults-tree,plugins,searchpath}]]
+                [overrides ...]
+train.py: error: ambiguous option: runs\batch_training_results\segformer could match --config-path, --config-name, --config-dir
+
+2025-10-13 21:53:17,563 - INFO - 进度: 6/12 - 训练模型: unetformer
+2025-10-13 21:53:17,563 - INFO - 开始训练模型: unetformer
+2025-10-13 21:53:17,567 - INFO - 保存训练配置: runs\batch_training_results\config_unetformer.yaml
+2025-10-13 21:53:17,568 - INFO - 执行训练命令: F:\ProgramData\anaconda3\python.exe F:\Zhaoyang\Sparse2Full\train.py --config runs\batch_training_results\config_unetformer.yaml --output_dir runs\batch_training_results\unetformer
+2025-10-13 21:53:41,187 - INFO - 成功加载基础配置: configs\train.yaml
+2025-10-13 21:53:41,187 - INFO - 开始批量训练 12 个模型: ['unet', 'unet_plus_plus', 'fno2d', 'ufno_unet', 'segformer', 'unetformer', 'segformer_unetformer', 'mlp', 'mlp_mixer', 'liif', 'swin_unet', 'hybrid']
+2025-10-13 21:53:41,188 - INFO - 进度: 1/12 - 训练模型: unet
+2025-10-13 21:53:41,188 - INFO - 开始训练模型: unet
+2025-10-13 21:53:41,191 - INFO - 保存训练配置: runs\batch_training_results\config_unet.yaml
+2025-10-13 21:53:41,192 - INFO - 执行训练命令: F:\ProgramData\anaconda3\python.exe F:\Zhaoyang\Sparse2Full\train.py hydra.run.dir=runs\batch_training_results\unet experiment.output_dir=runs\batch_training_results\unet model=unet
+2025-10-13 21:53:45,705 - ERROR - 模型 unet 训练失败:
+2025-10-13 21:53:45,705 - ERROR - stdout: 
+2025-10-13 21:53:45,706 - ERROR - stderr: Could not override 'model'. No match in the defaults list.
+To append to your default list use +model=unet
+
+
+Set the environment variable HYDRA_FULL_ERROR=1 for a complete stack trace.
+
+2025-10-13 21:53:45,706 - INFO - 进度: 2/12 - 训练模型: unet_plus_plus
+2025-10-13 21:53:45,706 - INFO - 开始训练模型: unet_plus_plus
+2025-10-13 21:53:45,709 - INFO - 保存训练配置: runs\batch_training_results\config_unet_plus_plus.yaml
+2025-10-13 21:53:45,709 - INFO - 执行训练命令: F:\ProgramData\anaconda3\python.exe F:\Zhaoyang\Sparse2Full\train.py hydra.run.dir=runs\batch_training_results\unet_plus_plus experiment.output_dir=runs\batch_training_results\unet_plus_plus model=unet_plus_plus
+2025-10-13 21:53:50,183 - ERROR - 模型 unet_plus_plus 训练失败:
+2025-10-13 21:53:50,183 - ERROR - stdout: 
+2025-10-13 21:53:50,183 - ERROR - stderr: Could not override 'model'. No match in the defaults list.
+To append to your default list use +model=unet_plus_plus
+
+
+Set the environment variable HYDRA_FULL_ERROR=1 for a complete stack trace.
+
+2025-10-13 21:53:50,183 - INFO - 进度: 3/12 - 训练模型: fno2d
+2025-10-13 21:53:50,184 - INFO - 开始训练模型: fno2d
+2025-10-13 21:53:50,187 - INFO - 保存训练配置: runs\batch_training_results\config_fno2d.yaml
+2025-10-13 21:53:50,187 - INFO - 执行训练命令: F:\ProgramData\anaconda3\python.exe F:\Zhaoyang\Sparse2Full\train.py hydra.run.dir=runs\batch_training_results\fno2d experiment.output_dir=runs\batch_training_results\fno2d model=fno2d
+2025-10-13 21:54:36,779 - INFO - 成功加载基础配置: configs\train.yaml
+2025-10-13 21:54:36,779 - INFO - 开始批量训练 12 个模型: ['unet', 'unet_plus_plus', 'fno2d', 'ufno_unet', 'segformer', 'unetformer', 'segformer_unetformer', 'mlp', 'mlp_mixer', 'liif', 'swin_unet', 'hybrid']
+2025-10-13 21:54:36,780 - INFO - 进度: 1/12 - 训练模型: unet
+2025-10-13 21:54:36,780 - INFO - 开始训练模型: unet
+2025-10-13 21:54:36,784 - INFO - 保存训练配置: runs\batch_training_results\config_unet.yaml
+2025-10-13 21:54:36,784 - INFO - 执行训练命令: F:\ProgramData\anaconda3\python.exe F:\Zhaoyang\Sparse2Full\train.py hydra.run.dir=runs\batch_training_results\unet experiment.output_dir=runs\batch_training_results\unet +model=unet
+2025-10-13 21:55:41,338 - INFO - 模型 unet 训练成功，耗时: 64.56秒
+2025-10-13 21:55:41,340 - INFO - 进度: 2/12 - 训练模型: unet_plus_plus
+2025-10-13 21:55:41,340 - INFO - 开始训练模型: unet_plus_plus
+2025-10-13 21:55:41,343 - INFO - 保存训练配置: runs\batch_training_results\config_unet_plus_plus.yaml
+2025-10-13 21:55:41,344 - INFO - 执行训练命令: F:\ProgramData\anaconda3\python.exe F:\Zhaoyang\Sparse2Full\train.py hydra.run.dir=runs\batch_training_results\unet_plus_plus experiment.output_dir=runs\batch_training_results\unet_plus_plus +model=unet_plus_plus
+2025-10-13 21:56:22,380 - INFO - 模型 unet_plus_plus 训练成功，耗时: 41.04秒
+2025-10-13 21:56:22,380 - WARNING - 解析指标失败: 'utf-8' codec can't decode byte 0xca in position 1326: invalid continuation byte
+2025-10-13 21:56:22,381 - INFO - 进度: 3/12 - 训练模型: fno2d
+2025-10-13 21:56:22,381 - INFO - 开始训练模型: fno2d
+2025-10-13 21:56:22,384 - INFO - 保存训练配置: runs\batch_training_results\config_fno2d.yaml
+2025-10-13 21:56:22,385 - INFO - 执行训练命令: F:\ProgramData\anaconda3\python.exe F:\Zhaoyang\Sparse2Full\train.py hydra.run.dir=runs\batch_training_results\fno2d experiment.output_dir=runs\batch_training_results\fno2d +model=fno2d
+2025-10-13 21:56:27,930 - ERROR - 模型 fno2d 训练失败:
+2025-10-13 21:56:27,930 - ERROR - stdout: 2025-10-13 21:56:26 - train - INFO - Training started with config:
+experiment:
+  name: pdebench_sr_x4
+  device: cuda:0
+  seed: 2025
+  output_dir: runs\batch_training_results\fno2d
+data:
+  data_path: E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5
+  dataset_name: PDEBench
+  keys:
+  - tensor
+  splits_dir: splits
+  image_size: 128
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+    crop:
+      crop_size:
+      - 64
+      - 64
+      crop_strategy: uniform
+      boundary_mode: mirror
+  preprocessing:
+    normalize: true
+    cache_data: false
+  dataloader:
+    batch_size: 4
+    num_workers: 4
+    pin_memory: true
+    persistent_workers: true
+model:
+  name: FNO2d
+  params:
+    in_channels: 1
+    out_channels: 1
+    img_size: 128
+    kwargs:
+      patch_size: 4
+      window_size: 8
+      depths:
+      - 2
+      - 2
+      - 6
+      - 2
+      num_heads:
+      - 3
+      - 6
+      - 12
+      - 24
+      embed_dim: 96
+      mlp_ratio: 4
+      drop_rate: 0.0
+      attn_drop_rate: 0.0
+      drop_path_rate: 0.1
+      modes1: 16
+      modes2: 16
+      width: 64
+      n_layers: 4
+      activation: gelu
+      norm: instance
+      dropout: 0.0
+      init_scale: 1.0
+      padding: 8
+      use_mlp: true
+training:
+  epochs: 200
+  batch_size: 4
+  seed: 2025
+  output_dir: runs
+  optimizer:
+    name: AdamW
+    params:
+      lr: 0.001
+      weight_decay: 0.0001
+      betas:
+      - 0.9
+      - 0.999
+  scheduler:
+    name: cosine_warmup
+    params:
+      T_max: 200
+      warmup_steps: 1000
+      eta_min: 1.0e-06
+  grad_clip_norm: 1.0
+  log_interval: 50
+  save_interval: 20
+  plot_interval: 50
+  use_amp: true
+loss:
+  rec_weight: 1.0
+  spec_weight: 0.5
+  dc_weight: 1.0
+  rec_loss_type: l2
+  spec_loss_type: l2
+  dc_loss_type: l2
+  low_freq_modes: 16
+  mirror_padding: true
+  use_gradient_loss: false
+  gradient_weight: 0.1
+  use_pde_residual_loss: false
+  pde_residual_weight: 0.1
+  pde_low_freq_weight: 2.0
+validation:
+  batch_size: 8
+  metrics:
+  - rel_l2
+  - mae
+  - psnr
+  - ssim
+  - frmse_low
+  - frmse_mid
+  - frmse_high
+device:
+  use_cuda: true
+  cuda_device: 0
+  num_workers: 4
+  pin_memory: true
+logging:
+  level: INFO
+  use_tensorboard: true
+  use_wandb: false
+  wandb_project: pdebench-sparse2full
+reproducibility:
+  deterministic: true
+  benchmark: false
+
+[2025-10-13 21:56:26,478][train][INFO] - Training started with config:
+experiment:
+  name: pdebench_sr_x4
+  device: cuda:0
+  seed: 2025
+  output_dir: runs\batch_training_results\fno2d
+data:
+  data_path: E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5
+  dataset_name: PDEBench
+  keys:
+  - tensor
+  splits_dir: splits
+  image_size: 128
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+    crop:
+      crop_size:
+      - 64
+      - 64
+      crop_strategy: uniform
+      boundary_mode: mirror
+  preprocessing:
+    normalize: true
+    cache_data: false
+  dataloader:
+    batch_size: 4
+    num_workers: 4
+    pin_memory: true
+    persistent_workers: true
+model:
+  name: FNO2d
+  params:
+    in_channels: 1
+    out_channels: 1
+    img_size: 128
+    kwargs:
+      patch_size: 4
+      window_size: 8
+      depths:
+      - 2
+      - 2
+      - 6
+      - 2
+      num_heads:
+      - 3
+      - 6
+      - 12
+      - 24
+      embed_dim: 96
+      mlp_ratio: 4
+      drop_rate: 0.0
+      attn_drop_rate: 0.0
+      drop_path_rate: 0.1
+      modes1: 16
+      modes2: 16
+      width: 64
+      n_layers: 4
+      activation: gelu
+      norm: instance
+      dropout: 0.0
+      init_scale: 1.0
+      padding: 8
+      use_mlp: true
+training:
+  epochs: 200
+  batch_size: 4
+  seed: 2025
+  output_dir: runs
+  optimizer:
+    name: AdamW
+    params:
+      lr: 0.001
+      weight_decay: 0.0001
+      betas:
+      - 0.9
+      - 0.999
+  scheduler:
+    name: cosine_warmup
+    params:
+      T_max: 200
+      warmup_steps: 1000
+      eta_min: 1.0e-06
+  grad_clip_norm: 1.0
+  log_interval: 50
+  save_interval: 20
+  plot_interval: 50
+  use_amp: true
+loss:
+  rec_weight: 1.0
+  spec_weight: 0.5
+  dc_weight: 1.0
+  rec_loss_type: l2
+  spec_loss_type: l2
+  dc_loss_type: l2
+  low_freq_modes: 16
+  mirror_padding: true
+  use_gradient_loss: false
+  gradient_weight: 0.1
+  use_pde_residual_loss: false
+  pde_residual_weight: 0.1
+  pde_low_freq_weight: 2.0
+validation:
+  batch_size: 8
+  metrics:
+  - rel_l2
+  - mae
+  - psnr
+  - ssim
+  - frmse_low
+  - frmse_mid
+  - frmse_high
+device:
+  use_cuda: true
+  cuda_device: 0
+  num_workers: 4
+  pin_memory: true
+logging:
+  level: INFO
+  use_tensorboard: true
+  use_wandb: false
+  wandb_project: pdebench-sparse2full
+reproducibility:
+  deterministic: true
+  benchmark: false
+
+2025-10-13 21:56:26 - train - INFO - Config saved to runs\batch_training_results\fno2d\config_merged.yaml
+[2025-10-13 21:56:26,481][train][INFO] - Config saved to runs\batch_training_results\fno2d\config_merged.yaml
+2025-10-13 21:56:26 - train - INFO - Initializing data module...
+[2025-10-13 21:56:26,481][train][INFO] - Initializing data module...
+DEBUG: Available keys in HDF5 file: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Looking for keys: ['tensor']
+DEBUG: Keys type: <class 'omegaconf.listconfig.ListConfig'>
+DEBUG: Keys is list: False
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: Checking if key 'tensor' exists in file...
+DEBUG: Key exists: True
+DEBUG: Using key 'tensor' with shape: (10000, 1, 128, 128)
+DEBUG: use_official_format = False
+DEBUG: keys = ['tensor'], type = <class 'list'>
+DEBUG: keys is list: True
+DEBUG: HDF5 file keys: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: tensor shape = (10000, 1, 128, 128)
+DEBUG: Available keys in HDF5 file: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Looking for keys: ['tensor']
+DEBUG: Keys type: <class 'omegaconf.listconfig.ListConfig'>
+DEBUG: Keys is list: False
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: Checking if key 'tensor' exists in file...
+DEBUG: Key exists: True
+DEBUG: Using key 'tensor' with shape: (10000, 1, 128, 128)
+DEBUG: use_official_format = False
+DEBUG: keys = ['tensor'], type = <class 'list'>
+DEBUG: keys is list: True
+DEBUG: HDF5 file keys: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: tensor shape = (10000, 1, 128, 128)
+DEBUG: Available keys in HDF5 file: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Looking for keys: ['tensor']
+DEBUG: Keys type: <class 'omegaconf.listconfig.ListConfig'>
+DEBUG: Keys is list: False
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: Checking if key 'tensor' exists in file...
+DEBUG: Key exists: True
+DEBUG: Using key 'tensor' with shape: (10000, 1, 128, 128)
+DEBUG: use_official_format = False
+DEBUG: keys = ['tensor'], type = <class 'list'>
+DEBUG: keys is list: True
+DEBUG: HDF5 file keys: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: tensor shape = (10000, 1, 128, 128)
+2025-10-13 21:56:26 - train - INFO - Data loaded: train=4, val=1, test=2
+[2025-10-13 21:56:26,483][train][INFO] - Data loaded: train=4, val=1, test=2
+2025-10-13 21:56:26 - train - INFO - Verifying data consistency...
+[2025-10-13 21:56:26,483][train][INFO] - Verifying data consistency...
+2025-10-13 21:56:26 - train - INFO - Data consistency verified: MSE = 0.00e+00
+[2025-10-13 21:56:26,495][train][INFO] - Data consistency verified: MSE = 0.00e+00
+2025-10-13 21:56:26 - train - INFO - Initializing model...
+[2025-10-13 21:56:26,495][train][INFO] - Initializing model...
+2025-10-13 21:56:26 - train - INFO - Model info: {'name': 'FNO2d', 'in_channels': 1, 'out_channels': 1, 'img_size': 128, 'parameters': 8413953, 'parameters_M': 8.413953}
+[2025-10-13 21:56:26,627][train][INFO] - Model info: {'name': 'FNO2d', 'in_channels': 1, 'out_channels': 1, 'img_size': 128, 'parameters': 8413953, 'parameters_M': 8.413953}
+2025-10-13 21:56:26 - train - INFO - Model FLOPs: 0.42G
+[2025-10-13 21:56:26,627][train][INFO] - Model FLOPs: 0.42G
+2025-10-13 21:56:26 - train - INFO - Estimated memory usage: {'parameters_MB': 64.09668350219727, 'activations_MB': 0.25, 'gradients_MB': 64.09668350219727, 'total_MB': 128.44336700439453}
+[2025-10-13 21:56:26,627][train][INFO] - Estimated memory usage: {'parameters_MB': 64.09668350219727, 'activations_MB': 0.25, 'gradients_MB': 64.09668350219727, 'total_MB': 128.44336700439453}
+2025-10-13 21:56:26 - train - INFO - Optimizer: AdamW (
+Parameter Group 0
+    amsgrad: False
+    betas: [0.9, 0.999]
+    capturable: False
+    differentiable: False
+    eps: 1e-08
+    foreach: None
+    fused: None
+    lr: 0.001
+    maximize: False
+    weight_decay: 0.0001
+)
+[2025-10-13 21:56:26,628][train][INFO] - Optimizer: AdamW (
+Parameter Group 0
+    amsgrad: False
+    betas: [0.9, 0.999]
+    capturable: False
+    differentiable: False
+    eps: 1e-08
+    foreach: None
+    fused: None
+    lr: 0.001
+    maximize: False
+    weight_decay: 0.0001
+)
+2025-10-13 21:56:26 - train - INFO - Scheduler: None
+[2025-10-13 21:56:26,628][train][INFO] - Scheduler: None
+2025-10-13 21:56:26 - train - INFO - Mixed precision training enabled
+[2025-10-13 21:56:26,628][train][INFO] - Mixed precision training enabled
+2025-10-13 21:56:26 - train - INFO - Starting training...
+[2025-10-13 21:56:26,631][train][INFO] - Starting training...
+2025-10-13 21:56:27 - train - ERROR - Training failed: "_amp_foreach_non_finite_check_and_unscale_cuda" not implemented for 'ComplexFloat'
+[2025-10-13 21:56:27,122][train][ERROR] - Training failed: "_amp_foreach_non_finite_check_and_unscale_cuda" not implemented for 'ComplexFloat'
+
+2025-10-13 21:56:27,932 - ERROR - stderr: Error executing job with overrides: ['experiment.output_dir=runs\\batch_training_results\\fno2d', '+model=fno2d']
+
+Traceback (most recent call last):
+  File "F:\Zhaoyang\Sparse2Full\train.py", line 762, in main
+    trainer.train()
+  File "F:\Zhaoyang\Sparse2Full\train.py", line 578, in train
+    train_results = self.train_epoch()
+                    ^^^^^^^^^^^^^^^^^^
+  File "F:\Zhaoyang\Sparse2Full\train.py", line 442, in train_epoch
+    self.scaler.unscale_(self.optimizer)
+  File "F:\ProgramData\anaconda3\Lib\site-packages\torch\amp\grad_scaler.py", line 338, in unscale_
+    optimizer_state["found_inf_per_device"] = self._unscale_grads_(
+                                              ^^^^^^^^^^^^^^^^^^^^^
+  File "F:\ProgramData\anaconda3\Lib\site-packages\torch\amp\grad_scaler.py", line 279, in _unscale_grads_
+    torch._amp_foreach_non_finite_check_and_unscale_(
+RuntimeError: "_amp_foreach_non_finite_check_and_unscale_cuda" not implemented for 'ComplexFloat'
+
+Set the environment variable HYDRA_FULL_ERROR=1 for a complete stack trace.
+
+2025-10-13 21:56:27,933 - INFO - 进度: 4/12 - 训练模型: ufno_unet
+2025-10-13 21:56:27,933 - INFO - 开始训练模型: ufno_unet
+2025-10-13 21:56:27,937 - INFO - 保存训练配置: runs\batch_training_results\config_ufno_unet.yaml
+2025-10-13 21:56:27,937 - INFO - 执行训练命令: F:\ProgramData\anaconda3\python.exe F:\Zhaoyang\Sparse2Full\train.py hydra.run.dir=runs\batch_training_results\ufno_unet experiment.output_dir=runs\batch_training_results\ufno_unet +model=ufno_unet
+2025-10-13 21:56:36,936 - ERROR - 模型 ufno_unet 训练失败:
+2025-10-13 21:56:36,936 - ERROR - stdout: 2025-10-13 21:56:32 - train - INFO - Training started with config:
+experiment:
+  name: pdebench_sr_x4
+  device: cuda:0
+  seed: 2025
+  output_dir: runs\batch_training_results\ufno_unet
+data:
+  data_path: E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5
+  dataset_name: PDEBench
+  keys:
+  - tensor
+  splits_dir: splits
+  image_size: 128
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+    crop:
+      crop_size:
+      - 64
+      - 64
+      crop_strategy: uniform
+      boundary_mode: mirror
+  preprocessing:
+    normalize: true
+    cache_data: false
+  dataloader:
+    batch_size: 4
+    num_workers: 4
+    pin_memory: true
+    persistent_workers: true
+model:
+  name: UFNOUNet
+  params:
+    in_channels: 1
+    out_channels: 1
+    img_size: 128
+    kwargs:
+      patch_size: 4
+      window_size: 8
+      depths:
+      - 2
+      - 2
+      - 6
+      - 2
+      num_heads: 8
+      embed_dim: 96
+      mlp_ratio: 4.0
+      drop_rate: 0.0
+      attn_drop_rate: 0.0
+      drop_path_rate: 0.1
+      base_channels: 64
+      channel_multipliers:
+      - 1
+      - 2
+      - 4
+      - 8
+      num_res_blocks: 2
+      fno_modes1: 16
+      fno_modes2: 16
+      fno_width: 64
+      fno_layers: 2
+      fusion_type: add
+      use_fno_skip: true
+      activation: gelu
+      norm: group
+      num_groups: 32
+      dropout: 0.0
+      upsample_mode: bilinear
+      use_attention: true
+      attention_resolutions:
+      - 16
+      - 8
+training:
+  epochs: 200
+  batch_size: 4
+  seed: 2025
+  output_dir: runs
+  optimizer:
+    name: AdamW
+    params:
+      lr: 0.001
+      weight_decay: 0.0001
+      betas:
+      - 0.9
+      - 0.999
+  scheduler:
+    name: cosine_warmup
+    params:
+      T_max: 200
+      warmup_steps: 1000
+      eta_min: 1.0e-06
+  grad_clip_norm: 1.0
+  log_interval: 50
+  save_interval: 20
+  plot_interval: 50
+  use_amp: true
+loss:
+  rec_weight: 1.0
+  spec_weight: 0.5
+  dc_weight: 1.0
+  rec_loss_type: l2
+  spec_loss_type: l2
+  dc_loss_type: l2
+  low_freq_modes: 16
+  mirror_padding: true
+  use_gradient_loss: false
+  gradient_weight: 0.1
+  use_pde_residual_loss: false
+  pde_residual_weight: 0.1
+  pde_low_freq_weight: 2.0
+validation:
+  batch_size: 8
+  metrics:
+  - rel_l2
+  - mae
+  - psnr
+  - ssim
+  - frmse_low
+  - frmse_mid
+  - frmse_high
+device:
+  use_cuda: true
+  cuda_device: 0
+  num_workers: 4
+  pin_memory: true
+logging:
+  level: INFO
+  use_tensorboard: true
+  use_wandb: false
+  wandb_project: pdebench-sparse2full
+reproducibility:
+  deterministic: true
+  benchmark: false
+
+[2025-10-13 21:56:32,074][train][INFO] - Training started with config:
+experiment:
+  name: pdebench_sr_x4
+  device: cuda:0
+  seed: 2025
+  output_dir: runs\batch_training_results\ufno_unet
+data:
+  data_path: E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5
+  dataset_name: PDEBench
+  keys:
+  - tensor
+  splits_dir: splits
+  image_size: 128
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+    crop:
+      crop_size:
+      - 64
+      - 64
+      crop_strategy: uniform
+      boundary_mode: mirror
+  preprocessing:
+    normalize: true
+    cache_data: false
+  dataloader:
+    batch_size: 4
+    num_workers: 4
+    pin_memory: true
+    persistent_workers: true
+model:
+  name: UFNOUNet
+  params:
+    in_channels: 1
+    out_channels: 1
+    img_size: 128
+    kwargs:
+      patch_size: 4
+      window_size: 8
+      depths:
+      - 2
+      - 2
+      - 6
+      - 2
+      num_heads: 8
+      embed_dim: 96
+      mlp_ratio: 4.0
+      drop_rate: 0.0
+      attn_drop_rate: 0.0
+      drop_path_rate: 0.1
+      base_channels: 64
+      channel_multipliers:
+      - 1
+      - 2
+      - 4
+      - 8
+      num_res_blocks: 2
+      fno_modes1: 16
+      fno_modes2: 16
+      fno_width: 64
+      fno_layers: 2
+      fusion_type: add
+      use_fno_skip: true
+      activation: gelu
+      norm: group
+      num_groups: 32
+      dropout: 0.0
+      upsample_mode: bilinear
+      use_attention: true
+      attention_resolutions:
+      - 16
+      - 8
+training:
+  epochs: 200
+  batch_size: 4
+  seed: 2025
+  output_dir: runs
+  optimizer:
+    name: AdamW
+    params:
+      lr: 0.001
+      weight_decay: 0.0001
+      betas:
+      - 0.9
+      - 0.999
+  scheduler:
+    name: cosine_warmup
+    params:
+      T_max: 200
+      warmup_steps: 1000
+      eta_min: 1.0e-06
+  grad_clip_norm: 1.0
+  log_interval: 50
+  save_interval: 20
+  plot_interval: 50
+  use_amp: true
+loss:
+  rec_weight: 1.0
+  spec_weight: 0.5
+  dc_weight: 1.0
+  rec_loss_type: l2
+  spec_loss_type: l2
+  dc_loss_type: l2
+  low_freq_modes: 16
+  mirror_padding: true
+  use_gradient_loss: false
+  gradient_weight: 0.1
+  use_pde_residual_loss: false
+  pde_residual_weight: 0.1
+  pde_low_freq_weight: 2.0
+validation:
+  batch_size: 8
+  metrics:
+  - rel_l2
+  - mae
+  - psnr
+  - ssim
+  - frmse_low
+  - frmse_mid
+  - frmse_high
+device:
+  use_cuda: true
+  cuda_device: 0
+  num_workers: 4
+  pin_memory: true
+logging:
+  level: INFO
+  use_tensorboard: true
+  use_wandb: false
+  wandb_project: pdebench-sparse2full
+reproducibility:
+  deterministic: true
+  benchmark: false
+
+2025-10-13 21:56:32 - train - INFO - Config saved to runs\batch_training_results\ufno_unet\config_merged.yaml
+[2025-10-13 21:56:32,078][train][INFO] - Config saved to runs\batch_training_results\ufno_unet\config_merged.yaml
+2025-10-13 21:56:32 - train - INFO - Initializing data module...
+[2025-10-13 21:56:32,078][train][INFO] - Initializing data module...
+DEBUG: Available keys in HDF5 file: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Looking for keys: ['tensor']
+DEBUG: Keys type: <class 'omegaconf.listconfig.ListConfig'>
+DEBUG: Keys is list: False
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: Checking if key 'tensor' exists in file...
+DEBUG: Key exists: True
+DEBUG: Using key 'tensor' with shape: (10000, 1, 128, 128)
+DEBUG: use_official_format = False
+DEBUG: keys = ['tensor'], type = <class 'list'>
+DEBUG: keys is list: True
+DEBUG: HDF5 file keys: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: tensor shape = (10000, 1, 128, 128)
+DEBUG: Available keys in HDF5 file: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Looking for keys: ['tensor']
+DEBUG: Keys type: <class 'omegaconf.listconfig.ListConfig'>
+DEBUG: Keys is list: False
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: Checking if key 'tensor' exists in file...
+DEBUG: Key exists: True
+DEBUG: Using key 'tensor' with shape: (10000, 1, 128, 128)
+DEBUG: use_official_format = False
+DEBUG: keys = ['tensor'], type = <class 'list'>
+DEBUG: keys is list: True
+DEBUG: HDF5 file keys: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: tensor shape = (10000, 1, 128, 128)
+DEBUG: Available keys in HDF5 file: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Looking for keys: ['tensor']
+DEBUG: Keys type: <class 'omegaconf.listconfig.ListConfig'>
+DEBUG: Keys is list: False
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: Checking if key 'tensor' exists in file...
+DEBUG: Key exists: True
+DEBUG: Using key 'tensor' with shape: (10000, 1, 128, 128)
+DEBUG: use_official_format = False
+DEBUG: keys = ['tensor'], type = <class 'list'>
+DEBUG: keys is list: True
+DEBUG: HDF5 file keys: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: tensor shape = (10000, 1, 128, 128)
+2025-10-13 21:56:32 - train - INFO - Data loaded: train=4, val=1, test=2
+[2025-10-13 21:56:32,080][train][INFO] - Data loaded: train=4, val=1, test=2
+2025-10-13 21:56:32 - train - INFO - Verifying data consistency...
+[2025-10-13 21:56:32,080][train][INFO] - Verifying data consistency...
+2025-10-13 21:56:32 - train - INFO - Data consistency verified: MSE = 0.00e+00
+[2025-10-13 21:56:32,092][train][INFO] - Data consistency verified: MSE = 0.00e+00
+2025-10-13 21:56:32 - train - INFO - Initializing model...
+[2025-10-13 21:56:32,092][train][INFO] - Initializing model...
+2025-10-13 21:56:34 - train - INFO - Model info: {'name': 'UFNOUNet', 'in_channels': 1, 'out_channels': 1, 'img_size': 128, 'parameters': 282353025, 'parameters_M': 282.353025}
+[2025-10-13 21:56:34,509][train][INFO] - Model info: {'name': 'UFNOUNet', 'in_channels': 1, 'out_channels': 1, 'img_size': 128, 'parameters': 282353025, 'parameters_M': 282.353025}
+2025-10-13 21:56:34 - train - INFO - Model FLOPs: 15.72G
+[2025-10-13 21:56:34,509][train][INFO] - Model FLOPs: 15.72G
+2025-10-13 21:56:34 - train - INFO - Estimated memory usage: {'parameters_MB': 2101.0913124084473, 'activations_MB': 0.25, 'gradients_MB': 2101.0913124084473, 'total_MB': 4202.4326248168945}
+[2025-10-13 21:56:34,510][train][INFO] - Estimated memory usage: {'parameters_MB': 2101.0913124084473, 'activations_MB': 0.25, 'gradients_MB': 2101.0913124084473, 'total_MB': 4202.4326248168945}
+2025-10-13 21:56:34 - train - INFO - Optimizer: AdamW (
+Parameter Group 0
+    amsgrad: False
+    betas: [0.9, 0.999]
+    capturable: False
+    differentiable: False
+    eps: 1e-08
+    foreach: None
+    fused: None
+    lr: 0.001
+    maximize: False
+    weight_decay: 0.0001
+)
+[2025-10-13 21:56:34,511][train][INFO] - Optimizer: AdamW (
+Parameter Group 0
+    amsgrad: False
+    betas: [0.9, 0.999]
+    capturable: False
+    differentiable: False
+    eps: 1e-08
+    foreach: None
+    fused: None
+    lr: 0.001
+    maximize: False
+    weight_decay: 0.0001
+)
+2025-10-13 21:56:34 - train - INFO - Scheduler: None
+[2025-10-13 21:56:34,511][train][INFO] - Scheduler: None
+2025-10-13 21:56:34 - train - INFO - Mixed precision training enabled
+[2025-10-13 21:56:34,511][train][INFO] - Mixed precision training enabled
+2025-10-13 21:56:34 - train - INFO - Starting training...
+[2025-10-13 21:56:34,513][train][INFO] - Starting training...
+2025-10-13 21:56:36 - train - ERROR - Training failed: "_amp_foreach_non_finite_check_and_unscale_cuda" not implemented for 'ComplexFloat'
+[2025-10-13 21:56:36,132][train][ERROR] - Training failed: "_amp_foreach_non_finite_check_and_unscale_cuda" not implemented for 'ComplexFloat'
+
+2025-10-13 21:56:36,938 - ERROR - stderr: Error executing job with overrides: ['experiment.output_dir=runs\\batch_training_results\\ufno_unet', '+model=ufno_unet']
+
+Traceback (most recent call last):
+  File "F:\Zhaoyang\Sparse2Full\train.py", line 762, in main
+    trainer.train()
+  File "F:\Zhaoyang\Sparse2Full\train.py", line 578, in train
+    train_results = self.train_epoch()
+                    ^^^^^^^^^^^^^^^^^^
+  File "F:\Zhaoyang\Sparse2Full\train.py", line 442, in train_epoch
+    self.scaler.unscale_(self.optimizer)
+  File "F:\ProgramData\anaconda3\Lib\site-packages\torch\amp\grad_scaler.py", line 338, in unscale_
+    optimizer_state["found_inf_per_device"] = self._unscale_grads_(
+                                              ^^^^^^^^^^^^^^^^^^^^^
+  File "F:\ProgramData\anaconda3\Lib\site-packages\torch\amp\grad_scaler.py", line 279, in _unscale_grads_
+    torch._amp_foreach_non_finite_check_and_unscale_(
+RuntimeError: "_amp_foreach_non_finite_check_and_unscale_cuda" not implemented for 'ComplexFloat'
+
+Set the environment variable HYDRA_FULL_ERROR=1 for a complete stack trace.
+
+2025-10-13 21:56:36,939 - INFO - 进度: 5/12 - 训练模型: segformer
+2025-10-13 21:56:36,939 - INFO - 开始训练模型: segformer
+2025-10-13 21:56:36,943 - INFO - 保存训练配置: runs\batch_training_results\config_segformer.yaml
+2025-10-13 21:56:36,943 - INFO - 执行训练命令: F:\ProgramData\anaconda3\python.exe F:\Zhaoyang\Sparse2Full\train.py hydra.run.dir=runs\batch_training_results\segformer experiment.output_dir=runs\batch_training_results\segformer +model=segformer
+2025-10-13 21:56:42,321 - ERROR - 模型 segformer 训练失败:
+2025-10-13 21:56:42,322 - ERROR - stdout: 2025-10-13 21:56:41 - train - INFO - Training started with config:
+experiment:
+  name: pdebench_sr_x4
+  device: cuda:0
+  seed: 2025
+  output_dir: runs\batch_training_results\segformer
+data:
+  data_path: E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5
+  dataset_name: PDEBench
+  keys:
+  - tensor
+  splits_dir: splits
+  image_size: 128
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+    crop:
+      crop_size:
+      - 64
+      - 64
+      crop_strategy: uniform
+      boundary_mode: mirror
+  preprocessing:
+    normalize: true
+    cache_data: false
+  dataloader:
+    batch_size: 4
+    num_workers: 4
+    pin_memory: true
+    persistent_workers: true
+model:
+  name: SegFormer
+  params:
+    in_channels: 1
+    out_channels: 1
+    img_size: 128
+    kwargs:
+      patch_size: 4
+      window_size: 8
+      depths:
+      - 2
+      - 2
+      - 2
+      - 2
+      num_heads:
+      - 1
+      - 2
+      - 5
+      - 8
+      embed_dim: 96
+      mlp_ratio: 4.0
+      drop_rate: 0.0
+      attn_drop_rate: 0.0
+      drop_path_rate: 0.1
+      encoder_type: mit_b2
+      encoder_pretrained: false
+      decoder_channels: 256
+      mlp_ratios:
+      - 8
+      - 8
+      - 4
+      - 4
+      sr_ratios:
+      - 8
+      - 4
+      - 2
+      - 1
+      activation: gelu
+      norm_layer: LayerNorm
+      upsample_mode: bilinear
+      use_auxiliary_head: false
+      auxiliary_loss_weight: 0.4
+training:
+  epochs: 200
+  batch_size: 4
+  seed: 2025
+  output_dir: runs
+  optimizer:
+    name: AdamW
+    params:
+      lr: 0.001
+      weight_decay: 0.0001
+      betas:
+      - 0.9
+      - 0.999
+  scheduler:
+    name: cosine_warmup
+    params:
+      T_max: 200
+      warmup_steps: 1000
+      eta_min: 1.0e-06
+  grad_clip_norm: 1.0
+  log_interval: 50
+  save_interval: 20
+  plot_interval: 50
+  use_amp: true
+loss:
+  rec_weight: 1.0
+  spec_weight: 0.5
+  dc_weight: 1.0
+  rec_loss_type: l2
+  spec_loss_type: l2
+  dc_loss_type: l2
+  low_freq_modes: 16
+  mirror_padding: true
+  use_gradient_loss: false
+  gradient_weight: 0.1
+  use_pde_residual_loss: false
+  pde_residual_weight: 0.1
+  pde_low_freq_weight: 2.0
+validation:
+  batch_size: 8
+  metrics:
+  - rel_l2
+  - mae
+  - psnr
+  - ssim
+  - frmse_low
+  - frmse_mid
+  - frmse_high
+device:
+  use_cuda: true
+  cuda_device: 0
+  num_workers: 4
+  pin_memory: true
+logging:
+  level: INFO
+  use_tensorboard: true
+  use_wandb: false
+  wandb_project: pdebench-sparse2full
+reproducibility:
+  deterministic: true
+  benchmark: false
+
+[2025-10-13 21:56:41,054][train][INFO] - Training started with config:
+experiment:
+  name: pdebench_sr_x4
+  device: cuda:0
+  seed: 2025
+  output_dir: runs\batch_training_results\segformer
+data:
+  data_path: E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5
+  dataset_name: PDEBench
+  keys:
+  - tensor
+  splits_dir: splits
+  image_size: 128
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+    crop:
+      crop_size:
+      - 64
+      - 64
+      crop_strategy: uniform
+      boundary_mode: mirror
+  preprocessing:
+    normalize: true
+    cache_data: false
+  dataloader:
+    batch_size: 4
+    num_workers: 4
+    pin_memory: true
+    persistent_workers: true
+model:
+  name: SegFormer
+  params:
+    in_channels: 1
+    out_channels: 1
+    img_size: 128
+    kwargs:
+      patch_size: 4
+      window_size: 8
+      depths:
+      - 2
+      - 2
+      - 2
+      - 2
+      num_heads:
+      - 1
+      - 2
+      - 5
+      - 8
+      embed_dim: 96
+      mlp_ratio: 4.0
+      drop_rate: 0.0
+      attn_drop_rate: 0.0
+      drop_path_rate: 0.1
+      encoder_type: mit_b2
+      encoder_pretrained: false
+      decoder_channels: 256
+      mlp_ratios:
+      - 8
+      - 8
+      - 4
+      - 4
+      sr_ratios:
+      - 8
+      - 4
+      - 2
+      - 1
+      activation: gelu
+      norm_layer: LayerNorm
+      upsample_mode: bilinear
+      use_auxiliary_head: false
+      auxiliary_loss_weight: 0.4
+training:
+  epochs: 200
+  batch_size: 4
+  seed: 2025
+  output_dir: runs
+  optimizer:
+    name: AdamW
+    params:
+      lr: 0.001
+      weight_decay: 0.0001
+      betas:
+      - 0.9
+      - 0.999
+  scheduler:
+    name: cosine_warmup
+    params:
+      T_max: 200
+      warmup_steps: 1000
+      eta_min: 1.0e-06
+  grad_clip_norm: 1.0
+  log_interval: 50
+  save_interval: 20
+  plot_interval: 50
+  use_amp: true
+loss:
+  rec_weight: 1.0
+  spec_weight: 0.5
+  dc_weight: 1.0
+  rec_loss_type: l2
+  spec_loss_type: l2
+  dc_loss_type: l2
+  low_freq_modes: 16
+  mirror_padding: true
+  use_gradient_loss: false
+  gradient_weight: 0.1
+  use_pde_residual_loss: false
+  pde_residual_weight: 0.1
+  pde_low_freq_weight: 2.0
+validation:
+  batch_size: 8
+  metrics:
+  - rel_l2
+  - mae
+  - psnr
+  - ssim
+  - frmse_low
+  - frmse_mid
+  - frmse_high
+device:
+  use_cuda: true
+  cuda_device: 0
+  num_workers: 4
+  pin_memory: true
+logging:
+  level: INFO
+  use_tensorboard: true
+  use_wandb: false
+  wandb_project: pdebench-sparse2full
+reproducibility:
+  deterministic: true
+  benchmark: false
+
+2025-10-13 21:56:41 - train - INFO - Config saved to runs\batch_training_results\segformer\config_merged.yaml
+[2025-10-13 21:56:41,057][train][INFO] - Config saved to runs\batch_training_results\segformer\config_merged.yaml
+2025-10-13 21:56:41 - train - INFO - Initializing data module...
+[2025-10-13 21:56:41,057][train][INFO] - Initializing data module...
+DEBUG: Available keys in HDF5 file: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Looking for keys: ['tensor']
+DEBUG: Keys type: <class 'omegaconf.listconfig.ListConfig'>
+DEBUG: Keys is list: False
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: Checking if key 'tensor' exists in file...
+DEBUG: Key exists: True
+DEBUG: Using key 'tensor' with shape: (10000, 1, 128, 128)
+DEBUG: use_official_format = False
+DEBUG: keys = ['tensor'], type = <class 'list'>
+DEBUG: keys is list: True
+DEBUG: HDF5 file keys: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: tensor shape = (10000, 1, 128, 128)
+DEBUG: Available keys in HDF5 file: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Looking for keys: ['tensor']
+DEBUG: Keys type: <class 'omegaconf.listconfig.ListConfig'>
+DEBUG: Keys is list: False
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: Checking if key 'tensor' exists in file...
+DEBUG: Key exists: True
+DEBUG: Using key 'tensor' with shape: (10000, 1, 128, 128)
+DEBUG: use_official_format = False
+DEBUG: keys = ['tensor'], type = <class 'list'>
+DEBUG: keys is list: True
+DEBUG: HDF5 file keys: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: tensor shape = (10000, 1, 128, 128)
+DEBUG: Available keys in HDF5 file: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Looking for keys: ['tensor']
+DEBUG: Keys type: <class 'omegaconf.listconfig.ListConfig'>
+DEBUG: Keys is list: False
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: Checking if key 'tensor' exists in file...
+DEBUG: Key exists: True
+DEBUG: Using key 'tensor' with shape: (10000, 1, 128, 128)
+DEBUG: use_official_format = False
+DEBUG: keys = ['tensor'], type = <class 'list'>
+DEBUG: keys is list: True
+DEBUG: HDF5 file keys: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: tensor shape = (10000, 1, 128, 128)
+2025-10-13 21:56:41 - train - INFO - Data loaded: train=4, val=1, test=2
+[2025-10-13 21:56:41,059][train][INFO] - Data loaded: train=4, val=1, test=2
+2025-10-13 21:56:41 - train - INFO - Verifying data consistency...
+[2025-10-13 21:56:41,059][train][INFO] - Verifying data consistency...
+2025-10-13 21:56:41 - train - INFO - Data consistency verified: MSE = 0.00e+00
+[2025-10-13 21:56:41,070][train][INFO] - Data consistency verified: MSE = 0.00e+00
+2025-10-13 21:56:41 - train - INFO - Initializing model...
+[2025-10-13 21:56:41,070][train][INFO] - Initializing model...
+2025-10-13 21:56:41 - train - INFO - Model info: {'name': 'SegFormer', 'type': 'Transformer', 'in_channels': 1, 'out_channels': 1, 'img_size': 128, 'embed_dims': [64, 128, 320, 512]}
+[2025-10-13 21:56:41,236][train][INFO] - Model info: {'name': 'SegFormer', 'type': 'Transformer', 'in_channels': 1, 'out_channels': 1, 'img_size': 128, 'embed_dims': [64, 128, 320, 512]}
+2025-10-13 21:56:41 - train - INFO - Model FLOPs: 223.63G
+[2025-10-13 21:56:41,236][train][INFO] - Model FLOPs: 223.63G
+2025-10-13 21:56:41 - train - INFO - Estimated memory usage: {'parameters_MB': 52.068607330322266, 'activations_MB': 0.25, 'gradients_MB': 52.068607330322266, 'total_MB': 104.38721466064453}
+[2025-10-13 21:56:41,237][train][INFO] - Estimated memory usage: {'parameters_MB': 52.068607330322266, 'activations_MB': 0.25, 'gradients_MB': 52.068607330322266, 'total_MB': 104.38721466064453}
+2025-10-13 21:56:41 - train - INFO - Optimizer: AdamW (
+Parameter Group 0
+    amsgrad: False
+    betas: [0.9, 0.999]
+    capturable: False
+    differentiable: False
+    eps: 1e-08
+    foreach: None
+    fused: None
+    lr: 0.001
+    maximize: False
+    weight_decay: 0.0001
+)
+[2025-10-13 21:56:41,238][train][INFO] - Optimizer: AdamW (
+Parameter Group 0
+    amsgrad: False
+    betas: [0.9, 0.999]
+    capturable: False
+    differentiable: False
+    eps: 1e-08
+    foreach: None
+    fused: None
+    lr: 0.001
+    maximize: False
+    weight_decay: 0.0001
+)
+2025-10-13 21:56:41 - train - INFO - Scheduler: None
+[2025-10-13 21:56:41,238][train][INFO] - Scheduler: None
+2025-10-13 21:56:41 - train - INFO - Mixed precision training enabled
+[2025-10-13 21:56:41,238][train][INFO] - Mixed precision training enabled
+2025-10-13 21:56:41 - train - INFO - Starting training...
+[2025-10-13 21:56:41,240][train][INFO] - Starting training...
+2025-10-13 21:56:41 - train - ERROR - Training failed: Calculated padded input size per channel: (2 x 2). Kernel size: (3 x 3). Kernel size can't be greater than actual input size
+[2025-10-13 21:56:41,493][train][ERROR] - Training failed: Calculated padded input size per channel: (2 x 2). Kernel size: (3 x 3). Kernel size can't be greater than actual input size
+
+2025-10-13 21:56:42,323 - ERROR - stderr: Error executing job with overrides: ['experiment.output_dir=runs\\batch_training_results\\segformer', '+model=segformer']
+
+Traceback (most recent call last):
+  File "F:\Zhaoyang\Sparse2Full\train.py", line 762, in main
+    trainer.train()
+  File "F:\Zhaoyang\Sparse2Full\train.py", line 578, in train
+    train_results = self.train_epoch()
+                    ^^^^^^^^^^^^^^^^^^
+  File "F:\Zhaoyang\Sparse2Full\train.py", line 414, in train_epoch
+    pred = self.model(batch['baseline'])
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\ProgramData\anaconda3\Lib\site-packages\torch\nn\modules\module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\ProgramData\anaconda3\Lib\site-packages\torch\nn\modules\module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\Zhaoyang\Sparse2Full\models\segformer.py", line 250, in forward
+    features = self.forward_features(x)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\Zhaoyang\Sparse2Full\models\segformer.py", line 240, in forward_features
+    x, H, W = self.patch_embed4(x)
+              ^^^^^^^^^^^^^^^^^^^^
+  File "F:\ProgramData\anaconda3\Lib\site-packages\torch\nn\modules\module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\ProgramData\anaconda3\Lib\site-packages\torch\nn\modules\module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\Zhaoyang\Sparse2Full\models\segformer.py", line 32, in forward
+    x = self.proj(x).flatten(2).transpose(1, 2)  # B Ph*Pw C
+        ^^^^^^^^^^^^
+  File "F:\ProgramData\anaconda3\Lib\site-packages\torch\nn\modules\module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\ProgramData\anaconda3\Lib\site-packages\torch\nn\modules\module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\ProgramData\anaconda3\Lib\site-packages\torch\nn\modules\conv.py", line 554, in forward
+    return self._conv_forward(input, self.weight, self.bias)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\ProgramData\anaconda3\Lib\site-packages\torch\nn\modules\conv.py", line 549, in _conv_forward
+    return F.conv2d(
+           ^^^^^^^^^
+RuntimeError: Calculated padded input size per channel: (2 x 2). Kernel size: (3 x 3). Kernel size can't be greater than actual input size
+
+Set the environment variable HYDRA_FULL_ERROR=1 for a complete stack trace.
+
+2025-10-13 21:56:42,324 - INFO - 进度: 6/12 - 训练模型: unetformer
+2025-10-13 21:56:42,324 - INFO - 开始训练模型: unetformer
+2025-10-13 21:56:42,327 - INFO - 保存训练配置: runs\batch_training_results\config_unetformer.yaml
+2025-10-13 21:56:42,328 - INFO - 执行训练命令: F:\ProgramData\anaconda3\python.exe F:\Zhaoyang\Sparse2Full\train.py hydra.run.dir=runs\batch_training_results\unetformer experiment.output_dir=runs\batch_training_results\unetformer +model=unetformer
+2025-10-13 21:56:47,202 - ERROR - 模型 unetformer 训练失败:
+2025-10-13 21:56:47,202 - ERROR - stdout: 2025-10-13 21:56:46 - train - INFO - Training started with config:
+experiment:
+  name: pdebench_sr_x4
+  device: cuda:0
+  seed: 2025
+  output_dir: runs\batch_training_results\unetformer
+data:
+  data_path: E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5
+  dataset_name: PDEBench
+  keys:
+  - tensor
+  splits_dir: splits
+  image_size: 128
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+    crop:
+      crop_size:
+      - 64
+      - 64
+      crop_strategy: uniform
+      boundary_mode: mirror
+  preprocessing:
+    normalize: true
+    cache_data: false
+  dataloader:
+    batch_size: 4
+    num_workers: 4
+    pin_memory: true
+    persistent_workers: true
+model:
+  name: UNetFormer
+  params:
+    in_channels: 1
+    out_channels: 1
+    img_size: 128
+    kwargs:
+      patch_size: 4
+      window_size: 8
+      depths:
+      - 2
+      - 2
+      - 6
+      - 2
+      num_heads:
+      - 3
+      - 6
+      - 12
+      - 24
+      embed_dim: 96
+      mlp_ratio: 4.0
+      drop_rate: 0.0
+      attn_drop_rate: 0.0
+      drop_path_rate: 0.1
+      norm_layer: LayerNorm
+      activation: gelu
+      decoder_channels:
+      - 512
+      - 256
+      - 128
+      - 64
+      decoder_use_batchnorm: true
+      upsample_mode: bilinear
+      use_skip_connections: true
+      use_checkpoint: false
+      use_absolute_pos_embed: true
+training:
+  epochs: 200
+  batch_size: 4
+  seed: 2025
+  output_dir: runs
+  optimizer:
+    name: AdamW
+    params:
+      lr: 0.001
+      weight_decay: 0.0001
+      betas:
+      - 0.9
+      - 0.999
+  scheduler:
+    name: cosine_warmup
+    params:
+      T_max: 200
+      warmup_steps: 1000
+      eta_min: 1.0e-06
+  grad_clip_norm: 1.0
+  log_interval: 50
+  save_interval: 20
+  plot_interval: 50
+  use_amp: true
+loss:
+  rec_weight: 1.0
+  spec_weight: 0.5
+  dc_weight: 1.0
+  rec_loss_type: l2
+  spec_loss_type: l2
+  dc_loss_type: l2
+  low_freq_modes: 16
+  mirror_padding: true
+  use_gradient_loss: false
+  gradient_weight: 0.1
+  use_pde_residual_loss: false
+  pde_residual_weight: 0.1
+  pde_low_freq_weight: 2.0
+validation:
+  batch_size: 8
+  metrics:
+  - rel_l2
+  - mae
+  - psnr
+  - ssim
+  - frmse_low
+  - frmse_mid
+  - frmse_high
+device:
+  use_cuda: true
+  cuda_device: 0
+  num_workers: 4
+  pin_memory: true
+logging:
+  level: INFO
+  use_tensorboard: true
+  use_wandb: false
+  wandb_project: pdebench-sparse2full
+reproducibility:
+  deterministic: true
+  benchmark: false
+
+[2025-10-13 21:56:46,424][train][INFO] - Training started with config:
+experiment:
+  name: pdebench_sr_x4
+  device: cuda:0
+  seed: 2025
+  output_dir: runs\batch_training_results\unetformer
+data:
+  data_path: E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5
+  dataset_name: PDEBench
+  keys:
+  - tensor
+  splits_dir: splits
+  image_size: 128
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+    crop:
+      crop_size:
+      - 64
+      - 64
+      crop_strategy: uniform
+      boundary_mode: mirror
+  preprocessing:
+    normalize: true
+    cache_data: false
+  dataloader:
+    batch_size: 4
+    num_workers: 4
+    pin_memory: true
+    persistent_workers: true
+model:
+  name: UNetFormer
+  params:
+    in_channels: 1
+    out_channels: 1
+    img_size: 128
+    kwargs:
+      patch_size: 4
+      window_size: 8
+      depths:
+      - 2
+      - 2
+      - 6
+      - 2
+      num_heads:
+      - 3
+      - 6
+      - 12
+      - 24
+      embed_dim: 96
+      mlp_ratio: 4.0
+      drop_rate: 0.0
+      attn_drop_rate: 0.0
+      drop_path_rate: 0.1
+      norm_layer: LayerNorm
+      activation: gelu
+      decoder_channels:
+      - 512
+      - 256
+      - 128
+      - 64
+      decoder_use_batchnorm: true
+      upsample_mode: bilinear
+      use_skip_connections: true
+      use_checkpoint: false
+      use_absolute_pos_embed: true
+training:
+  epochs: 200
+  batch_size: 4
+  seed: 2025
+  output_dir: runs
+  optimizer:
+    name: AdamW
+    params:
+      lr: 0.001
+      weight_decay: 0.0001
+      betas:
+      - 0.9
+      - 0.999
+  scheduler:
+    name: cosine_warmup
+    params:
+      T_max: 200
+      warmup_steps: 1000
+      eta_min: 1.0e-06
+  grad_clip_norm: 1.0
+  log_interval: 50
+  save_interval: 20
+  plot_interval: 50
+  use_amp: true
+loss:
+  rec_weight: 1.0
+  spec_weight: 0.5
+  dc_weight: 1.0
+  rec_loss_type: l2
+  spec_loss_type: l2
+  dc_loss_type: l2
+  low_freq_modes: 16
+  mirror_padding: true
+  use_gradient_loss: false
+  gradient_weight: 0.1
+  use_pde_residual_loss: false
+  pde_residual_weight: 0.1
+  pde_low_freq_weight: 2.0
+validation:
+  batch_size: 8
+  metrics:
+  - rel_l2
+  - mae
+  - psnr
+  - ssim
+  - frmse_low
+  - frmse_mid
+  - frmse_high
+device:
+  use_cuda: true
+  cuda_device: 0
+  num_workers: 4
+  pin_memory: true
+logging:
+  level: INFO
+  use_tensorboard: true
+  use_wandb: false
+  wandb_project: pdebench-sparse2full
+reproducibility:
+  deterministic: true
+  benchmark: false
+
+2025-10-13 21:56:46 - train - INFO - Config saved to runs\batch_training_results\unetformer\config_merged.yaml
+[2025-10-13 21:56:46,428][train][INFO] - Config saved to runs\batch_training_results\unetformer\config_merged.yaml
+2025-10-13 21:56:46 - train - INFO - Initializing data module...
+[2025-10-13 21:56:46,428][train][INFO] - Initializing data module...
+DEBUG: Available keys in HDF5 file: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Looking for keys: ['tensor']
+DEBUG: Keys type: <class 'omegaconf.listconfig.ListConfig'>
+DEBUG: Keys is list: False
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: Checking if key 'tensor' exists in file...
+DEBUG: Key exists: True
+DEBUG: Using key 'tensor' with shape: (10000, 1, 128, 128)
+DEBUG: use_official_format = False
+DEBUG: keys = ['tensor'], type = <class 'list'>
+DEBUG: keys is list: True
+DEBUG: HDF5 file keys: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: tensor shape = (10000, 1, 128, 128)
+DEBUG: Available keys in HDF5 file: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Looking for keys: ['tensor']
+DEBUG: Keys type: <class 'omegaconf.listconfig.ListConfig'>
+DEBUG: Keys is list: False
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: Checking if key 'tensor' exists in file...
+DEBUG: Key exists: True
+DEBUG: Using key 'tensor' with shape: (10000, 1, 128, 128)
+DEBUG: use_official_format = False
+DEBUG: keys = ['tensor'], type = <class 'list'>
+DEBUG: keys is list: True
+DEBUG: HDF5 file keys: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: tensor shape = (10000, 1, 128, 128)
+DEBUG: Available keys in HDF5 file: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Looking for keys: ['tensor']
+DEBUG: Keys type: <class 'omegaconf.listconfig.ListConfig'>
+DEBUG: Keys is list: False
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: Checking if key 'tensor' exists in file...
+DEBUG: Key exists: True
+DEBUG: Using key 'tensor' with shape: (10000, 1, 128, 128)
+DEBUG: use_official_format = False
+DEBUG: keys = ['tensor'], type = <class 'list'>
+DEBUG: keys is list: True
+DEBUG: HDF5 file keys: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: tensor shape = (10000, 1, 128, 128)
+2025-10-13 21:56:46 - train - INFO - Data loaded: train=4, val=1, test=2
+[2025-10-13 21:56:46,429][train][INFO] - Data loaded: train=4, val=1, test=2
+2025-10-13 21:56:46 - train - INFO - Verifying data consistency...
+[2025-10-13 21:56:46,430][train][INFO] - Verifying data consistency...
+2025-10-13 21:56:46 - train - INFO - Data consistency verified: MSE = 0.00e+00
+[2025-10-13 21:56:46,440][train][INFO] - Data consistency verified: MSE = 0.00e+00
+2025-10-13 21:56:46 - train - INFO - Initializing model...
+[2025-10-13 21:56:46,441][train][INFO] - Initializing model...
+
+2025-10-13 21:56:47,203 - ERROR - stderr: Error executing job with overrides: ['experiment.output_dir=runs\\batch_training_results\\unetformer', '+model=unetformer']
+
+Traceback (most recent call last):
+  File "F:\Zhaoyang\Sparse2Full\train.py", line 761, in main
+    trainer = Trainer(config)
+              ^^^^^^^^^^^^^^^
+  File "F:\Zhaoyang\Sparse2Full\train.py", line 136, in __init__
+    self._init_model()
+  File "F:\Zhaoyang\Sparse2Full\train.py", line 207, in _init_model
+    self.model = create_model(
+                 ^^^^^^^^^^^^^
+  File "F:\Zhaoyang\Sparse2Full\models\base.py", line 249, in create_model
+    model = model_class(**kwargs)
+            ^^^^^^^^^^^^^^^^^^^^^
+  File "F:\Zhaoyang\Sparse2Full\models\unetformer.py", line 159, in __init__
+    *[TransformerConvBlock(base_channels, num_heads, mlp_ratio, drop_rate, attn_drop_rate)
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\Zhaoyang\Sparse2Full\models\unetformer.py", line 113, in __init__
+    self.transformer = TransformerBlock(channels, num_heads, mlp_ratio, drop=drop, attn_drop=attn_drop)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\Zhaoyang\Sparse2Full\models\unetformer.py", line 76, in __init__
+    self.attn = MultiHeadAttention(dim, num_heads=num_heads, qkv_bias=qkv_bias, attn_drop=attn_drop, proj_drop=drop)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\Zhaoyang\Sparse2Full\models\unetformer.py", line 26, in __init__
+    head_dim = dim // num_heads
+               ~~~~^^~~~~~~~~~~
+TypeError: unsupported operand type(s) for //: 'int' and 'ListConfig'
+
+Set the environment variable HYDRA_FULL_ERROR=1 for a complete stack trace.
+
+2025-10-13 21:56:47,204 - INFO - 进度: 7/12 - 训练模型: segformer_unetformer
+2025-10-13 21:56:47,204 - INFO - 开始训练模型: segformer_unetformer
+2025-10-13 21:56:47,208 - INFO - 保存训练配置: runs\batch_training_results\config_segformer_unetformer.yaml
+2025-10-13 21:56:47,209 - INFO - 执行训练命令: F:\ProgramData\anaconda3\python.exe F:\Zhaoyang\Sparse2Full\train.py hydra.run.dir=runs\batch_training_results\segformer_unetformer experiment.output_dir=runs\batch_training_results\segformer_unetformer +model=segformer_unetformer
+2025-10-13 21:57:35,225 - INFO - 模型 segformer_unetformer 训练成功，耗时: 48.02秒
+2025-10-13 21:57:35,226 - INFO - 进度: 8/12 - 训练模型: mlp
+2025-10-13 21:57:35,226 - INFO - 开始训练模型: mlp
+2025-10-13 21:57:35,230 - INFO - 保存训练配置: runs\batch_training_results\config_mlp.yaml
+2025-10-13 21:57:35,230 - INFO - 执行训练命令: F:\ProgramData\anaconda3\python.exe F:\Zhaoyang\Sparse2Full\train.py hydra.run.dir=runs\batch_training_results\mlp experiment.output_dir=runs\batch_training_results\mlp +model=mlp
+2025-10-13 22:01:51,198 - INFO - 模型 mlp 训练成功，耗时: 255.97秒
+2025-10-13 22:01:51,200 - INFO - 进度: 9/12 - 训练模型: mlp_mixer
+2025-10-13 22:01:51,200 - INFO - 开始训练模型: mlp_mixer
+2025-10-13 22:01:51,203 - INFO - 保存训练配置: runs\batch_training_results\config_mlp_mixer.yaml
+2025-10-13 22:01:51,204 - INFO - 执行训练命令: F:\ProgramData\anaconda3\python.exe F:\Zhaoyang\Sparse2Full\train.py hydra.run.dir=runs\batch_training_results\mlp_mixer experiment.output_dir=runs\batch_training_results\mlp_mixer +model=mlp_mixer
+2025-10-13 22:02:25,551 - INFO - 模型 mlp_mixer 训练成功，耗时: 34.35秒
+2025-10-13 22:02:25,553 - INFO - 进度: 10/12 - 训练模型: liif
+2025-10-13 22:02:25,553 - INFO - 开始训练模型: liif
+2025-10-13 22:02:25,556 - INFO - 保存训练配置: runs\batch_training_results\config_liif.yaml
+2025-10-13 22:02:25,557 - INFO - 执行训练命令: F:\ProgramData\anaconda3\python.exe F:\Zhaoyang\Sparse2Full\train.py hydra.run.dir=runs\batch_training_results\liif experiment.output_dir=runs\batch_training_results\liif +model=liif
+2025-10-13 22:02:30,615 - ERROR - 模型 liif 训练失败:
+2025-10-13 22:02:30,615 - ERROR - stdout: 2025-10-13 22:02:29 - train - INFO - Training started with config:
+experiment:
+  name: pdebench_sr_x4
+  device: cuda:0
+  seed: 2025
+  output_dir: runs\batch_training_results\liif
+data:
+  data_path: E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5
+  dataset_name: PDEBench
+  keys:
+  - tensor
+  splits_dir: splits
+  image_size: 128
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+    crop:
+      crop_size:
+      - 64
+      - 64
+      crop_strategy: uniform
+      boundary_mode: mirror
+  preprocessing:
+    normalize: true
+    cache_data: false
+  dataloader:
+    batch_size: 4
+    num_workers: 4
+    pin_memory: true
+    persistent_workers: true
+model:
+  name: LIIFModel
+  params:
+    in_channels: 1
+    out_channels: 1
+    img_size: 128
+    kwargs:
+      patch_size: 4
+      window_size: 8
+      depths:
+      - 2
+      - 2
+      - 6
+      - 2
+      num_heads:
+      - 3
+      - 6
+      - 12
+      - 24
+      embed_dim: 96
+      mlp_ratio: 4.0
+      drop_rate: 0.0
+      attn_drop_rate: 0.0
+      drop_path_rate: 0.1
+      encoder_type: resnet
+      encoder_depth: 18
+      encoder_pretrained: false
+      hidden_dim: 256
+      num_layers: 4
+      coord_dim: 2
+      use_pe: true
+      pe_dim: 10
+      feat_unfold: true
+      local_ensemble: true
+      activation: relu
+      dropout: 0.0
+      norm: batch
+      use_skip_connections: true
+      interpolation_mode: bilinear
+training:
+  epochs: 200
+  batch_size: 4
+  seed: 2025
+  output_dir: runs
+  optimizer:
+    name: AdamW
+    params:
+      lr: 0.001
+      weight_decay: 0.0001
+      betas:
+      - 0.9
+      - 0.999
+  scheduler:
+    name: cosine_warmup
+    params:
+      T_max: 200
+      warmup_steps: 1000
+      eta_min: 1.0e-06
+  grad_clip_norm: 1.0
+  log_interval: 50
+  save_interval: 20
+  plot_interval: 50
+  use_amp: true
+loss:
+  rec_weight: 1.0
+  spec_weight: 0.5
+  dc_weight: 1.0
+  rec_loss_type: l2
+  spec_loss_type: l2
+  dc_loss_type: l2
+  low_freq_modes: 16
+  mirror_padding: true
+  use_gradient_loss: false
+  gradient_weight: 0.1
+  use_pde_residual_loss: false
+  pde_residual_weight: 0.1
+  pde_low_freq_weight: 2.0
+validation:
+  batch_size: 8
+  metrics:
+  - rel_l2
+  - mae
+  - psnr
+  - ssim
+  - frmse_low
+  - frmse_mid
+  - frmse_high
+device:
+  use_cuda: true
+  cuda_device: 0
+  num_workers: 4
+  pin_memory: true
+logging:
+  level: INFO
+  use_tensorboard: true
+  use_wandb: false
+  wandb_project: pdebench-sparse2full
+reproducibility:
+  deterministic: true
+  benchmark: false
+
+[2025-10-13 22:02:29,694][train][INFO] - Training started with config:
+experiment:
+  name: pdebench_sr_x4
+  device: cuda:0
+  seed: 2025
+  output_dir: runs\batch_training_results\liif
+data:
+  data_path: E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5
+  dataset_name: PDEBench
+  keys:
+  - tensor
+  splits_dir: splits
+  image_size: 128
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+    crop:
+      crop_size:
+      - 64
+      - 64
+      crop_strategy: uniform
+      boundary_mode: mirror
+  preprocessing:
+    normalize: true
+    cache_data: false
+  dataloader:
+    batch_size: 4
+    num_workers: 4
+    pin_memory: true
+    persistent_workers: true
+model:
+  name: LIIFModel
+  params:
+    in_channels: 1
+    out_channels: 1
+    img_size: 128
+    kwargs:
+      patch_size: 4
+      window_size: 8
+      depths:
+      - 2
+      - 2
+      - 6
+      - 2
+      num_heads:
+      - 3
+      - 6
+      - 12
+      - 24
+      embed_dim: 96
+      mlp_ratio: 4.0
+      drop_rate: 0.0
+      attn_drop_rate: 0.0
+      drop_path_rate: 0.1
+      encoder_type: resnet
+      encoder_depth: 18
+      encoder_pretrained: false
+      hidden_dim: 256
+      num_layers: 4
+      coord_dim: 2
+      use_pe: true
+      pe_dim: 10
+      feat_unfold: true
+      local_ensemble: true
+      activation: relu
+      dropout: 0.0
+      norm: batch
+      use_skip_connections: true
+      interpolation_mode: bilinear
+training:
+  epochs: 200
+  batch_size: 4
+  seed: 2025
+  output_dir: runs
+  optimizer:
+    name: AdamW
+    params:
+      lr: 0.001
+      weight_decay: 0.0001
+      betas:
+      - 0.9
+      - 0.999
+  scheduler:
+    name: cosine_warmup
+    params:
+      T_max: 200
+      warmup_steps: 1000
+      eta_min: 1.0e-06
+  grad_clip_norm: 1.0
+  log_interval: 50
+  save_interval: 20
+  plot_interval: 50
+  use_amp: true
+loss:
+  rec_weight: 1.0
+  spec_weight: 0.5
+  dc_weight: 1.0
+  rec_loss_type: l2
+  spec_loss_type: l2
+  dc_loss_type: l2
+  low_freq_modes: 16
+  mirror_padding: true
+  use_gradient_loss: false
+  gradient_weight: 0.1
+  use_pde_residual_loss: false
+  pde_residual_weight: 0.1
+  pde_low_freq_weight: 2.0
+validation:
+  batch_size: 8
+  metrics:
+  - rel_l2
+  - mae
+  - psnr
+  - ssim
+  - frmse_low
+  - frmse_mid
+  - frmse_high
+device:
+  use_cuda: true
+  cuda_device: 0
+  num_workers: 4
+  pin_memory: true
+logging:
+  level: INFO
+  use_tensorboard: true
+  use_wandb: false
+  wandb_project: pdebench-sparse2full
+reproducibility:
+  deterministic: true
+  benchmark: false
+
+2025-10-13 22:02:29 - train - INFO - Config saved to runs\batch_training_results\liif\config_merged.yaml
+[2025-10-13 22:02:29,696][train][INFO] - Config saved to runs\batch_training_results\liif\config_merged.yaml
+2025-10-13 22:02:29 - train - INFO - Initializing data module...
+[2025-10-13 22:02:29,697][train][INFO] - Initializing data module...
+DEBUG: Available keys in HDF5 file: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Looking for keys: ['tensor']
+DEBUG: Keys type: <class 'omegaconf.listconfig.ListConfig'>
+DEBUG: Keys is list: False
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: Checking if key 'tensor' exists in file...
+DEBUG: Key exists: True
+DEBUG: Using key 'tensor' with shape: (10000, 1, 128, 128)
+DEBUG: use_official_format = False
+DEBUG: keys = ['tensor'], type = <class 'list'>
+DEBUG: keys is list: True
+DEBUG: HDF5 file keys: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: tensor shape = (10000, 1, 128, 128)
+DEBUG: Available keys in HDF5 file: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Looking for keys: ['tensor']
+DEBUG: Keys type: <class 'omegaconf.listconfig.ListConfig'>
+DEBUG: Keys is list: False
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: Checking if key 'tensor' exists in file...
+DEBUG: Key exists: True
+DEBUG: Using key 'tensor' with shape: (10000, 1, 128, 128)
+DEBUG: use_official_format = False
+DEBUG: keys = ['tensor'], type = <class 'list'>
+DEBUG: keys is list: True
+DEBUG: HDF5 file keys: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: tensor shape = (10000, 1, 128, 128)
+DEBUG: Available keys in HDF5 file: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Looking for keys: ['tensor']
+DEBUG: Keys type: <class 'omegaconf.listconfig.ListConfig'>
+DEBUG: Keys is list: False
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: Checking if key 'tensor' exists in file...
+DEBUG: Key exists: True
+DEBUG: Using key 'tensor' with shape: (10000, 1, 128, 128)
+DEBUG: use_official_format = False
+DEBUG: keys = ['tensor'], type = <class 'list'>
+DEBUG: keys is list: True
+DEBUG: HDF5 file keys: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: tensor shape = (10000, 1, 128, 128)
+2025-10-13 22:02:29 - train - INFO - Data loaded: train=4, val=1, test=2
+[2025-10-13 22:02:29,699][train][INFO] - Data loaded: train=4, val=1, test=2
+2025-10-13 22:02:29 - train - INFO - Verifying data consistency...
+[2025-10-13 22:02:29,699][train][INFO] - Verifying data consistency...
+2025-10-13 22:02:29 - train - INFO - Data consistency verified: MSE = 0.00e+00
+[2025-10-13 22:02:29,710][train][INFO] - Data consistency verified: MSE = 0.00e+00
+2025-10-13 22:02:29 - train - INFO - Initializing model...
+[2025-10-13 22:02:29,710][train][INFO] - Initializing model...
+2025-10-13 22:02:29 - train - INFO - Model info: {'name': 'LIIFModel', 'in_channels': 1, 'out_channels': 1, 'img_size': 128, 'parameters': 1747969, 'parameters_M': 1.747969}
+[2025-10-13 22:02:29,802][train][INFO] - Model info: {'name': 'LIIFModel', 'in_channels': 1, 'out_channels': 1, 'img_size': 128, 'parameters': 1747969, 'parameters_M': 1.747969}
+2025-10-13 22:02:29 - train - INFO - Model FLOPs: 28.64G
+[2025-10-13 22:02:29,802][train][INFO] - Model FLOPs: 28.64G
+2025-10-13 22:02:29 - train - INFO - Estimated memory usage: {'parameters_MB': 6.667972564697266, 'activations_MB': 0.25, 'gradients_MB': 6.667972564697266, 'total_MB': 13.585945129394531}
+[2025-10-13 22:02:29,802][train][INFO] - Estimated memory usage: {'parameters_MB': 6.667972564697266, 'activations_MB': 0.25, 'gradients_MB': 6.667972564697266, 'total_MB': 13.585945129394531}
+2025-10-13 22:02:29 - train - INFO - Optimizer: AdamW (
+Parameter Group 0
+    amsgrad: False
+    betas: [0.9, 0.999]
+    capturable: False
+    differentiable: False
+    eps: 1e-08
+    foreach: None
+    fused: None
+    lr: 0.001
+    maximize: False
+    weight_decay: 0.0001
+)
+[2025-10-13 22:02:29,803][train][INFO] - Optimizer: AdamW (
+Parameter Group 0
+    amsgrad: False
+    betas: [0.9, 0.999]
+    capturable: False
+    differentiable: False
+    eps: 1e-08
+    foreach: None
+    fused: None
+    lr: 0.001
+    maximize: False
+    weight_decay: 0.0001
+)
+2025-10-13 22:02:29 - train - INFO - Scheduler: None
+[2025-10-13 22:02:29,803][train][INFO] - Scheduler: None
+2025-10-13 22:02:29 - train - INFO - Mixed precision training enabled
+[2025-10-13 22:02:29,803][train][INFO] - Mixed precision training enabled
+2025-10-13 22:02:29 - train - INFO - Starting training...
+[2025-10-13 22:02:29,806][train][INFO] - Starting training...
+2025-10-13 22:02:29 - train - ERROR - Training failed: grid_sampler(): expected grid and input to have same batch size, but got input with sizes [1, 2, 128, 128] and grid with sizes [4, 1, 16384, 2]
+[2025-10-13 22:02:29,862][train][ERROR] - Training failed: grid_sampler(): expected grid and input to have same batch size, but got input with sizes [1, 2, 128, 128] and grid with sizes [4, 1, 16384, 2]
+
+2025-10-13 22:02:30,616 - ERROR - stderr: Error executing job with overrides: ['experiment.output_dir=runs\\batch_training_results\\liif', '+model=liif']
+
+Traceback (most recent call last):
+  File "F:\Zhaoyang\Sparse2Full\train.py", line 762, in main
+    trainer.train()
+  File "F:\Zhaoyang\Sparse2Full\train.py", line 578, in train
+    train_results = self.train_epoch()
+                    ^^^^^^^^^^^^^^^^^^
+  File "F:\Zhaoyang\Sparse2Full\train.py", line 414, in train_epoch
+    pred = self.model(batch['baseline'])
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\ProgramData\anaconda3\Lib\site-packages\torch\nn\modules\module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\ProgramData\anaconda3\Lib\site-packages\torch\nn\modules\module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\Zhaoyang\Sparse2Full\models\liif.py", line 286, in forward
+    pred = self.liif(x, coord, cell)  # [B, H*W, C_out]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\ProgramData\anaconda3\Lib\site-packages\torch\nn\modules\module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\ProgramData\anaconda3\Lib\site-packages\torch\nn\modules\module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\Zhaoyang\Sparse2Full\models\liif.py", line 166, in forward
+    return self.query_rgb(inp, coord, cell)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\Zhaoyang\Sparse2Full\models\liif.py", line 124, in query_rgb
+    q_coord = F.grid_sample(
+              ^^^^^^^^^^^^^^
+  File "F:\ProgramData\anaconda3\Lib\site-packages\torch\nn\functional.py", line 5023, in grid_sample
+    return torch.grid_sampler(input, grid, mode_enum, padding_mode_enum, align_corners)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: grid_sampler(): expected grid and input to have same batch size, but got input with sizes [1, 2, 128, 128] and grid with sizes [4, 1, 16384, 2]
+
+Set the environment variable HYDRA_FULL_ERROR=1 for a complete stack trace.
+
+2025-10-13 22:02:30,617 - INFO - 进度: 11/12 - 训练模型: swin_unet
+2025-10-13 22:02:30,617 - INFO - 开始训练模型: swin_unet
+2025-10-13 22:02:30,621 - INFO - 保存训练配置: runs\batch_training_results\config_swin_unet.yaml
+2025-10-13 22:02:30,621 - INFO - 执行训练命令: F:\ProgramData\anaconda3\python.exe F:\Zhaoyang\Sparse2Full\train.py hydra.run.dir=runs\batch_training_results\swin_unet experiment.output_dir=runs\batch_training_results\swin_unet +model=swin_unet
+2025-10-13 22:02:35,292 - ERROR - 模型 swin_unet 训练失败:
+2025-10-13 22:02:35,292 - ERROR - stdout: 2025-10-13 22:02:34 - train - INFO - Training started with config:
+experiment:
+  name: pdebench_sr_x4
+  device: cuda:0
+  seed: 2025
+  output_dir: runs\batch_training_results\swin_unet
+data:
+  data_path: E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5
+  dataset_name: PDEBench
+  keys:
+  - tensor
+  splits_dir: splits
+  image_size: 128
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+    crop:
+      crop_size:
+      - 64
+      - 64
+      crop_strategy: uniform
+      boundary_mode: mirror
+  preprocessing:
+    normalize: true
+    cache_data: false
+  dataloader:
+    batch_size: 4
+    num_workers: 4
+    pin_memory: true
+    persistent_workers: true
+model:
+  name: SwinUNet
+  params:
+    in_channels: 1
+    out_channels: 1
+    img_size: 128
+    kwargs:
+      patch_size: 4
+      window_size: 8
+      depths:
+      - 2
+      - 2
+      - 6
+      - 2
+      num_heads:
+      - 3
+      - 6
+      - 12
+      - 24
+      embed_dim: 96
+      mlp_ratio: 4.0
+      drop_rate: 0.0
+      attn_drop_rate: 0.0
+      drop_path_rate: 0.1
+      norm_layer: LayerNorm
+      upsample_mode: bilinear
+      use_skip_connections: true
+      use_fno_bottleneck: false
+      fno_modes: 16
+training:
+  epochs: 200
+  batch_size: 4
+  seed: 2025
+  output_dir: runs
+  optimizer:
+    name: AdamW
+    params:
+      lr: 0.001
+      weight_decay: 0.0001
+      betas:
+      - 0.9
+      - 0.999
+  scheduler:
+    name: cosine_warmup
+    params:
+      T_max: 200
+      warmup_steps: 1000
+      eta_min: 1.0e-06
+  grad_clip_norm: 1.0
+  log_interval: 50
+  save_interval: 20
+  plot_interval: 50
+  use_amp: true
+loss:
+  rec_weight: 1.0
+  spec_weight: 0.5
+  dc_weight: 1.0
+  rec_loss_type: l2
+  spec_loss_type: l2
+  dc_loss_type: l2
+  low_freq_modes: 16
+  mirror_padding: true
+  use_gradient_loss: false
+  gradient_weight: 0.1
+  use_pde_residual_loss: false
+  pde_residual_weight: 0.1
+  pde_low_freq_weight: 2.0
+validation:
+  batch_size: 8
+  metrics:
+  - rel_l2
+  - mae
+  - psnr
+  - ssim
+  - frmse_low
+  - frmse_mid
+  - frmse_high
+device:
+  use_cuda: true
+  cuda_device: 0
+  num_workers: 4
+  pin_memory: true
+logging:
+  level: INFO
+  use_tensorboard: true
+  use_wandb: false
+  wandb_project: pdebench-sparse2full
+reproducibility:
+  deterministic: true
+  benchmark: false
+
+[2025-10-13 22:02:34,574][train][INFO] - Training started with config:
+experiment:
+  name: pdebench_sr_x4
+  device: cuda:0
+  seed: 2025
+  output_dir: runs\batch_training_results\swin_unet
+data:
+  data_path: E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5
+  dataset_name: PDEBench
+  keys:
+  - tensor
+  splits_dir: splits
+  image_size: 128
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+    crop:
+      crop_size:
+      - 64
+      - 64
+      crop_strategy: uniform
+      boundary_mode: mirror
+  preprocessing:
+    normalize: true
+    cache_data: false
+  dataloader:
+    batch_size: 4
+    num_workers: 4
+    pin_memory: true
+    persistent_workers: true
+model:
+  name: SwinUNet
+  params:
+    in_channels: 1
+    out_channels: 1
+    img_size: 128
+    kwargs:
+      patch_size: 4
+      window_size: 8
+      depths:
+      - 2
+      - 2
+      - 6
+      - 2
+      num_heads:
+      - 3
+      - 6
+      - 12
+      - 24
+      embed_dim: 96
+      mlp_ratio: 4.0
+      drop_rate: 0.0
+      attn_drop_rate: 0.0
+      drop_path_rate: 0.1
+      norm_layer: LayerNorm
+      upsample_mode: bilinear
+      use_skip_connections: true
+      use_fno_bottleneck: false
+      fno_modes: 16
+training:
+  epochs: 200
+  batch_size: 4
+  seed: 2025
+  output_dir: runs
+  optimizer:
+    name: AdamW
+    params:
+      lr: 0.001
+      weight_decay: 0.0001
+      betas:
+      - 0.9
+      - 0.999
+  scheduler:
+    name: cosine_warmup
+    params:
+      T_max: 200
+      warmup_steps: 1000
+      eta_min: 1.0e-06
+  grad_clip_norm: 1.0
+  log_interval: 50
+  save_interval: 20
+  plot_interval: 50
+  use_amp: true
+loss:
+  rec_weight: 1.0
+  spec_weight: 0.5
+  dc_weight: 1.0
+  rec_loss_type: l2
+  spec_loss_type: l2
+  dc_loss_type: l2
+  low_freq_modes: 16
+  mirror_padding: true
+  use_gradient_loss: false
+  gradient_weight: 0.1
+  use_pde_residual_loss: false
+  pde_residual_weight: 0.1
+  pde_low_freq_weight: 2.0
+validation:
+  batch_size: 8
+  metrics:
+  - rel_l2
+  - mae
+  - psnr
+  - ssim
+  - frmse_low
+  - frmse_mid
+  - frmse_high
+device:
+  use_cuda: true
+  cuda_device: 0
+  num_workers: 4
+  pin_memory: true
+logging:
+  level: INFO
+  use_tensorboard: true
+  use_wandb: false
+  wandb_project: pdebench-sparse2full
+reproducibility:
+  deterministic: true
+  benchmark: false
+
+2025-10-13 22:02:34 - train - INFO - Config saved to runs\batch_training_results\swin_unet\config_merged.yaml
+[2025-10-13 22:02:34,579][train][INFO] - Config saved to runs\batch_training_results\swin_unet\config_merged.yaml
+2025-10-13 22:02:34 - train - INFO - Initializing data module...
+[2025-10-13 22:02:34,579][train][INFO] - Initializing data module...
+DEBUG: Available keys in HDF5 file: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Looking for keys: ['tensor']
+DEBUG: Keys type: <class 'omegaconf.listconfig.ListConfig'>
+DEBUG: Keys is list: False
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: Checking if key 'tensor' exists in file...
+DEBUG: Key exists: True
+DEBUG: Using key 'tensor' with shape: (10000, 1, 128, 128)
+DEBUG: use_official_format = False
+DEBUG: keys = ['tensor'], type = <class 'list'>
+DEBUG: keys is list: True
+DEBUG: HDF5 file keys: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: tensor shape = (10000, 1, 128, 128)
+DEBUG: Available keys in HDF5 file: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Looking for keys: ['tensor']
+DEBUG: Keys type: <class 'omegaconf.listconfig.ListConfig'>
+DEBUG: Keys is list: False
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: Checking if key 'tensor' exists in file...
+DEBUG: Key exists: True
+DEBUG: Using key 'tensor' with shape: (10000, 1, 128, 128)
+DEBUG: use_official_format = False
+DEBUG: keys = ['tensor'], type = <class 'list'>
+DEBUG: keys is list: True
+DEBUG: HDF5 file keys: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: tensor shape = (10000, 1, 128, 128)
+DEBUG: Available keys in HDF5 file: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Looking for keys: ['tensor']
+DEBUG: Keys type: <class 'omegaconf.listconfig.ListConfig'>
+DEBUG: Keys is list: False
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: Checking if key 'tensor' exists in file...
+DEBUG: Key exists: True
+DEBUG: Using key 'tensor' with shape: (10000, 1, 128, 128)
+DEBUG: use_official_format = False
+DEBUG: keys = ['tensor'], type = <class 'list'>
+DEBUG: keys is list: True
+DEBUG: HDF5 file keys: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: tensor shape = (10000, 1, 128, 128)
+2025-10-13 22:02:34 - train - INFO - Data loaded: train=4, val=1, test=2
+[2025-10-13 22:02:34,581][train][INFO] - Data loaded: train=4, val=1, test=2
+2025-10-13 22:02:34 - train - INFO - Verifying data consistency...
+[2025-10-13 22:02:34,581][train][INFO] - Verifying data consistency...
+2025-10-13 22:02:34 - train - INFO - Data consistency verified: MSE = 0.00e+00
+[2025-10-13 22:02:34,592][train][INFO] - Data consistency verified: MSE = 0.00e+00
+2025-10-13 22:02:34 - train - INFO - Initializing model...
+[2025-10-13 22:02:34,592][train][INFO] - Initializing model...
+
+2025-10-13 22:02:35,294 - ERROR - stderr: Error executing job with overrides: ['experiment.output_dir=runs\\batch_training_results\\swin_unet', '+model=swin_unet']
+
+Traceback (most recent call last):
+  File "F:\Zhaoyang\Sparse2Full\train.py", line 761, in main
+    trainer = Trainer(config)
+              ^^^^^^^^^^^^^^^
+  File "F:\Zhaoyang\Sparse2Full\train.py", line 136, in __init__
+    self._init_model()
+  File "F:\Zhaoyang\Sparse2Full\train.py", line 207, in _init_model
+    self.model = create_model(
+                 ^^^^^^^^^^^^^
+  File "F:\Zhaoyang\Sparse2Full\models\base.py", line 249, in create_model
+    model = model_class(**kwargs)
+            ^^^^^^^^^^^^^^^^^^^^^
+  File "F:\Zhaoyang\Sparse2Full\models\swin_unet.py", line 652, in __init__
+    self.patch_embed = PatchEmbed(
+                       ^^^^^^^^^^^
+  File "F:\Zhaoyang\Sparse2Full\models\swin_unet.py", line 345, in __init__
+    self.norm = norm_layer(embed_dim)
+                ^^^^^^^^^^^^^^^^^^^^^
+TypeError: 'str' object is not callable
+
+Set the environment variable HYDRA_FULL_ERROR=1 for a complete stack trace.
+
+2025-10-13 22:02:35,294 - INFO - 进度: 12/12 - 训练模型: hybrid
+2025-10-13 22:02:35,294 - INFO - 开始训练模型: hybrid
+2025-10-13 22:02:35,298 - INFO - 保存训练配置: runs\batch_training_results\config_hybrid.yaml
+2025-10-13 22:02:35,299 - INFO - 执行训练命令: F:\ProgramData\anaconda3\python.exe F:\Zhaoyang\Sparse2Full\train.py hydra.run.dir=runs\batch_training_results\hybrid experiment.output_dir=runs\batch_training_results\hybrid +model=hybrid
+2025-10-13 22:02:40,899 - ERROR - 模型 hybrid 训练失败:
+2025-10-13 22:02:40,899 - ERROR - stdout: 2025-10-13 22:02:39 - train - INFO - Training started with config:
+experiment:
+  name: pdebench_sr_x4
+  device: cuda:0
+  seed: 2025
+  output_dir: runs\batch_training_results\hybrid
+data:
+  data_path: E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5
+  dataset_name: PDEBench
+  keys:
+  - tensor
+  splits_dir: splits
+  image_size: 128
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+    crop:
+      crop_size:
+      - 64
+      - 64
+      crop_strategy: uniform
+      boundary_mode: mirror
+  preprocessing:
+    normalize: true
+    cache_data: false
+  dataloader:
+    batch_size: 4
+    num_workers: 4
+    pin_memory: true
+    persistent_workers: true
+model:
+  name: Hybrid
+  params:
+    in_channels: 1
+    out_channels: 1
+    img_size: 128
+    kwargs:
+      patch_size: 4
+      window_size: 8
+      depths:
+      - 2
+      - 2
+      - 6
+      - 2
+      num_heads:
+      - 3
+      - 6
+      - 12
+      - 24
+      embed_dim: 96
+      mlp_ratio: 4.0
+      drop_rate: 0.0
+      attn_drop_rate: 0.0
+      drop_path_rate: 0.1
+      use_attention: true
+      use_fno: true
+      use_unet: true
+      attention_config:
+        num_heads: 8
+        embed_dim: 256
+        depth: 4
+        window_size: 8
+        drop_rate: 0.1
+        attn_drop_rate: 0.1
+      fno_config:
+        modes: 16
+        width: 64
+        depth: 4
+        activation: gelu
+        dropout: 0.1
+      unet_config:
+        base_channels: 64
+        channel_multipliers:
+        - 1
+        - 2
+        - 4
+        - 8
+        num_res_blocks: 2
+        dropout: 0.1
+        use_attention: false
+      fusion_strategy: concat
+      fusion_channels: 256
+      output_activation: null
+      use_residual_connection: true
+training:
+  epochs: 200
+  batch_size: 4
+  seed: 2025
+  output_dir: runs
+  optimizer:
+    name: AdamW
+    params:
+      lr: 0.001
+      weight_decay: 0.0001
+      betas:
+      - 0.9
+      - 0.999
+  scheduler:
+    name: cosine_warmup
+    params:
+      T_max: 200
+      warmup_steps: 1000
+      eta_min: 1.0e-06
+  grad_clip_norm: 1.0
+  log_interval: 50
+  save_interval: 20
+  plot_interval: 50
+  use_amp: true
+loss:
+  rec_weight: 1.0
+  spec_weight: 0.5
+  dc_weight: 1.0
+  rec_loss_type: l2
+  spec_loss_type: l2
+  dc_loss_type: l2
+  low_freq_modes: 16
+  mirror_padding: true
+  use_gradient_loss: false
+  gradient_weight: 0.1
+  use_pde_residual_loss: false
+  pde_residual_weight: 0.1
+  pde_low_freq_weight: 2.0
+validation:
+  batch_size: 8
+  metrics:
+  - rel_l2
+  - mae
+  - psnr
+  - ssim
+  - frmse_low
+  - frmse_mid
+  - frmse_high
+device:
+  use_cuda: true
+  cuda_device: 0
+  num_workers: 4
+  pin_memory: true
+logging:
+  level: INFO
+  use_tensorboard: true
+  use_wandb: false
+  wandb_project: pdebench-sparse2full
+reproducibility:
+  deterministic: true
+  benchmark: false
+
+[2025-10-13 22:02:39,167][train][INFO] - Training started with config:
+experiment:
+  name: pdebench_sr_x4
+  device: cuda:0
+  seed: 2025
+  output_dir: runs\batch_training_results\hybrid
+data:
+  data_path: E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5
+  dataset_name: PDEBench
+  keys:
+  - tensor
+  splits_dir: splits
+  image_size: 128
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+    crop:
+      crop_size:
+      - 64
+      - 64
+      crop_strategy: uniform
+      boundary_mode: mirror
+  preprocessing:
+    normalize: true
+    cache_data: false
+  dataloader:
+    batch_size: 4
+    num_workers: 4
+    pin_memory: true
+    persistent_workers: true
+model:
+  name: Hybrid
+  params:
+    in_channels: 1
+    out_channels: 1
+    img_size: 128
+    kwargs:
+      patch_size: 4
+      window_size: 8
+      depths:
+      - 2
+      - 2
+      - 6
+      - 2
+      num_heads:
+      - 3
+      - 6
+      - 12
+      - 24
+      embed_dim: 96
+      mlp_ratio: 4.0
+      drop_rate: 0.0
+      attn_drop_rate: 0.0
+      drop_path_rate: 0.1
+      use_attention: true
+      use_fno: true
+      use_unet: true
+      attention_config:
+        num_heads: 8
+        embed_dim: 256
+        depth: 4
+        window_size: 8
+        drop_rate: 0.1
+        attn_drop_rate: 0.1
+      fno_config:
+        modes: 16
+        width: 64
+        depth: 4
+        activation: gelu
+        dropout: 0.1
+      unet_config:
+        base_channels: 64
+        channel_multipliers:
+        - 1
+        - 2
+        - 4
+        - 8
+        num_res_blocks: 2
+        dropout: 0.1
+        use_attention: false
+      fusion_strategy: concat
+      fusion_channels: 256
+      output_activation: null
+      use_residual_connection: true
+training:
+  epochs: 200
+  batch_size: 4
+  seed: 2025
+  output_dir: runs
+  optimizer:
+    name: AdamW
+    params:
+      lr: 0.001
+      weight_decay: 0.0001
+      betas:
+      - 0.9
+      - 0.999
+  scheduler:
+    name: cosine_warmup
+    params:
+      T_max: 200
+      warmup_steps: 1000
+      eta_min: 1.0e-06
+  grad_clip_norm: 1.0
+  log_interval: 50
+  save_interval: 20
+  plot_interval: 50
+  use_amp: true
+loss:
+  rec_weight: 1.0
+  spec_weight: 0.5
+  dc_weight: 1.0
+  rec_loss_type: l2
+  spec_loss_type: l2
+  dc_loss_type: l2
+  low_freq_modes: 16
+  mirror_padding: true
+  use_gradient_loss: false
+  gradient_weight: 0.1
+  use_pde_residual_loss: false
+  pde_residual_weight: 0.1
+  pde_low_freq_weight: 2.0
+validation:
+  batch_size: 8
+  metrics:
+  - rel_l2
+  - mae
+  - psnr
+  - ssim
+  - frmse_low
+  - frmse_mid
+  - frmse_high
+device:
+  use_cuda: true
+  cuda_device: 0
+  num_workers: 4
+  pin_memory: true
+logging:
+  level: INFO
+  use_tensorboard: true
+  use_wandb: false
+  wandb_project: pdebench-sparse2full
+reproducibility:
+  deterministic: true
+  benchmark: false
+
+2025-10-13 22:02:39 - train - INFO - Config saved to runs\batch_training_results\hybrid\config_merged.yaml
+[2025-10-13 22:02:39,171][train][INFO] - Config saved to runs\batch_training_results\hybrid\config_merged.yaml
+2025-10-13 22:02:39 - train - INFO - Initializing data module...
+[2025-10-13 22:02:39,171][train][INFO] - Initializing data module...
+DEBUG: Available keys in HDF5 file: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Looking for keys: ['tensor']
+DEBUG: Keys type: <class 'omegaconf.listconfig.ListConfig'>
+DEBUG: Keys is list: False
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: Checking if key 'tensor' exists in file...
+DEBUG: Key exists: True
+DEBUG: Using key 'tensor' with shape: (10000, 1, 128, 128)
+DEBUG: use_official_format = False
+DEBUG: keys = ['tensor'], type = <class 'list'>
+DEBUG: keys is list: True
+DEBUG: HDF5 file keys: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: tensor shape = (10000, 1, 128, 128)
+DEBUG: Available keys in HDF5 file: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Looking for keys: ['tensor']
+DEBUG: Keys type: <class 'omegaconf.listconfig.ListConfig'>
+DEBUG: Keys is list: False
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: Checking if key 'tensor' exists in file...
+DEBUG: Key exists: True
+DEBUG: Using key 'tensor' with shape: (10000, 1, 128, 128)
+DEBUG: use_official_format = False
+DEBUG: keys = ['tensor'], type = <class 'list'>
+DEBUG: keys is list: True
+DEBUG: HDF5 file keys: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: tensor shape = (10000, 1, 128, 128)
+DEBUG: Available keys in HDF5 file: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Looking for keys: ['tensor']
+DEBUG: Keys type: <class 'omegaconf.listconfig.ListConfig'>
+DEBUG: Keys is list: False
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: Checking if key 'tensor' exists in file...
+DEBUG: Key exists: True
+DEBUG: Using key 'tensor' with shape: (10000, 1, 128, 128)
+DEBUG: use_official_format = False
+DEBUG: keys = ['tensor'], type = <class 'list'>
+DEBUG: keys is list: True
+DEBUG: HDF5 file keys: ['nu', 'tensor', 'x-coordinate', 'y-coordinate']
+DEBUG: Converted keys to list: ['tensor']
+DEBUG: tensor shape = (10000, 1, 128, 128)
+2025-10-13 22:02:39 - train - INFO - Data loaded: train=4, val=1, test=2
+[2025-10-13 22:02:39,173][train][INFO] - Data loaded: train=4, val=1, test=2
+2025-10-13 22:02:39 - train - INFO - Verifying data consistency...
+[2025-10-13 22:02:39,173][train][INFO] - Verifying data consistency...
+2025-10-13 22:02:39 - train - INFO - Data consistency verified: MSE = 0.00e+00
+[2025-10-13 22:02:39,183][train][INFO] - Data consistency verified: MSE = 0.00e+00
+2025-10-13 22:02:39 - train - INFO - Initializing model...
+[2025-10-13 22:02:39,183][train][INFO] - Initializing model...
+2025-10-13 22:02:39 - train - INFO - Model info: {'name': 'HybridModel', 'in_channels': 1, 'out_channels': 1, 'img_size': 128, 'parameters': 26520385, 'parameters_M': 26.520385}
+[2025-10-13 22:02:39,378][train][INFO] - Model info: {'name': 'HybridModel', 'in_channels': 1, 'out_channels': 1, 'img_size': 128, 'parameters': 26520385, 'parameters_M': 26.520385}
+2025-10-13 22:02:39 - train - INFO - Model FLOPs: 434.51G
+[2025-10-13 22:02:39,378][train][INFO] - Model FLOPs: 434.51G
+2025-10-13 22:02:39 - train - INFO - Estimated memory usage: {'parameters_MB': 133.16724014282227, 'activations_MB': 0.25, 'gradients_MB': 133.16724014282227, 'total_MB': 266.58448028564453}
+[2025-10-13 22:02:39,378][train][INFO] - Estimated memory usage: {'parameters_MB': 133.16724014282227, 'activations_MB': 0.25, 'gradients_MB': 133.16724014282227, 'total_MB': 266.58448028564453}
+2025-10-13 22:02:39 - train - INFO - Optimizer: AdamW (
+Parameter Group 0
+    amsgrad: False
+    betas: [0.9, 0.999]
+    capturable: False
+    differentiable: False
+    eps: 1e-08
+    foreach: None
+    fused: None
+    lr: 0.001
+    maximize: False
+    weight_decay: 0.0001
+)
+[2025-10-13 22:02:39,379][train][INFO] - Optimizer: AdamW (
+Parameter Group 0
+    amsgrad: False
+    betas: [0.9, 0.999]
+    capturable: False
+    differentiable: False
+    eps: 1e-08
+    foreach: None
+    fused: None
+    lr: 0.001
+    maximize: False
+    weight_decay: 0.0001
+)
+2025-10-13 22:02:39 - train - INFO - Scheduler: None
+[2025-10-13 22:02:39,380][train][INFO] - Scheduler: None
+2025-10-13 22:02:39 - train - INFO - Mixed precision training enabled
+[2025-10-13 22:02:39,380][train][INFO] - Mixed precision training enabled
+2025-10-13 22:02:39 - train - INFO - Starting training...
+[2025-10-13 22:02:39,382][train][INFO] - Starting training...
+2025-10-13 22:02:40 - train - ERROR - Training failed: expected scalar type ComplexFloat but found ComplexHalf
+[2025-10-13 22:02:40,108][train][ERROR] - Training failed: expected scalar type ComplexFloat but found ComplexHalf
+
+2025-10-13 22:02:40,901 - ERROR - stderr: Error executing job with overrides: ['experiment.output_dir=runs\\batch_training_results\\hybrid', '+model=hybrid']
+
+Traceback (most recent call last):
+  File "F:\Zhaoyang\Sparse2Full\train.py", line 762, in main
+    trainer.train()
+  File "F:\Zhaoyang\Sparse2Full\train.py", line 578, in train
+    train_results = self.train_epoch()
+                    ^^^^^^^^^^^^^^^^^^
+  File "F:\Zhaoyang\Sparse2Full\train.py", line 414, in train_epoch
+    pred = self.model(batch['baseline'])
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\ProgramData\anaconda3\Lib\site-packages\torch\nn\modules\module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\ProgramData\anaconda3\Lib\site-packages\torch\nn\modules\module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\Zhaoyang\Sparse2Full\models\hybrid.py", line 138, in forward
+    branch_outputs[name] = branch(x)
+                           ^^^^^^^^^
+  File "F:\ProgramData\anaconda3\Lib\site-packages\torch\nn\modules\module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\ProgramData\anaconda3\Lib\site-packages\torch\nn\modules\module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\Zhaoyang\Sparse2Full\models\hybrid.py", line 376, in forward
+    x = layer(x)
+        ^^^^^^^^
+  File "F:\ProgramData\anaconda3\Lib\site-packages\torch\nn\modules\module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\ProgramData\anaconda3\Lib\site-packages\torch\nn\modules\module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\Zhaoyang\Sparse2Full\models\hybrid.py", line 414, in forward
+    out_ft[:, :, :self.modes, :self.modes] = torch.einsum(
+                                             ^^^^^^^^^^^^^
+  File "F:\ProgramData\anaconda3\Lib\site-packages\torch\functional.py", line 407, in einsum
+    return _VF.einsum(equation, operands)  # type: ignore[attr-defined]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: expected scalar type ComplexFloat but found ComplexHalf
+
+Set the environment variable HYDRA_FULL_ERROR=1 for a complete stack trace.
+
+2025-10-13 22:02:40,902 - INFO - 批量训练完成，总耗时: 484.12秒
+2025-10-13 22:02:40,902 - INFO - 保存最终结果: runs\batch_training_results\final_results.json
+2025-10-13 22:02:40,903 - INFO - 生成汇总报告: runs\batch_training_results\batch_training_summary.md

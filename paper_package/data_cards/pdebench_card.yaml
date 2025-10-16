@@ -1,0 +1,24 @@
+boundary_conditions:
+  cfd: 周期边界条件
+  darcy_flow: 周期边界条件
+description: 大规模PDE基准数据集，包含多种物理方程的数值解
+generated_at: '2025-10-11T21:49:36.732878'
+generator: PDEBench Paper Package Generator
+license: MIT
+name: PDEBench
+preprocessing:
+  degradation:
+    crop: 中心对齐裁剪
+    sr: 高斯模糊 + 下采样
+  normalization: 逐通道z-score标准化
+source: https://github.com/pdebench/PDEBench
+splits:
+  test: 10%
+  train: 80%
+  val: 10%
+variables:
+  2D_CFD_Rand_M0.1_Eta1e-08_Zeta1e-08_periodic_Test: CFD随机测试集
+  2D_CFD_Rand_M0.1_Eta1e-08_Zeta1e-08_periodic_Train: CFD随机训练集
+  2D_DarcyFlow_beta0.01_Test: 达西流方程测试集
+  2D_DarcyFlow_beta0.01_Train: 达西流方程训练集
+version: 1.0.0

@@ -1,0 +1,44 @@
+# MLP模型配置
+# 通用MLP架构（坐标/patch）
+
+name: "MLP"
+
+params:
+  in_channels: 1
+  out_channels: 1
+  img_size: 128
+  
+  kwargs:
+    # MLP架构类型
+    mlp_type: "coordinate"  # coordinate, patch, mixer
+    
+    # 坐标MLP配置（coordinate模式）
+    coordinate_config:
+      hidden_dims: [256, 512, 512, 256]
+      use_positional_encoding: true
+      pe_type: "fourier"  # fourier, sinusoidal
+      pe_dim: 64
+      activation: "relu"
+      dropout: 0.1
+      use_residual: true
+    
+    # Patch MLP配置（patch模式）
+    patch_config:
+      patch_size: 16
+      hidden_dims: [512, 1024, 512]
+      activation: "gelu"
+      dropout: 0.1
+      use_layer_norm: true
+    
+    # MLP-Mixer配置（mixer模式）
+    mixer_config:
+      patch_size: 16
+      num_blocks: 8
+      hidden_dim: 512
+      tokens_mlp_dim: 256
+      channels_mlp_dim: 2048
+      dropout: 0.1
+    
+    # 输出配置
+    output_activation: null
+    use_skip_connection: true

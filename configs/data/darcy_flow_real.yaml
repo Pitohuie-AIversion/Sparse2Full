@@ -1,0 +1,60 @@
+# Darcy Flow真实数据配置
+# 支持官方PDEBench格式的2D_DarcyFlow_beta*.hdf5文件
+
+_target_: datasets.darcy_flow_dataset.DarcyFlowDataset
+
+# 数据路径配置
+data_path: "${data_root}/pdebench/official/2D_DarcyFlow_beta1.0_Train.hdf5"  # 真实HDF5文件路径
+splits_dir: "splits"  # 数据切分目录，相对于data_root/pdebench/official/
+
+# 数据基本配置
+keys: ["u"]  # Darcy Flow通常只有一个速度场通道
+normalize: true  # 启用z-score归一化
+image_size: 256  # 统一图像尺寸
+
+# 任务配置 - SR模式
+task: "SR"  # 超分辨率任务
+scale: 4  # 下采样倍率
+sigma: 1.0  # 高斯模糊标准差
+blur_kernel: 5  # 模糊核大小
+boundary: "mirror"  # 边界处理策略
+
+# 任务配置 - Crop模式（备选）
+# task: "Crop"
+# crop_size: [128, 128]  # 裁剪窗口尺寸
+# patch_align: 8  # patch对齐倍数
+# center_sampler: "mixed"  # 中心采样策略: uniform/boundary/mixed
+
+# 数据增强
+noise_std: 0.0  # 观测噪声标准差
+
+# 数据加载器配置
+batch_size: 8
+num_workers: 4
+pin_memory: true
+drop_last: true
+
+# 验证配置
+val_batch_size: 4
+val_num_workers: 2
+
+# 测试配置  
+test_batch_size: 1
+test_num_workers: 1
+
+# 数据集元信息
+dataset_info:
+  name: "DarcyFlow_Real"
+  description: "2D Darcy Flow equation with real PDEBench data"
+  equation: "∇·(K∇u) = f"
+  domain: "[0,1]²"
+  resolution: "256×256"
+  channels: 1
+  physics: "Fluid flow in porous media"
+  boundary_conditions: "Periodic"
+  
+# 兼容性配置
+compat:
+  pdebench_official: true  # 兼容官方PDEBench格式
+  data_format: "auto"  # 自动检测数据格式
+  fallback_splits: true  # 如果没有splits文件则自动切分
