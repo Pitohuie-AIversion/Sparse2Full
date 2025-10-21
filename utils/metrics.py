@@ -112,6 +112,13 @@ class MetricsCalculator:
         Returns:
             rel_l2: 相对L2误差 [B, C] 或标量
         """
+        # 处理5D张量 [B, T, C, H, W]
+        if len(pred.shape) == 5:
+            B, T, C, H, W = pred.shape
+            # 取最后一个时间步或平均所有时间步
+            pred = pred[:, -1]  # [B, C, H, W]
+            target = target[:, -1]  # [B, C, H, W]
+        
         # 按通道计算
         diff = pred - target
         mse = torch.mean(diff**2, dim=(-2, -1))  # [B, C]
@@ -123,6 +130,13 @@ class MetricsCalculator:
     
     def compute_mae(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """计算平均绝对误差"""
+        # 处理5D张量 [B, T, C, H, W]
+        if len(pred.shape) == 5:
+            B, T, C, H, W = pred.shape
+            # 取最后一个时间步或平均所有时间步
+            pred = pred[:, -1]  # [B, C, H, W]
+            target = target[:, -1]  # [B, C, H, W]
+        
         diff = torch.abs(pred - target)
         mae = torch.mean(diff, dim=(-2, -1))  # [B, C]
         return mae
@@ -132,13 +146,19 @@ class MetricsCalculator:
         """计算峰值信噪比
         
         Args:
-            pred: 预测值 [B, C, H, W]
-            target: 真实值 [B, C, H, W]  
+            pred: 预测值 [B, C, H, W] 或 [B, T, C, H, W]
+            target: 真实值 [B, C, H, W] 或 [B, T, C, H, W]
             max_val: 最大值，如果为None则自动计算
             
         Returns:
             psnr: PSNR值 [B, C]
         """
+        # 处理5D张量 [B, T, C, H, W]
+        if len(pred.shape) == 5:
+            B, T, C, H, W = pred.shape
+            # 取最后一个时间步或平均所有时间步
+            pred = pred[:, -1]  # [B, C, H, W]
+            target = target[:, -1]  # [B, C, H, W]
         if max_val is None:
             max_val = torch.max(target)
         
@@ -152,6 +172,20 @@ class MetricsCalculator:
         
         使用scikit-image的SSIM实现
         """
+        # 处理5D张量 [B, T, C, H, W]
+        if len(pred.shape) == 5:
+            B, T, C, H, W = pred.shape
+            # 取最后一个时间步或平均所有时间步
+            pred = pred[:, -1]  # [B, C, H, W]
+            target = target[:, -1]  # [B, C, H, W]
+        
+        # 处理5D张量 [B, T, C, H, W]
+        if len(pred.shape) == 5:
+            B, T, C, H, W = pred.shape
+            # 取最后一个时间步或平均所有时间步
+            pred = pred[:, -1]  # [B, C, H, W]
+            target = target[:, -1]  # [B, C, H, W]
+        
         B, C, H, W = pred.shape
         ssim_values = torch.zeros(B, C)
         
@@ -187,6 +221,13 @@ class MetricsCalculator:
                 pred, size=target.shape[-2:], 
                 mode='bilinear', align_corners=False
             )
+        
+        # 处理5D张量 [B, T, C, H, W]
+        if len(pred.shape) == 5:
+            B, T, C, H, W = pred.shape
+            # 取最后一个时间步或平均所有时间步
+            pred = pred[:, -1]  # [B, C, H, W]
+            target = target[:, -1]  # [B, C, H, W]
         
         # 更新图像尺寸以匹配当前数据
         current_size = target.shape[-2:]

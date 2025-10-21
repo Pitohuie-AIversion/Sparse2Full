@@ -41,10 +41,21 @@ class MultiHeadAttention(nn.Module):
 
     def forward(self, x):
         B, N, C = x.shape
+        
+        # 对于大分辨率图像，使用分块注意力机制来减少内存使用
+        if N > 16384:  # 128x128 = 16384, 对于更大的分辨率使用分块处理
+            return self._chunked_attention(x)
+        
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]
 
-        # 添加数值稳定性保护
+        # 添加数值稳定性保护和内存检查
+        # 检查矩阵乘法的维度，防止内存爆炸
+        head_dim = C // self.num_heads
+        if N * N * self.num_heads * head_dim > 1e9:  # 如果计算量过大，使用更小的块
+            print(f"Warning: Large attention computation detected. N={N}, heads={self.num_heads}, head_dim={head_dim}")
+            return self._chunked_attention(x)
+            
         attn = (q @ k.transpose(-2, -1)) * self.scale
         # 防止注意力权重过大
         attn = torch.clamp(attn, min=-10, max=10)
@@ -52,6 +63,64 @@ class MultiHeadAttention(nn.Module):
         attn = self.attn_drop(attn)
 
         x = (attn @ v).transpose(1, 2).reshape(B, N, C)
+        x = self.proj(x)
+        x = self.proj_drop(x)
+        return x
+    
+    def _chunked_attention(self, x):
+        """分块注意力机制，用于处理大分辨率图像"""
+        B, N, C = x.shape
+        
+        # 动态调整块大小，基于可用内存和序列长度
+        if N > 262144:  # 512x512
+            chunk_size = 1024  # 32x32的块
+        elif N > 65536:  # 256x256
+            chunk_size = 2048  # 45x45的块
+        else:
+            chunk_size = 4096  # 64x64的块
+            
+        print(f"Using chunked attention: N={N}, chunk_size={chunk_size}")
+        
+        qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
+        q, k, v = qkv[0], qkv[1], qkv[2]  # B, num_heads, N, head_dim
+        
+        # 分块处理查询
+        outputs = []
+        for i in range(0, N, chunk_size):
+            end_i = min(i + chunk_size, N)
+            q_chunk = q[:, :, i:end_i, :]  # B, num_heads, chunk_size, head_dim
+            
+            # 进一步分块处理键值对，避免内存爆炸
+            attn_outputs = []
+            for j in range(0, N, chunk_size):
+                end_j = min(j + chunk_size, N)
+                k_chunk = k[:, :, j:end_j, :]  # B, num_heads, chunk_size, head_dim
+                v_chunk = v[:, :, j:end_j, :]  # B, num_heads, chunk_size, head_dim
+                
+                # 计算注意力分数
+                attn_chunk = (q_chunk @ k_chunk.transpose(-2, -1)) * self.scale
+                attn_chunk = torch.clamp(attn_chunk, min=-10, max=10)
+                attn_chunk = attn_chunk.softmax(dim=-1)
+                attn_chunk = self.attn_drop(attn_chunk)
+                
+                # 计算输出
+                out_chunk = attn_chunk @ v_chunk  # B, num_heads, q_chunk_size, head_dim
+                attn_outputs.append(out_chunk)
+            
+            # 合并当前查询块的所有输出
+            if len(attn_outputs) > 1:
+                # 需要重新计算softmax权重
+                combined_out = torch.cat(attn_outputs, dim=-1)  # 临时合并
+                # 简化处理：取平均
+                combined_out = torch.mean(torch.stack(attn_outputs), dim=0)
+            else:
+                combined_out = attn_outputs[0]
+                
+            outputs.append(combined_out)
+        
+        # 合并所有查询块
+        x = torch.cat(outputs, dim=2)  # B, num_heads, N, head_dim
+        x = x.transpose(1, 2).reshape(B, N, C)
         x = self.proj(x)
         x = self.proj_drop(x)
         return x

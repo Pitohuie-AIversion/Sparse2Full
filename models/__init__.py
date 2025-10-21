@@ -59,8 +59,20 @@ def create_model(model_name_or_config, **kwargs):
     else:
         # 传入配置对象
         config = model_name_or_config
-        model_name = config.model.name
-        model_params = config.model.params
+        model_name = config.name
+        
+        # 处理参数结构
+        if 'params' in config:
+            # 如果有params字段，使用params中的参数
+            model_params = dict(config.params)
+            # 如果params中有kwargs，将其合并到主参数中
+            if 'kwargs' in model_params:
+                kwargs_dict = dict(model_params['kwargs'])
+                del model_params['kwargs']
+                model_params.update(kwargs_dict)
+        else:
+            # 过滤掉name字段，其余作为参数
+            model_params = {k: v for k, v in config.items() if k != 'name'}
     
     # 基线模型
     if model_name == "UNet" or model_name == "unet":

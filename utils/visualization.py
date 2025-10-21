@@ -1,750 +1,535 @@
 """可视化工具模块
 
-提供PDEBench稀疏观测重建系统的完整可视化功能
-支持热图、功率谱、误差分析、横向对比等多种可视化需求
-
-按照技术架构文档要求，生成标准的GT/Pred/Err热图、功率谱对数显示、边界带误差分析等
+实现训练过程和结果的可视化功能，包括时序动画、误差分析等
 """
 
 import os
+import json
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple, Any
+
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 import torch
 import torch.nn.functional as F
-from typing import Dict, List, Optional, Tuple, Union, Any
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 import seaborn as sns
-from pathlib import Path
-import json
-from matplotlib.colors import LogNorm
-import warnings
+from matplotlib.colors import Normalize
+from matplotlib.cm import ScalarMappable
+import cv2
+from tqdm import tqdm
 
-# 设置matplotlib参数
-plt.rcParams['font.size'] = 12
-plt.rcParams['axes.titlesize'] = 14
-plt.rcParams['axes.labelsize'] = 12
-plt.rcParams['xtick.labelsize'] = 10
-plt.rcParams['ytick.labelsize'] = 10
-plt.rcParams['legend.fontsize'] = 10
-plt.rcParams['figure.titlesize'] = 16
+# 设置matplotlib中文字体
+plt.rcParams['font.sans-serif'] = ['SimHei', 'DejaVu Sans']
+plt.rcParams['axes.unicode_minus'] = False
 
 
-class PDEBenchVisualizer:
-    """PDEBench可视化器
+class TemporalVisualizer:
+    """时序可视化器"""
     
-    提供完整的可视化功能，包括：
-    - GT/Pred/Error热图对比
-    - 四联图可视化（Observation + GT + Pred + Error）
-    - 功率谱分析（对数显示）
-    - 边界带误差分析
-    - 频域分段误差可视化
-    - 横向模型对比图表
-    - SVG格式输出支持
-    """
-    
-    def __init__(self, save_dir: str, dpi: int = 300, output_format: str = 'png', logger=None):
-        """
-        Args:
-            save_dir: 保存目录
-            dpi: 图像分辨率
-            output_format: 输出格式 ('png', 'svg', 'pdf')
-            logger: 日志记录器
-        """
+    def __init__(self, save_dir: Path, config: Dict):
         self.save_dir = Path(save_dir)
+        self.config = config
+        
+        # 创建保存目录
         self.save_dir.mkdir(parents=True, exist_ok=True)
-        self.dpi = dpi
-        self.output_format = output_format.lower()
-        self.logger = logger
+        (self.save_dir / "training").mkdir(exist_ok=True)
+        (self.save_dir / "results").mkdir(exist_ok=True)
+        (self.save_dir / "animations").mkdir(exist_ok=True)
         
-        # 设置颜色映射
-        self.field_cmap = 'RdBu_r'
-        self.error_cmap = 'Reds'
-        self.spectrum_cmap = 'hot'
-        
-        # 创建子目录
-        (self.save_dir / 'fields').mkdir(exist_ok=True)
-        (self.save_dir / 'spectra').mkdir(exist_ok=True)
-        (self.save_dir / 'analysis').mkdir(exist_ok=True)
-        (self.save_dir / 'comparisons').mkdir(exist_ok=True)
-
-    def _save_figure(self, save_name: str, subdir: str = '') -> str:
-        """保存图像的统一接口"""
-        if subdir:
-            save_path = self.save_dir / subdir / f"{save_name}.{self.output_format}"
-        else:
-            save_path = self.save_dir / f"{save_name}.{self.output_format}"
-        
-        save_path.parent.mkdir(parents=True, exist_ok=True)
-        plt.savefig(save_path, dpi=self.dpi, bbox_inches='tight')
-        plt.close()
-        return str(save_path)
-
-    def create_quadruplet_visualization(self,
-                                      observed: torch.Tensor,
-                                      gt: torch.Tensor,
-                                      pred: torch.Tensor,
-                                      save_name: str = "quadruplet",
-                                      figsize: Tuple[int, int] = (20, 5),
-                                      channel_idx: int = 0,
-                                      title: str = None) -> str:
-        """创建四联图可视化：Observation + GT + Prediction + Error
-        
-        Args:
-            observed: 观测数据张量
-            gt: 真值张量
-            pred: 预测张量
-            save_name: 保存文件名
-            figsize: 图像尺寸
-            channel_idx: 通道索引
-            title: 图像标题
-            
-        Returns:
-            保存路径
-        """
-        # 处理输入张量
-        if len(observed.shape) == 4:
-            observed = observed[0]
-            gt = gt[0]
-            pred = pred[0]
-        
-        if len(observed.shape) == 3 and observed.shape[0] > 1:
-            observed = observed[channel_idx]
-            gt = gt[channel_idx]
-            pred = pred[channel_idx]
-        elif len(observed.shape) == 3:
-            observed = observed.squeeze(0)
-            gt = gt.squeeze(0)
-            pred = pred.squeeze(0)
-        
-        # 转换为numpy
-        observed_np = observed.detach().cpu().numpy()
-        gt_np = gt.detach().cpu().numpy()
-        pred_np = pred.detach().cpu().numpy()
-        
-        # 确保是2D数组
-        if observed_np.ndim == 1:
-            # 如果是1D，尝试重塑为2D
-            size = int(np.sqrt(observed_np.shape[0]))
-            if size * size == observed_np.shape[0]:
-                observed_np = observed_np.reshape(size, size)
-                gt_np = gt_np.reshape(size, size)
-                pred_np = pred_np.reshape(size, size)
-            else:
-                raise ValueError(f"Cannot reshape 1D array of size {observed_np.shape[0]} to 2D")
-        
-        # 计算误差
-        error_np = np.abs(pred_np - gt_np)
-        
-        # 计算全局值域
-        vmin = min(observed_np.min(), gt_np.min(), pred_np.min())
-        vmax = max(observed_np.max(), gt_np.max(), pred_np.max())
-        
-        # 创建子图
-        fig, axes = plt.subplots(1, 4, figsize=figsize)
-        if title:
-            fig.suptitle(title, fontsize=16, fontweight='bold')
-        
-        # 观测数据
-        im1 = axes[0].imshow(observed_np, cmap=self.field_cmap, vmin=vmin, vmax=vmax)
-        axes[0].set_title('Observation', fontweight='bold')
-        axes[0].axis('off')
-        plt.colorbar(im1, ax=axes[0], shrink=0.8)
-        
-        # 真值
-        im2 = axes[1].imshow(gt_np, cmap=self.field_cmap, vmin=vmin, vmax=vmax)
-        axes[1].set_title('Ground Truth', fontweight='bold')
-        axes[1].axis('off')
-        plt.colorbar(im2, ax=axes[1], shrink=0.8)
-        
-        # 预测
-        im3 = axes[2].imshow(pred_np, cmap=self.field_cmap, vmin=vmin, vmax=vmax)
-        axes[2].set_title('Prediction', fontweight='bold')
-        axes[2].axis('off')
-        plt.colorbar(im3, ax=axes[2], shrink=0.8)
-        
-        # 误差
-        im4 = axes[3].imshow(error_np, cmap=self.error_cmap, vmin=0, vmax=error_np.max())
-        axes[3].set_title('Absolute Error', fontweight='bold')
-        axes[3].axis('off')
-        plt.colorbar(im4, ax=axes[3], shrink=0.8)
-        
-        plt.tight_layout()
-        
-        # 保存图像
-        return self._save_figure(save_name, 'fields')
-
-    def plot_field_comparison(self,
-                            gt: torch.Tensor,
-                            pred: torch.Tensor,
-                            save_name: str = "field_comparison",
-                            figsize: Tuple[int, int] = (15, 5),
-                            channel_idx: int = 0,
-                            title: str = None) -> str:
-        """绘制场对比图：GT + Prediction + Error
-        
-        Args:
-            gt: 真值张量
-            pred: 预测张量
-            save_name: 保存文件名
-            figsize: 图像尺寸
-            channel_idx: 通道索引
-            title: 图像标题
-            
-        Returns:
-            保存路径
-        """
-        # 处理输入张量
-        if isinstance(gt, torch.Tensor):
-            if len(gt.shape) == 4:
-                gt = gt[0]
-                pred = pred[0]
-            
-            if gt.shape[0] > 1:
-                gt = gt[channel_idx]
-                pred = pred[channel_idx]
-            else:
-                gt = gt.squeeze(0)
-                pred = pred.squeeze(0)
-        else:
-            # 处理numpy数组
-            gt = np.array(gt)
-            pred = np.array(pred)
-            if len(gt.shape) > 2:
-                gt = gt.squeeze()
-                pred = pred.squeeze()
-        
-        # 转换为numpy
-        if isinstance(gt, torch.Tensor):
-            gt_np = gt.detach().cpu().numpy()
-        else:
-            gt_np = np.array(gt)
-            
-        if isinstance(pred, torch.Tensor):
-            pred_np = pred.detach().cpu().numpy()
-        else:
-            pred_np = np.array(pred)
-        
-        # 计算误差
-        error_np = np.abs(pred_np - gt_np)
-        
-        # 计算全局值域
-        vmin = min(gt_np.min(), pred_np.min())
-        vmax = max(gt_np.max(), pred_np.max())
-        
-        # 创建子图
-        fig, axes = plt.subplots(1, 3, figsize=figsize)
-        if title:
-            fig.suptitle(title, fontsize=16, fontweight='bold')
-        
-        # 真值
-        im1 = axes[0].imshow(gt_np, cmap=self.field_cmap, vmin=vmin, vmax=vmax)
-        axes[0].set_title('Ground Truth', fontweight='bold')
-        axes[0].axis('off')
-        plt.colorbar(im1, ax=axes[0], shrink=0.8)
-        
-        # 预测
-        im2 = axes[1].imshow(pred_np, cmap=self.field_cmap, vmin=vmin, vmax=vmax)
-        axes[1].set_title('Prediction', fontweight='bold')
-        axes[1].axis('off')
-        plt.colorbar(im2, ax=axes[1], shrink=0.8)
-        
-        # 误差
-        im3 = axes[2].imshow(error_np, cmap=self.error_cmap, vmin=0, vmax=error_np.max())
-        axes[2].set_title('Absolute Error', fontweight='bold')
-        axes[2].axis('off')
-        plt.colorbar(im3, ax=axes[2], shrink=0.8)
-        
-        plt.tight_layout()
-        
-        # 保存图像
-        return self._save_figure(save_name, 'fields')
-
-    def create_correlation_heatmap(self, 
-                                 corr_matrix: np.ndarray,
-                                 save_name: str = "correlation_heatmap",
-                                 figsize: Tuple[int, int] = (12, 10)) -> str:
-        """创建相关性热图
-        
-        Args:
-            corr_matrix: 相关性矩阵
-            save_name: 保存文件名
-            figsize: 图像尺寸
-            
-        Returns:
-            保存路径
-        """
-        fig, ax = plt.subplots(figsize=figsize)
-        
-        # 创建掩码以隐藏上三角
-        mask = np.triu(np.ones_like(corr_matrix, dtype=bool))
-        
-        # 创建热图
-        sns.heatmap(corr_matrix, mask=mask, annot=True, cmap='coolwarm', center=0,
-                   square=True, fmt='.3f', cbar_kws={"shrink": .8}, ax=ax)
-        ax.set_title('Metrics Correlation Matrix')
-        plt.tight_layout()
-        
-        # 保存图像
-        return self._save_figure(save_name)
-
-    def create_metrics_summary_plot(self, 
-                                  metrics_data: Dict[str, Dict[str, float]],
-                                  save_name: str = "metrics_summary",
-                                  figsize: Tuple[int, int] = (12, 8)) -> str:
-        """创建指标汇总图
-        
-        Args:
-            metrics_data: {'method_name': {'metric_name': value}}
-            save_name: 保存文件名
-            figsize: 图像尺寸
-            
-        Returns:
-            保存路径
-        """
-        # 提取数据
-        methods = list(metrics_data.keys())
-        metrics = list(next(iter(metrics_data.values())).keys())
-        
-        # 创建数据矩阵
-        data_matrix = np.zeros((len(methods), len(metrics)))
-        for i, method in enumerate(methods):
-            for j, metric in enumerate(metrics):
-                data_matrix[i, j] = metrics_data[method].get(metric, 0)
-        
-        # 创建热图
-        fig, ax = plt.subplots(figsize=figsize)
-        
-        im = ax.imshow(data_matrix, cmap='RdYlBu_r', aspect='auto')
-        
-        # 设置标签
-        ax.set_xticks(np.arange(len(metrics)))
-        ax.set_yticks(np.arange(len(methods)))
-        ax.set_xticklabels(metrics, rotation=45, ha='right')
-        ax.set_yticklabels(methods)
-        
-        # 添加数值标注
-        for i in range(len(methods)):
-            for j in range(len(metrics)):
-                text = ax.text(j, i, f'{data_matrix[i, j]:.3f}',
-                             ha="center", va="center", color="black", fontsize=10)
-        
-        ax.set_title("Metrics Summary")
-        plt.colorbar(im, ax=ax, shrink=0.8)
-        plt.tight_layout()
-        
-        # 保存图像
-        return self._save_figure(save_name)
-
-    def plot_training_curves(self,
-                           train_losses: List[float],
-                           val_losses: List[float],
-                           save_name: str = "training_curves",
-                           figsize: Tuple[int, int] = (12, 8),
-                           additional_metrics: Dict[str, List[float]] = None) -> str:
-        """绘制训练曲线
-        
-        Args:
-            train_losses: 训练损失列表
-            val_losses: 验证损失列表
-            save_name: 保存文件名
-            figsize: 图像尺寸
-            additional_metrics: 额外指标字典
-            
-        Returns:
-            保存路径
-        """
-        epochs = range(1, len(train_losses) + 1)
-        
-        # 确定子图数量
-        n_plots = 2 if additional_metrics is None else 2 + len(additional_metrics)
-        n_cols = min(n_plots, 2)
-        n_rows = (n_plots + n_cols - 1) // n_cols
-        
-        fig, axes = plt.subplots(n_rows, n_cols, figsize=figsize)
-        if n_plots == 1:
-            axes = [axes]
-        elif n_rows == 1:
-            axes = axes if n_cols > 1 else [axes]
-        else:
-            axes = axes.flatten()
+        # 设置绘图样式
+        plt.style.use('seaborn-v0_8')
+        sns.set_palette("husl")
+    
+    def plot_training_curves(self, metrics_history: Dict[str, List], epoch: int):
+        """绘制训练曲线"""
+        fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+        fig.suptitle(f'训练进度 - Epoch {epoch}', fontsize=16)
         
         # 损失曲线
-        axes[0].plot(epochs, train_losses, label='Train Loss', color='blue', linewidth=2)
-        axes[0].plot(epochs, val_losses, label='Val Loss', color='red', linewidth=2)
-        axes[0].set_xlabel('Epoch')
-        axes[0].set_ylabel('Loss')
-        axes[0].set_title('Training and Validation Loss')
-        axes[0].legend()
-        axes[0].grid(True, alpha=0.3)
+        if metrics_history['train_loss'] and metrics_history['val_loss']:
+            axes[0, 0].plot(metrics_history['train_loss'], label='训练损失', alpha=0.8)
+            axes[0, 0].plot(metrics_history['val_loss'], label='验证损失', alpha=0.8)
+            axes[0, 0].set_title('损失曲线')
+            axes[0, 0].set_xlabel('Epoch')
+            axes[0, 0].set_ylabel('Loss')
+            axes[0, 0].legend()
+            axes[0, 0].grid(True, alpha=0.3)
         
-        # 学习率曲线（如果有的话）
-        if additional_metrics and 'learning_rate' in additional_metrics:
-            axes[1].plot(epochs, additional_metrics['learning_rate'], color='green', linewidth=2)
-            axes[1].set_xlabel('Epoch')
-            axes[1].set_ylabel('Learning Rate')
-            axes[1].set_title('Learning Rate Schedule')
-            axes[1].set_yscale('log')
-            axes[1].grid(True, alpha=0.3)
-            plot_idx = 2
-        else:
-            plot_idx = 1
+        # Rel-L2曲线
+        if metrics_history['train_rel_l2'] and metrics_history['val_rel_l2']:
+            axes[0, 1].plot(metrics_history['train_rel_l2'], label='训练Rel-L2', alpha=0.8)
+            axes[0, 1].plot(metrics_history['val_rel_l2'], label='验证Rel-L2', alpha=0.8)
+            axes[0, 1].set_title('Rel-L2曲线')
+            axes[0, 1].set_xlabel('Epoch')
+            axes[0, 1].set_ylabel('Rel-L2')
+            axes[0, 1].legend()
+            axes[0, 1].grid(True, alpha=0.3)
         
-        # 其他指标
-        if additional_metrics:
-            for metric_name, values in additional_metrics.items():
-                if metric_name == 'learning_rate':
-                    continue
-                if plot_idx < len(axes):
-                    axes[plot_idx].plot(epochs, values, linewidth=2)
-                    axes[plot_idx].set_xlabel('Epoch')
-                    axes[plot_idx].set_ylabel(metric_name.upper())
-                    axes[plot_idx].set_title(f'{metric_name.upper()} over Training')
-                    axes[plot_idx].grid(True, alpha=0.3)
-                    plot_idx += 1
+        # MAE曲线
+        if metrics_history['train_mae'] and metrics_history['val_mae']:
+            axes[1, 0].plot(metrics_history['train_mae'], label='训练MAE', alpha=0.8)
+            axes[1, 0].plot(metrics_history['val_mae'], label='验证MAE', alpha=0.8)
+            axes[1, 0].set_title('MAE曲线')
+            axes[1, 0].set_xlabel('Epoch')
+            axes[1, 0].set_ylabel('MAE')
+            axes[1, 0].legend()
+            axes[1, 0].grid(True, alpha=0.3)
         
-        # 隐藏多余的子图
-        for i in range(plot_idx, len(axes)):
-            axes[i].set_visible(False)
+        # 学习率曲线
+        if metrics_history['learning_rate']:
+            axes[1, 1].plot(metrics_history['learning_rate'], alpha=0.8, color='orange')
+            axes[1, 1].set_title('学习率曲线')
+            axes[1, 1].set_xlabel('Epoch')
+            axes[1, 1].set_ylabel('Learning Rate')
+            axes[1, 1].set_yscale('log')
+            axes[1, 1].grid(True, alpha=0.3)
         
         plt.tight_layout()
+        plt.savefig(self.save_dir / "training" / f"curves_epoch_{epoch:04d}.png", 
+                   dpi=150, bbox_inches='tight')
+        plt.close()
+    
+    def save_training_predictions(self, input_seq: torch.Tensor, 
+                                target_seq: torch.Tensor, 
+                                pred_seq: torch.Tensor,
+                                step: int, epoch: int):
+        """保存训练过程中的预测结果"""
+        # 转换为numpy
+        input_seq = input_seq.detach().cpu().numpy()  # [T_in, C, H, W] or [C, H, W]
+        target_seq = target_seq.detach().cpu().numpy()  # [T_out, C, H, W] or [C, H, W]
+        pred_seq = pred_seq.detach().cpu().numpy()  # [T_out, C, H, W] or [C, H, W]
         
-        # 保存图像
-        return self._save_figure(save_name, 'analysis')
-
-    def create_power_spectrum_plot(self,
-                                 field: torch.Tensor,
-                                 save_name: str = "power_spectrum",
-                                 figsize: Tuple[int, int] = (10, 6),
-                                 channel_idx: int = 0) -> str:
-        """创建功率谱图
+        print(f"可视化输入形状: input={input_seq.shape}, target={target_seq.shape}, pred={pred_seq.shape}")
         
-        Args:
-            field: 场数据张量
-            save_name: 保存文件名
-            figsize: 图像尺寸
-            channel_idx: 通道索引
-            
-        Returns:
-            保存路径
-        """
-        # 处理输入张量
-        if isinstance(field, torch.Tensor):
-            if len(field.shape) == 4:
-                field = field[0]
-            if len(field.shape) == 3 and field.shape[0] > 1:
-                field = field[channel_idx]
-            elif len(field.shape) == 3:
-                field = field.squeeze(0)
-            field_np = field.detach().cpu().numpy()
-        else:
-            field_np = np.array(field)
-            
-        # 确保是2D数组
-        if field_np.ndim > 2:
-            field_np = field_np.squeeze()
-        if field_np.ndim == 1:
-            # 如果是1D，尝试重塑为2D
-            size = int(np.sqrt(field_np.shape[0]))
-            if size * size == field_np.shape[0]:
-                field_np = field_np.reshape(size, size)
+        # 处理不同的输入形状
+        if len(input_seq.shape) == 3:  # [C, H, W] -> [1, C, H, W]
+            input_seq = input_seq[np.newaxis, ...]
+        if len(target_seq.shape) == 3:  # [C, H, W] -> [1, C, H, W]
+            target_seq = target_seq[np.newaxis, ...]
+        if len(pred_seq.shape) == 3:  # [C, H, W] -> [1, C, H, W]
+            pred_seq = pred_seq[np.newaxis, ...]
+        
+        # 选择第一个通道进行可视化
+        input_seq = input_seq[:, 0]  # [T_in, H, W]
+        target_seq = target_seq[:, 0]  # [T_out, H, W]
+        pred_seq = pred_seq[:, 0]  # [T_out, H, W]
+        
+        print(f"可视化处理后形状: input={input_seq.shape}, target={target_seq.shape}, pred={pred_seq.shape}")
+        
+        # 创建对比图
+        T_out = target_seq.shape[0]
+        T_in = input_seq.shape[0]
+        max_cols = max(3, T_out)
+        fig, axes = plt.subplots(3, max_cols, figsize=(4*max_cols, 12))
+        
+        # 确保axes是2D数组
+        if max_cols == 1:
+            axes = axes.reshape(3, 1)
+        
+        # 输入序列
+        for t in range(max_cols):
+            if t < T_in:
+                im = axes[0, t].imshow(input_seq[t], cmap='viridis')
+                axes[0, t].set_title(f'输入 t={t}')
+                axes[0, t].axis('off')
+                plt.colorbar(im, ax=axes[0, t], fraction=0.046)
             else:
-                raise ValueError(f"Cannot reshape 1D array of size {field_np.shape[0]} to 2D")
+                axes[0, t].axis('off')
         
-        # 确保是2D数组
-        if field_np.ndim != 2:
-            raise ValueError(f"Expected 2D array, got {field_np.ndim}D array with shape {field_np.shape}")
+        # 目标序列
+        for t in range(max_cols):
+            if t < T_out:
+                im = axes[1, t].imshow(target_seq[t], cmap='viridis')
+                axes[1, t].set_title(f'目标 t={t+1}')
+                axes[1, t].axis('off')
+                plt.colorbar(im, ax=axes[1, t], fraction=0.046)
+            else:
+                axes[1, t].axis('off')
         
-        # 计算2D FFT
-        fft_field = np.fft.fft2(field_np)
-        fft_shifted = np.fft.fftshift(fft_field)
-        power_spectrum = np.abs(fft_shifted) ** 2
+        # 预测序列
+        T_pred = pred_seq.shape[0]  # 实际预测序列长度
+        for t in range(max_cols):
+            if t < T_pred:
+                im = axes[2, t].imshow(pred_seq[t], cmap='viridis')
+                axes[2, t].set_title(f'预测 t={t+1}')
+                axes[2, t].axis('off')
+                plt.colorbar(im, ax=axes[2, t], fraction=0.046)
+            else:
+                axes[2, t].axis('off')
         
-        # 计算径向平均功率谱
-        h, w = power_spectrum.shape
-        center_y, center_x = h // 2, w // 2
-        
-        # 创建径向坐标
-        y, x = np.ogrid[:h, :w]
-        r = np.sqrt((x - center_x)**2 + (y - center_y)**2)
-        r = r.astype(int)
-        
-        # 计算径向平均
-        tbin = np.bincount(r.ravel(), power_spectrum.ravel())
-        nr = np.bincount(r.ravel())
-        radial_profile = tbin / nr
-        
-        # 创建图像
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
-        
-        # 2D功率谱
-        im1 = ax1.imshow(np.log10(power_spectrum + 1e-10), cmap=self.spectrum_cmap)
-        ax1.set_title('2D Power Spectrum (log scale)')
-        ax1.axis('off')
-        plt.colorbar(im1, ax=ax1, shrink=0.8)
-        
-        # 径向平均功率谱
-        k_values = np.arange(len(radial_profile))
-        ax2.loglog(k_values[1:], radial_profile[1:], 'b-', linewidth=2)
-        ax2.set_xlabel('Wavenumber k')
-        ax2.set_ylabel('Power')
-        ax2.set_title('Radial Power Spectrum')
-        ax2.grid(True, alpha=0.3)
-        
+        plt.suptitle(f'训练预测结果 - Step {step}, Epoch {epoch}', fontsize=16)
         plt.tight_layout()
+        plt.savefig(self.save_dir / "training" / f"pred_step_{step:06d}.png", 
+                   dpi=150, bbox_inches='tight')
+        plt.close()
+    
+    def create_temporal_animation(self, sequence: np.ndarray, 
+                                title: str, filename: str,
+                                fps: int = 5, interval: int = 200):
+        """创建时序动画"""
+        # sequence: [T, H, W]
+        T, H, W = sequence.shape
         
-        # 保存图像
-        return self._save_figure(save_name, 'spectra')
-
-    def create_boundary_analysis(self,
-                               gt: torch.Tensor,
-                               pred: torch.Tensor,
-                               boundary_width: int = 16,
-                               save_name: str = "boundary_analysis",
-                               figsize: Tuple[int, int] = (15, 5)) -> str:
-        """创建边界分析图
+        fig, ax = plt.subplots(figsize=(8, 6))
         
-        Args:
-            gt: 真值张量
-            pred: 预测张量
-            boundary_width: 边界宽度
-            save_name: 保存文件名
-            figsize: 图像尺寸
-            
-        Returns:
-            保存路径
-        """
-        # 处理输入张量
-        if isinstance(gt, torch.Tensor):
-            if len(gt.shape) == 4:
-                gt = gt[0, 0]
-                pred = pred[0, 0]
-            elif len(gt.shape) == 3:
-                gt = gt[0]
-                pred = pred[0]
-            gt_np = gt.detach().cpu().numpy()
-            pred_np = pred.detach().cpu().numpy()
-        else:
-            gt_np = np.array(gt)
-            pred_np = np.array(pred)
+        # 设置颜色范围
+        vmin, vmax = sequence.min(), sequence.max()
         
-        h, w = gt_np.shape
+        # 初始化图像
+        im = ax.imshow(sequence[0], cmap='viridis', vmin=vmin, vmax=vmax)
+        ax.set_title(f'{title} - t=0')
+        ax.axis('off')
         
-        # 创建边界掩码
-        boundary_mask = np.zeros((h, w), dtype=bool)
-        boundary_mask[:boundary_width, :] = True  # 上边界
-        boundary_mask[-boundary_width:, :] = True  # 下边界
-        boundary_mask[:, :boundary_width] = True  # 左边界
-        boundary_mask[:, -boundary_width:] = True  # 右边界
+        # 添加颜色条
+        cbar = plt.colorbar(im, ax=ax, fraction=0.046)
+        
+        def animate(frame):
+            im.set_array(sequence[frame])
+            ax.set_title(f'{title} - t={frame}')
+            return [im]
+        
+        # 创建动画
+        anim = animation.FuncAnimation(
+            fig, animate, frames=T, interval=interval, blit=True, repeat=True
+        )
+        
+        # 保存动画
+        anim.save(self.save_dir / "animations" / f"{filename}.gif", 
+                 writer='pillow', fps=fps)
+        plt.close()
+    
+    def plot_error_analysis(self, target_seq: np.ndarray, 
+                          pred_seq: np.ndarray, 
+                          case_id: str):
+        """绘制误差分析图"""
+        # target_seq, pred_seq: [T, C, H, W]
+        T, C, H, W = target_seq.shape
         
         # 计算误差
-        error = np.abs(pred_np - gt_np)
+        error_seq = np.abs(pred_seq - target_seq)
+        rel_error_seq = error_seq / (np.abs(target_seq) + 1e-8)
         
-        # 边界和内部误差
-        boundary_error = error[boundary_mask]
-        interior_error = error[~boundary_mask]
+        # 选择第一个通道
+        target_seq = target_seq[:, 0]  # [T, H, W]
+        pred_seq = pred_seq[:, 0]
+        error_seq = error_seq[:, 0]
+        rel_error_seq = rel_error_seq[:, 0]
         
-        # 创建图像
-        fig, axes = plt.subplots(1, 3, figsize=figsize)
+        # 创建对比图
+        fig, axes = plt.subplots(4, T, figsize=(4*T, 16))
         
-        # 边界掩码可视化
-        axes[0].imshow(boundary_mask, cmap='RdYlBu', alpha=0.7)
-        axes[0].contour(gt_np, levels=10, colors='black', alpha=0.5, linewidths=0.5)
-        axes[0].set_title(f'Boundary Region (width={boundary_width})')
+        for t in range(T):
+            # 目标
+            im1 = axes[0, t].imshow(target_seq[t], cmap='viridis')
+            axes[0, t].set_title(f'目标 t={t+1}')
+            axes[0, t].axis('off')
+            plt.colorbar(im1, ax=axes[0, t], fraction=0.046)
+            
+            # 预测
+            im2 = axes[1, t].imshow(pred_seq[t], cmap='viridis')
+            axes[1, t].set_title(f'预测 t={t+1}')
+            axes[1, t].axis('off')
+            plt.colorbar(im2, ax=axes[1, t], fraction=0.046)
+            
+            # 绝对误差
+            im3 = axes[2, t].imshow(error_seq[t], cmap='Reds')
+            axes[2, t].set_title(f'绝对误差 t={t+1}')
+            axes[2, t].axis('off')
+            plt.colorbar(im3, ax=axes[2, t], fraction=0.046)
+            
+            # 相对误差
+            im4 = axes[3, t].imshow(rel_error_seq[t], cmap='Reds')
+            axes[3, t].set_title(f'相对误差 t={t+1}')
+            axes[3, t].axis('off')
+            plt.colorbar(im4, ax=axes[3, t], fraction=0.046)
+        
+        plt.suptitle(f'误差分析 - Case {case_id}', fontsize=16)
+        plt.tight_layout()
+        plt.savefig(self.save_dir / "results" / f"error_analysis_{case_id}.png", 
+                   dpi=150, bbox_inches='tight')
+        plt.close()
+    
+    def plot_temporal_profiles(self, target_seq: np.ndarray, 
+                             pred_seq: np.ndarray, 
+                             case_id: str,
+                             sample_points: List[Tuple[int, int]] = None):
+        """绘制时序剖面图"""
+        # target_seq, pred_seq: [T, C, H, W]
+        T, C, H, W = target_seq.shape
+        
+        # 选择采样点
+        if sample_points is None:
+            sample_points = [
+                (H//4, W//4),      # 左上
+                (H//2, W//2),      # 中心
+                (3*H//4, 3*W//4),  # 右下
+            ]
+        
+        # 选择第一个通道
+        target_seq = target_seq[:, 0]  # [T, H, W]
+        pred_seq = pred_seq[:, 0]
+        
+        fig, axes = plt.subplots(len(sample_points), 1, figsize=(12, 4*len(sample_points)))
+        if len(sample_points) == 1:
+            axes = [axes]
+        
+        time_steps = np.arange(T)
+        
+        for i, (y, x) in enumerate(sample_points):
+            # 提取时序数据
+            target_profile = target_seq[:, y, x]
+            pred_profile = pred_seq[:, y, x]
+            
+            # 绘制时序曲线
+            axes[i].plot(time_steps, target_profile, 'o-', label='目标', alpha=0.8)
+            axes[i].plot(time_steps, pred_profile, 's-', label='预测', alpha=0.8)
+            axes[i].set_title(f'时序剖面 - 位置 ({y}, {x})')
+            axes[i].set_xlabel('时间步')
+            axes[i].set_ylabel('数值')
+            axes[i].legend()
+            axes[i].grid(True, alpha=0.3)
+        
+        plt.suptitle(f'时序剖面分析 - Case {case_id}', fontsize=16)
+        plt.tight_layout()
+        plt.savefig(self.save_dir / "results" / f"temporal_profiles_{case_id}.png", 
+                   dpi=150, bbox_inches='tight')
+        plt.close()
+    
+    def plot_spectral_analysis(self, target_seq: np.ndarray, 
+                             pred_seq: np.ndarray, 
+                             case_id: str):
+        """绘制频谱分析图"""
+        # target_seq, pred_seq: [T, C, H, W]
+        T, C, H, W = target_seq.shape
+        
+        # 选择第一个通道
+        target_seq = target_seq[:, 0]  # [T, H, W]
+        pred_seq = pred_seq[:, 0]
+        
+        fig, axes = plt.subplots(2, T, figsize=(4*T, 8))
+        
+        for t in range(T):
+            # 计算2D FFT
+            target_fft = np.fft.fft2(target_seq[t])
+            pred_fft = np.fft.fft2(pred_seq[t])
+            
+            # 计算功率谱
+            target_power = np.log10(np.abs(np.fft.fftshift(target_fft)) + 1e-8)
+            pred_power = np.log10(np.abs(np.fft.fftshift(pred_fft)) + 1e-8)
+            
+            # 绘制功率谱
+            im1 = axes[0, t].imshow(target_power, cmap='viridis')
+            axes[0, t].set_title(f'目标功率谱 t={t+1}')
+            axes[0, t].axis('off')
+            plt.colorbar(im1, ax=axes[0, t], fraction=0.046)
+            
+            im2 = axes[1, t].imshow(pred_power, cmap='viridis')
+            axes[1, t].set_title(f'预测功率谱 t={t+1}')
+            axes[1, t].axis('off')
+            plt.colorbar(im2, ax=axes[1, t], fraction=0.046)
+        
+        plt.suptitle(f'频谱分析 - Case {case_id}', fontsize=16)
+        plt.tight_layout()
+        plt.savefig(self.save_dir / "results" / f"spectral_analysis_{case_id}.png", 
+                   dpi=150, bbox_inches='tight')
+        plt.close()
+    
+    def create_comparison_animation(self, input_seq: np.ndarray,
+                                  target_seq: np.ndarray,
+                                  pred_seq: np.ndarray,
+                                  case_id: str,
+                                  fps: int = 5):
+        """创建对比动画"""
+        # input_seq: [T_in, C, H, W]
+        # target_seq, pred_seq: [T_out, C, H, W]
+        
+        # 选择第一个通道
+        input_seq = input_seq[:, 0] if input_seq.ndim == 4 else input_seq
+        target_seq = target_seq[:, 0] if target_seq.ndim == 4 else target_seq
+        pred_seq = pred_seq[:, 0] if pred_seq.ndim == 4 else pred_seq
+        
+        T_in, T_out = input_seq.shape[0], target_seq.shape[0]
+        
+        # 创建图形
+        fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+        
+        # 设置颜色范围
+        all_data = np.concatenate([input_seq.flatten(), target_seq.flatten(), pred_seq.flatten()])
+        vmin, vmax = all_data.min(), all_data.max()
+        
+        # 初始化图像
+        im1 = axes[0].imshow(input_seq[0], cmap='viridis', vmin=vmin, vmax=vmax)
+        axes[0].set_title('输入序列')
         axes[0].axis('off')
         
-        # 误差分布
-        im2 = axes[1].imshow(error, cmap=self.error_cmap)
-        axes[1].set_title('Error Distribution')
+        im2 = axes[1].imshow(target_seq[0], cmap='viridis', vmin=vmin, vmax=vmax)
+        axes[1].set_title('目标序列')
         axes[1].axis('off')
-        plt.colorbar(im2, ax=axes[1], shrink=0.8)
         
-        # 边界vs内部误差统计
-        axes[2].hist(boundary_error.flatten(), bins=50, alpha=0.7, label=f'Boundary (μ={boundary_error.mean():.4f})', density=True)
-        axes[2].hist(interior_error.flatten(), bins=50, alpha=0.7, label=f'Interior (μ={interior_error.mean():.4f})', density=True)
-        axes[2].set_xlabel('Absolute Error')
-        axes[2].set_ylabel('Density')
-        axes[2].set_title('Error Distribution')
-        axes[2].legend()
-        axes[2].grid(True, alpha=0.3)
+        im3 = axes[2].imshow(pred_seq[0], cmap='viridis', vmin=vmin, vmax=vmax)
+        axes[2].set_title('预测序列')
+        axes[2].axis('off')
+        
+        # 添加颜色条
+        for ax, im in zip(axes, [im1, im2, im3]):
+            plt.colorbar(im, ax=ax, fraction=0.046)
+        
+        def animate(frame):
+            # 输入序列
+            if frame < T_in:
+                im1.set_array(input_seq[frame])
+                axes[0].set_title(f'输入序列 t={frame}')
+            else:
+                # 保持最后一帧
+                axes[0].set_title(f'输入序列 t={T_in-1}')
+            
+            # 目标和预测序列
+            if frame >= T_in:
+                out_frame = frame - T_in
+                if out_frame < T_out:
+                    im2.set_array(target_seq[out_frame])
+                    im3.set_array(pred_seq[out_frame])
+                    axes[1].set_title(f'目标序列 t={frame}')
+                    axes[2].set_title(f'预测序列 t={frame}')
+            
+            return [im1, im2, im3]
+        
+        # 创建动画
+        total_frames = T_in + T_out
+        anim = animation.FuncAnimation(
+            fig, animate, frames=total_frames, interval=1000//fps, blit=True, repeat=True
+        )
+        
+        # 保存动画
+        anim.save(self.save_dir / "animations" / f"comparison_{case_id}.gif", 
+                 writer='pillow', fps=fps)
+        plt.close()
+    
+    def create_final_visualizations(self, model: torch.nn.Module, 
+                                  test_loader, device: torch.device):
+        """创建最终的可视化结果"""
+        model.eval()
+        
+        with torch.no_grad():
+            for i, batch in enumerate(tqdm(test_loader, desc="生成可视化")):
+                if i >= 3:  # 只处理前3个样本
+                    break
+                
+                # 移动数据到设备
+                input_seq = batch['input_sequence'].to(device)
+                target_seq = batch['target_sequence'].to(device)
+                case_id = batch['case_id'][0]
+                
+                if 'observation_sequence' in batch:
+                    obs_seq = batch['observation_sequence'].to(device)
+                else:
+                    obs_seq = input_seq
+                
+                # 模型推理
+                outputs = model(obs_seq, target_seq, mode='inference')
+                pred_seq = outputs['predictions']
+                
+                # 转换为numpy
+                input_np = input_seq[0].detach().cpu().numpy()
+                target_np = target_seq[0].detach().cpu().numpy()
+                pred_np = pred_seq[0].detach().cpu().numpy()
+                obs_np = obs_seq[0].detach().cpu().numpy()
+                
+                # 生成各种可视化
+                if self.config.results.plot_error_maps:
+                    self.plot_error_analysis(target_np, pred_np, case_id)
+                
+                if self.config.results.plot_temporal_profiles:
+                    self.plot_temporal_profiles(target_np, pred_np, case_id)
+                
+                if self.config.results.plot_spectral_analysis:
+                    self.plot_spectral_analysis(target_np, pred_np, case_id)
+                
+                if self.config.results.create_animations:
+                    # 创建目标序列动画
+                    self.create_temporal_animation(
+                        target_np[:, 0], f"目标序列 - Case {case_id}", 
+                        f"target_{case_id}"
+                    )
+                    
+                    # 创建预测序列动画
+                    self.create_temporal_animation(
+                        pred_np[:, 0], f"预测序列 - Case {case_id}", 
+                        f"prediction_{case_id}"
+                    )
+                    
+                    # 创建对比动画
+                    self.create_comparison_animation(
+                        obs_np, target_np, pred_np, case_id
+                    )
+        
+        print(f"✅ 可视化结果已保存到: {self.save_dir}")
+
+
+class MetricsVisualizer:
+    """指标可视化器"""
+    
+    def __init__(self, save_dir: Path):
+        self.save_dir = Path(save_dir)
+        self.save_dir.mkdir(parents=True, exist_ok=True)
+    
+    def plot_metrics_comparison(self, results: Dict[str, Dict], 
+                              save_name: str = "metrics_comparison"):
+        """绘制多个实验的指标对比"""
+        metrics = ['rel_l2', 'mae', 'psnr', 'ssim']
+        
+        fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+        axes = axes.flatten()
+        
+        for i, metric in enumerate(metrics):
+            exp_names = []
+            values = []
+            
+            for exp_name, exp_results in results.items():
+                if metric in exp_results:
+                    exp_names.append(exp_name)
+                    values.append(exp_results[metric])
+            
+            if values:
+                axes[i].bar(exp_names, values, alpha=0.7)
+                axes[i].set_title(f'{metric.upper()} 对比')
+                axes[i].set_ylabel(metric.upper())
+                axes[i].tick_params(axis='x', rotation=45)
+                axes[i].grid(True, alpha=0.3)
         
         plt.tight_layout()
+        plt.savefig(self.save_dir / f"{save_name}.png", dpi=150, bbox_inches='tight')
+        plt.close()
+    
+    def create_metrics_table(self, results: Dict[str, Dict], 
+                           save_name: str = "metrics_table"):
+        """创建指标对比表格"""
+        import pandas as pd
         
-        # 保存图像
-        return self._save_figure(save_name, 'analysis')
-
-    def set_output_format(self, format: str) -> None:
-        """设置输出格式
+        # 转换为DataFrame
+        df = pd.DataFrame(results).T
         
-        Args:
-            format: 输出格式 ('png', 'svg', 'pdf')
-        """
-        self.output_format = format.lower()
+        # 保存为CSV
+        df.to_csv(self.save_dir / f"{save_name}.csv")
         
-    def get_supported_formats(self) -> List[str]:
-        """获取支持的输出格式"""
-        return ['png', 'svg', 'pdf']
-
-
-# 统一的可视化API接口
-def create_comparison_plot(observed: np.ndarray, 
-                          gt: np.ndarray, 
-                          pred: np.ndarray,
-                          titles: List[str] = None,
-                          figsize: Tuple[int, int] = (15, 5)) -> plt.Figure:
-    """创建对比图的便捷接口
-    
-    Args:
-        observed: 观测数据
-        gt: 真值数据
-        pred: 预测数据
-        titles: 子图标题列表
-        figsize: 图像尺寸
+        # 创建可视化表格
+        fig, ax = plt.subplots(figsize=(12, 8))
+        ax.axis('tight')
+        ax.axis('off')
         
-    Returns:
-        matplotlib图像对象
-    """
-    if titles is None:
-        titles = ['Observed', 'Ground Truth', 'Prediction']
-    
-    # 计算误差
-    error = np.abs(pred - gt)
-    
-    # 计算全局值域
-    vmin = min(observed.min(), gt.min(), pred.min())
-    vmax = max(observed.max(), gt.max(), pred.max())
-    
-    # 创建子图
-    fig, axes = plt.subplots(1, 4, figsize=(20, 5))
-    
-    # 观测数据
-    im1 = axes[0].imshow(observed, cmap='RdBu_r', vmin=vmin, vmax=vmax)
-    axes[0].set_title(titles[0], fontweight='bold')
-    axes[0].axis('off')
-    plt.colorbar(im1, ax=axes[0], shrink=0.8)
-    
-    # 真值
-    im2 = axes[1].imshow(gt, cmap='RdBu_r', vmin=vmin, vmax=vmax)
-    axes[1].set_title(titles[1], fontweight='bold')
-    axes[1].axis('off')
-    plt.colorbar(im2, ax=axes[1], shrink=0.8)
-    
-    # 预测
-    im3 = axes[2].imshow(pred, cmap='RdBu_r', vmin=vmin, vmax=vmax)
-    axes[2].set_title(titles[2], fontweight='bold')
-    axes[2].axis('off')
-    plt.colorbar(im3, ax=axes[2], shrink=0.8)
-    
-    # 误差
-    im4 = axes[3].imshow(error, cmap='Reds', vmin=0, vmax=error.max())
-    axes[3].set_title('Absolute Error', fontweight='bold')
-    axes[3].axis('off')
-    plt.colorbar(im4, ax=axes[3], shrink=0.8)
-    
-    plt.tight_layout()
-    return fig
-
-
-def create_spectrum_plot(gt: np.ndarray, pred: np.ndarray, figsize: Tuple[int, int] = (10, 6)) -> plt.Figure:
-    """创建频谱对比图的便捷接口
-    
-    Args:
-        gt: 真值数据
-        pred: 预测数据
-        figsize: 图像尺寸
+        table = ax.table(cellText=df.round(4).values,
+                        rowLabels=df.index,
+                        colLabels=df.columns,
+                        cellLoc='center',
+                        loc='center')
         
-    Returns:
-        matplotlib图像对象
-    """
-    # 计算2D FFT
-    fft_gt = np.fft.fft2(gt)
-    fft_pred = np.fft.fft2(pred)
-    
-    # 计算功率谱
-    power_gt = np.abs(np.fft.fftshift(fft_gt)) ** 2
-    power_pred = np.abs(np.fft.fftshift(fft_pred)) ** 2
-    
-    # 创建图像
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
-    
-    # GT功率谱
-    im1 = ax1.imshow(np.log10(power_gt + 1e-10), cmap='hot')
-    ax1.set_title('Ground Truth Power Spectrum (log)')
-    ax1.axis('off')
-    plt.colorbar(im1, ax=ax1, shrink=0.8)
-    
-    # Pred功率谱
-    im2 = ax2.imshow(np.log10(power_pred + 1e-10), cmap='hot')
-    ax2.set_title('Prediction Power Spectrum (log)')
-    ax2.axis('off')
-    plt.colorbar(im2, ax=ax2, shrink=0.8)
-    
-    plt.tight_layout()
-    return fig
-
-
-def create_field_comparison(observed: torch.Tensor, 
-                          gt: torch.Tensor, 
-                          pred: torch.Tensor,
-                          save_dir: str,
-                          save_name: str = "field_comparison",
-                          output_format: str = 'png') -> str:
-    """创建场对比可视化的便捷接口
-    
-    Args:
-        observed: 观测数据
-        gt: 真值数据
-        pred: 预测数据
-        save_dir: 保存目录
-        save_name: 保存文件名
-        output_format: 输出格式
+        table.auto_set_font_size(False)
+        table.set_fontsize(10)
+        table.scale(1.2, 1.5)
         
-    Returns:
-        保存路径
-    """
-    visualizer = PDEBenchVisualizer(save_dir, output_format=output_format)
-    return visualizer.create_quadruplet_visualization(observed, gt, pred, save_name)
-
-
-def create_training_curves(train_losses: List[float],
-                         val_losses: List[float],
-                         save_dir: str,
-                         save_name: str = "training_curves",
-                         output_format: str = 'png') -> str:
-    """创建训练曲线的便捷接口
-    
-    Args:
-        train_losses: 训练损失列表
-        val_losses: 验证损失列表
-        save_dir: 保存目录
-        save_name: 保存文件名
-        output_format: 输出格式
+        plt.title('实验结果对比表', fontsize=16, pad=20)
+        plt.savefig(self.save_dir / f"{save_name}.png", dpi=150, bbox_inches='tight')
+        plt.close()
         
-    Returns:
-        保存路径
-    """
-    visualizer = PDEBenchVisualizer(save_dir, output_format=output_format)
-    return visualizer.plot_training_curves(train_losses, val_losses, save_name)
-
-
-def create_power_spectrum(field: torch.Tensor,
-                        save_dir: str,
-                        save_name: str = "power_spectrum",
-                        output_format: str = 'png') -> str:
-    """创建功率谱的便捷接口
-    
-    Args:
-        field: 场数据
-        save_dir: 保存目录
-        save_name: 保存文件名
-        output_format: 输出格式
-        
-    Returns:
-        保存路径
-    """
-    visualizer = PDEBenchVisualizer(save_dir, output_format=output_format)
-    return visualizer.create_power_spectrum_plot(field, save_name)
-
-
-if __name__ == "__main__":
-    # 测试代码
-    print("PDEBench可视化工具模块")
+        return df

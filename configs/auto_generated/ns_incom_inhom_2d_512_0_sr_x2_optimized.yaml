@@ -1,0 +1,94 @@
+data:
+  _target_: datasets.pdebench.PDEBenchDataModule
+  batch_size: 1
+  data_path: E:\2D\NS_incom\ns_incom_inhom_2d_512-0.h5
+  dataset_name: ns_incom_inhom_2d_512-0
+  image_size: 512
+  keys:
+  - force
+  - particles
+  - t
+  - velocity
+  num_workers: 4
+  pin_memory: true
+  use_official_format: true
+  case_ids:
+  - 0
+  - 1
+  - 2
+  - 3
+defaults:
+- _self_
+experiment:
+  device: cuda
+  name: ns_incom_inhom_2d_512-0_sr_x2_optimized
+  notes: Auto-optimized config for ns_incom_inhom_2d_512-0 with sr_x2 task
+  output_dir: runs/ns_incom_inhom_2d_512-0_sr_x2_optimized
+  seed: 42
+  tags:
+  - sr_x2
+  - navier_stokes
+  - auto_optimized
+logging:
+  log_every_n_steps: 50
+  mode: min
+  monitor: val_rel_l2
+  save_top_k: 3
+  use_wandb: false
+  val_check_interval: 1.0
+  wandb_entity: null
+  wandb_project: sparse2full_auto
+loss:
+  data_consistency:
+    type: l2
+    weight: 0.0
+  reconstruction:
+    type: l1
+    weight: 1.0
+  spectral:
+    low_freq_modes: 4
+    type: spectral_l1
+    weight: 0.0
+model:
+  depths:
+  - 2
+  - 2
+  - 6
+  - 2
+  drop_path_rate: 0.1
+  drop_rate: 0.0
+  embed_dim: 96
+  image_size: 512
+  in_channels: 4
+  mlp_ratio: 4.0
+  name: SwinUNet
+  num_heads:
+  - 3
+  - 6
+  - 12
+  - 24
+  out_channels: 4
+  use_checkpoint: true
+  window_size: 8
+task:
+  description: 超分辨率重建 2x
+  priority: high
+  scale_factor: 2
+  sigma: 1.0
+  type: sr
+training:
+  early_stopping:
+    min_delta: 0.0001
+    monitor: val_rel_l2
+    patience: 10
+  gradient_clip_val: 1.0
+  learning_rate: 0.0001
+  max_epochs: 80
+  optimizer: adamw
+  reproducibility:
+    benchmark: true
+    deterministic: false
+  scheduler: cosine_warmup
+  use_amp: true
+  warmup_epochs: 5
+  weight_decay: 0.0001

@@ -225,6 +225,16 @@ class Trainer:
                 params = kwargs
             model_params = params
         
+        # 确保img_size参数存在
+        if 'img_size' not in model_params:
+            if hasattr(self.config.data, 'img_size'):
+                model_params['img_size'] = self.config.data.img_size
+            elif hasattr(self.config.data, 'image_size'):
+                model_params['img_size'] = self.config.data.image_size
+            else:
+                # 默认使用512
+                model_params['img_size'] = 512
+        
         # 处理Hydra配置中的ListConfig类型
         from omegaconf import ListConfig
         for key, value in model_params.items():
@@ -276,8 +286,11 @@ class Trainer:
         if optimizer_name == 'adamw':
             if hasattr(optimizer_config, 'params'):
                 params = optimizer_config.params
-            else:
+            elif isinstance(optimizer_config, dict):
                 params = optimizer_config
+            else:
+                # 如果是字符串或其他类型，使用默认参数
+                params = {}
             self.optimizer = optim.AdamW(
                 self.model.parameters(),
                 lr=params.get('lr', 0.001),
@@ -288,8 +301,11 @@ class Trainer:
         elif optimizer_name == 'adam':
             if hasattr(optimizer_config, 'params'):
                 params = optimizer_config.params
-            else:
+            elif isinstance(optimizer_config, dict):
                 params = optimizer_config
+            else:
+                # 如果是字符串或其他类型，使用默认参数
+                params = {}
             self.optimizer = optim.Adam(
                 self.model.parameters(),
                 lr=params.get('lr', 0.001),
@@ -327,10 +343,24 @@ class Trainer:
         scheduler_name = getattr(scheduler_config, 'name', None)
         
         if scheduler_name == 'cosine':
+            # 获取训练轮数
+            if hasattr(self.config.training, 'epochs'):
+                default_epochs = self.config.training.epochs
+            elif hasattr(self.config.training, 'max_epochs'):
+                default_epochs = self.config.training.max_epochs
+            else:
+                default_epochs = 100  # 默认值
+                
+            if isinstance(scheduler_config, dict):
+                T_max = scheduler_config.get('T_max', default_epochs)
+                eta_min = scheduler_config.get('eta_min', 0)
+            else:
+                T_max = getattr(scheduler_config, 'T_max', default_epochs)
+                eta_min = getattr(scheduler_config, 'eta_min', 0)
             self.scheduler = optim.lr_scheduler.CosineAnnealingLR(
                 self.optimizer,
-                T_max=scheduler_config.get('T_max', self.config.training.epochs),
-                eta_min=scheduler_config.get('eta_min', 0)
+                T_max=T_max,
+                eta_min=eta_min
             )
         elif scheduler_name == 'step':
             self.scheduler = optim.lr_scheduler.StepLR(
@@ -349,7 +379,7 @@ class Trainer:
             self.scheduler = None
         
         # Warmup调度器
-        if scheduler_config.get('warmup_epochs', 0) > 0:
+        if isinstance(scheduler_config, dict) and scheduler_config.get('warmup_epochs', 0) > 0:
             self.warmup_scheduler = optim.lr_scheduler.LinearLR(
                 self.optimizer,
                 start_factor=scheduler_config.get('warmup_start_factor', 0.1),
@@ -476,28 +506,67 @@ class Trainer:
             self.optimizer.zero_grad()
             
             with torch.cuda.amp.autocast(enabled=self.use_amp):
-                # 模型预测
-                pred = self.model(batch['baseline'])
+                # 检查是否为AR模式
+                is_ar_model = hasattr(self.model, 'is_ar_model') and self.model.is_ar_model
                 
-                # 计算损失权重（课程学习）
-                loss_weights = compute_loss_weights_schedule(
-                    self.current_epoch,
-                    self.config.training.epochs,
-            self.config.loss
-                )
-                
-                # 更新配置中的损失权重
-                config_with_weights = self.config.copy()
-                config_with_weights.loss.update(loss_weights)
-                
-                # 计算损失
-                losses = compute_total_loss(
-                    pred_z=pred,
-                    target_z=batch['target'],
-                    obs_data=batch,
-                    norm_stats=self.norm_stats,
-                    config=config_with_weights
-                )
+                if is_ar_model:
+                    # AR模式：处理时序数据
+                    # 输入：baseline_seq [B, T_in, C, H, W]
+                    # 输出：pred_seq [B, T_out, C, H, W]
+                    
+                    # 获取输入序列和目标序列
+                    input_seq = batch.get('baseline_seq', batch['baseline'])  # 兼容性处理
+                    target_seq = batch.get('target_seq', batch['target'])
+                    
+                    # 如果输入不是序列，扩展维度
+                    if input_seq.dim() == 4:  # [B, C, H, W] -> [B, 1, C, H, W]
+                        input_seq = input_seq.unsqueeze(1)
+                    if target_seq.dim() == 4:  # [B, C, H, W] -> [B, 1, C, H, W]
+                        target_seq = target_seq.unsqueeze(1)
+                    
+                    # AR模型前向传播
+                    pred_seq = self.model(input_seq, target_seq=target_seq)
+                    
+                    # 计算AR损失
+                    from ops.losses import compute_ar_total_loss
+                    losses = compute_ar_total_loss(
+                        pred_seq=pred_seq,
+                        gt_seq=target_seq,
+                        obs_data=batch,
+                        norm_stats=self.norm_stats,
+                        config=self.config
+                    )
+                else:
+                    # 标准模式：单帧预测
+                    pred = self.model(batch['baseline'])
+                    
+                    # 计算损失权重（课程学习）
+                    # 获取训练轮数
+                    if hasattr(self.config.training, 'epochs'):
+                        total_epochs = self.config.training.epochs
+                    elif hasattr(self.config.training, 'max_epochs'):
+                        total_epochs = self.config.training.max_epochs
+                    else:
+                        total_epochs = 100  # 默认值
+                        
+                    loss_weights = compute_loss_weights_schedule(
+                        self.current_epoch,
+                        total_epochs,
+                        self.config.loss
+                    )
+                    
+                    # 更新配置中的损失权重
+                    config_with_weights = self.config.copy()
+                    config_with_weights.loss.update(loss_weights)
+                    
+                    # 计算损失
+                    losses = compute_total_loss(
+                        pred_z=pred,
+                        target_z=batch['target'],
+                        obs_data=batch,
+                        norm_stats=self.norm_stats,
+                        config=config_with_weights
+                    )
             
             # 反向传播
             if self.use_amp:
@@ -536,16 +605,26 @@ class Trainer:
                 epoch_losses[key] += value.item()
             
             # 计算指标（每隔一定步数）
-            if batch_idx % self.config.training.log_interval == 0:
+            log_interval = getattr(self.config.training, 'log_interval', 50)  # 默认值50
+            if batch_idx % log_interval == 0:
                 with torch.no_grad():
-                    metrics = compute_all_metrics(pred, batch['target'])
+                    if is_ar_model:
+                        # AR模式：计算序列指标
+                        # 使用最后一个时间步进行指标计算
+                        pred_last = pred_seq[:, -1]  # [B, C, H, W]
+                        target_last = target_seq[:, -1]  # [B, C, H, W]
+                        metrics = compute_all_metrics(pred_last, target_last)
+                    else:
+                        # 标准模式
+                        metrics = compute_all_metrics(pred, batch['target'])
+                    
                     for key, value in metrics.items():
                         if key not in epoch_metrics:
                             epoch_metrics[key] = 0
                         epoch_metrics[key] += value
             
             # 日志记录
-            if batch_idx % self.config.training.log_interval == 0:
+            if batch_idx % log_interval == 0:
                 lr = self.optimizer.param_groups[0]['lr']
                 self.logger.info(
                     f"Epoch {self.current_epoch:3d} [{batch_idx:4d}/{num_batches:4d}] "
@@ -569,7 +648,8 @@ class Trainer:
             epoch_losses[key] /= num_batches
         
         for key in epoch_metrics:
-            epoch_metrics[key] /= (num_batches // self.config.training.log_interval + 1)
+            log_interval = getattr(self.config.training, 'log_interval', 50)  # 默认值50
+            epoch_metrics[key] /= (num_batches // log_interval + 1)
         
         self.train_time += time.time() - start_time
         
@@ -591,20 +671,52 @@ class Trainer:
                 batch = {k: v.to(self.device) if torch.is_tensor(v) else v 
                         for k, v in batch.items()}
                 
-                # 前向传播
-                pred = self.model(batch['baseline'])
+                # 检查是否为AR模式
+                is_ar_model = hasattr(self.model, 'is_ar_model') and self.model.is_ar_model
                 
-                # 计算损失
-                losses = compute_total_loss(
-                    pred_z=pred,
-                    target_z=batch['target'],
-                    obs_data=batch,
-                    norm_stats=self.norm_stats,
-                    config=self.config
-                )
-                
-                # 计算指标
-                metrics = compute_all_metrics(pred, batch['target'])
+                if is_ar_model:
+                    # AR模式验证
+                    input_seq = batch.get('baseline_seq', batch['baseline'])
+                    target_seq = batch.get('target_seq', batch['target'])
+                    
+                    # 如果输入不是序列，扩展维度
+                    if input_seq.dim() == 4:
+                        input_seq = input_seq.unsqueeze(1)
+                    if target_seq.dim() == 4:
+                        target_seq = target_seq.unsqueeze(1)
+                    
+                    # AR模型前向传播（验证时不使用teacher forcing）
+                    pred_seq = self.model(input_seq, target_seq=None)
+                    
+                    # 计算AR损失
+                    from ops.losses import compute_ar_total_loss
+                    losses = compute_ar_total_loss(
+                        pred_seq=pred_seq,
+                        gt_seq=target_seq,
+                        obs_data=batch,
+                        norm_stats=self.norm_stats,
+                        config=self.config
+                    )
+                    
+                    # 计算指标（使用最后一个时间步）
+                    pred_last = pred_seq[:, -1]
+                    target_last = target_seq[:, -1]
+                    metrics = compute_all_metrics(pred_last, target_last)
+                else:
+                    # 标准模式验证
+                    pred = self.model(batch['baseline'])
+                    
+                    # 计算损失
+                    losses = compute_total_loss(
+                        pred_z=pred,
+                        target_z=batch['target'],
+                        obs_data=batch,
+                        norm_stats=self.norm_stats,
+                        config=self.config
+                    )
+                    
+                    # 计算指标
+                    metrics = compute_all_metrics(pred, batch['target'])
                 
                 # 累积损失和指标
                 for key, value in losses.items():
@@ -635,7 +747,15 @@ class Trainer:
         # AMP Scaler已在_init_amp中初始化，这里不需要重复创建
         
         try:
-            for epoch in range(self.config.training.epochs):
+            # 获取训练轮数
+            if hasattr(self.config.training, 'epochs'):
+                total_epochs = self.config.training.epochs
+            elif hasattr(self.config.training, 'max_epochs'):
+                total_epochs = self.config.training.max_epochs
+            else:
+                total_epochs = 100  # 默认值
+                
+            for epoch in range(total_epochs):
                 self.current_epoch = epoch
                 
                 # 训练

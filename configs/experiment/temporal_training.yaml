@@ -1,0 +1,170 @@
+# @package _global_
+
+# 时序PDE训练实验配置
+defaults:
+  - ../data: temporal_pdebench
+  - ../model: swin_unet
+  - ../train: default
+  - ../temporal
+  - _self_
+
+# 实验配置
+experiment:
+  name: "Temporal-AR-SwinUNet-T1to3-DR2D-128-s2025"
+  seed: 2025
+  device: "cuda"
+  precision: 16
+  use_amp: true
+  
+  # 输出目录
+  output_dir: "runs"
+  save_top_k: 3
+  save_last: true
+  
+  # 日志设置
+  log_every_n_steps: 10
+  val_check_interval: 100
+  
+  # 早停设置
+  early_stopping:
+    monitor: "val/rel_l2"
+    patience: 20
+    mode: "min"
+
+# 覆盖数据配置 - 使用真实数据集
+data_path: "e:/2d/diffusion-reaction/2D_diff-react_NA_NA.h5"
+keys: ["data"]  # 真实数据集使用'data'键，包含2个通道(u,v)
+task: "SR"
+scale: 4
+image_size: 128
+
+# 时序配置覆盖
+temporal:
+  T_in: 1
+  T_out: 3
+  dt: 0.1
+  
+  # AR模型设置
+  ar:
+    teacher_forcing_ratio: 1.0
+    scheduled_sampling: true
+
+# 模型配置覆盖
+model:
+  name: "SwinUNet"
+  in_channels: 1
+  out_channels: 1
+  img_size: 32
+  
+  # AR包装器配置
+  ar_config:
+    T_in: 1
+    T_out: 3
+    teacher_forcing_ratio: 1.0
+    scheduled_sampling: true
+    
+  # Swin-UNet配置
+  swin_config:
+    patch_size: 4
+    window_size: 8
+    embed_dim: 96
+    depths: [2, 2, 6, 2]
+    num_heads: [3, 6, 12, 24]
+    mlp_ratio: 4.0
+    drop_rate: 0.0
+    attn_drop_rate: 0.0
+    drop_path_rate: 0.1
+
+# 训练配置覆盖
+train:
+  max_epochs: 100
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 1
+  
+  # 优化器
+  optimizer:
+    name: "AdamW"
+    lr: 1e-3
+    weight_decay: 1e-4
+    betas: [0.9, 0.999]
+  
+  # 学习率调度器
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 100
+    eta_min: 1e-6
+    warmup_steps: 1000
+
+# 损失函数配置
+loss:
+  # AR时序损失权重
+  ar_loss:
+    rel2_weight: 1.0
+    mae_weight: 0.5
+    temporal_consistency: 0.3
+    
+  # 频域损失
+  spectral_loss:
+    weight: 0.5
+    low_freq_weight: 1.0
+    
+  # DC一致性损失
+  dc_loss:
+    weight: 1.0
+
+# 评估配置
+eval:
+  # 时序评估设置
+  rollout_steps: 10  # 推理时的展开步数
+  save_sequences: true  # 是否保存序列结果
+  
+  # 可视化设置
+  vis_cases: [0, 1, 2]  # 可视化的case索引
+  save_animations: true  # 保存时序动画
+  
+  # 指标计算
+  metrics:
+    - "rel_l2"
+    - "mae" 
+    - "psnr"
+    - "ssim"
+    - "temporal_consistency"
+    - "dc_consistency"
+
+# 课程学习配置
+curriculum:
+  enabled: true
+  stages:
+    - name: "stage1"
+      epochs: 30
+      T_out: 1  # 先学习单步预测
+      teacher_forcing_ratio: 1.0
+      
+    - name: "stage2" 
+      epochs: 40
+      T_out: 2  # 然后学习两步预测
+      teacher_forcing_ratio: 0.8
+      
+    - name: "stage3"
+      epochs: 30
+      T_out: 3  # 最后学习三步预测
+      teacher_forcing_ratio: 0.5
+
+# 可视化配置
+visualization:
+  enabled: true
+  save_dir: "visualizations"
+  
+  # 训练过程可视化
+  training:
+    plot_losses: true
+    plot_metrics: true
+    save_model_predictions: true
+    prediction_frequency: 500  # 每500步保存一次预测结果
+    
+  # 结果可视化
+  results:
+    create_animations: true
+    plot_error_maps: true
+    plot_temporal_profiles: true
+    plot_spectral_analysis: true

@@ -37,6 +37,7 @@ class PDEBenchBase(Dataset):
         normalize: bool = True,
         image_size: int = 256,
         use_official_format: bool = False,  # 修改默认值为False
+        case_ids: Optional[List[int]] = None,  # 新增参数
     ):
         """初始化PDEBench数据集
         
@@ -48,6 +49,7 @@ class PDEBenchBase(Dataset):
             normalize: 是否进行z-score归一化
             image_size: 图像尺寸
             use_official_format: 是否使用官方PDEBench格式 [batch, time, height, width, channels]
+            case_ids: 指定的样本ID列表，如果提供则覆盖默认切分
         """
         self.data_path = data_path
         self.keys = keys
@@ -60,7 +62,13 @@ class PDEBenchBase(Dataset):
         self.h5_file = h5py.File(data_path, 'r')
         
         # 加载数据切分
-        self.case_ids = self._load_split_ids(splits_dir, split)
+        if case_ids is not None:
+            # 使用指定的case_ids
+            self.case_ids = [str(cid) for cid in case_ids]
+            print(f"DEBUG: Using provided case_ids: {self.case_ids}")
+        else:
+            # 使用默认切分
+            self.case_ids = self._load_split_ids(splits_dir, split)
         
         # 加载归一化统计量
         self.norm_stats = self._load_norm_stats(splits_dir) if normalize else None
@@ -76,13 +84,33 @@ class PDEBenchBase(Dataset):
         if 'data' in self.h5_file:
             print(f"DEBUG: data shape = {self.h5_file['data'].shape}")
         
-        # 转换keys为普通list（如果是ListConfig）
+        # 转换keys为普通list（如果是ListConfig或其他可迭代对象）
         if hasattr(self.keys, '__iter__') and not isinstance(self.keys, str):
             self.keys = list(self.keys)
             print(f"DEBUG: Converted keys to list: {self.keys}")
+        elif hasattr(self.keys, 'keys'):  # 处理可能的方法对象
+            print(f"WARNING: keys appears to be a method object: {self.keys}")
+            # 如果是方法对象，使用默认值
+            self.keys = ["u"]
+            print(f"DEBUG: Using default keys: {self.keys}")
         
         if isinstance(self.keys, list) and len(self.keys) > 0 and self.keys[0] in self.h5_file:
-            print(f"DEBUG: {self.keys[0]} shape = {self.h5_file[self.keys[0]].shape}")
+            item = self.h5_file[self.keys[0]]
+            if isinstance(item, h5py.Group):
+                group_keys = list(item.keys())
+                if group_keys:
+                    print(f"DEBUG: {self.keys[0]} is a group with keys: {group_keys}")
+                    first_dataset = item[group_keys[0]]
+                    if hasattr(first_dataset, 'shape'):
+                        print(f"DEBUG: {self.keys[0]}/{group_keys[0]} shape = {first_dataset.shape}")
+                    else:
+                        print(f"DEBUG: {self.keys[0]}/{group_keys[0]} is not a dataset")
+                else:
+                    print(f"DEBUG: Group '{self.keys[0]}' is empty")
+            elif hasattr(item, 'shape'):
+                print(f"DEBUG: {self.keys[0]} shape = {item.shape}")
+            else:
+                print(f"DEBUG: {self.keys[0]} is neither a Group nor a Dataset")
         else:
             print(f"DEBUG: Key '{self.keys[0] if self.keys else 'None'}' not found in HDF5 file")
     
@@ -204,13 +232,33 @@ class PDEBenchBase(Dataset):
                     
                     # 读取数据
                     if self.use_official_format:
-                        # 官方格式：[batch, time, height, width, channels]
-                        # 取第一个batch，指定时间步，所有空间点，第i个通道
-                        if i < self.h5_file['data'].shape[4]:  # 确保通道索引有效
-                            data = self.h5_file['data'][0, case_idx, :, :, i]  # [H, W]
+                        # 检查是否是diffusion-reaction格式（样本组内有data键）
+                        if 'diffusion-reaction' in str(self.data_path).lower():
+                            # 对于diffusion-reaction数据集，每个样本是一个组
+                            case_key = f"{case_idx:04d}"  # 格式化为4位数字
+                            if case_key in self.h5_file:
+                                sample_group = self.h5_file[case_key]
+                                if 'data' in sample_group:
+                                    # data格式：[T, H, W, C]
+                                    sample_data = sample_group['data']
+                                    if i < sample_data.shape[3]:  # 确保通道索引有效
+                                        data = sample_data[0, :, :, i]  # 取第一个时间步 [H, W]
+                                    else:
+                                        data = sample_data[0, :, :, 0]  # 使用第一个通道
+                                else:
+                                    # 如果没有data键，创建默认数据
+                                    data = np.zeros((128, 128))
+                            else:
+                                # 如果样本不存在，创建默认数据
+                                data = np.zeros((128, 128))
                         else:
-                            # 如果通道数不足，使用第一个通道
-                            data = self.h5_file['data'][0, case_idx, :, :, 0]  # [H, W]
+                            # 官方格式：[batch, time, height, width, channels]
+                            # 取第一个batch，指定时间步，所有空间点，第i个通道
+                            if i < self.h5_file['data'].shape[4]:  # 确保通道索引有效
+                                data = self.h5_file['data'][0, case_idx, :, :, i]  # [H, W]
+                            else:
+                                # 如果通道数不足，使用第一个通道
+                                data = self.h5_file['data'][0, case_idx, :, :, 0]  # [H, W]
                     else:
                         # 原格式：[time, channels, height, width]
                         if i < self.h5_file['data'].shape[1]:  # 确保通道索引有效
@@ -247,58 +295,95 @@ class PDEBenchBase(Dataset):
         return norm_stats
     
     def _validate_data(self):
-        """验证数据完整性"""
-        # 检查数据形状是否正确
-        # 首先检查是否有'data'键，如果没有则检查是否有变量键
-        print(f"DEBUG: Available keys in HDF5 file: {list(self.h5_file.keys())}")
-        print(f"DEBUG: Looking for keys: {self.keys}")
-        print(f"DEBUG: Keys type: {type(self.keys)}")
-        print(f"DEBUG: Keys is list: {isinstance(self.keys, list)}")
+        """验证数据格式和维度"""
+        if not self.h5_file:
+            raise ValueError("HDF5 file not loaded")
         
-        # 转换keys为普通list（如果是ListConfig）
-        if hasattr(self.keys, '__iter__') and not isinstance(self.keys, str):
-            self.keys = list(self.keys)
-            print(f"DEBUG: Converted keys to list: {self.keys}")
+        # 对于官方格式，特殊处理diffusion-reaction数据集
+        if self.use_official_format and "diff-react" in str(self.data_path).lower():
+            # 检查是否有数字键（样本组）
+            sample_keys = [k for k in self.h5_file.keys() if k.isdigit()]
+            if sample_keys:
+                # 检查第一个样本组内是否有所需的键
+                first_sample = self.h5_file[sample_keys[0]]
+                for key in self.keys:
+                    if key not in first_sample:
+                        raise ValueError(f"Key '{key}' not found in sample group '{sample_keys[0]}'")
+                return
         
+        # 检查键是否存在
+        for key in self.keys:
+            if key not in self.h5_file:
+                raise ValueError(f"Key '{key}' not found in dataset")
+        
+        # 对于官方格式数据，允许混合维度变量
+        if self.use_official_format:
+            # 检查每个键是否存在且至少有2个维度
+            for key in self.keys:
+                item = self.h5_file[key]
+                
+                # 处理HDF5组的情况
+                if isinstance(item, h5py.Group):
+                    # 如果是组，检查组内是否有数据集
+                    group_keys = list(item.keys())
+                    if not group_keys:
+                        raise ValueError(f"Group '{key}' is empty")
+                    
+                    # 检查组内第一个数据集的维度
+                    first_dataset = item[group_keys[0]]
+                    if hasattr(first_dataset, 'shape'):
+                        if len(first_dataset.shape) < 2:
+                            raise ValueError(f"Dataset '{key}/{group_keys[0]}' must have at least 2 dimensions, got {len(first_dataset.shape)}")
+                    else:
+                        raise ValueError(f"Item '{key}/{group_keys[0]}' is not a valid dataset")
+                        
+                elif hasattr(item, 'shape'):
+                    # 如果是数据集，直接检查维度
+                    if len(item.shape) < 2:
+                        raise ValueError(f"Dataset '{key}' must have at least 2 dimensions, got {len(item.shape)}")
+                    
+                    # 对于4D数据格式，不强制要求5D
+                    data_shape = item.shape
+                    if len(data_shape) == 4:
+                        print(f"Dataset '{key}' has 4D shape {data_shape}, treating as [B, H, W, C] format")
+                    elif len(data_shape) == 5:
+                        print(f"Dataset '{key}' has 5D shape {data_shape}, treating as [B, T, H, W, C] format")
+                else:
+                    raise ValueError(f"Item '{key}' is neither a Group nor a Dataset")
+            
+            return  # 官方格式验证完成
+        
+        # 非官方格式的验证逻辑保持不变
         if 'data' in self.h5_file:
             data_shape = self.h5_file['data'].shape
-            print(f"DEBUG: Using 'data' key with shape: {data_shape}")
-        elif isinstance(self.keys, list) and len(self.keys) > 0:
-            print(f"DEBUG: Checking if key '{self.keys[0]}' exists in file...")
-            print(f"DEBUG: Key exists: {self.keys[0] in self.h5_file}")
-            if self.keys[0] in self.h5_file:
-                # 如果没有'data'键但有变量键，使用第一个变量的形状
-                data_shape = self.h5_file[self.keys[0]].shape
-                print(f"DEBUG: Using key '{self.keys[0]}' with shape: {data_shape}")
-            else:
-                print(f"ERROR: Key '{self.keys[0]}' not found in file")
-                raise ValueError(f"HDF5 file must contain 'data' key or variable keys {self.keys}")
-        else:
-            print(f"ERROR: No keys specified or keys list is empty")
-            print(f"DEBUG: Keys value: {self.keys}")
-            print(f"DEBUG: Keys repr: {repr(self.keys)}")
-            raise ValueError(f"HDF5 file must contain 'data' key or variable keys {self.keys}")
-        
-        if self.use_official_format:
-            # 官方格式：[batch, time, height, width, channels]
-            if len(data_shape) != 5:
-                raise ValueError(f"Official format data must be 5D [B, T, H, W, C], got shape {data_shape}")
+            if len(data_shape) != 3:
+                raise ValueError(f"Data must be 3D [N, H, W], got shape {data_shape}")
             
-            if data_shape[4] < len(self.keys):
-                raise ValueError(f"Data has {data_shape[4]} channels but {len(self.keys)} keys specified")
+            n_samples, height, width = data_shape
+            expected_channels = len(self.keys)
+            
+            if n_samples != expected_channels:
+                raise ValueError(f"Data has {n_samples} channels but {expected_channels} keys specified")
         else:
-            # 原格式：[time, channels, height, width] 或 [time, height, width] (单通道)
-            if len(data_shape) == 4:
-                # 标准4D格式 [T, C, H, W]
-                if data_shape[1] < len(self.keys):
-                    raise ValueError(f"Data has {data_shape[1]} channels but {len(self.keys)} keys specified")
-            elif len(data_shape) == 3:
-                # 单通道3D格式 [T, H, W]，只支持单变量
-                if len(self.keys) > 1:
-                    raise ValueError(f"3D data [T, H, W] only supports single variable, but {len(self.keys)} keys specified")
+            # 检查第一个键的形状作为参考
+            first_key = self.keys[0]
+            item = self.h5_file[first_key]
+            
+            if isinstance(item, h5py.Group):
+                # 处理组的情况
+                group_keys = list(item.keys())
+                if group_keys:
+                    data_shape = item[group_keys[0]].shape
+                else:
+                    raise ValueError(f"Group '{first_key}' is empty")
+            elif hasattr(item, 'shape'):
+                data_shape = item.shape
             else:
-                raise ValueError(f"Data must be 3D [T, H, W] or 4D [T, C, H, W], got shape {data_shape}")
-    
+                raise ValueError(f"Cannot determine shape for key '{first_key}'")
+            
+            if len(data_shape) < 2:
+                raise ValueError(f"Data must have at least 2 dimensions, got shape {data_shape}")
+
     def _normalize_data(self, data: torch.Tensor, key: str) -> torch.Tensor:
         """对数据进行z-score归一化"""
         if not self.normalize or self.norm_stats is None:
@@ -350,20 +435,100 @@ class PDEBenchBase(Dataset):
         
         # 读取数据
         if self.use_official_format:
-            # 官方格式：[batch, time, height, width, channels]
-            # 取第一个batch，指定时间步的数据
-            if 'data' in self.h5_file:
-                data = torch.tensor(self.h5_file['data'][0, case_idx], dtype=torch.float32)  # [H, W, C]
-                # 转换为 [C, H, W] 格式
-                data = data.permute(2, 0, 1)  # [C, H, W]
+            # 官方格式：支持 [batch, time, height, width, channels] 或 [batch, height, width, channels]
+            
+            # 特殊处理diff-react数据集
+            if "diff-react" in str(self.data_path).lower():
+                # diff-react数据集：根级别是组（'0000', '0001', ...），每个组包含'data'和'grid'
+                if case_id in self.h5_file:
+                    # 直接使用case_id访问组
+                    group = self.h5_file[case_id]
+                    if 'data' in group:
+                        # data形状：[T, H, W, C] -> 取第0个时间步
+                        data = torch.tensor(group['data'][0], dtype=torch.float32)  # [H, W, C]
+                        data = data.permute(2, 0, 1)  # [C, H, W]
+                    else:
+                        raise ValueError(f"No 'data' found in group '{case_id}'")
+                else:
+                    # 使用数字索引获取组名
+                    root_keys = list(self.h5_file.keys())
+                    if case_idx < len(root_keys):
+                        group_key = root_keys[case_idx]
+                        group = self.h5_file[group_key]
+                        if 'data' in group:
+                            data = torch.tensor(group['data'][0], dtype=torch.float32)  # [H, W, C]
+                            data = data.permute(2, 0, 1)  # [C, H, W]
+                        else:
+                            raise ValueError(f"No 'data' found in group '{group_key}'")
+                    else:
+                        raise IndexError(f"Index {case_idx} out of range for dataset with {len(root_keys)} groups")
+            
+            elif 'data' in self.h5_file:
+                # 标准格式：直接有'data'键
+                data_shape = self.h5_file['data'].shape
+                if len(data_shape) == 5:
+                    # 5D格式：[B, T, H, W, C]，取第一个batch，指定时间步的数据
+                    data = torch.tensor(self.h5_file['data'][0, case_idx], dtype=torch.float32)  # [H, W, C]
+                    # 转换为 [C, H, W] 格式
+                    data = data.permute(2, 0, 1)  # [C, H, W]
+                elif len(data_shape) == 4:
+                    # 4D格式：[B, H, W, C]，取第case_idx个batch的数据
+                    data = torch.tensor(self.h5_file['data'][case_idx], dtype=torch.float32)  # [H, W, C]
+                    # 转换为 [C, H, W] 格式
+                    data = data.permute(2, 0, 1)  # [C, H, W]
+                elif len(data_shape) == 3:
+                    # 3D格式：[B, H, W]，取第case_idx个batch的数据
+                    data = torch.tensor(self.h5_file['data'][case_idx], dtype=torch.float32)  # [H, W]
+                    # 转换为 [C, H, W] 格式，这里C=1
+                    data = data.unsqueeze(0)  # [1, H, W]
+                else:
+                    raise ValueError(f"Unsupported data shape: {data_shape}")
             else:
                 # 使用变量键读取数据
                 data_list = []
                 for key in self.keys:
                     if key in self.h5_file:
-                        var_data = torch.tensor(self.h5_file[key][0, case_idx], dtype=torch.float32)  # [H, W]
-                        data_list.append(var_data.unsqueeze(0))  # [1, H, W]
-                data = torch.cat(data_list, dim=0)  # [C, H, W]
+                        item = self.h5_file[key]
+                        
+                        # 处理HDF5组的情况 - 这种情况通常不会发生，因为变量键通常是数据集
+                        if isinstance(item, h5py.Group):
+                            # 如果变量键本身是组，说明数据结构异常，跳过这个键
+                            print(f"Warning: Variable key '{key}' is a group, skipping...")
+                            continue
+                        else:
+                            # 如果是数据集，直接读取
+                            key_shape = item.shape
+                            
+                            # 检查索引是否有效
+                            if len(key_shape) >= 1 and case_idx >= key_shape[0]:
+                                raise IndexError(f"Index {case_idx} out of range for dataset '{key}' with shape {key_shape}")
+                            
+                            if len(key_shape) == 5:
+                                # 5D格式：[B, T, H, W, C] - ns_incom数据集
+                                var_data = torch.tensor(item[0, case_idx], dtype=torch.float32)  # [H, W, C] 或 [H, W]
+                            elif len(key_shape) == 4:
+                                # 4D格式：[B, H, W, C] 或 [T, H, W, C]
+                                var_data = torch.tensor(item[case_idx], dtype=torch.float32)  # [H, W, C] 或 [H, W]
+                            elif len(key_shape) == 2:
+                                # 2D格式：[B, T] - 时间数据等标量数据，跳过
+                                continue
+                            else:
+                                raise ValueError(f"Unsupported key shape for {key}: {key_shape}")
+                            
+                            # 确保数据维度正确
+                            if var_data.dim() == 2:  # [H, W] -> [1, H, W]
+                                var_data = var_data.unsqueeze(0)
+                            elif var_data.dim() == 3:  # [H, W, C] -> [C, H, W]
+                                var_data = var_data.permute(2, 0, 1)
+                            elif var_data.dim() == 4:  # [T, H, W, C] -> [C, H, W] (取第0个时间步)
+                                var_data = var_data[0].permute(2, 0, 1)
+                        
+                        data_list.append(var_data)
+                
+                if data_list:
+                    data = torch.cat(data_list, dim=0)  # [C, H, W]
+                else:
+                    raise ValueError(f"No valid data found for keys: {self.keys}")
         else:
             # 原格式：针对tensor数据的特殊处理
             if 'data' in self.h5_file:
@@ -458,7 +623,7 @@ class PDEBenchSR(PDEBenchBase):
         """
         # 过滤掉不属于基类的参数
         base_kwargs = {k: v for k, v in kwargs.items() 
-                      if k in ['split', 'splits_dir', 'normalize', 'image_size', 'use_official_format']}
+                      if k in ['split', 'splits_dir', 'normalize', 'image_size', 'use_official_format', 'case_ids']}
         super().__init__(data_path, keys, **base_kwargs)
         
         self.scale = scale
@@ -582,7 +747,10 @@ class PDEBenchCrop(PDEBenchBase):
             center_sampler: 中心采样策略 "mixed"/"uniform"/"boundary"/"gradient"
             boundary: 边界处理策略
         """
-        super().__init__(data_path, keys, **kwargs)
+        # 过滤掉不属于基类的参数
+        base_kwargs = {k: v for k, v in kwargs.items() 
+                      if k in ['split', 'splits_dir', 'normalize', 'image_size', 'use_official_format', 'case_ids']}
+        super().__init__(data_path, keys, **base_kwargs)
         
         self.crop_size = crop_size
         self.patch_align = patch_align
@@ -868,6 +1036,9 @@ class PDEBenchDataModule:
             splits_dir = "splits"  # 多文件模式使用splits目录
             print(f"DEBUG: Using directory structure: {train_path}")
         
+        # 获取case_ids配置
+        case_ids = self.config.get('case_ids', None)
+        
         # 训练集
         self.train_dataset = self.dataset_class(
             data_path=train_path,
@@ -875,6 +1046,7 @@ class PDEBenchDataModule:
             split="train",
             splits_dir=splits_dir,
             use_official_format=getattr(self.config, 'use_official_format', False),
+            case_ids=case_ids,  # 传递case_ids参数
             **self.common_kwargs,
             **self.dataset_kwargs
         )
@@ -886,6 +1058,7 @@ class PDEBenchDataModule:
             split="val",
             splits_dir=splits_dir,
             use_official_format=getattr(self.config, 'use_official_format', False),
+            case_ids=case_ids,  # 传递case_ids参数
             **self.common_kwargs,
             **self.dataset_kwargs
         )
@@ -897,15 +1070,22 @@ class PDEBenchDataModule:
             split="test",
             splits_dir=splits_dir,
             use_official_format=getattr(self.config, 'use_official_format', False),
+            case_ids=case_ids,  # 传递case_ids参数
             **self.common_kwargs,
             **self.dataset_kwargs
         )
     
     def train_dataloader(self) -> DataLoader:
         """训练数据加载器"""
+        """训练数据加载器"""
+        # 优先使用dataloader配置，如果没有则使用根级别配置
+        batch_size = self.config.get('dataloader', {}).get('batch_size', self.config.get('batch_size', 4))
+        num_workers = self.config.get('dataloader', {}).get('num_workers', self.config.get('num_workers', 0))
+        pin_memory = self.config.get('dataloader', {}).get('pin_memory', self.config.get('pin_memory', False))
+        
         return DataLoader(
             self.train_dataset,
-            batch_size=self.config['dataloader']['batch_size'],
+            batch_size=batch_size,
             shuffle=True,
             num_workers=0,  # 由于h5py对象不能被pickle，设置为0
             pin_memory=False,  # 关闭pin_memory，避免设备不匹配
@@ -915,9 +1095,14 @@ class PDEBenchDataModule:
     
     def val_dataloader(self) -> DataLoader:
         """验证数据加载器"""
+        # 优先使用dataloader配置，如果没有则使用根级别配置
+        batch_size = self.config.get('dataloader', {}).get('batch_size', self.config.get('batch_size', 4))
+        num_workers = self.config.get('dataloader', {}).get('num_workers', self.config.get('num_workers', 0))
+        pin_memory = self.config.get('dataloader', {}).get('pin_memory', self.config.get('pin_memory', False))
+        
         return DataLoader(
             self.val_dataset,
-            batch_size=self.config['dataloader']['batch_size'],
+            batch_size=batch_size,
             shuffle=False,
             num_workers=0,  # 由于h5py对象不能被pickle，设置为0
             pin_memory=False,  # 关闭pin_memory，避免设备不匹配

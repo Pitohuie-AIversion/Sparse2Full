@@ -29,6 +29,11 @@ class WindowAttention(nn.Module):
         proj_drop: float = 0.
     ):
         super().__init__()
+        
+        # 确保dim能被num_heads整除
+        if dim % num_heads != 0:
+            raise ValueError(f"dim ({dim}) must be divisible by num_heads ({num_heads})")
+        
         self.dim = dim
         self.window_size = window_size
         self.num_heads = num_heads
@@ -122,6 +127,15 @@ class SwinTransformerBlock(nn.Module):
             self.window_size = min(self.input_resolution)
         assert 0 <= self.shift_size < self.window_size, "shift_size must in 0-window_size"
 
+        # 确保dim能被num_heads整除
+        if dim % num_heads != 0:
+            adjusted_dim = (dim // num_heads) * num_heads
+            print(f"Warning: Adjusted SwinTransformerBlock dim from {dim} to {adjusted_dim} to be divisible by {num_heads} heads")
+            dim = adjusted_dim
+        
+        # 更新实例变量
+        self.dim = dim
+        
         self.norm1 = norm_layer(dim)
         self.attn = WindowAttention(
             dim, window_size=to_2tuple(self.window_size), num_heads=num_heads,
@@ -161,6 +175,14 @@ class SwinTransformerBlock(nn.Module):
         H, W = self.input_resolution
         B, L, C = x.shape
         assert L == H * W, "input feature has wrong size"
+
+        # 如果输入维度与期望维度不匹配，进行调整
+        if C != self.dim:
+            # 使用线性层调整维度
+            if not hasattr(self, 'dim_adjust'):
+                self.dim_adjust = nn.Linear(C, self.dim).to(x.device)
+            x = self.dim_adjust(x)
+            C = self.dim
 
         shortcut = x
         x = self.norm1(x)
@@ -285,6 +307,15 @@ class BasicLayer(nn.Module):
         self.depth = depth
         self.use_checkpoint = use_checkpoint
 
+        # 确保dim能被num_heads整除
+        if dim % num_heads != 0:
+            adjusted_dim = (dim // num_heads) * num_heads
+            print(f"Warning: Adjusted BasicLayer dim from {dim} to {adjusted_dim} to be divisible by {num_heads} heads")
+            dim = adjusted_dim
+        
+        # 更新实例变量
+        self.dim = dim
+        
         # 构建块
         self.blocks = nn.ModuleList([
             SwinTransformerBlock(
@@ -474,12 +505,18 @@ class SwinUNetDecoder(nn.Module):
             else:
                 fuse_layer = None
             
+            # 确保解码器维度能被注意力头数整除
+            decoder_num_heads = num_heads[i]
+            if out_dim % decoder_num_heads != 0:
+                out_dim = (out_dim // decoder_num_heads) * decoder_num_heads
+                print(f"Warning: Adjusted decoder layer {i} dim to {out_dim} to be divisible by {decoder_num_heads} heads")
+            
             # Swin Transformer块
             swin_layer = BasicLayer(
                 dim=out_dim,
                 input_resolution=self.decoder_resolutions[i],
                 depth=depths[i],
-                num_heads=num_heads[i],
+                num_heads=decoder_num_heads,
                 window_size=window_size,
                 mlp_ratio=mlp_ratio,
                 qkv_bias=qkv_bias,
@@ -666,12 +703,21 @@ class SwinUNet(BaseModel):
         # 构建编码器层
         self.encoder_layers = nn.ModuleList()
         for i_layer in range(len(depths)):
+            layer_dim = int(embed_dim * 2 ** i_layer)
+            layer_num_heads = num_heads[i_layer]
+            
+            # 确保维度能被注意力头数整除
+            if layer_dim % layer_num_heads != 0:
+                # 调整维度使其能被注意力头数整除
+                layer_dim = (layer_dim // layer_num_heads) * layer_num_heads
+                print(f"Warning: Adjusted layer {i_layer} dim from {int(embed_dim * 2 ** i_layer)} to {layer_dim} to be divisible by {layer_num_heads} heads")
+            
             layer = BasicLayer(
-                dim=int(embed_dim * 2 ** i_layer),
+                dim=layer_dim,
                 input_resolution=(patches_resolution[0] // (2 ** i_layer),
                                 patches_resolution[1] // (2 ** i_layer)),
                 depth=depths[i_layer],
-                num_heads=num_heads[i_layer],
+                num_heads=layer_num_heads,
                 window_size=window_size,
                 mlp_ratio=mlp_ratio,
                 qkv_bias=qkv_bias, qk_scale=qk_scale,
@@ -683,7 +729,13 @@ class SwinUNet(BaseModel):
             )
             self.encoder_layers.append(layer)
 
-        self.norm = norm_layer(int(embed_dim * 2 ** (len(depths) - 1)))
+        # 计算最后一层的实际维度（考虑维度调整）
+        final_layer_dim = int(embed_dim * 2 ** (len(depths) - 1))
+        final_layer_num_heads = num_heads[-1]
+        if final_layer_dim % final_layer_num_heads != 0:
+            final_layer_dim = (final_layer_dim // final_layer_num_heads) * final_layer_num_heads
+        
+        self.norm = norm_layer(final_layer_dim)
 
         # FNO瓶颈层（可选）
         if use_fno_bottleneck:
@@ -693,7 +745,17 @@ class SwinUNet(BaseModel):
             self.fno_bottleneck = None
 
         # 对称的Swin-UNet解码器
-        encoder_channels = [int(embed_dim * 2 ** i) for i in range(len(depths))]
+        encoder_channels = []
+        for i in range(len(depths)):
+            layer_dim = int(embed_dim * 2 ** i)
+            layer_num_heads = num_heads[i]
+            
+            # 确保维度能被注意力头数整除
+            if layer_dim % layer_num_heads != 0:
+                layer_dim = (layer_dim // layer_num_heads) * layer_num_heads
+            
+            encoder_channels.append(layer_dim)
+        
         # 解码器通道数：从最深层开始逐步减少
         decoder_channels = []
         for i in range(len(depths)):
@@ -705,7 +767,12 @@ class SwinUNet(BaseModel):
                 decoder_channels.append(encoder_channels[-(i+1)])
         
         # 最后一层输出通道数应该与输入图像通道数匹配
-        decoder_channels[-1] = embed_dim
+        # 确保最后一层的维度也能被对应的注意力头数整除
+        final_decoder_dim = embed_dim
+        final_decoder_num_heads = self.decoder_num_heads[-1] if self.decoder_num_heads else 3
+        if final_decoder_dim % final_decoder_num_heads != 0:
+            final_decoder_dim = (final_decoder_dim // final_decoder_num_heads) * final_decoder_num_heads
+        decoder_channels[-1] = final_decoder_dim
         
         self.decoder = SwinUNetDecoder(
             encoder_channels=encoder_channels,
@@ -725,8 +792,9 @@ class SwinUNet(BaseModel):
             use_checkpoint=use_checkpoint
         )
 
-        # 最终输出层
-        self.final_conv = nn.Conv2d(embed_dim, out_channels, kernel_size=1)
+        # 最终输出层 - 使用实际的解码器输出通道数
+        final_decoder_channels = decoder_channels[-1]
+        self.final_conv = nn.Conv2d(final_decoder_channels, out_channels, kernel_size=1)
         
         # 最终激活函数
         if final_activation == 'tanh':

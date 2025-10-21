@@ -195,6 +195,40 @@ def create_model(model_name: str, **kwargs) -> BaseModel:
     # 动态导入模型类
     model_name_lower = model_name.lower()
     
+    # 检查是否为AR模式
+    is_ar_model = model_name_lower.endswith('_ar') or model_name_lower.startswith('ar_')
+    
+    if is_ar_model:
+        # 提取基础模型名称
+        if model_name_lower.endswith('_ar'):
+            base_model_name = model_name_lower[:-3]  # 移除 '_ar' 后缀
+        else:  # startswith('ar_')
+            base_model_name = model_name_lower[3:]   # 移除 'ar_' 前缀
+        
+        # 创建基础模型
+        base_model = create_model(base_model_name, **kwargs)
+        
+        # 用AR包装器包装
+        from .ar import ARWrapper
+        
+        # 从kwargs中提取AR相关参数
+        ar_kwargs = {}
+        
+        # 提取AR包装器支持的参数
+        if 'scheduled_sampling' in kwargs:
+            ar_kwargs['scheduled_sampling'] = kwargs.pop('scheduled_sampling')
+        if 'sampling_schedule' in kwargs:
+            ar_kwargs['sampling_schedule'] = kwargs.pop('sampling_schedule')
+        if 'detach_rollout' in kwargs:
+            ar_kwargs['detach_rollout'] = kwargs.pop('detach_rollout')
+        
+        # 移除其他AR相关参数，避免传递给基础模型
+        kwargs.pop('T_out', None)
+        kwargs.pop('teacher_forcing_ratio', None)
+        
+        model = ARWrapper(single_frame_model=base_model, **ar_kwargs)
+        return model
+    
     # 基线模型
     if model_name_lower in ['liif']:
         from .liif import LIIFModel
@@ -202,13 +236,13 @@ def create_model(model_name: str, **kwargs) -> BaseModel:
     elif model_name_lower in ['unet']:
         from .unet import UNet
         model_class = UNet
-    elif model_name_lower in ['unet_plus_plus', 'unetplusplus']:
+    elif model_name_lower in ['unet_plus_plus', 'unetplusplus', 'unet++']:
         from .unet_plus_plus import UNetPlusPlus
         model_class = UNetPlusPlus
     elif model_name_lower in ['fno2d']:
         from .fno2d import FNO2d
         model_class = FNO2d
-    elif model_name_lower in ['ufno_unet', 'ufnounet']:
+    elif model_name_lower in ['ufno_unet', 'ufnounet', 'ufno-unet']:
         from .ufno_unet_bottleneck import UFNOUNet
         model_class = UFNOUNet
     
@@ -230,7 +264,7 @@ def create_model(model_name: str, **kwargs) -> BaseModel:
     elif model_name_lower in ['mlp', 'mlpmodel']:
         from .mlp import MLPModel
         model_class = MLPModel
-    elif model_name_lower in ['mlp_mixer', 'mlpmixer']:
+    elif model_name_lower in ['mlp_mixer', 'mlpmixer', 'mlp-mixer']:
         from .mlp_mixer import MLPMixer
         model_class = MLPMixer
     elif model_name_lower in ['liif', 'liifmodel']:
