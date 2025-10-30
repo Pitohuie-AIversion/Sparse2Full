@@ -96,40 +96,5 @@ training_config:
       end_T_out: 8
       warmup_epochs: 30
 
-# 优化器配置（继承自训练配置）
-defaults:
-  - /train: default
-  - _self_
-
-# 数据配置（继承并覆盖）
-data:
-  # 时序数据配置
-  T_in: 4      # 输入时间步数
-  T_out: 4     # 输出时间步数
-  
-  # 数据增强
-  augmentation:
-    temporal_shift: true    # 时间偏移增强
-    temporal_dropout: 0.1   # 时间步随机丢弃
-
-# 覆盖默认训练配置
-train:
-  # 学习率调整（双头模型可能需要更小的学习率）
-  optimizer:
-    lr: 8e-4  # 比单头模型稍小
-    weight_decay: 1e-4
-  
-  # 调度器配置
-  scheduler:
-    warmup_epochs: 10
-    min_lr: 1e-6
-  
-  # 梯度裁剪
-  grad_clip_norm: 1.0
-  
-  # 混合精度
-  use_amp: true
-  
-  # 验证配置
-  val_interval: 5
-  save_interval: 10
+# 模型特定配置
+name: "swin_temporal_nar"

@@ -275,7 +275,10 @@ class ModelEvaluator:
         task_type = self.config.data.get('task', 'SR')
         task_params = self._get_task_params()
         
-        pred_obs = apply_degradation_operator(pred_orig, task_type, task_params)
+        # 合并task_type和task_params
+        combined_params = dict(task_params)
+        combined_params['task'] = task_type
+        pred_obs = apply_degradation_operator(pred_orig, combined_params)
         
         # 计算与观测数据的误差
         target_obs = obs_data['baseline']

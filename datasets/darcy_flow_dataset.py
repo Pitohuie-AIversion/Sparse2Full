@@ -119,7 +119,7 @@ class DarcyFlowDataset(Dataset):
     def _analyze_data_format(self):
         """分析数据格式"""
         # 检查可能的数据键
-        possible_keys = ['data', 'u', 'velocity', 'pressure', 'solution']
+        possible_keys = ['data', 'u', 'velocity', 'pressure', 'solution', 'tensor']
         self.data_key = None
         
         for key in possible_keys:

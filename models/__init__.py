@@ -37,6 +37,13 @@ from .vit import VisionTransformer, ViT
 from .swin_t import SwinTransformerTiny, SwinT
 from .transformer import Transformer
 
+# AR模型
+from .ar.wrapper import ARWrapper
+
+# 时序NAR模型
+from .wrappers.swin_temporal import SwinTemporal, SwinTemporalNAR
+from .wrappers.ar_nar_wrapper import ARNARWrapper
+
 
 def create_model(model_name_or_config, **kwargs):
     """
@@ -114,6 +121,18 @@ def create_model(model_name_or_config, **kwargs):
     elif model_name == "Transformer":
         return Transformer(**model_params)
     
+    # AR模型
+    elif model_name == "ARWrapper" or model_name == "ar_wrapper":
+        return ARWrapper(**model_params)
+    
+    # 时序NAR模型
+    elif model_name == "SwinTemporal" or model_name == "swin_temporal":
+        return SwinTemporal(**model_params)
+    elif model_name == "SwinTemporalNAR" or model_name == "swin_temporal_nar":
+        return SwinTemporalNAR(**model_params)
+    elif model_name == "ARNARWrapper" or model_name == "ar_nar_wrapper":
+        return ARNARWrapper(**model_params)
+    
     else:
         supported_models = [
             "UNet", "UNetPlusPlus", "FNO2D", "UFNOUNet",
@@ -121,7 +140,8 @@ def create_model(model_name_or_config, **kwargs):
             "MLPMixer", "LIIF",
             "SwinUNet", "Hybrid", "MLP",
             "ViT", "VisionTransformer", "SwinT", "SwinTransformerTiny",
-            "Transformer"
+            "Transformer",
+            "ARWrapper", "SwinTemporal", "SwinTemporalNAR", "ARNARWrapper"
         ]
         raise ValueError(f"Unknown model: {model_name}. Supported models: {supported_models}")
 
@@ -151,6 +171,14 @@ __all__ = [
     # 混合模型
     "SwinUNet",
     "HybridModel",
+    
+    # AR模型
+    "ARWrapper",
+    
+    # 时序NAR模型
+    "SwinTemporal",
+    "SwinTemporalNAR",
+    "ARNARWrapper",
     
     # 工厂函数
     "create_model",

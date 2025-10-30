@@ -205,13 +205,27 @@ class TemporalTrainer:
     
     def _init_visualizer(self):
         """初始化可视化器"""
-        if self.config.visualization.enabled:
+        # 检查是否有可视化配置
+        if hasattr(self.config, 'visualization') and self.config.visualization.get('enabled', False):
             self.visualizer = TemporalVisualizer(
-                save_dir=self.output_dir / self.config.visualization.save_dir,
+                save_dir=self.output_dir / self.config.visualization.get('save_dir', 'visualizations'),
                 config=self.config.visualization
             )
         else:
-            self.visualizer = None
+            # 使用默认配置创建可视化器
+            viz_config = {
+                'enabled': True,
+                'save_dir': 'visualizations',
+                'training': {
+                    'plot_curves': True,
+                    'save_predictions': True,
+                    'plot_interval': 100
+                }
+            }
+            self.visualizer = TemporalVisualizer(
+                save_dir=self.output_dir / 'visualizations',
+                config=viz_config
+            )
     
     def _init_curriculum(self):
         """初始化课程学习"""
@@ -369,10 +383,11 @@ class TemporalTrainer:
                 'lr': f"{self.optimizer.param_groups[0]['lr']:.2e}"
             })
             
-            # 实时可视化
+            # 保存预测可视化
             if (self.visualizer and 
-                self.config.visualization.training.save_model_predictions and
-                self.global_step % self.config.visualization.training.prediction_frequency == 0):
+                hasattr(self.config, 'visualization') and
+                self.config.visualization.get('training', {}).get('save_model_predictions', False) and
+                self.global_step % self.config.visualization.get('training', {}).get('prediction_frequency', 100) == 0):
                 
                 # 处理可视化数据的维度
                 print(f"可视化数据形状 - input: {input_seq.shape}, target: {target_seq.shape}")
@@ -686,7 +701,9 @@ class TemporalTrainer:
                 self.save_checkpoint(is_best)
                 
                 # 可视化训练过程
-                if self.visualizer and self.config.visualization.training.plot_losses:
+                if (self.visualizer and 
+                    hasattr(self.config, 'visualization') and
+                    self.config.visualization.get('training', {}).get('plot_losses', True)):
                     self.visualizer.plot_training_curves(self.metrics_history, epoch)
                 
                 # 日志记录

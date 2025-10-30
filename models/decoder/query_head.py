@@ -25,10 +25,21 @@ def sinusoid_time_embed(timesteps: torch.Tensor, dim: int) -> torch.Tensor:
         时间编码 (T, dim)
     """
     half_dim = dim // 2
-    emb = math.log(10000) / (half_dim - 1)
-    emb = torch.exp(torch.arange(half_dim, device=timesteps.device) * -emb)
-    emb = timesteps[:, None] * emb[None, :]
-    emb = torch.cat([torch.sin(emb), torch.cos(emb)], dim=-1)
+    
+    # 处理dim=1或dim=2的边界情况
+    if half_dim == 0:
+        # dim=1的情况，直接返回零向量
+        return torch.zeros(len(timesteps), dim, device=timesteps.device)
+    elif half_dim == 1:
+        # dim=2的情况，使用简化的编码
+        emb = timesteps[:, None]  # (T, 1)
+        emb = torch.cat([torch.sin(emb), torch.cos(emb)], dim=-1)  # (T, 2)
+    else:
+        # 标准情况
+        emb = math.log(10000) / (half_dim - 1)
+        emb = torch.exp(torch.arange(half_dim, device=timesteps.device) * -emb)
+        emb = timesteps[:, None] * emb[None, :]
+        emb = torch.cat([torch.sin(emb), torch.cos(emb)], dim=-1)
     
     if dim % 2 == 1:  # 如果维度是奇数，补零
         emb = torch.cat([emb, torch.zeros_like(emb[:, :1])], dim=-1)
@@ -54,7 +65,7 @@ class TimeQueryHead(nn.Module):
         self, 
         d_model: int, 
         c_out: int,
-        max_timesteps: int = 32,
+        max_timesteps: int = 64,  # 扩展到64以支持T_out=10
         use_layer_norm: bool = True,
         dropout: float = 0.0
     ):
@@ -127,22 +138,27 @@ class TimeQueryHead(nn.Module):
         if self.dropout is not None:
             time_queries = self.dropout(time_queries)
         
-        # 时间条件调制
-        outputs = []
-        for t in range(T_out):
-            # 获取当前时间步的查询
-            q_t = time_queries[t:t+1]  # (1, D)
-            q_t = q_t.view(1, D, 1, 1)  # (1, D, 1, 1)
-            
-            # 时间条件调制：V * Q_t (广播)
-            conditioned_v = v * q_t  # (B, D, H, W)
-            
-            # 输出投影
-            out_t = self.output_proj(conditioned_v)  # (B, C, H, W)
-            outputs.append(out_t.unsqueeze(1))  # (B, 1, C, H, W)
+        # 优化的并行时间条件调制
+        # 将所有时间查询重塑为 (T_out, D, 1, 1) 以支持批量处理
+        time_queries = time_queries.view(T_out, D, 1, 1)  # (T_out, D, 1, 1)
         
-        # 拼接所有时间步
-        output = torch.cat(outputs, dim=1)  # (B, T_out, C, H, W)
+        # 扩展V以匹配时间维度: (B, D, H, W) -> (B, T_out, D, H, W)
+        v_expanded = v.unsqueeze(1).expand(B, T_out, D, H, W)  # (B, T_out, D, H, W)
+        
+        # 扩展时间查询以匹配批次维度: (T_out, D, 1, 1) -> (B, T_out, D, H, W)
+        time_queries_expanded = time_queries.unsqueeze(0).expand(B, T_out, D, H, W)
+        
+        # 并行时间条件调制
+        conditioned_v = v_expanded * time_queries_expanded  # (B, T_out, D, H, W)
+        
+        # 重塑为批量处理格式: (B, T_out, D, H, W) -> (B*T_out, D, H, W)
+        conditioned_v = conditioned_v.view(B * T_out, D, H, W)
+        
+        # 批量输出投影
+        output = self.output_proj(conditioned_v)  # (B*T_out, C, H, W)
+        
+        # 重塑回时序格式: (B*T_out, C, H, W) -> (B, T_out, C, H, W)
+        output = output.view(B, T_out, self.c_out, H, W)
         
         return output
     
@@ -176,7 +192,7 @@ class CrossAttentionQueryHead(nn.Module):
         d_model: int, 
         c_out: int,
         num_heads: int = 8,
-        max_timesteps: int = 32,
+        max_timesteps: int = 64,  # 扩展到64以支持T_out=10
         dropout: float = 0.1
     ):
         super().__init__()
@@ -255,13 +271,17 @@ class CrossAttentionQueryHead(nn.Module):
             q_t = q_t.unsqueeze(0).expand(B, -1, -1)  # (B, num_heads, head_dim)
             
             # 注意力分数：Q @ K^T
-            attn_scores = torch.einsum('bnh,bnhs->bns', q_t, K)  # (B, num_heads, H*W)
+            # 修复维度匹配问题：使用矩阵乘法而不是einsum
+            attn_scores = torch.matmul(q_t.unsqueeze(-2), K.transpose(-2, -1))  # (B, num_heads, 1, H*W)
+            attn_scores = attn_scores.squeeze(-2)  # (B, num_heads, H*W)
             attn_scores = attn_scores * self.scale
             attn_weights = F.softmax(attn_scores, dim=-1)
             attn_weights = self.attn_dropout(attn_weights)
             
             # 加权求和：Attn @ V
-            out_t = torch.einsum('bns,bnhs->bnh', attn_weights, V)  # (B, num_heads, head_dim)
+            # 修复维度匹配问题：使用矩阵乘法而不是einsum
+            out_t = torch.matmul(attn_weights.unsqueeze(-2), V.transpose(-2, -1))  # (B, num_heads, 1, head_dim)
+            out_t = out_t.squeeze(-2)  # (B, num_heads, head_dim)
             out_t = out_t.contiguous().view(B, D)  # (B, D)
             out_t = out_t.view(B, D, 1, 1).expand(B, D, H, W)  # (B, D, H, W)
             

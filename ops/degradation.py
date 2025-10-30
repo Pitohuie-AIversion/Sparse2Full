@@ -152,11 +152,18 @@ def _apply_crop_degradation(pred: torch.Tensor, params: Dict) -> torch.Tensor:
         裁剪后的张量 [B, C, crop_h, crop_w]
     """
     crop_box = params.get('crop_box')
-    crop_size = params['crop_size']
+    crop_size = params.get('crop_size')
     boundary = params.get('boundary', 'mirror')
     
     B, C, H, W = pred.shape
-    crop_h, crop_w = crop_size
+    
+    # 检查crop_size是否为None，如果是则使用默认值
+    if crop_size is None:
+        crop_ratio = params.get('crop_ratio', 0.5)
+        crop_h = int(H * crop_ratio)
+        crop_w = int(W * crop_ratio)
+    else:
+        crop_h, crop_w = crop_size
     
     if crop_box is None:
         # 如果没有指定crop_box，使用中心裁剪

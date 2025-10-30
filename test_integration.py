@@ -175,7 +175,7 @@ def test_temporal_nar_integration():
             },
             'nar': {
                 'query_dim': 64,
-                'num_queries': 16,
+                'num_queries': T_out,  # 使用T_out而不是硬编码的16
                 'num_layers': 2,
                 'num_heads': 4,
                 'dropout': 0.0,

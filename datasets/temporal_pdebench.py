@@ -125,8 +125,17 @@ class TemporalPDEBenchBase(PDEBenchBase):
             else:
                 first_key = self.keys[0]
                 if first_key in self.h5_file:
-                    key_shape = self.h5_file[first_key].shape
-                    self.n_timesteps = key_shape[0]  # 假设第一维是时间维
+                    data_obj = self.h5_file[first_key]
+                    if hasattr(data_obj, 'shape'):
+                        key_shape = data_obj.shape
+                        self.n_timesteps = key_shape[0]  # 假设第一维是时间维
+                    elif hasattr(data_obj, 'keys'):
+                        # 如果是Group，获取第一个数据集的shape
+                        sub_key = list(data_obj.keys())[0]
+                        key_shape = data_obj[sub_key].shape
+                        self.n_timesteps = key_shape[0]  # 假设第一维是时间维
+                    else:
+                        self.n_timesteps = 1
                 else:
                     self.n_timesteps = 1
     
@@ -165,7 +174,11 @@ class TemporalPDEBenchBase(PDEBenchBase):
         Returns:
             torch.Tensor: [T, C, H, W] 格式的时序数据
         """
-        case_idx = int(case_id) if case_id.isdigit() else self.case_ids.index(case_id)
+        try:
+            case_idx = int(case_id) if case_id.isdigit() else self.case_ids.index(case_id)
+        except (ValueError, IndexError) as e:
+            print(f"Error: Invalid case_id '{case_id}': {e}")
+            return None
         
         if self.use_official_format:
             # 官方格式处理
@@ -263,14 +276,29 @@ class TemporalPDEBenchBase(PDEBenchBase):
             # 原格式处理
             if 'data' in self.h5_file:
                 # [T, C, H, W] 格式
-                data = torch.tensor(self.h5_file['data'][t_start:t_end], dtype=torch.float32)  # [T, C, H, W]
+                # 使用numpy数组切片而不是直接在HDF5对象上切片
+                data_array = self.h5_file['data'][:]  # 先读取完整数据
+                data = torch.tensor(data_array[t_start:t_end], dtype=torch.float32)  # [T, C, H, W]
             else:
                 # 使用变量键读取数据
                 data_list = []
                 for key in self.keys:
                     if key in self.h5_file:
-                        # 假设形状为 [T, H, W] 或 [T, C, H, W]
-                        var_data = torch.tensor(self.h5_file[key][t_start:t_end], dtype=torch.float32)
+                        # 检查是否为Group对象
+                        data_obj = self.h5_file[key]
+                        if hasattr(data_obj, 'shape'):
+                            # 直接是数据集，假设形状为 [T, H, W] 或 [T, C, H, W]
+                            # 使用numpy数组切片而不是直接在HDF5对象上切片
+                            data_array = data_obj[:]  # 先读取完整数据
+                            var_data = torch.tensor(data_array[t_start:t_end], dtype=torch.float32)
+                        elif hasattr(data_obj, 'keys'):
+                            # 是Group对象，获取第一个数据集
+                            first_dataset_key = list(data_obj.keys())[0]
+                            # 使用numpy数组切片而不是直接在HDF5对象上切片
+                            dataset_array = data_obj[first_dataset_key][:]  # 先读取完整数据
+                            var_data = torch.tensor(dataset_array[t_start:t_end], dtype=torch.float32)
+                        else:
+                            raise ValueError(f"Unsupported data object type for key {key}: {type(data_obj)}")
                         
                         if var_data.dim() == 3:  # [T, H, W] -> [T, 1, H, W]
                             var_data = var_data.unsqueeze(1)
@@ -302,6 +330,11 @@ class TemporalPDEBenchBase(PDEBenchBase):
         
         # 加载完整时序数据
         full_sequence = self._load_temporal_data(case_id, t_start, t_end)  # [T, C, H, W]
+        
+        # 检查数据加载是否成功
+        if full_sequence is None:
+            print(f"Warning: Failed to load data for case_id={case_id}, idx={idx}")
+            return None
         
         # 处理多通道数据和归一化
         processed_sequence = []
@@ -399,6 +432,10 @@ class TemporalPDEBenchSR(TemporalPDEBenchBase):
         """获取时序SR样本"""
         sample = super().__getitem__(idx)
         
+        # 检查sample是否为None
+        if sample is None:
+            return None
+        
         # 对输入序列应用SR降质
         input_sequence = sample['input_sequence']  # [T_in, C, H, W]
         target_sequence = sample['target_sequence']  # [T_out, C, H, W]
@@ -407,13 +444,25 @@ class TemporalPDEBenchSR(TemporalPDEBenchBase):
         degraded_input = []
         for t in range(input_sequence.shape[0]):
             frame = input_sequence[t]  # [C, H, W]
-            degraded_frame = apply_degradation_operator(frame.unsqueeze(0), self.h_params).squeeze(0)
+            # SR任务不需要crop_size参数
+            h_params = self.h_params.copy()
+            
+            degraded_frame = apply_degradation_operator(frame.unsqueeze(0), h_params).squeeze(0)
             degraded_input.append(degraded_frame)
         
         degraded_input = torch.stack(degraded_input, dim=0)  # [T_in, C, H, W]
         
+        # 为了兼容训练脚本，将时序数据flatten为单个张量
+        # 从 [T_in, C, H, W] 转换为 [T_in*C, H, W]
+        B, T_in, C, H, W = degraded_input.shape[0], degraded_input.shape[0], degraded_input.shape[1], degraded_input.shape[2], degraded_input.shape[3]
+        flattened_baseline = degraded_input.view(T_in * C, H, W)  # [T_in*C, H, W]
+        
         sample.update({
             'observation_sequence': degraded_input.cpu(),  # [T_in, C, H, W]
+            'observation': degraded_input.cpu(),  # 为了兼容训练脚本中的一致性检查
+            'input': degraded_input.cpu(),  # 为了兼容训练脚本
+            'baseline': flattened_baseline.cpu(),  # [T_in*C, H, W] - flatten时序维度
+            'target': sample['target_sequence'].cpu(),  # 为了兼容训练脚本
             'h_params': self.h_params,
         })
         
@@ -442,6 +491,7 @@ class TemporalPDEBenchCrop(TemporalPDEBenchBase):
         self.h_params = {
             'task': 'Crop',
             'crop_ratio': crop_ratio,
+            'crop_size': None,  # 将在运行时根据图像尺寸计算
             'boundary': boundary,
             'noise_std': noise_std,
         }
@@ -449,6 +499,10 @@ class TemporalPDEBenchCrop(TemporalPDEBenchBase):
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
         """获取时序Crop样本"""
         sample = super().__getitem__(idx)
+        
+        # 检查sample是否为None
+        if sample is None:
+            return None
         
         # 对输入序列应用Crop降质
         input_sequence = sample['input_sequence']  # [T_in, C, H, W]
@@ -458,13 +512,30 @@ class TemporalPDEBenchCrop(TemporalPDEBenchBase):
         degraded_input = []
         for t in range(input_sequence.shape[0]):
             frame = input_sequence[t]  # [C, H, W]
-            degraded_frame = apply_degradation_operator(frame.unsqueeze(0), self.h_params).squeeze(0)
+            # 动态计算crop_size
+            h_params = self.h_params.copy()
+            if h_params['crop_size'] is None:
+                H, W = frame.shape[-2:]
+                crop_h = int(H * self.crop_ratio)
+                crop_w = int(W * self.crop_ratio)
+                h_params['crop_size'] = (crop_h, crop_w)
+            
+            degraded_frame = apply_degradation_operator(frame.unsqueeze(0), h_params).squeeze(0)
             degraded_input.append(degraded_frame)
         
         degraded_input = torch.stack(degraded_input, dim=0)  # [T_in, C, H, W]
         
+        # 为了兼容训练脚本，将时序数据flatten为单个张量
+        # 从 [T_in, C, H, W] 转换为 [T_in*C, H, W]
+        T_in, C, H, W = degraded_input.shape
+        flattened_baseline = degraded_input.view(T_in * C, H, W)  # [T_in*C, H, W]
+        
         sample.update({
             'observation_sequence': degraded_input.cpu(),  # [T_in, C, H, W]
+            'observation': degraded_input.cpu(),  # 为了兼容训练脚本中的一致性检查
+            'input': degraded_input.cpu(),  # 为了兼容训练脚本
+            'baseline': flattened_baseline.cpu(),  # [T_in*C, H, W] - flatten时序维度
+            'target': sample['target_sequence'].cpu(),  # 为了兼容训练脚本
             'h_params': self.h_params,
         })
         
@@ -487,12 +558,15 @@ class TemporalPDEBenchDataModule:
         # 修复keys访问问题 - 直接从配置字典中获取
         try:
             # 尝试直接访问配置字典
-            if 'keys' in config:
+            if hasattr(config, 'data_keys') and hasattr(config.data_keys, 'input'):
+                # 使用data_keys配置
+                self.keys = [config.data_keys.input]
+            elif 'keys' in config:
                 self.keys = config['keys']
             else:
-                self.keys = ["u"]  # 默认值
+                self.keys = ["data"]  # 默认值改为data
         except:
-            self.keys = ["u"]  # 默认值
+            self.keys = ["data"]  # 默认值改为data
         self.task = config.task
         
         # 创建数据集
@@ -542,6 +616,8 @@ class TemporalPDEBenchDataModule:
     
     def train_dataloader(self) -> DataLoader:
         """训练数据加载器"""
+        from utils.collate import safe_collate_fn
+        
         batch_size = self.config.get('dataloader', {}).get('batch_size', self.config.get('batch_size', 4))
         num_workers = self.config.get('dataloader', {}).get('num_workers', self.config.get('num_workers', 0))
         pin_memory = self.config.get('dataloader', {}).get('pin_memory', self.config.get('pin_memory', False))
@@ -553,10 +629,13 @@ class TemporalPDEBenchDataModule:
             num_workers=0,  # 由于h5py对象不能被pickle，设置为0
             pin_memory=False,  # 关闭pin_memory，避免设备不匹配
             drop_last=True,
+            collate_fn=safe_collate_fn,  # 使用安全的collate函数处理None值
         )
     
     def val_dataloader(self) -> DataLoader:
         """验证数据加载器"""
+        from utils.collate import safe_collate_fn
+        
         batch_size = self.config.get('dataloader', {}).get('batch_size', self.config.get('batch_size', 4))
         
         return DataLoader(
@@ -566,6 +645,7 @@ class TemporalPDEBenchDataModule:
             num_workers=0,
             pin_memory=False,
             drop_last=False,
+            collate_fn=safe_collate_fn,  # 使用安全的collate函数处理None值
         )
     
     def test_dataloader(self) -> DataLoader:

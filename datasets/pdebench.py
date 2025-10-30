@@ -154,7 +154,16 @@ class PDEBenchBase(Dataset):
             # 如果切分文件不存在，使用默认切分
             # 获取数据总数
             if hasattr(self, 'h5_file') and isinstance(self.keys, list) and len(self.keys) > 0 and self.keys[0] in self.h5_file:
-                n_total = self.h5_file[self.keys[0]].shape[0]
+                # 检查是否为Group对象，如果是则获取第一个数据集
+                data_obj = self.h5_file[self.keys[0]]
+                if hasattr(data_obj, 'shape'):
+                    n_total = data_obj.shape[0]
+                elif hasattr(data_obj, 'keys'):
+                    # 如果是Group，获取第一个数据集的shape
+                    first_key = list(data_obj.keys())[0]
+                    n_total = data_obj[first_key].shape[0]
+                else:
+                    n_total = 1000  # 默认值
             else:
                 n_total = 1000  # 默认值
             
@@ -216,9 +225,21 @@ class PDEBenchBase(Dataset):
             
             # 直接使用键名访问数据
             if key in self.h5_file:
-                data = self.h5_file[key][:]
-                print(f"Data shape for {key}: {data.shape}")
-                values.append(data.flatten())
+                data_obj = self.h5_file[key]
+                if hasattr(data_obj, 'shape'):
+                    # 直接是数据集
+                    data = data_obj[:]
+                    print(f"Data shape for {key}: {data.shape}")
+                    values.append(data.flatten())
+                elif hasattr(data_obj, 'keys'):
+                    # 是Group，获取第一个数据集
+                    first_key = list(data_obj.keys())[0]
+                    data = data_obj[first_key][:]
+                    print(f"Data shape for {key}/{first_key}: {data.shape}")
+                    values.append(data.flatten())
+                else:
+                    print(f"Warning: Unknown data type for key {key}")
+                    continue
             else:
                 print(f"Warning: Key {key} not found in HDF5 file")
                 # 使用默认数据
@@ -538,14 +559,21 @@ class PDEBenchBase(Dataset):
                 data_list = []
                 for key in self.keys:
                     if key in self.h5_file:
-                        # tensor数据形状为(10000, 1, 128, 128)，取第case_idx个样本
-                        var_data = torch.tensor(self.h5_file[key][case_idx], dtype=torch.float32)  # [1, H, W] 或 [H, W]
+                        # 对于HDF5组结构，需要先访问组再访问数据
+                        if isinstance(self.h5_file[key], h5py.Group):
+                            # 如果是组，访问其中的'data'键
+                            var_data = torch.tensor(self.h5_file[key]['data'][:], dtype=torch.float32)
+                        else:
+                            # 如果是数据集，直接访问
+                            var_data = torch.tensor(self.h5_file[key][:], dtype=torch.float32)
                         
                         # 确保数据为3维 [C, H, W]
                         if var_data.dim() == 2:  # [H, W] -> [1, H, W]
                             var_data = var_data.unsqueeze(0)
                         elif var_data.dim() == 3:  # 已经是 [C, H, W] 格式
                             pass
+                        elif var_data.dim() == 4:  # [T, H, W, C] -> [C, H, W] (取第0个时间步)
+                            var_data = var_data[0].permute(2, 0, 1)  # [H, W, C] -> [C, H, W]
                         else:
                             raise ValueError(f"Unexpected tensor dimension for key '{key}': {var_data.shape}")
                         
@@ -557,22 +585,19 @@ class PDEBenchBase(Dataset):
                 else:
                     raise ValueError(f"No valid data found for keys: {self.keys}")
         
-        # 处理多通道数据
-        data_list = []
-        for i, key in enumerate(self.keys):
-            if i < data.shape[0]:  # 确保通道索引有效
-                channel_data = data[i:i+1]  # [1, H, W]
-            else:
-                # 如果通道数不足，使用第一个通道
-                channel_data = data[0:1]  # [1, H, W]
-            
-            # 归一化
-            if self.normalize and self.norm_stats:
-                channel_data = self._normalize_data(channel_data, key)
-            data_list.append(channel_data)
+        # 对于diffusion-reaction数据，直接使用2个通道
+        if data.shape[0] == 2:  # 已经是2通道
+            target = data
+        else:
+            # 如果数据有多个通道，只取前2个
+            target = data[:2]  # [2, H, W]
         
-        # 拼接多通道 [C, H, W]
-        target = torch.cat(data_list, dim=0)
+        # 归一化处理
+        if self.normalize and self.norm_stats:
+            for i in range(target.shape[0]):
+                if i < len(self.keys):
+                    key = self.keys[i]
+                    target[i:i+1] = self._normalize_data(target[i:i+1], key)
         
         # 调整尺寸到指定大小
         if target.shape[-2:] != (self.image_size, self.image_size):

@@ -739,8 +739,8 @@ class SwinUNet(BaseModel):
 
         # FNO瓶颈层（可选）
         if use_fno_bottleneck:
-            bottleneck_dim = int(embed_dim * 2 ** (len(depths) - 1))
-            self.fno_bottleneck = FNOBottleneck(bottleneck_dim, fno_modes)
+            # 使用实际调整后的最终层维度
+            self.fno_bottleneck = FNOBottleneck(final_layer_dim, fno_modes)
         else:
             self.fno_bottleneck = None
 
@@ -1082,9 +1082,22 @@ class FNOBottleneck(nn.Module):
         
         # 频域卷积
         out_ft = torch.zeros_like(x_ft)
-        out_ft[:, :, :self.modes, :self.modes] = torch.einsum(
-            "bixy,ioxy->boxy", x_ft[:, :, :self.modes, :self.modes], self.weights1
-        )
+        
+        # 计算实际可用的模式数（考虑FFT输出的实际尺寸）
+        actual_modes_h = min(self.modes, x_ft.shape[2])
+        actual_modes_w = min(self.modes, x_ft.shape[3])
+        
+        # 频域切片
+        x_ft_slice = x_ft[:, :, :actual_modes_h, :actual_modes_w]  # [B, C, actual_modes_h, actual_modes_w]
+        
+        # 逐批次处理以避免维度问题
+        for b in range(B):
+            for c_out in range(self.channels):
+                for c_in in range(self.channels):
+                    out_ft[b, c_out, :actual_modes_h, :actual_modes_w] += (
+                        x_ft_slice[b, c_in, :actual_modes_h, :actual_modes_w] * 
+                        self.weights1[c_in, c_out, :actual_modes_h, :actual_modes_w]
+                    )
         
         # IFFT
         x = torch.fft.irfft2(out_ft, s=(H, W))

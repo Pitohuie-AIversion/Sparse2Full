@@ -194,10 +194,10 @@ def compute_total_loss(
     else:
         w_spec = config.loss.spectral if isinstance(config.loss.spectral, (int, float)) else 0.0
     
-    if hasattr(config.loss.data_consistency, 'weight'):
-        w_dc = config.loss.data_consistency.weight
+    if hasattr(config.loss.degradation_consistency, 'weight'):
+        w_dc = config.loss.degradation_consistency.weight
     else:
-        w_dc = config.loss.data_consistency if isinstance(config.loss.data_consistency, (int, float)) else 0.0
+        w_dc = config.loss.degradation_consistency if isinstance(config.loss.degradation_consistency, (int, float)) else 0.0
     
     w_grad = config.loss.get('gradient_weight', 0.0)
     
@@ -209,8 +209,15 @@ def compute_total_loss(
     
     # 2. 频谱损失（在原值域计算）
     if w_spec > 0:
-        pred_orig = _denormalize_tensor(pred_z, norm_stats, config.data['keys'])
-        target_orig = _denormalize_tensor(target_z, norm_stats, config.data['keys'])
+        # 获取数据键，支持不同的配置结构
+        data_keys = config.data.get('keys', None) if hasattr(config, 'data') else None
+        if data_keys is None:
+            # 如果没有keys，使用默认的反归一化
+            pred_orig = _denormalize_tensor(pred_z, norm_stats, None)
+            target_orig = _denormalize_tensor(target_z, norm_stats, None)
+        else:
+            pred_orig = _denormalize_tensor(pred_z, norm_stats, data_keys)
+            target_orig = _denormalize_tensor(target_z, norm_stats, data_keys)
         spectral_loss = _compute_spectral_loss(pred_orig, target_orig, config)
         losses['spectral_loss'] = spectral_loss
     else:
@@ -218,8 +225,15 @@ def compute_total_loss(
     
     # 3. 数据一致性损失（在原值域计算）
     if w_dc > 0:
-        pred_orig = _denormalize_tensor(pred_z, norm_stats, config.data['keys'])
-        dc_loss = _compute_data_consistency_loss(pred_orig, obs_data, norm_stats, config.data['keys'])
+        # 获取数据键，支持不同的配置结构
+        data_keys = config.data.get('keys', None) if hasattr(config, 'data') else None
+        if data_keys is None:
+            # 如果没有keys，使用默认的反归一化
+            pred_orig = _denormalize_tensor(pred_z, norm_stats, None)
+            dc_loss = _compute_data_consistency_loss(pred_orig, obs_data, norm_stats, None)
+        else:
+            pred_orig = _denormalize_tensor(pred_z, norm_stats, data_keys)
+            dc_loss = _compute_data_consistency_loss(pred_orig, obs_data, norm_stats, data_keys)
         losses['dc_loss'] = dc_loss
     else:
         losses['dc_loss'] = torch.tensor(0.0, device=device)
@@ -370,8 +384,23 @@ def _compute_data_consistency_loss(
     
     # 确保observation在原值域且维度匹配
     if observation.shape != h_pred.shape:
-        # 调整尺寸
-        observation = F.interpolate(observation, size=h_pred.shape[-2:], mode='bilinear', align_corners=False)
+        # 检查维度是否匹配
+        if observation.dim() != h_pred.dim():
+            print(f"WARNING: observation dim {observation.dim()} != h_pred dim {h_pred.dim()}")
+            return torch.tensor(0.0, device=pred.device)
+        
+        # 检查通道数是否匹配
+        if observation.shape[1] != h_pred.shape[1]:
+            # 调整通道数
+            if observation.shape[1] > h_pred.shape[1]:
+                observation = observation[:, :h_pred.shape[1]]
+            else:
+                print(f"WARNING: observation channels {observation.shape[1]} < h_pred channels {h_pred.shape[1]}")
+                return torch.tensor(0.0, device=pred.device)
+        
+        # 调整空间尺寸
+        if observation.shape[-2:] != h_pred.shape[-2:]:
+            observation = F.interpolate(observation, size=h_pred.shape[-2:], mode='bilinear', align_corners=False)
     
     # 计算DC损失
     dc_loss = F.mse_loss(h_pred, observation)

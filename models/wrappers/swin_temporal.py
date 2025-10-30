@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from typing import Optional, Tuple, Dict, Any, Union
 import logging
 
-from ..temporal_block import create_temporal_module
+from ..temporal_block import create_temporal_module, TemporalTransformerEncoder, TemporalConv1D
 from ..decoder.query_head import create_query_head
 from ..swin_unet import SwinUNet
 from ..ar.wrapper import ARWrapper
@@ -48,22 +48,75 @@ class SwinTemporal(nn.Module):
         
         # 创建时序模块
         self.temporal = None
+        self.channel_proj_in = None
+        self.channel_proj_out = None
+        
         if temporal_cfg.get('enabled', False):
-            self.temporal = create_temporal_module(
-                temporal_type=temporal_cfg.get('type', 'conv1d'),
-                c_in=self.in_channels,
-                c_out=temporal_cfg.get('c_out', self.in_channels),
-                k=temporal_cfg.get('k', 3),
-                causal=temporal_cfg.get('causal', True),
-                dropout=temporal_cfg.get('dropout', 0.0)
-            )
+            temporal_type = temporal_cfg.get('type', 'conv1d')
+            
+            # 根据类型创建不同的时序模块
+            if temporal_type == 'transformer':
+                # Transformer编码器需要特殊参数
+                # 使用输入通道数作为d_model以确保维度匹配
+                d_model = self.in_channels  # 直接使用输入通道数，避免维度不匹配
+                nhead = temporal_cfg.get('nhead', 8)
+                
+                # 确保d_model能被nhead整除
+                if d_model % nhead != 0:
+                    # 调整nhead为d_model的因子
+                    valid_nheads = [i for i in range(1, d_model + 1) if d_model % i == 0]
+                    nhead = min(valid_nheads, key=lambda x: abs(x - nhead))
+                    logger.warning(f"Adjusted nhead from {temporal_cfg.get('nhead', 8)} to {nhead} to match d_model={d_model}")
+                
+                self.temporal = TemporalTransformerEncoder(
+                    d_model=d_model,
+                    nhead=nhead,
+                    num_layers=temporal_cfg.get('num_layers', 2),
+                    dim_feedforward=temporal_cfg.get('dim_feedforward', max(d_model * 4, 16)),  # 确保最小维度
+                    dropout=temporal_cfg.get('dropout', 0.1),
+                    causal=temporal_cfg.get('causal', True),
+                    max_seq_len=temporal_cfg.get('max_seq_len', 64)
+                )
+                
+                # 由于d_model现在等于in_channels，不需要通道转换层
+                self.channel_proj_in = None
+                self.channel_proj_out = None
+                    
+            elif temporal_type == 'conv1d':
+                # 卷积时序模块
+                self.temporal = TemporalConv1D(
+                    c_in=self.in_channels,
+                    c_out=temporal_cfg.get('c_out', self.in_channels),
+                    k=temporal_cfg.get('k', 3),
+                    causal=temporal_cfg.get('causal', True),
+                    dropout=temporal_cfg.get('dropout', 0.0)
+                )
+            elif temporal_type == 'film':
+                # FiLM时序模块 - 使用create_temporal_module
+                temporal_kwargs = {
+                    'c_in': self.in_channels,
+                    'c_out': temporal_cfg.get('c_out', self.in_channels),
+                    **{k: v for k, v in temporal_cfg.items() if k not in ['type', 'enabled', 'c_out']}
+                }
+                self.temporal = create_temporal_module(
+                    temporal_type=temporal_type,
+                    **temporal_kwargs
+                )
+            elif temporal_type == 'disabled':
+                # 显式禁用时序模块
+                self.temporal = None
+            else:
+                raise ValueError(f"Unsupported temporal type: {temporal_type}")
             
             # 更新输入通道数（如果时序模块改变了通道数）
-            if hasattr(self.temporal, 'get_output_channels'):
+            if self.temporal is not None and hasattr(self.temporal, 'get_output_channels'):
                 temporal_out_channels = self.temporal.get_output_channels()
                 if temporal_out_channels != self.in_channels:
                     # 需要调整backbone的输入通道数
                     logger.warning(f"Temporal module changes channels: {self.in_channels} -> {temporal_out_channels}")
+                    # 对于Transformer，输出通道数应该等于输入通道数
+                    if temporal_type == 'transformer' and temporal_out_channels != self.in_channels:
+                        logger.error(f"Transformer temporal module d_model mismatch: expected {self.in_channels}, got {temporal_out_channels}")
         
         logger.info(f"SwinTemporal: temporal_enabled={temporal_cfg.get('enabled', False)}")
     
@@ -84,8 +137,20 @@ class SwinTemporal(nn.Module):
         # 处理输入维度
         if x.dim() == 5:  # (B,T,C,H,W)
             if self.temporal is not None:
+                # 对于Transformer时序模块，需要处理通道转换
+                if hasattr(self, 'channel_proj_in') and self.channel_proj_in is not None:
+                    # 转换输入通道
+                    B, T, C, H, W = x.shape
+                    x_reshaped = x.view(B * T, C, H, W)
+                    x_reshaped = self.channel_proj_in(x_reshaped)
+                    x = x_reshaped.view(B, T, -1, H, W)
+                
                 # 使用时序模块聚合
                 x = self.temporal(x)  # (B,C,H,W)
+                
+                # 转换输出通道（如果需要）
+                if hasattr(self, 'channel_proj_out') and self.channel_proj_out is not None:
+                    x = self.channel_proj_out(x)
             else:
                 # 没有时序模块，使用最后一帧
                 x = x[:, -1]  # (B,C,H,W)
@@ -197,6 +262,9 @@ class SwinTemporalNAR(nn.Module):
         # 创建时序增强的SwinUNet
         self.swin_temporal = SwinTemporal(base_kwargs, temporal_cfg)
         
+        # 获取时序模块的输出通道数（用于NAR头的输入维度匹配）
+        self.temporal_out_channels = self._get_temporal_output_channels()
+        
         # 创建AR包装器（如果启用）
         self.ar_wrapper = None
         if use_ar:
@@ -211,14 +279,17 @@ class SwinTemporalNAR(nn.Module):
         # 创建NAR查询头（如果启用）
         self.nar_head = None
         if use_nar:
-            # 获取特征维度（对齐SwinUNet的embed_dim）
-            d_model = nar_cfg.get('d_model', getattr(self.swin_temporal.backbone, 'embed_dim', 96))
+            # 获取特征维度（必须使用SwinUNet的embed_dim，因为_extract_features返回这个维度）
+            feature_dim = getattr(self.swin_temporal.backbone, 'embed_dim', 96)
+            
+            # 使用特征维度作为d_model，而不是输入通道数
+            d_model = feature_dim
             
             # 根据head_type决定传递的参数
             head_kwargs = {
                 'd_model': d_model,
                 'c_out': self.out_channels,
-                'max_timesteps': nar_cfg.get('max_timesteps', 32),
+                'max_timesteps': nar_cfg.get('max_timesteps', 64),  # 扩展到64支持T_out=10
                 'dropout': nar_cfg.get('dropout', 0.1)
             }
             
@@ -230,8 +301,21 @@ class SwinTemporalNAR(nn.Module):
                 head_type=nar_cfg.get('head_type', 'simple'),
                 **head_kwargs
             )
+            
+            logger.info(f"NAR头配置: d_model={d_model} (特征维度), c_out={self.out_channels}")
         
         logger.info(f"SwinTemporalNAR: AR={use_ar}, NAR={use_nar}")
+    
+    def _get_temporal_output_channels(self) -> Optional[int]:
+        """获取时序模块的输出通道数"""
+        if self.swin_temporal.temporal is not None:
+            if hasattr(self.swin_temporal.temporal, 'get_output_channels'):
+                return self.swin_temporal.temporal.get_output_channels()
+            elif hasattr(self.swin_temporal.temporal, 'd_model'):
+                return self.swin_temporal.temporal.d_model
+            elif hasattr(self.swin_temporal.temporal, 'c_out'):
+                return self.swin_temporal.temporal.c_out
+        return None
     
     def forward(
         self,
@@ -290,8 +374,19 @@ class SwinTemporalNAR(nn.Module):
         if return_both:
             return ar_output, nar_output
         else:
-            # 优先返回NAR，其次AR
-            return nar_output if nar_output is not None else ar_output
+            # 优先返回NAR，其次AR，确保不返回None
+            if nar_output is not None:
+                return nar_output
+            elif ar_output is not None:
+                return ar_output
+            else:
+                # 如果两个都是None，返回一个空的tensor作为占位符
+                batch_size = x_seq.size(0)
+                channels = self.out_channels
+                height = x_seq.size(-2) if x_seq.dim() >= 4 else self.img_size
+                width = x_seq.size(-1) if x_seq.dim() >= 4 else self.img_size
+                device = x_seq.device
+                return torch.zeros(batch_size, T_out, channels, height, width, device=device)
     
     def set_epoch(self, epoch: int, total_epochs: int = None):
         """设置训练epoch（用于scheduled sampling）"""
