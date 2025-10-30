@@ -1,0 +1,220 @@
+# AR训练配置文件
+# 基于之前成功的配置，适配当前环境
+
+experiment:
+  name: "AR-DR2D-T20-SwinUNet-s2025"
+  description: "20步AR自回归训练 - 扩散反应数据"
+  device: cuda:0
+  seed: 2025
+  output_dir: runs
+  log_every_n_steps: 10
+
+# 数据配置
+data:
+  data_path: "E:/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+  dataset_name: PDEBench
+  keys: ["tensor"]
+  splits_dir: splits
+  image_size: 128
+  sample_limit: 10000
+  
+  # AR特定配置
+  T_in: 1      # 输入时间步数
+  T_out: 20    # 输出时间步数（20步AR预测）
+  
+  # 观测配置
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 2
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+  
+  # 预处理
+  preprocessing:
+    normalize: true
+    cache_data: false
+    augmentation:
+      enabled: false
+      flip_prob: 0.0
+      rotate_prob: 0.0
+      noise_std: 0.0
+  
+  # 数据加载器
+  dataloader:
+    batch_size: 2  # AR训练内存需求大，减小批次
+    num_workers: 2
+    pin_memory: true
+    persistent_workers: false
+
+# 模型配置
+model:
+  name: ARWrapper
+  base_model: SwinUNet
+  in_channels: 2  # 扩散反应数据通道数
+  out_channels: 2
+  img_size: 128
+  patch_size: 4
+  window_size: 8
+  depths: [2, 2, 6, 2]
+  num_heads: [3, 6, 12, 24]
+  embed_dim: 96
+  mlp_ratio: 4.0
+  drop_rate: 0.1
+  attn_drop_rate: 0.1
+  drop_path_rate: 0.2
+  
+  # AR包装器配置
+  ar_config:
+    detach_rollout: true
+    scheduled_sampling: false
+    teacher_forcing_ratio: 1.0
+  
+  # 基础模型参数
+  base_params:
+    in_channels: 5  # baseline + coords + mask
+    out_channels: 2
+    img_size: 128
+    patch_size: 4
+    window_size: 8
+    depths: [2, 2, 6, 2]
+    num_heads: [3, 6, 12, 24]
+    embed_dim: 96
+    mlp_ratio: 4.0
+    drop_rate: 0.0
+    attn_drop_rate: 0.0
+    drop_path_rate: 0.1
+
+# 训练配置
+training:
+  epochs: 100
+  
+  # 优化器
+  optimizer:
+    name: adamw
+    lr: 5e-5  # AR训练使用较小学习率
+    weight_decay: 1e-4
+    betas: [0.9, 0.999]
+  
+  # 学习率调度
+  scheduler:
+    name: cosine_annealing
+    T_max: 100
+    eta_min: 1e-7
+  
+  # 训练设置
+  gradient_clip_val: 0.5
+  gradient_clip_algorithm: norm
+  
+  # 课程学习配置
+  curriculum:
+    enabled: true
+    stages:
+      - epochs: 20
+        T_out: 5
+        description: "阶段1: 预测5步"
+      - epochs: 30
+        T_out: 10
+        description: "阶段2: 预测10步"
+      - epochs: 30
+        T_out: 15
+        description: "阶段3: 预测15步"
+      - epochs: 20
+        T_out: 20
+        description: "阶段4: 预测20步"
+  
+  # AMP设置
+  amp:
+    enabled: true
+    opt_level: O1
+  
+  # 检查点
+  checkpoint:
+    save_best: true
+    save_last: true
+    max_keep: 3
+    monitor: val_loss
+    mode: min
+  
+  # 早停
+  early_stopping:
+    enabled: true
+    patience: 20
+    monitor: val_loss
+    mode: min
+    min_delta: 1e-6
+
+# AR损失配置
+loss:
+  # AR特定损失
+  ar_loss:
+    weight: 1.0
+    reduction: mean
+  
+  # 辅助损失
+  reconstruction:
+    weight: 1.0
+  spectral:
+    weight: 0.1
+  degradation_consistency:
+    weight: 0.5
+  gradient_weight: 0.0
+
+# 验证配置
+validation:
+  check_val_every_n_epoch: 1  # 每个epoch都进行验证
+  
+  metrics:
+    - rel_l2
+    - mae
+    - psnr
+    - ssim
+    - temporal_consistency
+  
+  # AR特定验证
+  rollout_steps: [5, 10, 20]  # 不同步数的验证
+  
+  convergence_criteria:
+    target_rel_l2: 0.2  # AR任务相对宽松的收敛标准
+    patience_for_convergence: 15
+    min_improvement: 1e-4
+
+# 设备配置
+device:
+  accelerator: gpu
+  devices: 1
+  precision: 16
+
+# 日志配置
+logging:
+  experiment_name: "AR-DR2D-T20-SwinUNet-s2025"
+  version: null
+  default_hp_metric: false
+  log_model: true
+  
+  tensorboard:
+    save_dir: runs/tensorboard
+    name: ar_training
+    version: null
+  
+  visualization:
+    save_samples_every_n_epochs: 5
+    num_samples_to_save: 3
+    save_training_curves: true
+    save_rollout_visualization: true
+
+# 随机种子
+seed: 2025
+
+# 测试配置
+testing:
+  enabled: true
+  run_final_test: true  # 训练完成后自动运行测试
+  save_predictions: true  # 保存预测结果
+  compute_detailed_metrics: true  # 计算详细指标
+  
+  # 测试时的特殊设置
+  batch_size: 1  # 测试时使用小批次
+  save_visualizations: true  # 保存可视化结果
+  num_visualization_samples: 5  # 可视化样本数量
