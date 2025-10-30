@@ -1,0 +1,34 @@
+{
+  "timestamp": "2025-10-26T02:42:30.453304",
+  "config_path": "configs/experiment/temporal_nar_300epochs.yaml",
+  "device": "cuda",
+  "tests": {
+    "timequery_head_performance": {
+      "T_out_5": {
+        "error": "einsum(): subscript x has size 16 for operand 1 which does not broadcast with previously seen size 4"
+      },
+      "T_out_10": {
+        "error": "einsum(): subscript x has size 16 for operand 1 which does not broadcast with previously seen size 4"
+      }
+    },
+    "temporal_encoders": {
+      "Transformer_Encoder": {
+        "error": "einsum(): subscript x has size 16 for operand 1 which does not broadcast with previously seen size 4"
+      },
+      "Conv1D_Encoder": {
+        "error": "einsum(): subscript x has size 16 for operand 1 which does not broadcast with previously seen size 4"
+      }
+    },
+    "ar_nar_comparison": {
+      "AR_only": {
+        "error": "einsum(): subscript x has size 16 for operand 1 which does not broadcast with previously seen size 4"
+      },
+      "NAR_only": {
+        "error": "'tuple' object has no attribute 'cpu'"
+      },
+      "AR_NAR_hybrid": {
+        "error": "einsum(): subscript x has size 16 for operand 1 which does not broadcast with previously seen size 4"
+      }
+    }
+  }
+}

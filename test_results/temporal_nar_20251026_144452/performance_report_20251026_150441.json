@@ -1,0 +1,49 @@
+{
+  "timestamp": "2025-10-26T14:44:52.624702",
+  "config_path": "configs/experiment/temporal_nar_300epochs.yaml",
+  "device": "cuda",
+  "tests": {
+    "timequery_head_performance": {
+      "T_out_3": {
+        "error": "a Tensor with 4 elements cannot be converted to Scalar"
+      },
+      "T_out_5": {
+        "error": "a Tensor with 4 elements cannot be converted to Scalar"
+      }
+    },
+    "temporal_encoders": {
+      "Transformer_Encoder": {
+        "error": "a Tensor with 4 elements cannot be converted to Scalar"
+      },
+      "Conv1D_Encoder": {
+        "error": "a Tensor with 4 elements cannot be converted to Scalar"
+      }
+    },
+    "ar_nar_comparison": {
+      "AR_only": {
+        "use_ar": true,
+        "use_nar": false,
+        "avg_inference_time": 104.39078402519226,
+        "rel_l2": 1.03872811794281,
+        "psnr": 12.159122467041016,
+        "ssim": 0.01156320609152317
+      },
+      "NAR_only": {
+        "use_ar": false,
+        "use_nar": true,
+        "avg_inference_time": 0.0010001659393310547,
+        "rel_l2": 1.389271855354309,
+        "psnr": 9.635354995727539,
+        "ssim": -0.006192136090248823
+      },
+      "AR_NAR_hybrid": {
+        "use_ar": true,
+        "use_nar": true,
+        "avg_inference_time": 104.10847008228302,
+        "rel_l2": 1.2169684171676636,
+        "psnr": 10.788167953491211,
+        "ssim": 0.032106686383485794
+      }
+    }
+  }
+}

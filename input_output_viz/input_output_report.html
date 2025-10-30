@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>稀疏观测重建完整流程可视化</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            border-left: 4px solid #3498db;
+            padding-left: 15px;
+        }
+        .info-box {
+            background-color: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border-left: 4px solid #3498db;
+        }
+        .image-container {
+            text-align: center;
+            margin: 30px 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        .image-container img {
+            max-width: 100%;
+            height: auto;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .caption {
+            margin-top: 15px;
+            font-style: italic;
+            color: #666;
+            font-size: 14px;
+        }
+        .highlight {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .process-flow {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            margin: 30px 0;
+            padding: 20px;
+            background-color: #e8f4fd;
+            border-radius: 10px;
+        }
+        .process-step {
+            text-align: center;
+            padding: 15px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            flex: 1;
+            margin: 0 10px;
+        }
+        .arrow {
+            font-size: 24px;
+            color: #e74c3c;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>稀疏观测重建完整流程可视化报告</h1>
+        
+        <div class="info-box">
+            <h3>任务概述</h3>
+            <p><strong>任务类型:</strong> 20% Crop任务 (稀疏观测重建)</p>
+            <p><strong>数据集:</strong> 2D_diff-react_NA_NA (反应扩散系统)</p>
+            <p><strong>图像尺寸:</strong> 128×128</p>
+            <p><strong>物理分量:</strong> u分量 (反应物浓度) 和 v分量 (催化剂浓度)</p>
+            <p><strong>重建挑战:</strong> 从20%稀疏观测点重建完整的100%流场分布</p>
+        </div>
+        
+        <div class="process-flow">
+            <div class="process-step">
+                <h4>1. 稀疏输入</h4>
+                <p>20%观测点</p>
+            </div>
+            <div class="arrow">→</div>
+            <div class="process-step">
+                <h4>2. 真实流场</h4>
+                <p>完整Ground Truth</p>
+            </div>
+            <div class="arrow">→</div>
+            <div class="process-step">
+                <h4>3. 模型重建</h4>
+                <p>从稀疏到完整</p>
+            </div>
+            <div class="arrow">→</div>
+            <div class="process-step">
+                <h4>4. 误差分析</h4>
+                <p>重建质量评估</p>
+            </div>
+        </div>
+        
+        <h2>1. 稀疏输入可视化</h2>
+        <div class="image-container">
+            <img src="input_viz/sparse_input_t25.png" alt="稀疏输入可视化">
+            <div class="caption">
+                稀疏输入可视化：展示20%观测点的分布和数值，包括u和v分量的稀疏观测以及观测点分布掩码
+            </div>
+        </div>
+        
+        <div class="highlight">
+            <strong>稀疏输入特点:</strong>
+            <ul>
+                <li>仅有20%的像素点有观测值，其余80%为未知</li>
+                <li>观测点随机分布在整个128×128网格中</li>
+                <li>模型需要从这些稀疏信息推断完整的流场分布</li>
+                <li>这是一个高度欠定的逆问题，需要利用物理先验知识</li>
+            </ul>
+        </div>
+        
+        <h2>2. 完整流程对比 (4×2网格图)</h2>
+        <div class="image-container">
+            <img src="grid_comparison/complete_flow_grid_t25.png" alt="完整流程对比">
+            <div class="caption">
+                完整流程对比：从稀疏输入(20%)到真实流场、模型重建、预测误差的完整可视化流程
+            </div>
+        </div>
+        
+        <div class="highlight">
+            <strong>重建流程解析:</strong>
+            <ul>
+                <li><strong>第1行:</strong> 稀疏输入 - 仅显示20%观测点的u和v分量值</li>
+                <li><strong>第2行:</strong> 真实完整流场 - Ground Truth的完整u和v分量分布</li>
+                <li><strong>第3行:</strong> 模型重建流场 - 从20%观测点重建的完整流场</li>
+                <li><strong>第4行:</strong> 重建误差 - 真实值与重建值的绝对误差热图</li>
+            </ul>
+        </div>
+        
+        <h2>3. 详细误差分析</h2>
+        <div class="image-container">
+            <img src="complete_flow/error_analysis_t25.png" alt="详细误差分析">
+            <div class="caption">
+                详细误差分析：包括误差热图、误差分布直方图、观测点与未观测点的误差对比
+            </div>
+        </div>
+        
+        <div class="info-box">
+            <h3>重建性能分析</h3>
+            <p><strong>关键发现:</strong></p>
+            <ul>
+                <li>未观测点(80%)的重建误差通常高于观测点(20%)</li>
+                <li>误差分布反映了模型的重建能力和物理一致性</li>
+                <li>u和v分量的重建难度可能不同，取决于其空间相关性</li>
+                <li>边界区域和高梯度区域通常重建误差较大</li>
+            </ul>
+        </div>
+        
+        <h2>4. 技术挑战与意义</h2>
+        <div class="info-box">
+            <h3>稀疏重建的技术挑战</h3>
+            <p><strong>数学挑战:</strong></p>
+            <ul>
+                <li>高度欠定问题：从20%信息推断80%未知信息</li>
+                <li>空间相关性建模：需要学习流场的空间依赖关系</li>
+                <li>物理约束：必须满足反应扩散方程的物理规律</li>
+                <li>多尺度特征：需要捕捉局部细节和全局模式</li>
+            </ul>
+            
+            <p><strong>实际应用价值:</strong></p>
+            <ul>
+                <li>传感器网络优化：减少传感器数量降低成本</li>
+                <li>环境监测：从稀疏监测点重建完整环境场</li>
+                <li>医学成像：减少扫描时间和辐射暴露</li>
+                <li>工业过程监控：优化监测点布置</li>
+            </ul>
+        </div>
+        
+        <h2>5. 模型评估指标</h2>
+        <div class="info-box">
+            <h3>重建质量评估</h3>
+            <p>本可视化报告展示了以下关键指标：</p>
+            <ul>
+                <li><strong>整体重建误差:</strong> MSE和MAE衡量总体重建质量</li>
+                <li><strong>观测点误差:</strong> 评估模型对已知信息的拟合能力</li>
+                <li><strong>未观测点误差:</strong> 评估模型的插值和外推能力</li>
+                <li><strong>误差分布:</strong> 了解误差的统计特性和异常值</li>
+                <li><strong>空间误差模式:</strong> 识别重建困难的区域和模式</li>
+            </ul>
+        </div>
+        
+        <div class="highlight">
+            <p><strong>结论:</strong> 稀疏观测重建是一个具有挑战性的任务，需要模型具备强大的空间推理能力和物理知识。
+            通过本可视化分析，我们可以深入理解模型的重建能力、局限性和改进方向。</p>
+        </div>
+    </div>
+</body>
+</html>

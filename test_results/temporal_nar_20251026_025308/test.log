@@ -1,0 +1,26 @@
+2025-10-26 02:53:08,835 - TemporalNARTester - INFO - 数据模块初始化成功: diff-reaction
+2025-10-26 02:53:08,835 - TemporalNARTester - INFO - 开始运行所有测试...
+2025-10-26 02:53:08,835 - TemporalNARTester - INFO - 开始测试TimeQueryHead性能...
+2025-10-26 02:53:08,835 - TemporalNARTester - INFO - 测试T_out=3...
+2025-10-26 02:53:08,835 - TemporalNARTester - INFO - 使用数据通道数: 2
+2025-10-26 02:53:11,550 - TemporalNARTester - ERROR - 测试T_out=3失败: The size of tensor a (3) must match the size of tensor b (16) at non-singleton dimension 1
+2025-10-26 02:53:11,550 - TemporalNARTester - INFO - 测试T_out=5...
+2025-10-26 02:53:11,550 - TemporalNARTester - INFO - 使用数据通道数: 2
+2025-10-26 02:53:14,074 - TemporalNARTester - ERROR - 测试T_out=5失败: The size of tensor a (3) must match the size of tensor b (16) at non-singleton dimension 1
+2025-10-26 02:53:14,075 - TemporalNARTester - INFO - 开始测试时序编码器...
+2025-10-26 02:53:14,075 - TemporalNARTester - INFO - 测试编码器: Transformer_Encoder
+2025-10-26 02:53:16,506 - TemporalNARTester - ERROR - 测试编码器 Transformer_Encoder 失败: The size of tensor a (3) must match the size of tensor b (16) at non-singleton dimension 1
+2025-10-26 02:53:16,506 - TemporalNARTester - INFO - 测试编码器: Conv1D_Encoder
+2025-10-26 02:53:18,998 - TemporalNARTester - ERROR - 测试编码器 Conv1D_Encoder 失败: The size of tensor a (3) must match the size of tensor b (16) at non-singleton dimension 1
+2025-10-26 02:53:18,999 - TemporalNARTester - INFO - 开始对比AR和NAR模型性能...
+2025-10-26 02:53:18,999 - TemporalNARTester - INFO - 测试模型配置: AR_only
+2025-10-26 02:53:21,540 - TemporalNARTester - ERROR - 测试模型配置 AR_only 失败: The size of tensor a (3) must match the size of tensor b (16) at non-singleton dimension 1
+2025-10-26 02:53:21,540 - TemporalNARTester - INFO - 测试模型配置: NAR_only
+2025-10-26 02:53:24,176 - TemporalNARTester - ERROR - 测试模型配置 NAR_only 失败: cannot unpack non-iterable int object
+2025-10-26 02:53:24,176 - TemporalNARTester - INFO - 测试模型配置: AR_NAR_hybrid
+2025-10-26 02:53:26,726 - TemporalNARTester - ERROR - 测试模型配置 AR_NAR_hybrid 失败: The size of tensor a (3) must match the size of tensor b (16) at non-singleton dimension 1
+2025-10-26 02:53:26,727 - TemporalNARTester - INFO - 生成性能报告...
+2025-10-26 02:53:26,731 - TemporalNARTester - INFO - 性能报告已保存: test_results\temporal_nar_20251026_025308\performance_report_20251026_025326.json
+2025-10-26 02:53:26,731 - TemporalNARTester - INFO - Markdown报告已保存: test_results\temporal_nar_20251026_025308\performance_report_20251026_025326.md
+2025-10-26 02:53:26,731 - TemporalNARTester - INFO - 所有测试完成!
+2025-10-26 02:53:26,732 - TemporalNARTester - INFO - 报告文件: (WindowsPath('test_results/temporal_nar_20251026_025308/performance_report_20251026_025326.json'), WindowsPath('test_results/temporal_nar_20251026_025308/performance_report_20251026_025326.md'))

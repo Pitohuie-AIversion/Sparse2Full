@@ -1,0 +1,20 @@
+data:
+  _target_: datasets.pdebench.PDEBenchDataModule
+  batch_size: 4
+  data_path: E:\2D\diffusion-reaction\2D_diff-react_NA_NA.h5
+  dataset_name: 2D_diff-react_NA_NA
+  image_size: 128
+  keys: []
+  num_workers: 4
+  pin_memory: true
+  use_official_format: false
+model:
+  in_channels: 0
+  out_channels: 0
+task:
+  crop_ratio: 0.2
+  type: crop
+training:
+  learning_rate: 0.001
+  max_epochs: 30
+  weight_decay: 0.0001

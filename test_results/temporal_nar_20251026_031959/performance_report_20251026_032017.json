@@ -1,0 +1,39 @@
+{
+  "timestamp": "2025-10-26T03:19:59.177160",
+  "config_path": "configs/experiment/temporal_nar_300epochs.yaml",
+  "device": "cuda",
+  "tests": {
+    "timequery_head_performance": {
+      "T_out_3": {
+        "error": "The size of tensor a (3) must match the size of tensor b (16) at non-singleton dimension 1"
+      },
+      "T_out_5": {
+        "error": "The size of tensor a (3) must match the size of tensor b (16) at non-singleton dimension 1"
+      }
+    },
+    "temporal_encoders": {
+      "Transformer_Encoder": {
+        "error": "The size of tensor a (3) must match the size of tensor b (16) at non-singleton dimension 1"
+      },
+      "Conv1D_Encoder": {
+        "error": "The size of tensor a (3) must match the size of tensor b (16) at non-singleton dimension 1"
+      }
+    },
+    "ar_nar_comparison": {
+      "AR_only": {
+        "error": "The size of tensor a (3) must match the size of tensor b (16) at non-singleton dimension 1"
+      },
+      "NAR_only": {
+        "use_ar": false,
+        "use_nar": true,
+        "avg_inference_time": 0.009500861167907715,
+        "rel_l2": 1.1839213371276855,
+        "psnr": 11.030704498291016,
+        "ssim": 0.05826059728860855
+      },
+      "AR_NAR_hybrid": {
+        "error": "The size of tensor a (3) must match the size of tensor b (16) at non-singleton dimension 1"
+      }
+    }
+  }
+}
