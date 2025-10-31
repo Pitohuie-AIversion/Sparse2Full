@@ -9,8 +9,83 @@ from typing import Optional, Tuple, List
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from timm.models.layers import DropPath, to_2tuple, trunc_normal_
-from einops import rearrange
+
+try:  # pragma: no cover - 依赖存在时直接使用
+    from einops import rearrange
+except ModuleNotFoundError as err:  # pragma: no cover - 测试环境缺失einops时使用
+    if err.name != "einops":
+        raise
+
+    def rearrange(x: torch.Tensor, pattern: str, **axes_lengths) -> torch.Tensor:
+        """用于测试环境的极简rearrange实现，仅支持Swin-UNet所需的模式。"""
+
+        expected_pattern = "b h w (p1 p2 c)-> b (h p1) (w p2) c"
+        if pattern != expected_pattern:
+            raise NotImplementedError(
+                "Fallback rearrange only supports pattern 'b h w (p1 p2 c)-> b (h p1) (w p2) c'. "
+                "Install einops for full functionality."
+            )
+
+        p1 = axes_lengths.get("p1")
+        p2 = axes_lengths.get("p2")
+        c = axes_lengths.get("c")
+        if None in (p1, p2, c):
+            missing = [
+                name for name, value in (("p1", p1), ("p2", p2), ("c", c))
+                if value is None
+            ]
+            raise ValueError(f"Missing axes lengths for fallback rearrange: {missing}")
+
+        b, h, w, _ = x.shape
+        x = x.view(b, h, w, p1, p2, c)
+        x = x.permute(0, 1, 3, 2, 4, 5).reshape(b, h * p1, w * p2, c)
+        return x
+
+try:  # pragma: no cover - 简单的兼容性分支
+    from timm.models.layers import DropPath, to_2tuple, trunc_normal_
+except ModuleNotFoundError as err:  # pragma: no cover - timm 未安装时的回退实现
+    if err.name != "timm":
+        raise
+
+    class DropPath(nn.Module):
+        """timm中的DropPath的轻量级实现。
+
+        仅依赖于PyTorch, 用于在测试环境缺失timm库时保持模型可用。
+        """
+
+        def __init__(self, drop_prob: float = 0., scale_by_keep: bool = True) -> None:
+            super().__init__()
+            self.drop_prob = float(drop_prob)
+            self.scale_by_keep = scale_by_keep
+
+        def forward(self, x: torch.Tensor) -> torch.Tensor:
+            if self.drop_prob == 0.0 or not self.training:
+                return x
+
+            keep_prob = 1 - self.drop_prob
+            shape = (x.shape[0],) + (1,) * (x.ndim - 1)
+            random_tensor = keep_prob + torch.rand(shape, dtype=x.dtype, device=x.device)
+            random_tensor.floor_()
+
+            if self.scale_by_keep and keep_prob > 0.0:
+                x = x / keep_prob
+
+            return x * random_tensor
+
+    def to_2tuple(value):
+        """将输入转换为长度为2的tuple。"""
+
+        if isinstance(value, tuple):
+            return value
+        if isinstance(value, list):
+            return tuple(value)
+        return (value, value)
+
+    def trunc_normal_(tensor: torch.Tensor, mean: float = 0., std: float = 1.,
+                      a: float = -2., b: float = 2.) -> torch.Tensor:
+        """PyTorch中的截断正态初始化，用于兼容timm依赖。"""
+
+        return torch.nn.init.trunc_normal_(tensor, mean=mean, std=std, a=a, b=b)
 
 from .base import BaseModel
 
