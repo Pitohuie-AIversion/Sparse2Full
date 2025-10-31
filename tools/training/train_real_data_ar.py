@@ -27,8 +27,12 @@ from omegaconf import DictConfig, OmegaConf
 from tqdm import tqdm
 import h5py
 
-# 添加项目根目录到路径
-sys.path.append(str(Path(__file__).parent))
+# 添加项目根目录到路径，确保无论从哪个工作目录启动脚本都能正确导入包
+project_root = Path(__file__).resolve().parents[2]
+training_dir = Path(__file__).resolve().parent
+for path in (training_dir, project_root):
+    if str(path) not in sys.path:
+        sys.path.append(str(path))
 
 from datasets.real_dr_dataset import RealDiffusionReactionDataModule
 from models.swin_unet import SwinUNet
@@ -469,8 +473,9 @@ class RealDataARTrainer:
                 input_seq = batch['input_sequence'].to(self.device)
                 target_seq = batch['target_sequence'].to(self.device)
                 
-                # 模型预测（测试时不使用teacher forcing）
-                pred_seq = self.model(input_seq, target_seq=None)
+                # 模型预测（测试时不使用teacher forcing），输出长度与目标序列一致
+                test_T_out = target_seq.shape[1]
+                pred_seq = self.model(input_seq, T_out=test_T_out)
                 
                 # 计算损失
                 loss = F.mse_loss(pred_seq, target_seq)
