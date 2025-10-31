@@ -473,8 +473,9 @@ class RealDataARTrainer:
                 input_seq = batch['input_sequence'].to(self.device)
                 target_seq = batch['target_sequence'].to(self.device)
                 
-                # 模型预测（测试时不使用teacher forcing）
-                pred_seq = self.model(input_seq, target_seq=None)
+                # 模型预测（测试时不使用teacher forcing），输出长度与目标序列一致
+                test_T_out = target_seq.shape[1]
+                pred_seq = self.model(input_seq, T_out=test_T_out)
                 
                 # 计算损失
                 loss = F.mse_loss(pred_seq, target_seq)

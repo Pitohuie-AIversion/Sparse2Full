@@ -623,7 +623,8 @@ class Trainer:
                         target_seq = target_seq.unsqueeze(1)
                     
                     # AR模型前向传播
-                    pred_seq = self.model(input_seq, target_seq=target_seq)
+                    tout = target_seq.shape[1]
+                    pred_seq = self.model(input_seq, T_out=tout, teacher=target_seq)
                     
                     # 计算AR损失
                     from ops.losses import compute_ar_total_loss
@@ -864,7 +865,8 @@ class Trainer:
                         target_seq = target_seq.unsqueeze(1)
                     
                     # AR模型前向传播（验证时不使用teacher forcing）
-                    pred_seq = self.model(input_seq, target_seq=None)
+                    tout = target_seq.shape[1]
+                    pred_seq = self.model(input_seq, T_out=tout)
                     
                     # 计算AR损失
                     from ops.losses import compute_ar_total_loss
