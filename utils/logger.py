@@ -2,6 +2,7 @@
 
 提供统一的日志记录功能
 支持文件和控制台输出
+兼容测试中的 `Logger` 类导入（包装 `setup_logger`）。
 """
 
 import logging
@@ -49,3 +50,18 @@ def setup_logger(name: str, log_file: Optional[Path] = None,
         logger.addHandler(file_handler)
     
     return logger
+
+
+class Logger:
+    """轻量包装类，兼容测试对 `utils.logger.Logger` 的期望。
+
+    用法：
+        logger = Logger(name, log_file).get()
+        logger.info("message")
+    """
+
+    def __init__(self, name: str, log_file: Optional[Path] = None, level: int = logging.INFO):
+        self._logger = setup_logger(name, log_file, level)
+
+    def get(self) -> logging.Logger:
+        return self._logger

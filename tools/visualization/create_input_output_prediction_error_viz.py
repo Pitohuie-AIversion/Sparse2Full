@@ -9,15 +9,37 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.gridspec import GridSpec
+import seaborn as sns
 import torch
 import torch.nn.functional as F
 from pathlib import Path
 import warnings
 warnings.filterwarnings('ignore')
 
-# 设置中文字体
-plt.rcParams['font.sans-serif'] = ['SimHei', 'DejaVu Sans']
-plt.rcParams['axes.unicode_minus'] = False
+# 设置中文字体支持
+def setup_chinese_font():
+    """设置中文字体支持"""
+    import matplotlib
+    matplotlib.rcParams['axes.unicode_minus'] = False
+    
+    try:
+        import matplotlib.font_manager as fm
+        # 查找系统中可用的中文字体
+        chinese_fonts = []
+        for font in fm.fontManager.ttflist:
+            if any(name in font.name.lower() for name in ['simhei', 'simsun', 'microsoft yahei', 'noto sans cjk']):
+                chinese_fonts.append(font.name)
+        
+        if chinese_fonts:
+            matplotlib.rcParams['font.sans-serif'] = chinese_fonts + ['DejaVu Sans', 'Arial']
+        else:
+            matplotlib.rcParams['font.sans-serif'] = ['DejaVu Sans', 'Arial']
+    except Exception:
+        matplotlib.rcParams['font.sans-serif'] = ['DejaVu Sans', 'Arial']
+
+# 初始化字体设置
+setup_chinese_font()
 
 class InputOutputPredictionErrorVisualizer:
     """输入-输出-预测-误差完整可视化器
@@ -356,7 +378,7 @@ v分量统计:
     <title>稀疏观测重建完整流程可视化</title>
     <style>
         body {{
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: system-ui, -apple-system, 'Noto Sans', 'Noto Sans CJK SC', 'Source Han Sans SC', 'DejaVu Sans', Arial, sans-serif;
             margin: 0;
             padding: 20px;
             background-color: #f5f5f5;
@@ -579,8 +601,78 @@ v分量统计:
         
         print("HTML报告已创建: input_output_report.html")
     
+    def visualize_ar_training_data(self, input_seq, target_seq, pred_seq, epoch, timestep):
+        """为AR训练数据创建输入-输出-预测-误差可视化
+        
+        Args:
+            input_seq: 输入序列 [B, T, C, H, W]
+            target_seq: 目标序列 [B, T, C, H, W]  
+            pred_seq: 预测序列 [B, T, C, H, W]
+            epoch: 当前epoch
+            timestep: 时间步
+        """
+        try:
+            # 转换为numpy数组并选择第一个batch和第一个时间步
+            if isinstance(input_seq, torch.Tensor):
+                input_data = input_seq[0, 0, 0].cpu().numpy()  # [H, W]
+            else:
+                input_data = input_seq[0, 0, 0]
+                
+            if isinstance(target_seq, torch.Tensor):
+                target_data = target_seq[0, 0, 0].cpu().numpy()  # [H, W]
+            else:
+                target_data = target_seq[0, 0, 0]
+                
+            if isinstance(pred_seq, torch.Tensor):
+                pred_data = pred_seq[0, 0, 0].cpu().numpy()  # [H, W]
+            else:
+                pred_data = pred_seq[0, 0, 0]
+            
+            # 计算误差
+            error_data = np.abs(pred_data - target_data)
+            
+            # 创建可视化
+            fig, axes = plt.subplots(1, 4, figsize=(16, 4))
+            
+            # 输入
+            im1 = axes[0].imshow(input_data, cmap='RdBu_r', aspect='equal')
+            axes[0].set_title(f'Input (Epoch {epoch})', fontweight='bold')
+            axes[0].axis('off')
+            plt.colorbar(im1, ax=axes[0], shrink=0.8)
+            
+            # 目标
+            im2 = axes[1].imshow(target_data, cmap='RdBu_r', aspect='equal')
+            axes[1].set_title('Ground Truth', fontweight='bold')
+            axes[1].axis('off')
+            plt.colorbar(im2, ax=axes[1], shrink=0.8)
+            
+            # 预测
+            im3 = axes[2].imshow(pred_data, cmap='RdBu_r', aspect='equal', 
+                               vmin=target_data.min(), vmax=target_data.max())
+            axes[2].set_title('Prediction', fontweight='bold')
+            axes[2].axis('off')
+            plt.colorbar(im3, ax=axes[2], shrink=0.8)
+            
+            # 误差
+            im4 = axes[3].imshow(error_data, cmap='Reds', aspect='equal')
+            axes[3].set_title('Absolute Error', fontweight='bold')
+            axes[3].axis('off')
+            plt.colorbar(im4, ax=axes[3], shrink=0.8)
+            
+            plt.tight_layout()
+            
+            # 保存图像
+            save_path = self.output_dir / f"ar_training_epoch_{epoch}_timestep_{timestep}.png"
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            plt.close()
+            
+            print(f"AR训练数据可视化已保存: {save_path}")
+            
+        except Exception as e:
+            print(f"AR训练数据可视化失败: {e}")
+    
     def run_complete_visualization(self):
-        """运行完整的可视化流程"""
+        """运行完整的可视化流程（合成数据）"""
         print("开始输入-输出-预测-误差完整可视化分析...")
         print("=" * 60)
         
@@ -625,6 +717,122 @@ v分量统计:
         print(f"• 详细误差分析: {self.output_dir}/complete_flow/")
         
         return metrics
+    
+    def visualize_ar_training_data(self, input_seq, target_seq, pred_seq, timestep=0, epoch=0):
+        """可视化AR训练数据
+        
+        Args:
+            input_seq: 输入序列 [B, T_in, C, H, W] 或 [T_in, C, H, W]
+            target_seq: 目标序列 [B, T_out, C, H, W] 或 [T_out, C, H, W]  
+            pred_seq: 预测序列 [B, T_out, C, H, W] 或 [T_out, C, H, W]
+            timestep: 要可视化的时间步
+            epoch: 当前训练轮次
+        """
+        print(f"开始AR训练数据可视化 - Epoch {epoch}, 时间步 {timestep}...")
+        
+        # 处理批次维度
+        if len(input_seq.shape) == 5:  # [B, T, C, H, W]
+            input_seq = input_seq[0]  # 取第一个样本
+        if len(target_seq.shape) == 5:
+            target_seq = target_seq[0]
+        if len(pred_seq.shape) == 5:
+            pred_seq = pred_seq[0]
+        
+        # 转换为numpy
+        if hasattr(input_seq, 'cpu'):
+            input_seq = input_seq.cpu().numpy()
+        if hasattr(target_seq, 'cpu'):
+            target_seq = target_seq.cpu().numpy()
+        if hasattr(pred_seq, 'cpu'):
+            pred_seq = pred_seq.cpu().numpy()
+        
+        # 选择要可视化的时间步
+        if timestep < input_seq.shape[0]:
+            input_frame = input_seq[timestep]  # [C, H, W]
+        else:
+            input_frame = input_seq[-1]  # 使用最后一帧
+            
+        if timestep < target_seq.shape[0]:
+            target_frame = target_seq[timestep]  # [C, H, W]
+            pred_frame = pred_seq[timestep]
+        else:
+            target_frame = target_seq[-1]
+            pred_frame = pred_seq[-1]
+        
+        # 创建可视化
+        self._create_ar_comparison_grid(input_frame, target_frame, pred_frame, 
+                                       timestep, epoch)
+        
+        # 计算并返回指标
+        error = np.abs(target_frame - pred_frame)
+        mse = np.mean((target_frame - pred_frame)**2)
+        mae = np.mean(error)
+        
+        return {
+            'mse': mse,
+            'mae': mae,
+            'max_error': np.max(error),
+            'rel_l2': np.linalg.norm(target_frame - pred_frame) / np.linalg.norm(target_frame)
+        }
+    
+    def _create_ar_comparison_grid(self, input_frame, target_frame, pred_frame, 
+                                  timestep, epoch):
+        """创建AR数据对比网格图"""
+        error_frame = np.abs(target_frame - pred_frame)
+        
+        # 确定通道数
+        n_channels = target_frame.shape[0]
+        
+        # 创建图形
+        fig, axes = plt.subplots(4, n_channels, figsize=(4*n_channels, 16))
+        if n_channels == 1:
+            axes = axes.reshape(-1, 1)
+        
+        fig.suptitle(f'AR训练可视化 - Epoch {epoch}, 时间步 {timestep}', 
+                    fontsize=16, fontweight='bold')
+        
+        channel_names = ['u分量', 'v分量'] if n_channels == 2 else [f'通道{i}' for i in range(n_channels)]
+        
+        for c in range(n_channels):
+            # 设置颜色范围
+            vmin = min(target_frame[c].min(), pred_frame[c].min())
+            vmax = max(target_frame[c].max(), pred_frame[c].max())
+            
+            # 输入帧
+            im1 = axes[0, c].imshow(input_frame[c], cmap='RdBu_r', vmin=vmin, vmax=vmax)
+            axes[0, c].set_title(f'输入 - {channel_names[c]}', fontweight='bold')
+            axes[0, c].axis('off')
+            plt.colorbar(im1, ax=axes[0, c], shrink=0.8)
+            
+            # 目标帧
+            im2 = axes[1, c].imshow(target_frame[c], cmap='RdBu_r', vmin=vmin, vmax=vmax)
+            axes[1, c].set_title(f'目标 - {channel_names[c]}', fontweight='bold')
+            axes[1, c].axis('off')
+            plt.colorbar(im2, ax=axes[1, c], shrink=0.8)
+            
+            # 预测帧
+            im3 = axes[2, c].imshow(pred_frame[c], cmap='RdBu_r', vmin=vmin, vmax=vmax)
+            axes[2, c].set_title(f'预测 - {channel_names[c]}', fontweight='bold')
+            axes[2, c].axis('off')
+            plt.colorbar(im3, ax=axes[2, c], shrink=0.8)
+            
+            # 误差
+            im4 = axes[3, c].imshow(error_frame[c], cmap='Reds', vmin=0, vmax=error_frame[c].max())
+            axes[3, c].set_title(f'绝对误差 - {channel_names[c]}', fontweight='bold')
+            axes[3, c].axis('off')
+            plt.colorbar(im4, ax=axes[3, c], shrink=0.8)
+        
+        plt.tight_layout()
+        
+        # 保存到AR专用目录
+        ar_dir = self.output_dir / "ar_training"
+        ar_dir.mkdir(exist_ok=True)
+        
+        plt.savefig(ar_dir / f"ar_comparison_epoch{epoch}_t{timestep}.png", 
+                   dpi=300, bbox_inches='tight')
+        plt.close()
+        
+        print(f"AR训练可视化已保存: ar_comparison_epoch{epoch}_t{timestep}.png")
 
 if __name__ == "__main__":
     # 创建可视化器

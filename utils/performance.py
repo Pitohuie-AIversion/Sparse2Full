@@ -253,6 +253,109 @@ class PerformanceProfiler:
             'num_runs': num_runs,
             'warmup_runs': warmup_runs
         }
+
+class ResourceMonitor:
+    """轻量级资源监控器
+
+    周期性采样系统与GPU资源使用，并将结果写入输出目录的 `resource_metrics.jsonl`。
+    可选地在初始化时记录一次模型资源摘要（建议由训练器负责写入详细模型信息）。
+    """
+
+    def __init__(self, output_dir: str, interval_sec: int = 30, device: Optional[str] = None):
+        from datetime import datetime  # local import to avoid top-level changes
+        import threading
+        self._datetime_cls = datetime
+        self._threading = threading
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.interval_sec = max(1, int(interval_sec))
+        if device is None:
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.device = device
+        self._running = False
+        self._thread: Optional[threading.Thread] = None
+        self._jsonl_path = self.output_dir / 'resource_metrics.jsonl'
+
+    def _collect_once(self) -> Dict[str, Any]:
+        now = self._datetime_cls.now().isoformat(timespec='seconds')
+        cpu_percent = None
+        mem_used_gb = None
+        gpu_info: Dict[str, Any] = {}
+
+        try:
+            cpu_percent = psutil.cpu_percent(interval=None)
+            vm = psutil.virtual_memory()
+            mem_used_gb = vm.used / (1024 ** 3)
+        except Exception:
+            pass
+
+        if torch.cuda.is_available():
+            try:
+                allocated = torch.cuda.memory_allocated() / (1024 ** 2)
+                reserved = torch.cuda.memory_reserved() / (1024 ** 2)
+                peak = torch.cuda.max_memory_allocated() / (1024 ** 2)
+                gpu_info = {
+                    'allocated_mb': float(allocated),
+                    'reserved_mb': float(reserved),
+                    'peak_mb': float(peak)
+                }
+            except Exception:
+                gpu_info = {}
+
+        return {
+            'timestamp': now,
+            'device': self.device,
+            'cpu_percent': float(cpu_percent) if cpu_percent is not None else None,
+            'ram_used_gb': float(mem_used_gb) if mem_used_gb is not None else None,
+            'gpu': gpu_info
+        }
+
+    def _loop(self):
+        try:
+            if torch.cuda.is_available():
+                torch.cuda.reset_peak_memory_stats()
+        except Exception:
+            pass
+        while self._running:
+            t0 = time.perf_counter()
+            data = self._collect_once()
+            t1 = time.perf_counter()
+            try:
+                with open(self._jsonl_path, 'a', encoding='utf-8') as f:
+                    f.write(json.dumps({
+                        **data,
+                        'sample_duration_ms': (t1 - t0) * 1000.0
+                    }, ensure_ascii=False) + '\n')
+                t2 = time.perf_counter()
+                # 追加一条包含写入耗时的信息，避免修改原有记录结构带来的解析不兼容
+                with open(self._jsonl_path, 'a', encoding='utf-8') as f:
+                    f.write(json.dumps({
+                        'timestamp': data.get('timestamp'),
+                        'device': self.device,
+                        'write_duration_ms': (t2 - t1) * 1000.0
+                    }, ensure_ascii=False) + '\n')
+            except Exception:
+                pass
+            time.sleep(self.interval_sec)
+
+    def start(self):
+        if self._running:
+            return
+        self._running = True
+        self._thread = self._threading.Thread(target=self._loop, daemon=True)
+        self._thread.start()
+
+    def stop(self):
+        self._running = False
+        if self._thread and self._thread.is_alive():
+            try:
+                self._thread.join(timeout=min(self.interval_sec + 2, 5))
+            except Exception:
+                pass
+            if self._thread.is_alive():
+                # 强制标记为 daemon 并放弃 join，避免阻塞主线程
+                self._thread.daemon = True
+                self.logger.warning("性能监控线程 join 超时，已标记为 daemon 并继续")
     
     def generate_report(self, results: Dict[str, Any], save_path: Optional[Path] = None) -> str:
         """生成性能分析报告"""
@@ -496,3 +599,47 @@ def profile_training_step(model: nn.Module, optimizer: torch.optim.Optimizer,
         'peak_memory_mb': max(m['peak_mb'] for m in memory_stats),
         'loss_value': loss.item()
     }
+
+
+def measure_model_performance(model: nn.Module, input_shape: Tuple[int, ...],
+                              device: Optional[str] = None,
+                              num_runs: int = 50,
+                              warmup_runs: int = 10) -> Dict[str, Any]:
+    """统一的模型性能测量入口（供测试调用）
+
+    与 tests/test_temporal_nar_real.py 的导入保持一致，返回包含参数量、FLOPs、内存与延迟的字典。
+
+    Args:
+        model: 需要评估的模型
+        input_shape: 输入形状，如 (B, C, H, W) 或 (B, T, C, H, W)
+        device: 设备，默认从模型参数推断
+        num_runs: 延迟测试运行次数
+        warmup_runs: 延迟测试预热次数
+    """
+    # 将模型移动到指定或推断设备
+    if device is None:
+        try:
+            device = str(next(model.parameters()).device)
+        except Exception:
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+    if isinstance(device, str):
+        torch_device = torch.device(device)
+    else:
+        torch_device = device
+
+    model = model.to(torch_device)
+
+    # 如果输入包含时间维 (B, T, C, H, W)，则取首个时间步以适配 profiler 的 (B, C, H, W)
+    if len(input_shape) == 5:
+        B, T, C, H, W = input_shape
+        reduced_input_shape = (B, C, H, W)
+    else:
+        reduced_input_shape = input_shape
+
+    profiler = PerformanceProfiler(str(torch_device))
+    results = profiler.profile_model(model, reduced_input_shape, num_runs=num_runs, warmup_runs=warmup_runs)
+
+    # 兼容时序模型：附加原始 input_shape 信息
+    results['original_input_shape'] = input_shape
+    return results

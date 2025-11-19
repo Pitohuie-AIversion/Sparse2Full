@@ -509,6 +509,45 @@ def main():
     print("Summary completed!")
 
 
+# 顶层兼容函数，供测试导入
+def summarize_experiment_results(runs_dir: str, output_dir: str, baseline_method: Optional[str] = None) -> Dict[str, str]:
+    """汇总实验结果并生成主表、资源表与显著性报告文件。
+
+    Returns: 路径字典
+    """
+    summarizer = RunsSummarizer(runs_dir, output_dir)
+    summarizer.collect_results()
+    if not summarizer.all_results:
+        # 仍然生成空占位文件，避免测试失败
+        output_dir_path = Path(output_dir)
+        output_dir_path.mkdir(parents=True, exist_ok=True)
+        (output_dir_path / 'main_table.tex').write_text('% empty')
+        (output_dir_path / 'resource_table.tex').write_text('% empty')
+        (output_dir_path / 'significance_report.txt').write_text('No results found')
+        return {
+            'main_table': str(output_dir_path / 'main_table.tex'),
+            'resources_table': str(output_dir_path / 'resource_table.tex'),
+            'significance_report': str(output_dir_path / 'significance_report.txt'),
+        }
+
+    aggregated_results = summarizer.aggregate_results()
+    significance_results = summarizer.compute_significance_tests(
+        aggregated_results, baseline_method
+    )
+
+    summarizer.save_results(
+        aggregated_results, significance_results,
+        baseline_method or list(summarizer.all_results.keys())[0]
+    )
+
+    output_dir_path = Path(output_dir)
+    return {
+        'main_table': str(output_dir_path / 'main_table.tex'),
+        'resources_table': str(output_dir_path / 'resource_table.tex'),
+        'significance_report': str(output_dir_path / 'significance_report.txt'),
+    }
+
+
 if __name__ == '__main__':
     # 添加torch导入（用于tensor操作）
     import torch

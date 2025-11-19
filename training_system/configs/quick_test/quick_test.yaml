@@ -1,0 +1,116 @@
+# Quick test configuration for immediate validation
+# This configuration runs a minimal training to test the system
+
+experiment:
+  name: "quick_test"
+  device: "cuda" 
+  seed: 42
+  output_dir: "runs/quick_test"
+
+data:
+  path: "datasets/PDEBench"
+  name: "DR2D"
+  keys: ["u"]
+  splits_dir: "splits"
+  image_size: 64  # Small size for quick testing
+  observation_mode: "SR"
+  observation_params:
+    scale: 2  # Lower resolution for speed
+  preprocessing:
+    normalize: true
+    normalization_method: "z_score"
+  dataloader:
+    batch_size: 4  # Small batch for memory efficiency
+    num_workers: 2
+    shuffle: true
+    pin_memory: true
+
+model:
+  name: "SwinUNet"
+  params:
+    in_ch: 1
+    out_ch: 1
+    img_size: 64
+    embed_dim: 48  # Reduced for speed
+    depths: [1, 1, 3, 1]  # Reduced depth
+    num_heads: [3, 6, 12, 24]
+    window_size: 8
+    mlp_ratio: 4.0
+    drop_rate: 0.0
+    attn_drop_rate: 0.0
+    drop_path_rate: 0.1
+
+training:
+  epochs: 5  # Very few epochs for quick test
+  save_every: 2
+  validate_every: 1
+  log_every: 1
+  
+  optimizer:
+    name: "AdamW"
+    lr: 1e-3
+    weight_decay: 1e-4
+    betas: [0.9, 0.999]
+    eps: 1e-8
+  
+  scheduler:
+    name: "CosineAnnealingWarmup"
+    warmup_epochs: 1  # Quick warmup
+    min_lr_ratio: 0.01
+  
+  gradient_clipping: 1.0
+  mixed_precision: true
+  compile_model: false  # Disable compilation for speed
+
+loss:
+  reconstruction_weight: 1.0
+  spectral_weight: 0.5
+  dc_weight: 1.0
+  
+  loss_types:
+    reconstruction: "L2"
+    spectral: "L2"
+    dc: "L2"
+  
+  spectral_loss:
+    kx: 8  # Reduced for small images
+    ky: 8
+
+validation:
+  metrics: ["rel_l2", "mae", "psnr", "ssim"]
+  save_predictions: true
+  max_predictions: 10  # Limited for speed
+
+device:
+  gpu_id: 0
+  mixed_precision: true
+  deterministic: true
+  benchmark: false
+
+logging:
+  level: "INFO"
+  log_file: "training.log"
+  wandb:
+    enabled: false  # Disable for quick test
+    project: "pdebench_sparse"
+    entity: null
+
+visualization:
+  enabled: true
+  save_every: 1
+  max_samples: 4  # Limited samples
+  formats: ["png"]
+
+paper_package:
+  enabled: true
+  generate_after_training: true
+  include_checkpoints: true
+  include_visualizations: true
+  anonymize: false
+
+# Performance monitoring
+performance:
+  monitor_resources: true
+  log_frequency: 10  # Log every 10 steps
+  track_flops: true
+  track_memory: true

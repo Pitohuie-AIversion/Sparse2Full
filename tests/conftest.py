@@ -10,6 +10,9 @@ import numpy as np
 import warnings
 from pathlib import Path
 import sys
+import os
+import copy
+from types import SimpleNamespace
 
 # 添加项目根目录到路径
 project_root = Path(__file__).parent.parent
@@ -223,6 +226,55 @@ def sample_tensor_2d(device):
     return torch.randn(2, 1, 64, 64, device=device)
 
 
+class Config(SimpleNamespace):
+    """测试用配置对象，支持点访问与copy()"""
+    def copy(self):
+        return copy.deepcopy(self)
+
+
+@pytest.fixture
+def sample_loss_config():
+    """损失配置fixture，兼容train.*与loss.*两种结构，并提供data.keys。
+
+    结构示例：
+    - train.loss_weights.{reconstruction,spectral,data_consistency}
+    - train.spectral_loss.{low_freq_modes,use_rfft,normalize,boundary_mode}
+    - loss.{reconstruction(weight),spectral(weight,boundary_mode),data_consistency(weight)}
+    - data.keys = ['u','v','p']
+    """
+    train = SimpleNamespace(
+        loss_weights=SimpleNamespace(
+            reconstruction=1.0,
+            spectral=0.5,
+            data_consistency=1.0,
+        ),
+        spectral_loss=SimpleNamespace(
+            low_freq_modes=16,
+            use_rfft=True,
+            normalize=True,
+            boundary_mode='mirror',
+        ),
+    )
+
+    loss = SimpleNamespace(
+        reconstruction=SimpleNamespace(weight=1.0),
+        spectral=SimpleNamespace(weight=0.5, boundary_mode='mirror'),
+        data_consistency=SimpleNamespace(weight=1.0),
+        low_freq_modes=16,
+        use_rfft=True,
+        normalize=True,
+        boundary_mode='mirror',
+        gradient_weight=0.0,
+    )
+
+    # data使用dict以支持config.data.get('keys')访问
+    data = {
+        'keys': ['u', 'v', 'p']
+    }
+
+    return Config(train=train, loss=loss, data=data)
+
+
 def assert_tensor_close(actual, expected, atol=1e-6, rtol=1e-5, msg=""):
     """检查两个tensor是否接近"""
     if not torch.allclose(actual, expected, atol=atol, rtol=rtol):
@@ -295,3 +347,98 @@ skip_if_no_gpu_memory = pytest.mark.skipif(
     not torch.cuda.is_available() or torch.cuda.get_device_properties(0).total_memory < 4 * 1024**3,
     reason="Insufficient GPU memory (need at least 4GB)"
 )
+
+
+# ===== 数据路径解析工具与fixture =====
+def _candidate_data_roots(project_root: Path) -> list[Path]:
+    """生成候选数据根目录列表，优先环境变量。
+
+    环境变量：
+    - PDEBENCH_DATA_ROOT: 数据根目录
+    - DATA_ROOT: 备选数据根目录
+    - PDEBENCH_DATA_PATH: 直接指定单个数据文件（优先返回）
+    """
+    candidates = []
+
+    # 单文件优先
+    single_file = os.getenv("PDEBENCH_DATA_PATH")
+    if single_file:
+        p = Path(single_file)
+        if p.exists():
+            # 若提供的是文件，直接返回其父目录作为根，后续拼接相对路径
+            candidates.append(p.parent)
+
+    for env_key in ("PDEBENCH_DATA_ROOT", "DATA_ROOT"):
+        val = os.getenv(env_key)
+        if val:
+            p = Path(val)
+            candidates.append(p)
+
+    # 常见本地默认位置
+    candidates.extend([
+        project_root / "data",
+        project_root / "datasets",
+        Path.home() / "data" / "PDEBench",
+        Path("/share/public/data/PDEBench"),
+    ])
+
+    # 去重保序
+    dedup = []
+    seen = set()
+    for c in candidates:
+        if str(c) not in seen:
+            dedup.append(c)
+            seen.add(str(c))
+    return dedup
+
+
+@pytest.fixture(scope="session")
+def data_path_resolver(project_root_path):
+    """提供统一的数据路径解析工具。
+
+    用法示例：
+        data_path = resolver.resolve([
+            '2D/diffusion-reaction/2D_diff-react_NA_NA.h5',
+            'diffusion-reaction/2D_diff-react_NA_NA.h5',
+        ])
+        if not data_path: pytest.skip("dataset missing")
+
+        # 或强制要求存在：
+        data_path = resolver.require_file([
+            'NavierStokes/ns_incom_inhom_2d_512-0.h5',
+            'NS_incom/ns_incom_inhom_2d_512-0.h5',
+        ])
+    """
+    roots = _candidate_data_roots(project_root_path)
+
+    class Resolver:
+        def resolve(self, preferred_rel_paths: list[str]) -> str | None:
+            # 允许直接传入绝对路径
+            for rel in preferred_rel_paths:
+                p = Path(rel)
+                if p.is_absolute() and p.exists():
+                    return str(p)
+
+            # 优先单文件环境变量
+            single_file = os.getenv("PDEBENCH_DATA_PATH")
+            if single_file:
+                p = Path(single_file)
+                if p.exists():
+                    return str(p)
+
+            # 按候选根逐一拼接查找
+            for root in roots:
+                for rel in preferred_rel_paths:
+                    candidate = (root / rel).resolve()
+                    if candidate.exists():
+                        return str(candidate)
+            return None
+
+        def require_file(self, preferred_rel_paths: list[str]) -> str:
+            path = self.resolve(preferred_rel_paths)
+            if not path:
+                missing = " | ".join(preferred_rel_paths)
+                pytest.skip(f"缺少测试数据文件: {missing}. 可设置环境变量 PDEBENCH_DATA_ROOT 或 PDEBENCH_DATA_PATH")
+            return path
+
+    return Resolver()

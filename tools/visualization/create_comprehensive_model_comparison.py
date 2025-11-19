@@ -26,9 +26,9 @@ import plotly.offline as pyo
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# 设置中文字体
-plt.rcParams['font.sans-serif'] = ['SimHei', 'Arial Unicode MS', 'DejaVu Sans']
-plt.rcParams['axes.unicode_minus'] = False
+# 统一安全字体配置
+from utils.font_config import apply_safe_matplotlib_fonts
+apply_safe_matplotlib_fonts(prefer_chinese=True, base_font_size=10)
 sns.set_style("whitegrid")
 
 class ComprehensiveModelComparison:

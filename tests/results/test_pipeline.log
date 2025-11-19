@@ -1,0 +1,31 @@
+2025-11-15 07:32:43,131 - INFO - Starting spatial models test pipeline...
+2025-11-15 07:32:43,131 - INFO - Running unit tests...
+2025-11-15 07:32:43,131 - INFO - Running unit tests...
+2025-11-15 07:32:43,131 - INFO - Running command: python -m pytest tests/unit/test_spatial_models.py -v --tb=short --cov=models --cov-report=html:test_reports/coverage_html --cov-report=term-missing --cov-report=json:test_reports/coverage.json --cov-fail-under=95.0 -n auto
+2025-11-15 07:32:46,722 - WARNING - Command failed with return code 4
+2025-11-15 07:32:46,722 - ERROR - Error output: /share/fandixiaLab/suguangsheng/anaconda3/lib/python3.12/site-packages/_pytest/config/__init__.py:331: PluggyTeardownRaisedWarning: A plugin raised an exception during an old-style hookwrapper teardown.
+Plugin: helpconfig, Hook: pytest_cmdline_parse
+UsageError: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]
+__main__.py: error: unrecognized arguments: -n auto
+  inifile: /share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/pytest.ini
+  rootdir: /share/fandixiaLab/suguangshen
+2025-11-15 07:32:46,723 - ERROR - Error parsing coverage results: [Errno 2] No such file or directory: 'test_reports/coverage.json'
+2025-11-15 07:32:46,723 - ERROR - Required test category 'unit' failed
+2025-11-15 07:32:46,723 - INFO - Running integration tests...
+2025-11-15 07:32:46,723 - INFO - Running integration tests...
+2025-11-15 07:32:46,723 - INFO - Running command: python -m pytest tests/integration/test_spatial_models_integration.py -v --tb=short -m integration --durations=10 -n 1
+2025-11-15 07:32:51,781 - WARNING - Command failed with return code 4
+2025-11-15 07:32:51,781 - ERROR - Error output: /share/fandixiaLab/suguangsheng/anaconda3/lib/python3.12/site-packages/_pytest/config/__init__.py:331: PluggyTeardownRaisedWarning: A plugin raised an exception during an old-style hookwrapper teardown.
+Plugin: helpconfig, Hook: pytest_cmdline_parse
+UsageError: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]
+__main__.py: error: unrecognized arguments: -n 1
+  inifile: /share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/pytest.ini
+  rootdir: /share/fandixiaLab/suguangsheng/P
+2025-11-15 07:32:51,781 - ERROR - Required test category 'integration' failed
+2025-11-15 07:32:51,781 - INFO - Running benchmark tests...
+2025-11-15 07:32:51,781 - INFO - Running performance benchmarks...
+2025-11-15 07:32:51,781 - INFO - Running command: python -m pytest tests/benchmark/test_spatial_models_performance.py -v --tb=short -m benchmark --durations=0
+2025-11-15 07:33:23,837 - WARNING - Command failed with return code 1
+2025-11-15 07:33:23,838 - INFO - Results saved to test_reports/test_pipeline_results.json
+2025-11-15 07:33:23,839 - INFO - HTML report saved to test_reports/test_report.html
+2025-11-15 07:33:23,839 - INFO - Test pipeline completed. Overall status: failure

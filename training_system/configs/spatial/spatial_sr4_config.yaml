@@ -1,0 +1,138 @@
+# 纯空间预测训练配置 - SRx4任务
+# 遵循黄金法则：一致性优先，可复现，统一接口
+
+experiment:
+  name: "spatial-sr4-prediction"
+  device: "cuda"
+  seed: 2025
+  output_dir: "runs"
+  description: "纯空间超分辨率预测实验 - 仅空间维度，无时间序列"
+
+data:
+  data_path: "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/data/DR2D/pdebench_tiny.h5"  # 使用绝对路径
+  data_key: "data"        # HDF5数据键（本地合成文件为'0000/data'或'data'两种）
+  keys: ["u"]  # 仅使用单一物理量进行空间预测
+  image_size: 256
+  observation:
+    mode: "sr"  # 与PDEBenchDataset实现一致
+    scale_factor: 4    # 4倍下采样（键名与训练器一致）
+    blur_sigma: 1.0  # 高斯模糊标准差（与H/DC一致）
+    kernel_size: 5  # 高斯核大小
+    interpolation: "INTER_AREA"  # OpenCV下采样插值方法
+  preprocessing:
+    normalize: true      # z-score标准化
+    cache_data: false    # 不缓存数据到内存
+    stats_file: "norm_stat.npz"  # 标准化统计文件
+  dataloader:
+    batch_size: 16       # 批量大小
+    num_workers: 4       # 数据加载进程数
+    pin_memory: true     # 锁页内存
+    persistent_workers: true  # 保持worker进程
+    shuffle: true        # 打乱数据
+
+model:
+  name: "UNet"  # 使用UNet架构（SwinUNet依赖缺失，暂用UNet替代）
+  params:
+    in_channels: 1     # 输入通道数
+    out_channels: 1    # 输出通道数
+    img_size: 256      # 图像尺寸
+    kwargs:
+      patch_size: 4      # patch大小
+      window_size: 8     # 窗口注意力大小
+      depths: [2, 2, 2, 2]  # 每个阶段的层数
+      num_heads: [4, 8, 16, 32]  # 注意力头数
+      embed_dim: 96      # 嵌入维度
+      mlp_ratio: 4.0     # MLP扩展比例
+      drop_rate: 0.0     # dropout率
+      attn_drop_rate: 0.0  # 注意力dropout
+      drop_path_rate: 0.1  # 随机深度
+      use_checkpoint: false  # 不使用梯度检查点
+
+training:
+  epochs: 200          # 训练轮数
+  optimizer:
+    name: "AdamW"      # AdamW优化器
+    params:
+      lr: 1e-3          # 学习率
+      weight_decay: 1e-4  # 权重衰减
+      betas: [0.9, 0.999]  # beta参数
+  scheduler:
+    name: "cosine_warmup"  # 余弦退火+预热
+    params:
+      T_max: 200        # 退火周期
+      warmup_steps: 1000  # 预热步数
+      eta_min: 1e-6     # 最小学习率
+  grad_clip_norm: 1.0   # 梯度裁剪范数
+  log_interval: 50      # 日志间隔
+  save_interval: 25     # 保存间隔
+  validation:
+    check_val_every_n_epoch: 5  # 验证频率
+  early_stopping:
+    enabled: true       # 启用早停
+    patience: 30        # 耐心轮数
+    min_delta: 1e-6     # 最小改进量
+
+loss:
+  # 损失函数权重配置
+  rec_weight: 1.0       # 重建损失权重
+  spec_weight: 0.5        # 频域损失权重
+  dc_weight: 1.0         # 观测一致性损失权重
+  rec_loss_type: "l2"     # 重建损失类型
+  spec_loss_type: "l2"    # 频域损失类型
+  dc_loss_type: "l2"      # 观测损失类型
+  low_freq_modes: 16     # 低频模式数
+  use_gradient_loss: false  # 不使用梯度损失
+  gradient_weight: 0.1    # 梯度损失权重
+  use_pde_residual_loss: false  # 不使用PDE残差损失
+  pde_residual_weight: 0.1  # PDE残差权重
+
+validation:
+  metrics: ["rel_l2", "mae", "psnr", "ssim", "dc_error", "frmse_low", "frmse_mid", "frmse_high", "brmse"]
+  save_predictions: true    # 保存预测结果
+  max_save_samples: 10      # 最大保存样本数
+
+performance_monitoring:
+  enabled: true            # 启用性能监控
+  report_interval_seconds: 60  # 报告间隔
+  gpu_low_threshold: 0.90  # GPU利用率低阈值
+  iowait_high_threshold: 0.12  # IO等待高阈值
+  cpu_low_threshold: 0.80  # CPU利用率低阈值
+
+logging:
+  use_tensorboard: true    # 使用TensorBoard
+  log_level: "INFO"        # 日志级别
+  save_code_snapshot: true  # 保存代码快照
+
+visualization:
+  enabled: true           # 启用可视化
+  save_plots: true        # 保存图表
+  plot_interval: 100      # 绘图间隔
+  plot_types: ["heatmap", "error_map", "spectrum"]  # 图表类型
+  color_map: "viridis"    # 颜色映射
+
+paper_package:
+  enabled: true           # 启用论文包生成
+  include_checkpoints: true  # 包含检查点
+  include_visualizations: true  # 包含可视化
+  include_metrics: true   # 包含指标
+  include_configs: true   # 包含配置
+
+# 纯空间预测特定配置
+spatial_prediction:
+  task_type: "super_resolution"  # 任务类型
+  input_resolution: 64          # 输入分辨率
+  output_resolution: 256        # 输出分辨率
+  physics_aware: false          # 不使用物理约束
+  boundary_handling: "mirror"   # 边界处理方式
+
+# 数据一致性检查
+data_consistency:
+  check_observation_equivalence: true  # 检查观测等价性
+  tolerance: 1e-8                     # 容差
+  num_test_samples: 100              # 测试样本数
+
+# 可复现性配置
+reproducibility:
+  deterministic: true      # 确定性计算
+  benchmark: false       # 不使用benchmark模式
+  cudnn_deterministic: true  # cuDNN确定性

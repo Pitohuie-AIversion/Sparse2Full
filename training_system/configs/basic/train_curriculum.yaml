@@ -1,0 +1,143 @@
+# 课程学习训练配置
+experiment:
+  name: "curriculum-training"
+  device: "cuda"
+  seed: 42
+  output_dir: "runs"
+
+curriculum:
+  enabled: true
+  strategy: "progressive"
+  stages:
+    - name: "foundation_ar"
+      epochs: 30
+      data_config:
+        observation:
+          mode: "SR"
+          scale: 2
+          sigma: 1.0
+          kernel_size: 5
+      loss_weights:
+        rec_weight: 1.0
+        spec_weight: 0.3
+        dc_weight: 1.0
+    
+    - name: "short_term"
+      epochs: 20
+      data_config:
+        observation:
+          mode: "SR"
+          scale: 4
+          sigma: 1.2
+          kernel_size: 5
+      loss_weights:
+        rec_weight: 1.0
+        spec_weight: 0.5
+        dc_weight: 1.0
+    
+    - name: "medium_term"
+      epochs: 25
+      data_config:
+        observation:
+          mode: "Crop"
+          crop_ratio: 0.4
+          crop_strategy: "uniform"
+      loss_weights:
+        rec_weight: 1.0
+        spec_weight: 0.7
+        dc_weight: 1.0
+    
+    - name: "long_term"
+      epochs: 25
+      data_config:
+        observation:
+          mode: "Crop"
+          crop_ratio: 0.2
+          crop_strategy: "gradient_weighted"
+      loss_weights:
+        rec_weight: 1.0
+        spec_weight: 1.0
+        dc_weight: 1.0
+  
+  adaptive:
+    enabled: true
+    metric: "val_rel_l2"
+    improvement_threshold: 0.01
+    patience: 5
+    min_epochs_per_stage: 10
+
+data:
+  data_path: "datasets/PDEBench"
+  keys: ["u"]
+  image_size: 256
+  preprocessing:
+    normalize: true
+    cache_data: false
+  dataloader:
+    batch_size: 8
+    num_workers: 4
+    pin_memory: true
+    persistent_workers: true
+
+model:
+  name: "SwinUNet"
+  params:
+    in_channels: 1
+    out_channels: 1
+    img_size: 256
+    kwargs:
+      patch_size: 4
+      window_size: 8
+      depths: [2, 2, 2, 2]
+      num_heads: [4, 8, 16, 32]
+      embed_dim: 96
+      mlp_ratio: 4.0
+      drop_rate: 0.0
+      attn_drop_rate: 0.0
+      drop_path_rate: 0.1
+
+training:
+  optimizer:
+    name: "AdamW"
+    params:
+      lr: 1e-3
+      weight_decay: 1e-4
+      betas: [0.9, 0.999]
+  scheduler:
+    name: "cosine_warmup"
+    params:
+      T_max: 100
+      warmup_steps: 1000
+      eta_min: 1e-6
+  grad_clip_norm: 1.0
+  log_interval: 10
+  save_interval: 10
+  validation:
+    check_val_every_n_epoch: 5
+  early_stopping:
+    enabled: true
+    patience: 20
+
+validation:
+  metrics: ["rel_l2", "mae", "psnr", "ssim", "dc_error"]
+
+performance_monitoring:
+  enabled: true
+  report_interval_seconds: 30
+  gpu_low_threshold: 0.90
+  iowait_high_threshold: 0.12
+  cpu_low_threshold: 0.80
+
+logging:
+  use_tensorboard: true
+  log_level: "INFO"
+
+visualization:
+  enabled: true
+  save_plots: true
+  plot_interval: 50
+
+paper_package:
+  enabled: true
+  include_checkpoints: true
+  include_visualizations: true

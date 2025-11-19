@@ -295,7 +295,8 @@ class MetricsCalculator:
         # 计算误差
         B, C = pred.shape[:2]
         diff = pred_obs - observation
-        dc_error = torch.norm(diff.view(B, C, -1), p=2, dim=2)  # [B, C]
+        # 使用reshape替代view以兼容非连续内存张量
+        dc_error = torch.norm(diff.reshape(B, C, -1), p=2, dim=2)  # [B, C]
         
         return dc_error
     

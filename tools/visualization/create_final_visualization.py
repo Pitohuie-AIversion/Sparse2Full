@@ -49,28 +49,36 @@ class TrainingResultsVisualizer:
         """解析训练日志文件"""
         print(f"解析训练日志: {log_file}")
         
-        epochs = []
-        train_losses = []
-        val_losses = []
-        val_rel_l2 = []
+        epochs: list[int] = []
+        train_losses: list[float] = []
+        val_losses: list[float] = []
+        val_rel_l2: list[float] = []
         
         # 正则表达式匹配训练日志
-        pattern = r"Epoch\s+(\d+)\s+-\s+Train Loss:\s+([\d.]+)\s+Val Loss:\s+([\d.]+)\s+Val Rel-L2:\s+([\d.]+)"
+        # 兼容两种格式：
+        # 1) "Epoch 1/5 | Train Loss: ... | Val Loss: ..."
+        # 2) "Epoch 1 - Train Loss: ... Val Loss: ... Val Rel-L2: ..."
+        pattern_new = r"Epoch\s+(\d+)\s*/\s*\d+\s*\|\s*Train\s+Loss:\s*([\d.eE+-]+)\s*\|\s*Val\s+Loss:\s*([\d.eE+-]+)"
+        pattern_old = r"Epoch\s+(\d+)\s*-\s*Train\s+Loss:\s*([\d.eE+-]+)\s+Val\s+Loss:\s*([\d.eE+-]+)\s+Val\s+Rel-L2:\s*([\d.eE+-]+)"
         
         try:
             with open(log_file, 'r', encoding='utf-8') as f:
                 for line in f:
-                    match = re.search(pattern, line)
-                    if match:
-                        epoch = int(match.group(1))
-                        train_loss = float(match.group(2))
-                        val_loss = float(match.group(3))
-                        rel_l2 = float(match.group(4))
-                        
-                        epochs.append(epoch)
-                        train_losses.append(train_loss)
-                        val_losses.append(val_loss)
-                        val_rel_l2.append(rel_l2)
+                    m_new = re.search(pattern_new, line)
+                    if m_new:
+                        epochs.append(int(m_new.group(1)))
+                        train_losses.append(float(m_new.group(2)))
+                        val_losses.append(float(m_new.group(3)))
+                        continue
+                    m_old = re.search(pattern_old, line)
+                    if m_old:
+                        epochs.append(int(m_old.group(1)))
+                        train_losses.append(float(m_old.group(2)))
+                        val_losses.append(float(m_old.group(3)))
+                        try:
+                            val_rel_l2.append(float(m_old.group(4)))
+                        except Exception:
+                            pass
         except FileNotFoundError:
             print(f"警告: 找不到训练日志文件 {log_file}")
             return None
@@ -94,17 +102,26 @@ class TrainingResultsVisualizer:
             print("跳过训练曲线创建 - 无训练数据")
             return
             
-        epochs = training_data['epochs']
-        train_losses = training_data['train_losses']
-        val_losses = training_data['val_losses']
-        val_rel_l2 = training_data['val_rel_l2']
+        epochs = training_data.get('epochs', [])
+        train_losses = training_data.get('train_losses', [])
+        val_losses = training_data.get('val_losses', [])
+        val_rel_l2 = training_data.get('val_rel_l2', [])
+        # 生成与各曲线匹配的x轴，优先使用epochs前缀
+        def x_for(n: int) -> list[int]:
+            if n <= 0:
+                return []
+            if epochs and len(epochs) >= n:
+                return epochs[:n]
+            return list(range(1, n + 1))
         
         # 1. 损失曲线
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
         
         # 训练和验证损失
-        ax1.plot(epochs, train_losses, label='训练损失', color='blue', alpha=0.7)
-        ax1.plot(epochs, val_losses, label='验证损失', color='red', alpha=0.7)
+        if train_losses:
+            ax1.plot(x_for(len(train_losses)), train_losses, label='训练损失', color='blue', alpha=0.7)
+        if val_losses:
+            ax1.plot(x_for(len(val_losses)), val_losses, label='验证损失', color='red', alpha=0.7)
         ax1.set_xlabel('训练轮次')
         ax1.set_ylabel('损失值')
         ax1.set_title('训练和验证损失曲线')
@@ -113,7 +130,8 @@ class TrainingResultsVisualizer:
         ax1.set_yscale('log')
         
         # Rel-L2指标
-        ax2.plot(epochs, val_rel_l2, label='验证Rel-L2', color='green', alpha=0.7)
+        if val_rel_l2:
+            ax2.plot(x_for(len(val_rel_l2)), val_rel_l2, label='验证Rel-L2', color='green', alpha=0.7)
         ax2.set_xlabel('训练轮次')
         ax2.set_ylabel('Rel-L2 (%)')
         ax2.set_title('Rel-L2指标变化')
@@ -131,11 +149,11 @@ class TrainingResultsVisualizer:
         ax2 = ax.twinx()
         
         # 绘制损失
-        line1 = ax.plot(epochs, train_losses, 'b-', alpha=0.7, label='训练损失')
-        line2 = ax.plot(epochs, val_losses, 'r-', alpha=0.7, label='验证损失')
+        line1 = ax.plot(x_for(len(train_losses)), train_losses, 'b-', alpha=0.7, label='训练损失') if train_losses else []
+        line2 = ax.plot(x_for(len(val_losses)), val_losses, 'r-', alpha=0.7, label='验证损失') if val_losses else []
         
         # 绘制Rel-L2
-        line3 = ax2.plot(epochs, val_rel_l2, 'g-', alpha=0.7, label='验证Rel-L2')
+        line3 = ax2.plot(x_for(len(val_rel_l2)), val_rel_l2, 'g-', alpha=0.7, label='验证Rel-L2') if val_rel_l2 else []
         
         # 设置标签
         ax.set_xlabel('训练轮次')
@@ -155,8 +173,9 @@ class TrainingResultsVisualizer:
         
         # 标记最佳点
         if val_losses:
-            best_epoch = epochs[np.argmin(val_losses)]
-            best_val_loss = min(val_losses)
+            best_idx = int(np.argmin(val_losses))
+            best_epoch = x_for(len(val_losses))[best_idx]
+            best_val_loss = val_losses[best_idx]
             ax.annotate(f'最佳: Epoch {best_epoch}\nVal Loss: {best_val_loss:.6f}', 
                        xy=(best_epoch, best_val_loss), 
                        xytext=(best_epoch + 20, best_val_loss * 2),

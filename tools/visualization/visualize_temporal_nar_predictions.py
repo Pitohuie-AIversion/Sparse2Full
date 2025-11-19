@@ -984,8 +984,8 @@ class TemporalNARPredictor:
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>时序NAR模型预测结果报告</title>
     <style>
-        body {{
-            font-family: 'Microsoft YaHei', Arial, sans-serif;
+        body {
+            font-family: system-ui, -apple-system, 'Noto Sans', 'Noto Sans CJK SC', 'Source Han Sans SC', 'DejaVu Sans', Arial, sans-serif;
             margin: 0;
             padding: 20px;
             background-color: #f5f5f5;

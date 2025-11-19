@@ -10,21 +10,25 @@ import torch
 import h5py
 import numpy as np
 import yaml
+import pytest
 from pathlib import Path
 from omegaconf import DictConfig, OmegaConf
 
 # 添加项目根目录到路径
 sys.path.append('.')
 
-def test_hdf5_structure():
+def test_hdf5_structure(data_path_resolver):
     """测试HDF5文件结构"""
     print("🔍 测试HDF5文件结构...")
-    
-    data_path = "E:/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
-    
-    if not os.path.exists(data_path):
-        print(f"❌ 数据文件不存在: {data_path}")
-        return False
+
+    preferred_paths = [
+        '2D/diffusion-reaction/2D_diff-react_NA_NA.h5',
+        'diffusion-reaction/2D_diff-react_NA_NA.h5',
+        'DR2D/2D_diff-react_NA_NA.h5',
+    ]
+    data_path = data_path_resolver.resolve(preferred_paths)
+    if not data_path:
+        pytest.skip("缺少 Diffusion-Reaction 数据集（设置 PDEBENCH_DATA_ROOT 或 PDEBENCH_DATA_PATH）")
     
     try:
         with h5py.File(data_path, 'r') as f:
@@ -78,16 +82,26 @@ def test_hdf5_structure():
         print(f"❌ HDF5文件读取失败: {e}")
         return False
 
-def test_temporal_data_module():
+def test_temporal_data_module(data_path_resolver):
     """测试时序数据模块"""
     print("\n🧪 测试时序数据模块...")
     
     try:
         from datasets.temporal_pdebench import TemporalPDEBenchDataModule
         
+        # 解析数据路径
+        preferred_paths = [
+            '2D/diffusion-reaction/2D_diff-react_NA_NA.h5',
+            'diffusion-reaction/2D_diff-react_NA_NA.h5',
+            'DR2D/2D_diff-react_NA_NA.h5',
+        ]
+        data_path = data_path_resolver.resolve(preferred_paths)
+        if not data_path:
+            pytest.skip("缺少 Diffusion-Reaction 数据集（设置 PDEBENCH_DATA_ROOT 或 PDEBENCH_DATA_PATH）")
+
         # 创建配置
         config = DictConfig({
-            'data_path': 'E:/2D/diffusion-reaction/2D_diff-react_NA_NA.h5',
+            'data_path': data_path,
             'dataset_name': '2D_diff-react_NA_NA',
             'batch_size': 2,
             'image_size': 128,
@@ -174,16 +188,24 @@ def test_temporal_data_module():
         traceback.print_exc()
         return False
 
-def test_data_consistency():
+def test_data_consistency(data_path_resolver):
     """测试数据一致性"""
     print("\n🔄 测试数据一致性...")
     
     try:
         from datasets.temporal_pdebench import TemporalPDEBenchBase
+        preferred_paths = [
+            '2D/diffusion-reaction/2D_diff-react_NA_NA.h5',
+            'diffusion-reaction/2D_diff-react_NA_NA.h5',
+            'DR2D/2D_diff-react_NA_NA.h5',
+        ]
+        data_path = data_path_resolver.resolve(preferred_paths)
+        if not data_path:
+            pytest.skip("缺少 Diffusion-Reaction 数据集（设置 PDEBENCH_DATA_ROOT 或 PDEBENCH_DATA_PATH）")
         
         # 创建简单的数据集实例
         dataset = TemporalPDEBenchBase(
-            data_path='E:/2D/diffusion-reaction/2D_diff-react_NA_NA.h5',
+            data_path=data_path,
             keys=['0000', '0001', '0002', '0003', '0004'],
             T_in=4,
             T_out=20,
@@ -223,13 +245,20 @@ def test_data_consistency():
         traceback.print_exc()
         return False
 
-def analyze_temporal_sampling():
+def analyze_temporal_sampling(data_path_resolver):
     """分析时序采样逻辑"""
     print("\n⏰ 分析时序采样逻辑...")
     
     try:
         # 直接分析HDF5文件的时序结构
-        data_path = "E:/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+        preferred_paths = [
+            '2D/diffusion-reaction/2D_diff-react_NA_NA.h5',
+            'diffusion-reaction/2D_diff-react_NA_NA.h5',
+            'DR2D/2D_diff-react_NA_NA.h5',
+        ]
+        data_path = data_path_resolver.resolve(preferred_paths)
+        if not data_path:
+            pytest.skip("缺少 Diffusion-Reaction 数据集（设置 PDEBENCH_DATA_ROOT 或 PDEBENCH_DATA_PATH）")
         
         with h5py.File(data_path, 'r') as f:
             # 查找时序数据
