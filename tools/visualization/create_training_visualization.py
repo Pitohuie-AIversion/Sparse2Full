@@ -40,12 +40,39 @@ class TrainingVisualizer:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
+    def _safe_x(self, epochs: List[int], series_len: int) -> List[int]:
+        """根据序列长度生成匹配的x轴，优先使用epochs前缀，避免维度不匹配"""
+        if series_len <= 0:
+            return []
+        if epochs and len(epochs) >= series_len:
+            return epochs[:series_len]
+        return list(range(1, series_len + 1))
+
+    def parse_training_history(self, history_path: Path) -> Tuple[List, List, List, List]:
+        """优先从 training_history.json 解析训练数据"""
+        try:
+            with open(history_path, 'r', encoding='utf-8') as f:
+                hist = json.load(f)
+            epochs = hist.get('epochs', [])
+            train_losses = hist.get('train_losses', []) or hist.get('train_loss', [])
+            val_losses = hist.get('val_losses', []) or hist.get('val_loss', [])
+            # 从 val_metrics 中提取 rel_l2（如果显式列表为空）
+            val_rel_l2 = hist.get('val_rel_l2', [])
+            if not val_rel_l2 and 'val_metrics' in hist:
+                try:
+                    val_rel_l2 = [m.get('rel_l2') for m in hist['val_metrics'] if 'rel_l2' in m]
+                except Exception:
+                    val_rel_l2 = []
+            return epochs, train_losses, val_losses, val_rel_l2
+        except Exception:
+            return [], [], [], []
+
     def parse_training_log(self, log_path: Path) -> Tuple[List, List, List, List]:
         """解析训练日志"""
-        epochs = []
-        train_losses = []
-        val_losses = []
-        val_rel_l2 = []
+        epochs: List[int] = []
+        train_losses: List[float] = []
+        val_losses: List[float] = []
+        val_rel_l2: List[float] = []
         
         try:
             # 尝试不同的编码方式
@@ -61,16 +88,25 @@ class TrainingVisualizer:
                 return [], [], [], []
             
             # 解析训练数据
-            epoch_pattern = r'Epoch (\d+) - Train Loss: ([\d.]+) Val Loss: ([\d.]+) Val Rel-L2: ([\d.]+)'
-            matches = re.findall(epoch_pattern, content)
-            
-            for match in matches:
-                epoch, train_loss, val_loss, rel_l2 = match
-                epochs.append(int(epoch))
-                train_losses.append(float(train_loss))
-                val_losses.append(float(val_loss))
-                val_rel_l2.append(float(rel_l2))
-                
+            # 兼容新格式: "Epoch   1/5 | Train Loss: ... | Val Loss: ... | Best: ..."
+            pattern_new = r'Epoch\s+(\d+)\s*/\s*\d+\s*\|\s*Train\s+Loss:\s*([\d.eE+-]+)\s*\|\s*Val\s+Loss:\s*([\d.eE+-]+)'
+            matches_new = re.findall(pattern_new, content)
+            if matches_new:
+                for ep, t, v in matches_new:
+                    epochs.append(int(ep))
+                    train_losses.append(float(t))
+                    val_losses.append(float(v))
+            else:
+                # 旧格式: 包含 Val Rel-L2 的行
+                epoch_pattern = r'Epoch\s+(\d+)\s+-\s+Train\s+Loss:\s*([\d.eE+-]+)\s+Val\s+Loss:\s*([\d.eE+-]+)\s+Val\s+Rel-L2:\s*([\d.eE+-]+)'
+                matches = re.findall(epoch_pattern, content)
+                for match in matches:
+                    epoch, train_loss, val_loss, rel_l2 = match
+                    epochs.append(int(epoch))
+                    train_losses.append(float(train_loss))
+                    val_losses.append(float(val_loss))
+                    val_rel_l2.append(float(rel_l2))
+        
         except Exception as e:
             print(f"解析日志文件时出错: {e}")
             
@@ -82,7 +118,8 @@ class TrainingVisualizer:
         fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 10))
         
         # 训练损失曲线
-        ax1.plot(epochs, train_losses, 'b-', linewidth=2, label='Train Loss')
+        if train_losses:
+            ax1.plot(self._safe_x(epochs, len(train_losses)), train_losses, 'b-', linewidth=2, label='Train Loss')
         ax1.set_xlabel('Epoch')
         ax1.set_ylabel('Train Loss')
         ax1.set_title('Training Loss Curve', fontweight='bold')
@@ -90,7 +127,8 @@ class TrainingVisualizer:
         ax1.legend()
         
         # 验证损失曲线
-        ax2.plot(epochs, val_losses, 'r-', linewidth=2, label='Val Loss')
+        if val_losses:
+            ax2.plot(self._safe_x(epochs, len(val_losses)), val_losses, 'r-', linewidth=2, label='Val Loss')
         ax2.set_xlabel('Epoch')
         ax2.set_ylabel('Validation Loss')
         ax2.set_title('Validation Loss Curve', fontweight='bold')
@@ -98,7 +136,8 @@ class TrainingVisualizer:
         ax2.legend()
         
         # Rel-L2曲线
-        ax3.plot(epochs, val_rel_l2, 'g-', linewidth=2, label='Val Rel-L2')
+        if val_rel_l2:
+            ax3.plot(self._safe_x(epochs, len(val_rel_l2)), val_rel_l2, 'g-', linewidth=2, label='Val Rel-L2')
         ax3.set_xlabel('Epoch')
         ax3.set_ylabel('Relative L2 Error')
         ax3.set_title('Validation Rel-L2 Curve', fontweight='bold')
@@ -106,8 +145,10 @@ class TrainingVisualizer:
         ax3.legend()
         
         # 损失对比
-        ax4.plot(epochs, train_losses, 'b-', linewidth=2, label='Train Loss', alpha=0.7)
-        ax4.plot(epochs, val_losses, 'r-', linewidth=2, label='Val Loss', alpha=0.7)
+        if train_losses:
+            ax4.plot(self._safe_x(epochs, len(train_losses)), train_losses, 'b-', linewidth=2, label='Train Loss', alpha=0.7)
+        if val_losses:
+            ax4.plot(self._safe_x(epochs, len(val_losses)), val_losses, 'r-', linewidth=2, label='Val Loss', alpha=0.7)
         ax4.set_xlabel('Epoch')
         ax4.set_ylabel('Loss')
         ax4.set_title('Training vs Validation Loss', fontweight='bold')
@@ -126,16 +167,19 @@ class TrainingVisualizer:
     def create_metrics_summary(self, epochs: List, train_losses: List, 
                              val_losses: List, val_rel_l2: List) -> Path:
         """创建指标汇总图"""
-        if not epochs:
+        if not (train_losses or val_losses or val_rel_l2):
             return None
-            
+        # 构造与各序列长度匹配的x轴
+        max_len = max(len(train_losses), len(val_losses), len(val_rel_l2))
+        epochs_plot = self._safe_x(epochs, max_len)
+        
         # 计算统计信息
-        best_epoch = epochs[np.argmin(val_rel_l2)]
-        best_rel_l2 = min(val_rel_l2)
-        best_val_loss = min(val_losses)
-        final_train_loss = train_losses[-1] if train_losses else 0
-        final_val_loss = val_losses[-1] if val_losses else 0
-        final_rel_l2 = val_rel_l2[-1] if val_rel_l2 else 0
+        best_epoch = epochs_plot[np.argmin(val_rel_l2)] if val_rel_l2 else (epochs_plot[-1] if epochs_plot else 0)
+        best_rel_l2 = min(val_rel_l2) if val_rel_l2 else None
+        best_val_loss = min(val_losses) if val_losses else None
+        final_train_loss = train_losses[-1] if train_losses else None
+        final_val_loss = val_losses[-1] if val_losses else None
+        final_rel_l2 = val_rel_l2[-1] if val_rel_l2 else None
         
         # 创建汇总图
         fig, ax = plt.subplots(1, 1, figsize=(10, 6))

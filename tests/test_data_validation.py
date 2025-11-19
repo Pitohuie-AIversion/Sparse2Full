@@ -5,20 +5,24 @@
 
 import sys
 import os
+import pytest
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from datasets.pdebench import PDEBenchBase
 import h5py
 
-def test_ns_incom_dataset():
+def test_ns_incom_dataset(data_path_resolver):
     """测试ns_incom数据集的4D格式支持"""
     print("=== 测试 ns_incom 数据集 ===")
-    
-    data_path = "E:/2D/NavierStokes/ns_incom_inhom_2d_512-0.h5"
-    
-    if not os.path.exists(data_path):
-        print(f"数据文件不存在: {data_path}")
-        return False
+    preferred_paths = [
+        '2D/NavierStokes/ns_incom_inhom_2d_512-0.h5',
+        'NavierStokes/ns_incom_inhom_2d_512-0.h5',
+        'NS_incom/ns_incom_inhom_2d_512-0.h5',
+        'NS/ns_incom_inhom_2d_512-0.h5',
+    ]
+    data_path = data_path_resolver.resolve(preferred_paths)
+    if not data_path:
+        pytest.skip("缺少 Navier-Stokes 数据集（设置 PDEBENCH_DATA_ROOT 或 PDEBENCH_DATA_PATH）")
     
     # 检查数据形状
     with h5py.File(data_path, 'r') as f:
@@ -49,15 +53,17 @@ def test_ns_incom_dataset():
         print(f"❌ ns_incom 数据集测试失败: {e}")
         return False
 
-def test_diff_react_dataset():
+def test_diff_react_dataset(data_path_resolver):
     """测试diff-react数据集"""
     print("\n=== 测试 diff-react 数据集 ===")
-    
-    data_path = "E:/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
-    
-    if not os.path.exists(data_path):
-        print(f"数据文件不存在: {data_path}")
-        return False
+    preferred_paths = [
+        '2D/diffusion-reaction/2D_diff-react_NA_NA.h5',
+        'diffusion-reaction/2D_diff-react_NA_NA.h5',
+        'DR2D/2D_diff-react_NA_NA.h5',
+    ]
+    data_path = data_path_resolver.resolve(preferred_paths)
+    if not data_path:
+        pytest.skip("缺少 Diffusion-Reaction 数据集（设置 PDEBENCH_DATA_ROOT 或 PDEBENCH_DATA_PATH）")
     
     # 检查数据形状
     with h5py.File(data_path, 'r') as f:

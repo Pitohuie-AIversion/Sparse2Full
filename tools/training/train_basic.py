@@ -54,6 +54,7 @@ from models.swin_unet import SwinUNet
 from models.hybrid import HybridModel
 from models.fno2d import FNO2d
 from models.mlp import MLPModel
+from models.sparse_attention_encoder import SparseAttentionEncoder, SparseSwinUNet
 from ops.loss import TotalLoss
 from ops.degradation import apply_degradation_operator, verify_degradation_consistency
 from utils.reproducibility import set_seed
@@ -140,6 +141,26 @@ def create_model_local(cfg: DictConfig) -> nn.Module:
             out_channels=out_channels,
             img_size=img_size,
             **filtered_params
+        )
+    elif model_name == 'sparse_attention_encoder':
+        # 稀疏注意力编码器（独立模型）
+        sparse_params = {k: v for k, v in model_params.items() 
+                        if k not in ['in_channels', 'out_channels', 'img_size']}
+        model = SparseAttentionEncoder(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            img_size=img_size,
+            **sparse_params
+        )
+    elif model_name == 'sparse_swin_unet':
+        # 稀疏注意力SwinUNet（Senseiver架构）
+        sparse_swin_params = {k: v for k, v in model_params.items() 
+                             if k not in ['in_channels', 'out_channels', 'img_size']}
+        model = SparseSwinUNet(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            img_size=img_size,
+            **sparse_swin_params
         )
     else:
         raise ValueError(f"Unknown model: {model_name}")
@@ -453,9 +474,16 @@ def train_epoch(
         # 前向传播
         optimizer.zero_grad()
         
+        # 检查是否为稀疏注意力模型，需要特殊处理
+        is_sparse_model = config.model.name.lower() in ['sparse_attention_encoder', 'sparse_swin_unet']
+        
         if scaler and config.training.get('use_amp', False):
             with torch.cuda.amp.autocast():
-                pred = model(model_input)  # [B, C_out, H, W]
+                if is_sparse_model and coords is not None and mask is not None:
+                    # 稀疏模型使用坐标和掩码作为额外输入
+                    pred = model(model_input, coords=coords, mask=mask)  # [B, C_out, H, W]
+                else:
+                    pred = model(model_input)  # [B, C_out, H, W]
                 
                 # 计算完整损失（三件套）
                 obs_data = {
@@ -489,7 +517,11 @@ def train_epoch(
             scaler.step(optimizer)
             scaler.update()
         else:
-            pred = model(model_input)  # [B, C_out, H, W]
+            if is_sparse_model and coords is not None and mask is not None:
+                # 稀疏模型使用坐标和掩码作为额外输入
+                pred = model(model_input, coords=coords, mask=mask)  # [B, C_out, H, W]
+            else:
+                pred = model(model_input)  # [B, C_out, H, W]
             
             # 计算完整损失（三件套）
             obs_data = {
@@ -666,7 +698,15 @@ def validate_epoch(
             
             # 前向传播
             model_input = model_input.to(device)  # 确保输入在正确设备上
-            pred = model(model_input)  # [B, C_out, H, W]
+            
+            # 检查是否为稀疏注意力模型，需要特殊处理
+            is_sparse_model = config.model.name.lower() in ['sparse_attention_encoder', 'sparse_swin_unet']
+            
+            if is_sparse_model and coords is not None and mask is not None:
+                # 稀疏模型使用坐标和掩码作为额外输入
+                pred = model(model_input, coords=coords, mask=mask)  # [B, C_out, H, W]
+            else:
+                pred = model(model_input)  # [B, C_out, H, W]
             
             # 计算完整损失（三件套）
             obs_data = {

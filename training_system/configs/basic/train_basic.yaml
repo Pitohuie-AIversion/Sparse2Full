@@ -1,0 +1,101 @@
+# 基础训练配置
+experiment:
+  name: "basic-training"
+  device: "cuda"
+  seed: 42
+  output_dir: "runs"
+
+data:
+  data_path: "datasets/PDEBench"
+  keys: ["u"]
+  image_size: 256
+  observation:
+    mode: "SR"
+    scale: 4
+    sigma: 1.0
+    kernel_size: 5
+  preprocessing:
+    normalize: true
+    cache_data: false
+  dataloader:
+    batch_size: 8
+    num_workers: 4
+    pin_memory: true
+    persistent_workers: true
+
+model:
+  name: "SwinUNet"
+  params:
+    in_channels: 1
+    out_channels: 1
+    img_size: 256
+    kwargs:
+      patch_size: 4
+      window_size: 8
+      depths: [2, 2, 2, 2]
+      num_heads: [4, 8, 16, 32]
+      embed_dim: 96
+      mlp_ratio: 4.0
+      drop_rate: 0.0
+      attn_drop_rate: 0.0
+      drop_path_rate: 0.1
+
+training:
+  epochs: 100
+  optimizer:
+    name: "AdamW"
+    params:
+      lr: 1e-3
+      weight_decay: 1e-4
+      betas: [0.9, 0.999]
+  scheduler:
+    name: "cosine_warmup"
+    params:
+      T_max: 100
+      warmup_steps: 1000
+      eta_min: 1e-6
+  grad_clip_norm: 1.0
+  log_interval: 10
+  save_interval: 10
+  validation:
+    check_val_every_n_epoch: 5
+  early_stopping:
+    enabled: true
+    patience: 20
+
+loss:
+  rec_weight: 1.0
+  spec_weight: 0.5
+  dc_weight: 1.0
+  rec_loss_type: "l2"
+  spec_loss_type: "l2"
+  dc_loss_type: "l2"
+  low_freq_modes: 16
+  use_gradient_loss: false
+  gradient_weight: 0.1
+  use_pde_residual_loss: false
+  pde_residual_weight: 0.1
+
+validation:
+  metrics: ["rel_l2", "mae", "psnr", "ssim", "dc_error"]
+
+performance_monitoring:
+  enabled: true
+  report_interval_seconds: 30
+  gpu_low_threshold: 0.90
+  iowait_high_threshold: 0.12
+  cpu_low_threshold: 0.80
+
+logging:
+  use_tensorboard: true
+  log_level: "INFO"
+
+visualization:
+  enabled: true
+  save_plots: true
+  plot_interval: 50
+
+paper_package:
+  enabled: true
+  include_checkpoints: true
+  include_visualizations: true

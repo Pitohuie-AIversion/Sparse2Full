@@ -18,10 +18,9 @@ from matplotlib.animation import FuncAnimation
 import torch
 import torch.nn.functional as F
 
-# 设置matplotlib中文字体和样式
-plt.rcParams['font.sans-serif'] = ['SimHei', 'DejaVu Sans']
-plt.rcParams['axes.unicode_minus'] = False
-plt.style.use('seaborn-v0_8')
+# 统一安全字体配置
+from utils.font_config import apply_safe_matplotlib_fonts
+apply_safe_matplotlib_fonts(prefer_chinese=True, base_font_size=10)
 sns.set_palette("husl")
 
 class PredictionVisualizationGenerator:
