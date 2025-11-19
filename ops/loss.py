@@ -403,6 +403,10 @@ class TotalLoss(nn.Module):
         return total_loss, loss_dict
 
 
+# 测试兼容别名：CombinedLoss -> TotalLoss
+CombinedLoss = TotalLoss
+
+
 def compute_total_loss(
     pred: torch.Tensor,
     target: torch.Tensor,

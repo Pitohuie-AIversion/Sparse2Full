@@ -5,5 +5,6 @@
 """
 
 from .wrapper import ARWrapper
+from .temporal_utils import autoregressive_predict, validate_temporal_inputs, create_temporal_model_wrapper
 
-__all__ = ['ARWrapper']
+__all__ = ['ARWrapper', 'autoregressive_predict', 'validate_temporal_inputs', 'create_temporal_model_wrapper']

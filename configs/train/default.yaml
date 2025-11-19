@@ -13,7 +13,7 @@ optimizer:
   name: "adamw"  # AdamW优化器
   lr: 1e-3  # 学习率1e-3（文档标准）
   weight_decay: 1e-4  # 权重衰减1e-4（文档标准）
-  betas: [0.9, 0.999]
+  betas: [0.9, 0.999]  # beta1和beta2
   eps: 1e-8
 
 # 学习率调度器 - Cosine+1k warmup（文档标准）
@@ -66,18 +66,18 @@ curriculum_learning:
   sr_schedule:
     enabled: true
     stages:
-      - epochs: [0, 50]    # 前50个epoch
+      - epochs: [0, 50]    # 阶段1：前50个epoch
         scale_factor: 2    # 使用2倍下采样
-      - epochs: [50, 200]  # 后150个epoch
+      - epochs: [50, 200]  # 阶段2：后150个epoch
         scale_factor: 4    # 使用4倍下采样
   
   # Crop任务课程学习：先40%后20%
   crop_schedule:
     enabled: true
     stages:
-      - epochs: [0, 100]   # 前100个epoch
+      - epochs: [0, 100]   # 阶段1：前100个epoch
         crop_ratio: 0.4    # 保留40%像素
-      - epochs: [100, 200] # 后100个epoch
+      - epochs: [100, 200] # 阶段2：后100个epoch
         crop_ratio: 0.2    # 保留20%像素
   
   # 损失权重调度

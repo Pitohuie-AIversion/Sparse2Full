@@ -108,24 +108,68 @@ class TemporalTrainer:
         model_config = self.config.model.copy()
         model_config.ar_config = self.config.temporal.ar
         
-        # 手动构建参数字典，避免重复传递name
-        model_kwargs = {
-            'in_channels': model_config.in_channels,
-            'out_channels': model_config.out_channels,
-            'img_size': model_config.img_size,
-        }
-        
-        # 添加其他配置参数（除了name）
-        for key, value in model_config.items():
-            if key not in ['name', 'in_channels', 'out_channels', 'img_size']:
-                model_kwargs[key] = value
-        
-        # 使用models.__init__.py中的create_model函数
-        from models import create_model as create_model_init
-        self.model = create_model_init(
-            model_config.name,
-            **model_kwargs
-        )
+        # 检查是否为AR模型
+        if model_config.name == "ARWrapper" or model_config.name == "ar_wrapper":
+            # 对于AR模型，需要先创建基础模型，然后用ARWrapper包装
+            from models.ar.wrapper import ARWrapper
+            
+            # 从配置中获取基础模型信息
+            base_model_config = model_config.get('base_model', {})
+            if isinstance(base_model_config, str):
+                # 如果base_model是字符串，直接使用
+                base_model_name = base_model_config
+                base_model_config = {}
+            else:
+                # 如果base_model是字典，从中获取name
+                base_model_name = base_model_config.get('name', 'SwinUNet')
+            
+            # 创建基础模型的参数
+            base_model_kwargs = {
+                'in_channels': model_config.get('in_channels', 3),
+                'out_channels': model_config.get('out_channels', 1),
+                'img_size': model_config.get('img_size', 256)
+            }
+            
+            # 添加基础模型的其他参数
+            for key, value in base_model_config.items():
+                if key != 'name':
+                    base_model_kwargs[key] = value
+            
+            # 使用models.__init__.py中的create_model函数创建基础模型
+            from models import create_model as create_model_init
+            base_model = create_model_init(base_model_name, **base_model_kwargs)
+            
+            # 创建AR包装器的参数
+            ar_kwargs = {}
+            if 'detach_rollout' in model_config:
+                ar_kwargs['detach_rollout'] = model_config['detach_rollout']
+            if 'scheduled_sampling' in model_config:
+                ar_kwargs['scheduled_sampling'] = model_config['scheduled_sampling']
+            if 'sampling_schedule' in model_config:
+                ar_kwargs['sampling_schedule'] = model_config['sampling_schedule']
+            
+            # 创建AR包装器
+            self.model = ARWrapper(single_frame_model=base_model, **ar_kwargs)
+        else:
+            # 对于非AR模型，使用原来的逻辑
+            # 手动构建参数字典，避免重复传递name
+            model_kwargs = {
+                'in_channels': model_config.in_channels,
+                'out_channels': model_config.out_channels,
+                'img_size': model_config.img_size,
+            }
+            
+            # 添加其他配置参数（除了name）
+            for key, value in model_config.items():
+                if key not in ['name', 'in_channels', 'out_channels', 'img_size']:
+                    model_kwargs[key] = value
+            
+            # 使用models.__init__.py中的create_model函数
+            from models import create_model as create_model_init
+            self.model = create_model_init(
+                model_config.name,
+                **model_kwargs
+            )
         
         self.model = self.model.to(self.device)
         
@@ -141,14 +185,14 @@ class TemporalTrainer:
         """初始化优化器和调度器"""
         optimizer_config = self.config.train.optimizer
         
-        if optimizer_config.name == "AdamW":
+        if optimizer_config.name.lower() in ["adamw", "AdamW"]:
             self.optimizer = torch.optim.AdamW(
                 self.model.parameters(),
                 lr=optimizer_config.lr,
                 weight_decay=optimizer_config.weight_decay,
                 betas=optimizer_config.betas
             )
-        elif optimizer_config.name == "Adam":
+        elif optimizer_config.name.lower() in ["adam", "Adam"]:
             self.optimizer = torch.optim.Adam(
                 self.model.parameters(),
                 lr=optimizer_config.lr,
@@ -159,13 +203,13 @@ class TemporalTrainer:
         
         # 学习率调度器
         scheduler_config = self.config.train.scheduler
-        if scheduler_config.name == "CosineAnnealingLR":
+        if scheduler_config.name.lower() in ["cosine_annealing", "cosineannealing", "cosineannealinglr"]:
             self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
                 self.optimizer,
                 T_max=scheduler_config.T_max,
                 eta_min=scheduler_config.eta_min
             )
-        elif scheduler_config.name == "StepLR":
+        elif scheduler_config.name.lower() in ["step", "steplr"]:
             self.scheduler = torch.optim.lr_scheduler.StepLR(
                 self.optimizer,
                 step_size=scheduler_config.step_size,
@@ -181,13 +225,30 @@ class TemporalTrainer:
         loss_config = self.config.loss
         
         # AR时序损失
-        self.ar_loss = ARLoss(config=loss_config.ar_loss)
+        if hasattr(loss_config, 'ar_loss'):
+            self.ar_loss = ARLoss(config=loss_config.ar_loss)
+        else:
+            # 使用默认配置
+            default_ar_config = {'weight': 1.0, 'reduction': 'mean'}
+            self.ar_loss = ARLoss(config=default_ar_config)
         
         # 频域损失
-        self.spectral_loss = SpectralLoss(config=loss_config.spectral_loss)
+        if hasattr(loss_config, 'spectral_loss') or hasattr(loss_config, 'spectral'):
+            spectral_config = getattr(loss_config, 'spectral_loss', getattr(loss_config, 'spectral', {}))
+            self.spectral_loss = SpectralLoss(config=spectral_config)
+        else:
+            # 使用默认配置
+            default_spectral_config = {'weight': 0.1}
+            self.spectral_loss = SpectralLoss(config=default_spectral_config)
         
         # DC一致性损失
-        self.dc_loss = DCLoss(config=loss_config.dc_loss)
+        if hasattr(loss_config, 'dc_loss') or hasattr(loss_config, 'degradation_consistency'):
+            dc_config = getattr(loss_config, 'dc_loss', getattr(loss_config, 'degradation_consistency', {}))
+            self.dc_loss = DCLoss(config=dc_config)
+        else:
+            # 使用默认配置
+            default_dc_config = {'weight': 0.5}
+            self.dc_loss = DCLoss(config=default_dc_config)
         
         self.logger.info("Loss functions initialized")
     
