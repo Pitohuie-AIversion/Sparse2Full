@@ -11,6 +11,7 @@
 - [性能优化](#性能优化)
 - [调试技巧](#调试技巧)
 - [贡献流程](#贡献流程)
+- [硬件与环境指纹](#硬件与环境指纹)
 
 ## 开发环境设置
 
@@ -201,6 +202,109 @@ tests/
 │   └── test_full_pipeline.py
 └── conftest.py           # 测试配置
 ```
+
+## 硬件与环境指纹
+
+为确保可复现性（同一 YAML + 种子，指标方差 ≤ 1e-4），这里记录当前开发/训练环境的硬件与软件指纹。若环境更新，请同步维护本节。
+
+### 系统与内核
+
+- 操作系统: CentOS Linux 8 (Core)
+- 内核: Linux 4.18.0-193.el8.x86_64 x86_64 GNU/Linux
+
+### CPU
+
+- 型号: AMD EPYC 9654 96-Core Processor
+- 插槽/核心/线程: Socket(s)=2, Core(s) per socket=96, Thread(s) per core=1, CPU(s)=192
+- 频率范围: min=1.5GHz, max=2.4GHz（`lscpu` 报告）
+- NUMA: node0=0-95, node1=96-191
+
+### 内存
+
+- 总内存: 1.0 TiB
+- 可用/缓存（示例时刻）: available≈933 GiB, buff/cache≈19 GiB
+- 交换分区: 49 GiB（已用≈34 GiB）
+
+### GPU
+
+- 型号: NVIDIA L40 ×2
+- 每卡显存: 46,068 MiB
+- 驱动版本: 545.23.06
+- CUDA（驱动报告）: 12.3
+
+### Python/依赖
+
+- Python: 3.12.2
+- 平台: Linux-4.18.0-193.el8.x86_64-x86_64-with-glibc2.28
+- PyTorch: 2.7.0+cu118（Torch CUDA=11.8，`torch.cuda.is_available()==True`，GPU=“NVIDIA L40”）
+- NumPy: 1.26.4
+
+### 采集命令（便于复核）
+
+```bash
+# OS
+cat /etc/os-release
+uname -srmo
+
+# CPU
+lscpu
+
+# 内存
+free -h
+
+# GPU（驱动/显存/CUDA版本）
+nvidia-smi | head -n 10
+nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader
+
+# Python/依赖
+python3 --version
+python3 - <<'PY'
+import platform
+print("Python 平台:", platform.platform())
+import torch, numpy as np
+print("PyTorch:", torch.__version__)
+print("CUDA(通过Torch):", getattr(torch.version, "cuda", None))
+print("GPU可用:", torch.cuda.is_available())
+if torch.cuda.is_available():
+    print("当前GPU:", torch.cuda.get_device_name(0))
+print("NumPy:", np.__version__)
+PY
+```
+
+## 硬件调优指南（训练资源利用最大化）
+
+为确保双 L40 GPU、192 逻辑 CPU 与 1TiB 内存得到充分利用，训练过程实现了“实时资源监控 + 自适应参数调优”。本节描述关键开关与建议阈值。
+
+- 监控采样文件：`runs/<exp>/resource_metrics.jsonl`（GPU利用率、CPU利用率、系统内存、CPU iowait、磁盘读写字节、进程IO）
+- 每轮摘要文件：`runs/<exp>/resources_epoch.jsonl`（吞吐、GPU峰值显存、fetch/data/compute拆分时间，CPU/内存/iowait快照）
+
+关键配置（`configs/ar_training_config debug.yaml`）：
+- `data.dataloader`: 设定 `batch_size`、`num_workers`、`prefetch_factor`、`pin_memory`、`persistent_workers` 等；建议初始 `num_workers: 32`、`prefetch_factor: 16`（有并行时），`pin_memory: true`。
+- `device.devices: 2` 与 `device.strategy: ddp`：双卡 DDP；确保每个进程绑定各自 GPU。
+- `training.precision: bf16-mixed` 与 `hardware.{torch,mkl,omp}_threads`: 按 EPYC 9654 设置为 96 以匹配单进程线程上限（避免线程风暴）。
+- `performance_monitoring` 自适应阈值：
+  - `gpu_low_threshold: 0.80`（平均GPU利用率低于80%触发增大并行/批次）
+  - `cpu_low_threshold: 0.60`（CPU低于60%时增加`num_workers`）
+  - `iowait_high_threshold: 0.12`（IO等待超过12%时降低`num_workers`并提高`prefetch_factor`）
+  - 步进：`num_workers_step: 8`，`prefetch_factor_step: 4`，`batch_size_step: 16`
+
+运行时行为：
+- 资源监控每30秒采样一次并写入 JSONL。
+- 每个 epoch 结束后读取最新监控记录：
+  - GPU低且IO不高 → 增加 `num_workers`、`prefetch_factor`、`batch_size` 并重建 DataLoader。
+  - IO等待高 → 下调 `num_workers`，上调 `prefetch_factor`，平衡磁盘压力。
+  - CPU低且GPU也低 → 增加 `num_workers`。
+
+稳定性建议：
+- 当显存接近阈值或出现 OOM，应提高 `training.gradient_accumulation_steps` 或下调 `batch_size_step`。
+- 文件系统为网络盘时，适当降低 `num_workers` 并提高 `prefetch_factor`，减少上下文切换与随机IO抖动。
+- 若监控文件增长过快，可提高 `ResourceMonitor(interval_sec)` 或关闭 `performance_monitoring.enabled`。
+
+指标与复现：
+- 日志中记录 `Params/FLOPs/显存峰值/时延` 并输出 `avg_throughput_samples_per_sec`（资源摘要）。
+- 保证同一 YAML + 种子复现实验，训练过程的自适应调优在固定阈值下可复现（方差≤1e-4）。
+
+备注：`nvidia-smi --query-gpu cuda_version` 在部分驱动版本不可用，推荐用 `nvidia-smi` 首页或 `torch.version.cuda` 交叉确认。
 
 ### 2. 单元测试示例
 

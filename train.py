@@ -53,7 +53,7 @@ from ops.degradation import verify_degradation_consistency
 from utils.metrics import compute_all_metrics
 from utils.checkpoint import CheckpointManager
 from utils.logger import setup_logger
-from utils.visualization import TemporalVisualizer
+from utils.visualization import ARVisualizer
 
 
 class CurriculumScheduler:
@@ -419,23 +419,32 @@ class Trainer:
         scheduler_name = getattr(scheduler_config, 'name', None)
         
         if scheduler_name == 'cosine':
-            # 获取训练轮数
+            # 统一将 T_max 设为 total_steps（Golden Rule：配置一致性）
+            # total_steps = epochs * len(train_loader)
             if hasattr(self.config.training, 'epochs'):
-                default_epochs = self.config.training.epochs
+                total_epochs = int(self.config.training.epochs)
             elif hasattr(self.config.training, 'max_epochs'):
-                default_epochs = self.config.training.max_epochs
+                total_epochs = int(self.config.training.max_epochs)
             else:
-                default_epochs = 100  # 默认值
-                
+                total_epochs = 100
+
+            # 在数据加载器就绪后计算步数；若不可用，退回到epochs
+            steps_per_epoch = None
+            try:
+                steps_per_epoch = len(self.train_loader)
+            except Exception:
+                steps_per_epoch = None
+
+            total_steps = total_epochs * (steps_per_epoch or 1)
+
             if isinstance(scheduler_config, dict):
-                T_max = scheduler_config.get('T_max', default_epochs)
-                eta_min = scheduler_config.get('eta_min', 0)
+                eta_min = float(scheduler_config.get('eta_min', 0.0))
             else:
-                T_max = getattr(scheduler_config, 'T_max', default_epochs)
-                eta_min = getattr(scheduler_config, 'eta_min', 0)
+                eta_min = float(getattr(scheduler_config, 'eta_min', 0.0))
+
             self.scheduler = optim.lr_scheduler.CosineAnnealingLR(
                 self.optimizer,
-                T_max=T_max,
+                T_max=total_steps,
                 eta_min=eta_min
             )
         elif scheduler_name == 'step':
@@ -504,6 +513,13 @@ class Trainer:
         # TensorBoard
         if self.config.logging.get('use_tensorboard', True):
             self.tb_writer = SummaryWriter(self.output_dir / 'tensorboard')
+            try:
+                # 写入初始化标记，确保事件文件创建
+                self.tb_writer.add_text('run/info', 'initialized', 0)
+                self.tb_writer.add_scalar('meta/initialized', 1, 0)
+                self.tb_writer.flush()
+            except Exception:
+                pass
         else:
             self.tb_writer = None
         
@@ -540,13 +556,18 @@ class Trainer:
             observation = sample_batch['observation']
             
             # 从数据样本中获取h_params，如果没有则使用默认值
+            obs_cfg_root = getattr(self.config, 'observation', {})
+            obs_cfg_data = getattr(getattr(self.config, 'data', {}), 'observation', {})
+            obs_cfg = obs_cfg_root if obs_cfg_root else obs_cfg_data
+
             h_params = sample_batch.get('h_params', {
-                'task': 'SR',  # 默认为SR任务
-                'scale': self.config.data.config.get('scale', 2),  # 从配置获取缩放因子
-                'sigma': self.config.data.config.get('sigma', 1.0),
-                'blur_kernel': self.config.data.config.get('blur_kernel', 5),
-                'boundary': self.config.data.config.get('boundary', 'mirror'),
-                'noise_std': self.config.data.config.get('noise_std', 0.0)
+                'task': 'SR',
+                'scale': obs_cfg.get('scale_factor', 2),
+                'sigma': obs_cfg.get('blur_sigma', 1.0),
+                'blur_kernel': obs_cfg.get('kernel_size', 5),
+                'boundary': obs_cfg.get('boundary', 'mirror'),
+                'downsample_interpolation': obs_cfg.get('downsample_interpolation', 'area'),
+                'noise_std': obs_cfg.get('noise_std', 0.0)
             })
             
             # 对于时序数据，需要处理维度差异
@@ -563,25 +584,136 @@ class Trainer:
             )
             consistency_error = consistency_result['mse']
             
-            tolerance = self.config.training.get('consistency_tolerance', 1e-6)  # 放宽容忍度
+            tolerance = self.config.training.get('consistency_tolerance', 1e-6)  # 默认容忍度
             if consistency_error < tolerance:
                 self.logger.info(f"Data consistency verified: MSE = {consistency_error:.2e}")
             else:
                 self.logger.warning(f"WARNING: Data consistency check failed: MSE = {consistency_error:.2e}")
                 # 对于时序数据，暂时跳过严格的一致性检查
                 self.logger.warning("Skipping strict consistency check for temporal data")
+
+            # 记录到 dc_equivalence_check.json（用于CI与验收）
+            try:
+                import json
+                report = {
+                    'mse': float(consistency_error),
+                    'tolerance': float(tolerance),
+                    'passed': bool(consistency_error < tolerance),
+                    'timestamp': time.time()
+                }
+                with open(self.output_dir / 'dc_equivalence_check.json', 'w') as f:
+                    json.dump(report, f, indent=2)
+            except Exception as e:
+                self.logger.warning(f"Failed to write dc_equivalence_check.json: {e}")
         
         except Exception as e:
             self.logger.error(f"Data consistency verification failed: {e}")
             # 对于时序数据，暂时跳过一致性检查
             self.logger.warning("Skipping data consistency verification for temporal data")
+            # 异常情况下仍输出占位报告，标记为未通过/跳过
+            try:
+                import json
+                report = {
+                    'mse': None,
+                    'tolerance': float(self.config.training.get('consistency_tolerance', 1e-6)),
+                    'passed': False,
+                    'skipped': True,
+                    'error': str(e),
+                    'timestamp': time.time()
+                }
+                with open(self.output_dir / 'dc_equivalence_check.json', 'w') as f:
+                    json.dump(report, f, indent=2)
+            except Exception as e2:
+                self.logger.warning(f"Failed to write dc_equivalence_check.json placeholder: {e2}")
+
+    def _build_model_input(self, batch: Dict[str, torch.Tensor]) -> torch.Tensor:
+        """统一构建模型输入：[baseline, coords?, mask?]
+        - 处理时序 baseline（取最后一个时间步或添加 batch 维）
+        - 根据配置中的 `in_channels` 对 baseline 通道进行裁剪/填充
+        - 追加 `coords` 与 `mask` 通道
+        """
+        baseline = batch['baseline']
+
+        # 处理时序维度
+        if baseline.dim() == 5:  # [B, T, C, H, W]
+            self.logger.debug(f"baseline shape before time select: {baseline.shape}")
+            baseline = baseline[:, -1]  # 取最后一个时间步 [B, C, H, W]
+            self.logger.debug(f"baseline shape after time select: {baseline.shape}")
+        elif baseline.dim() == 3:  # [C, H, W] 或 [T_in*C, H, W]
+            self.logger.debug(f"baseline shape before add batch: {baseline.shape}")
+            baseline = baseline.unsqueeze(0)  # [1, C, H, W]
+            self.logger.debug(f"baseline shape after add batch: {baseline.shape}")
+        else:
+            self.logger.debug(f"baseline shape: {baseline.shape}")
+
+        # 依据配置对 baseline 通道对齐
+        expected_in = getattr(self.config.model, 'in_channels', None)
+        model_input = baseline
+        self.logger.debug(f"initial model_input shape: {model_input.shape}")
+        if expected_in is not None:
+            extra_ch = 0
+            if 'coords' in batch:
+                extra_ch += 2
+            if 'mask' in batch:
+                extra_ch += 1
+            expected_baseline_ch = max(1, int(expected_in) - extra_ch)
+
+            if model_input.shape[1] != expected_baseline_ch:
+                if model_input.shape[1] > expected_baseline_ch:
+                    model_input = model_input[:, :expected_baseline_ch]
+                    self.logger.debug(f"baseline channels trimmed to {expected_baseline_ch}")
+                else:
+                    pad_ch = expected_baseline_ch - model_input.shape[1]
+                    pad = torch.zeros(
+                        model_input.shape[0], pad_ch, model_input.shape[2], model_input.shape[3],
+                        device=model_input.device, dtype=model_input.dtype
+                    )
+                    model_input = torch.cat([model_input, pad], dim=1)
+                    self.logger.debug(f"baseline channels padded to {expected_baseline_ch}")
+
+        # 追加坐标
+        if 'coords' in batch:
+            coords = batch['coords']
+            self.logger.debug(f"coords shape: {coords.shape}")
+            model_input = torch.cat([model_input, coords], dim=1)
+            self.logger.debug(f"model_input after coords: {model_input.shape}")
+
+        # 追加掩码
+        if 'mask' in batch:
+            mask = batch['mask']
+            self.logger.debug(f"mask shape: {mask.shape}")
+            model_input = torch.cat([model_input, mask], dim=1)
+            self.logger.debug(f"model_input after mask: {model_input.shape}")
+
+        return model_input
+
+    def _prepare_target(self, target: torch.Tensor, pred_shape: Tuple[int, int, int, int]) -> torch.Tensor:
+        """统一处理目标：时序选择、通道裁剪、空间对齐"""
+        # 处理时序数据
+        if target.dim() == 5:  # [B, T, C, H, W]
+            target = target[:, -1]  # 取最后一个时间步 [B, C, H, W]
+            self.logger.debug(f"target shape after time select: {target.shape}")
+
+        # 通道对齐
+        if target.shape[1] != pred_shape[1]:
+            target = target[:, :pred_shape[1]]
+            self.logger.debug(f"target channels trimmed to {pred_shape[1]}")
+
+        # 空间尺寸对齐
+        if target.shape[-2:] != pred_shape[-2:]:
+            import torch.nn.functional as F
+            target = F.interpolate(target, size=pred_shape[-2:], mode='bilinear', align_corners=False)
+            self.logger.debug(f"target resized to {pred_shape[-2:]}")
+
+        return target
 
     def train_epoch(self) -> Dict[str, float]:
         """训练一个epoch"""
         self.model.train()
-        
+
         epoch_losses = {}
         epoch_metrics = {}
+        metrics_log_count = 0  # 真实记录次数用于聚合
         num_batches = len(self.train_loader)
         
         start_time = time.time()
@@ -637,87 +769,43 @@ class Trainer:
                     )
                 else:
                     # 标准模式：单帧预测
-                    baseline = batch['baseline']
-                    
-                    # 处理时序数据：如果是5维张量，取最后一个时间步
-                    if baseline.dim() == 5:  # [B, T, C, H, W]
-                        print(f"DEBUG: baseline shape before processing: {baseline.shape}")
-                        baseline = baseline[:, -1]  # [B, C, H, W] - 取最后一个时间步
-                        print(f"DEBUG: baseline shape after processing: {baseline.shape}")
-                    elif baseline.dim() == 3:  # [T_in*C, H, W] - 已经被flatten了
-                        print(f"DEBUG: baseline shape (3D): {baseline.shape}")
-                        # 添加batch维度
-                        baseline = baseline.unsqueeze(0)  # [1, C, H, W]
-                        print(f"DEBUG: baseline with batch dim: {baseline.shape}")
-                    else:
-                        print(f"DEBUG: baseline shape: {baseline.shape}")
-                    
-                    # 构建模型输入（统一接口：[baseline, coords, mask, fourier_pe?]）
-                    model_input = baseline
-                    print(f"DEBUG: Initial model_input shape: {model_input.shape}")
-                    
-                    # 添加坐标信息
-                    if 'coords' in batch:
-                        coords = batch['coords']
-                        print(f"DEBUG: coords shape: {coords.shape}")
-                        model_input = torch.cat([model_input, coords], dim=1)
-                        print(f"DEBUG: model_input after coords: {model_input.shape}")
-                    
-                    # 添加mask信息
-                    if 'mask' in batch:
-                        mask = batch['mask']
-                        print(f"DEBUG: mask shape: {mask.shape}")
-                        model_input = torch.cat([model_input, mask], dim=1)
-                        print(f"DEBUG: model_input after mask: {model_input.shape}")
-                    
+                    model_input = self._build_model_input(batch)
+
                     model_start_time = time.time()
-                    self.logger.info(f"DEBUG: About to call model forward for batch {batch_idx}, model_input shape: {model_input.shape}")
+                    self.logger.info(
+                        f"DEBUG: About to call model forward for batch {batch_idx}, model_input shape: {model_input.shape}"
+                    )
                     pred = self.model(model_input)
                     model_time = time.time() - model_start_time
-                    self.logger.info(f"DEBUG: Model forward completed for batch {batch_idx}, took {model_time:.4f}s, pred shape: {pred.shape}")
-                    
-                    # 计算损失权重（课程学习）
-                    # 获取训练轮数
+                    self.logger.info(
+                        f"DEBUG: Model forward completed for batch {batch_idx}, took {model_time:.4f}s, pred shape: {pred.shape}"
+                    )
+                
+                    # 计算损失权重（课程学习），避免对 DictConfig 进行不安全浅拷贝
                     if hasattr(self.config.training, 'epochs'):
-                        total_epochs = self.config.training.epochs
+                        total_epochs = int(self.config.training.epochs)
                     elif hasattr(self.config.training, 'max_epochs'):
-                        total_epochs = self.config.training.max_epochs
+                        total_epochs = int(self.config.training.max_epochs)
                     else:
-                        total_epochs = 100  # 默认值
-                        
+                        total_epochs = 100
+
                     loss_weights = compute_loss_weights_schedule(
                         self.current_epoch,
                         total_epochs,
                         self.config.loss
                     )
-                    
-                    # 更新配置中的损失权重
-                    config_with_weights = self.config.copy()
-                    config_with_weights.loss.update(loss_weights)
+
+                    # 使用 OmegaConf.copy 创建安全副本，再合并权重
+                    try:
+                        config_with_weights = OmegaConf.copy(self.config)
+                        for k, v in loss_weights.items():
+                            config_with_weights.loss[k] = v
+                    except Exception:
+                        # 保底：直接传入权重，不改动配置
+                        config_with_weights = self.config
                     
                     # 处理目标数据
-                    target = batch['target']
-                    print(f"DEBUG: pred shape: {pred.shape}")
-                    print(f"DEBUG: target shape before processing: {target.shape}")
-                    
-                    # 如果target是时序数据，需要处理
-                    if target.dim() == 5:  # [B, T, C, H, W]
-                        # 对于SR任务，我们需要取最后一个时间步作为目标
-                        target = target[:, -1]  # [B, C, H, W]
-                        print(f"DEBUG: target shape after taking last timestep: {target.shape}")
-                        
-                        # 如果通道数不匹配，需要调整
-                        if target.shape[1] != pred.shape[1]:
-                            # 假设我们只需要前2个通道
-                            target = target[:, :pred.shape[1]]
-                            print(f"DEBUG: target shape after channel adjustment: {target.shape}")
-                        
-                        # 如果空间尺寸不匹配，需要调整
-                        if target.shape[-2:] != pred.shape[-2:]:
-                            # 使用双线性插值调整target的空间尺寸
-                            import torch.nn.functional as F
-                            target = F.interpolate(target, size=pred.shape[-2:], mode='bilinear', align_corners=False)
-                            print(f"DEBUG: target shape after spatial adjustment: {target.shape}")
+                    target = self._prepare_target(batch['target'], pred.shape)
                     
                     # 计算损失
                     loss_start_time = time.time()
@@ -726,7 +814,8 @@ class Trainer:
                         target_z=target,
                         obs_data=batch,
                         norm_stats=self.norm_stats,
-                        config=config_with_weights
+                        config=config_with_weights,
+                        loss_weights_override=loss_weights if config_with_weights is self.config else None
                     )
                     loss_time = time.time() - loss_start_time
             
@@ -771,8 +860,8 @@ class Trainer:
                     epoch_losses[key] = 0
                 epoch_losses[key] += value.item()
             
-            # 计算指标（每隔一定步数）
-            log_interval = getattr(self.config.training, 'log_interval', 50)  # 默认值50
+            # 计算指标（按日志间隔）
+            log_interval = int(getattr(self.config.training, 'log_interval', 50) or 50)
             if batch_idx % log_interval == 0:
                 with torch.no_grad():
                     if is_ar_model:
@@ -784,18 +873,21 @@ class Trainer:
                     else:
                         # 标准模式
                         metrics = compute_all_metrics(pred, batch['target'])
-                    
+
                     for key, value in metrics.items():
                         if key not in epoch_metrics:
                             epoch_metrics[key] = 0
                         epoch_metrics[key] += value
+                metrics_log_count += 1
             
             batch_total_time = time.time() - batch_start_time
             
             # 日志记录
             if batch_idx % log_interval == 0:
                 lr = self.optimizer.param_groups[0]['lr']
-                print(f"DEBUG: Batch {batch_idx} timing - Device: {device_time:.3f}s, Model: {model_time:.3f}s, Loss: {loss_time:.3f}s, Backward: {backward_time:.3f}s, Total: {batch_total_time:.3f}s")
+                self.logger.debug(
+                    f"Batch {batch_idx} timing - Device: {device_time:.3f}s, Model: {model_time:.3f}s, Loss: {loss_time:.3f}s, Backward: {backward_time:.3f}s, Total: {batch_total_time:.3f}s"
+                )
                 self.logger.info(
                     f"Epoch {self.current_epoch:3d} [{batch_idx:4d}/{num_batches:4d}] "
                     f"Loss: {losses['total_loss'].item():.6f} "
@@ -816,17 +908,18 @@ class Trainer:
             
             # 如果是第一个batch，打印更多调试信息
             if batch_idx == 0:
-                print(f"DEBUG: First batch completed successfully")
-                print(f"DEBUG: Loss components: {list(losses.keys())}")
-                print(f"DEBUG: Total loss: {losses['total_loss'].item():.6f}")
+                self.logger.debug("First batch completed successfully")
+                self.logger.debug(f"Loss components: {list(losses.keys())}")
+                self.logger.debug(f"Total loss: {losses['total_loss'].item():.6f}")
         
         # 计算epoch平均值
         for key in epoch_losses:
             epoch_losses[key] /= num_batches
         
+        # 使用真实记录次数进行平均，避免近似误差
         for key in epoch_metrics:
-            log_interval = getattr(self.config.training, 'log_interval', 50)  # 默认值50
-            epoch_metrics[key] /= (num_batches // log_interval + 1)
+            denom = max(1, metrics_log_count)
+            epoch_metrics[key] /= denom
         
         self.train_time += time.time() - start_time
         
@@ -883,46 +976,46 @@ class Trainer:
                     target_last = target_seq[:, -1]
                     metrics = compute_all_metrics(pred_last, target_last)
                 else:
-                    # 标准模式验证
-                    baseline = batch['baseline']
+                    # 标准模式验证（统一输入/目标处理）
+                    print(f"DEBUG: In validate_epoch, batch keys = {list(batch.keys())}")
+                    if 'h_params' in batch:
+                        print(f"DEBUG: batch['h_params'] = {batch['h_params']}")
+                        print(f"DEBUG: batch['h_params'] type = {type(batch['h_params'])}")
                     
-                    # 构建模型输入（统一接口：[baseline, coords, mask, fourier_pe?]）
-                    model_input = baseline
-                    
-                    # 添加坐标信息
-                    if 'coords' in batch:
-                        coords = batch['coords']
-                        model_input = torch.cat([model_input, coords], dim=1)
-                    
-                    # 添加mask信息
-                    if 'mask' in batch:
-                        mask = batch['mask']
-                        model_input = torch.cat([model_input, mask], dim=1)
-                    
+                    model_input = self._build_model_input(batch)
                     pred = self.model(model_input)
+                    # 处理目标数据
+                    target = self._prepare_target(batch['target'], pred.shape)
                     
-                    # 计算损失
                     losses = compute_total_loss(
                         pred_z=pred,
-                        target_z=batch['target'],
+                        target_z=target,
                         obs_data=batch,
                         norm_stats=self.norm_stats,
                         config=self.config
                     )
-                    
-                    # 计算指标
-                    metrics = compute_all_metrics(pred, batch['target'])
+                    metrics = compute_all_metrics(pred, target)
                 
-                # 累积损失和指标
+                # 累积损失和指标（确保标量化）
                 for key, value in losses.items():
                     if key not in epoch_losses:
                         epoch_losses[key] = 0
-                    epoch_losses[key] += value.item()
-                
+                    epoch_losses[key] += (value.mean().item() if hasattr(value, 'mean') else (value.item() if hasattr(value, 'item') else float(value)))
+
                 for key, value in metrics.items():
                     if key not in epoch_metrics:
                         epoch_metrics[key] = 0
-                    epoch_metrics[key] += value
+                    # 修复多元素张量转标量的错误
+                    if hasattr(value, 'mean'):
+                        epoch_metrics[key] += value.mean().item()
+                    elif hasattr(value, 'item'):
+                        try:
+                            epoch_metrics[key] += value.item()
+                        except RuntimeError:
+                            # 如果张量有多个元素，取平均值
+                            epoch_metrics[key] += value.mean().item()
+                    else:
+                        epoch_metrics[key] += float(value)
         
         # 计算平均值
         for key in epoch_losses:
@@ -1010,6 +1103,11 @@ class Trainer:
             self.logger.error(f"Training failed: {e}")
             raise
         finally:
+            # 在清理前执行一次H/DC一致性检查，生成 dc_equivalence_check.json
+            try:
+                self._verify_data_consistency()
+            except Exception as e:
+                self.logger.warning(f"Data consistency check skipped due to error: {e}")
             self._cleanup()
         
         self.logger.info("Training completed!")
@@ -1073,6 +1171,10 @@ class Trainer:
             # 学习率
             lr = self.optimizer.param_groups[0]['lr']
             self.tb_writer.add_scalar('epoch_train/lr', lr, self.current_epoch)
+            try:
+                self.tb_writer.flush()
+            except Exception:
+                pass
         
         # Weights & Biases日志
         if self.use_wandb:
@@ -1084,6 +1186,23 @@ class Trainer:
             log_dict['epoch'] = self.current_epoch
             log_dict['lr'] = self.optimizer.param_groups[0]['lr']
             wandb.log(log_dict)
+
+        # 写入metrics.jsonl（每epoch一行，包含train/val指标与关键配置）
+        try:
+            metrics_path = self.output_dir / 'metrics.jsonl'
+            record = {
+                'epoch': int(self.current_epoch),
+                'experiment': str(self.config.experiment.name),
+                'train': {k: float(v.mean().item() if hasattr(v, 'mean') else (float(v.item()) if hasattr(v, 'item') else float(v))) for k, v in train_results.items()},
+                'val': {k: float(v.mean().item() if hasattr(v, 'mean') else (float(v.item()) if hasattr(v, 'item') else float(v))) for k, v in val_results.items()},
+                'lr': float(self.optimizer.param_groups[0]['lr']),
+                'timestamp': time.time()
+            }
+            with open(metrics_path, 'a', encoding='utf-8') as f:
+                import json
+                f.write(json.dumps(record, ensure_ascii=False) + "\n")
+        except Exception as e:
+            self.logger.warning(f"Failed to write metrics.jsonl: {e}")
     
     def _save_checkpoint(self, val_results: Dict[str, float], is_best: bool) -> None:
         """保存检查点"""
@@ -1104,38 +1223,60 @@ class Trainer:
         self.checkpoint_manager.save_checkpoint(checkpoint, is_best, self.current_epoch)
     
     def _save_training_samples(self, epoch: int) -> None:
-        """保存训练样本可视化"""
+        """保存训练样本可视化到 samples/ 目录"""
         if not self.config.training.get('save_samples', True):
             return
-        
+
+        # 仅在指定绘图间隔保存
         if epoch % self.config.training.get('plot_interval', 50) != 0:
             return
-        
+
         try:
-            # 获取一个验证批次
+            # 获取一个验证批次并移到设备
             val_batch = next(iter(self.val_loader))
-            
+            batch = {k: v.to(self.device) if torch.is_tensor(v) else v for k, v in val_batch.items()}
+
+            # 前向预测：统一输入构建逻辑，确保与验证一致
+            model_input = self._construct_model_input(batch)
+
             with torch.no_grad():
-                pred = self.model(val_batch['baseline'].to(self.device))
-            
-            # 创建可视化器 - 使用统一的可视化工具
+                pred = self.model(model_input)
+
+            # 目标处理为 [B, C, H, W]
+            target = batch.get('target', None)
+            if target is None:
+                self.logger.warning("No 'target' found in validation batch; skip saving samples")
+                return
+            target = self._prepare_target(batch, pred)
+
+            # 创建保存目录和可视化器
             save_dir = self.output_dir / 'samples' / f'epoch_{epoch:04d}'
             save_dir.mkdir(parents=True, exist_ok=True)
-            
-            visualizer = TemporalVisualizer(save_dir, self.config)
-            
-            # 保存可视化
-            max_samples = self.config.training.get('max_samples', 4)
-            for i in range(min(max_samples, pred.shape[0])):
-                # 使用TemporalVisualizer的方法
-                visualizer.save_training_predictions(
-                    input_seq=val_batch['baseline'][i],
-                    target_seq=val_batch['target'][i],
-                    pred_seq=pred[i].cpu(),
-                    step=i,
-                    epoch=epoch
-                )
-            
+            viz = ARVisualizer(save_dir)
+
+            # 构建标准四列水平排列：观测→真实→预测→误差
+            # 观测优先取'observation'，否则退回'baseline'
+            observation = batch.get('observation', batch.get('baseline'))
+            if observation is None:
+                self.logger.warning("No 'observation' or 'baseline' found; skip saving samples")
+                return
+            if observation.dim() == 5:
+                observation = observation[:, -1]
+
+            # 统一保存为一张多行图（按num_samples）
+            max_samples = int(self.config.training.get('max_samples', 4) or 4)
+            out_path = save_dir / "obs_gt_pred_err.png"
+            viz_path = viz.plot_obs_gt_pred_err_horizontal(
+                observation=observation.detach().cpu(),
+                targets=target.detach().cpu(),
+                predictions=pred.detach().cpu(),
+                save_path=str(out_path),
+                num_samples=max_samples,
+                channel=int(self.config.training.get('viz_channel', 0) or 0)
+            )
+
+            self.logger.info(f"Saved standardized 4-column viz to {viz_path}")
+
         except Exception as e:
             self.logger.warning(f"Failed to save training samples: {e}")
     
@@ -1146,6 +1287,62 @@ class Trainer:
         
         if self.use_wandb:
             wandb.finish()
+
+        # 训练结束后生成最小资源摘要与论文包骨架
+        try:
+            # 资源摘要：参数/FLOPs（若可用）/显存峰值/耗时
+            resource = {
+                'params': int(sum(p.numel() for p in (self.model.module if hasattr(self.model, 'module') else self.model).parameters())),
+                'flops_g': float(getattr((self.model.module if hasattr(self.model, 'module') else self.model), 'compute_flops', lambda: 0)() / 1e9) if hasattr((self.model.module if hasattr(self.model, 'module') else self.model), 'compute_flops') else None,
+                'max_cuda_mem_bytes': int(torch.cuda.max_memory_allocated()) if torch.cuda.is_available() else 0,
+                'train_time_sec': float(self.train_time),
+                'val_time_sec': float(self.val_time)
+            }
+            import json
+            with open(self.output_dir / 'resource_stats.json', 'w') as f:
+                json.dump(resource, f, indent=2)
+        except Exception as e:
+            self.logger.warning(f"Failed to write resource_stats.json: {e}")
+
+        # 论文材料包最小骨架（符合 paper_package 目录要求）
+        try:
+            paper_dir = self.output_dir / 'paper_package'
+            (paper_dir / 'configs').mkdir(parents=True, exist_ok=True)
+            (paper_dir / 'checkpoints').mkdir(parents=True, exist_ok=True)
+            (paper_dir / 'metrics').mkdir(parents=True, exist_ok=True)
+            (paper_dir / 'figs').mkdir(parents=True, exist_ok=True)
+            (paper_dir / 'scripts').mkdir(parents=True, exist_ok=True)
+            # 拷贝YAML快照
+            from shutil import copyfile
+            try:
+                copyfile(self.output_dir / 'config_merged.yaml', paper_dir / 'configs' / 'config.yaml')
+            except Exception:
+                pass
+            # 写入实验指标汇总（最佳指标）
+            summary = {
+                'best_val_loss': float(self.best_val_loss),
+                'best_val_metrics': {k: float(v) for k, v in self.best_val_metrics.items() if isinstance(v, (int, float))},
+                'resource': resource,
+                'experiment': str(self.config.experiment.name)
+            }
+            with open(paper_dir / 'metrics' / 'experiment_metrics.json', 'w') as f:
+                json.dump(summary, f, indent=2)
+            # 复制运行期生成的指标与一致性报告（如存在）到paper_package
+            try:
+                metrics_jsonl = self.output_dir / 'metrics.jsonl'
+                dc_report = self.output_dir / 'dc_equivalence_check.json'
+                if metrics_jsonl.exists():
+                    copyfile(metrics_jsonl, paper_dir / 'metrics' / 'metrics.jsonl')
+                if dc_report.exists():
+                    copyfile(dc_report, paper_dir / 'metrics' / 'dc_equivalence_check.json')
+            except Exception as e:
+                self.logger.warning(f"Failed to copy metrics or DC report to paper_package: {e}")
+            # 简易复现脚本占位
+            reproduce_sh = paper_dir / 'scripts' / 'reproduce.sh'
+            if not reproduce_sh.exists():
+                reproduce_sh.write_text('#!/usr/bin/env bash\nset -e\npython train.py +experiment.output_dir="runs/reproduce"', encoding='utf-8')
+        except Exception as e:
+            self.logger.warning(f"Failed to scaffold paper_package: {e}")
 
 
 @hydra.main(version_base=None, config_path="configs", config_name="train")

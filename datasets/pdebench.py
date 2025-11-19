@@ -20,6 +20,11 @@ import cv2
 
 from ops.degradation import apply_degradation_operator
 
+# 说明：为了启用 DataLoader 多进程并行加载，避免 h5py 对象在子进程中 pickling 失败，
+# 我们对数据集增加安全的句柄管理：
+# - 不在序列化状态中保留 h5 文件句柄；
+# - 在子进程首次访问时懒打开只读句柄（swmr=True, libver='latest'）。
+
 
 class PDEBenchBase(Dataset):
     """PDEBench数据集基类
@@ -57,9 +62,19 @@ class PDEBenchBase(Dataset):
         self.normalize = normalize
         self.image_size = image_size
         self.use_official_format = use_official_format
+        # HDF5 句柄在 __init__ 打开用于初始化与校验，但在序列化时会被清除，
+        # 子进程会在首次访问时懒打开。
+        self.h5_file = None
+        self._h5_opened_once = False
+
+        def _open_h5() -> h5py.File:
+            return h5py.File(self.data_path, 'r', swmr=True, libver='latest')
+
+        # 打开一次以完成初始化校验
+        self.h5_file = _open_h5()
+        self._h5_opened_once = True
         
-        # 先打开HDF5文件
-        self.h5_file = h5py.File(data_path, 'r')
+        # 句柄已在上方打开
         
         # 加载数据切分
         if case_ids is not None:
@@ -70,7 +85,7 @@ class PDEBenchBase(Dataset):
             # 使用默认切分
             self.case_ids = self._load_split_ids(splits_dir, split)
         
-        # 加载归一化统计量
+        # 加载归一化统计量（优先使用配置中的splits_dir，保证单文件模式也可统计）
         self.norm_stats = self._load_norm_stats(splits_dir) if normalize else None
         
         # 验证数据完整性
@@ -113,21 +128,52 @@ class PDEBenchBase(Dataset):
                 print(f"DEBUG: {self.keys[0]} is neither a Group nor a Dataset")
         else:
             print(f"DEBUG: Key '{self.keys[0] if self.keys else 'None'}' not found in HDF5 file")
+
+        # 初始化完成后立即关闭句柄，以允许 DataLoader 子进程对数据集进行序列化
+        try:
+            if self.h5_file is not None:
+                self.h5_file.close()
+        except Exception:
+            pass
+        finally:
+            self.h5_file = None
+
+    def _ensure_h5(self) -> h5py.File:
+        """确保在当前进程拥有可用的只读 HDF5 句柄。"""
+        if self.h5_file is None:
+            try:
+                self.h5_file = h5py.File(self.data_path, 'r', swmr=True, libver='latest')
+            except Exception:
+                # 回退到普通只读打开
+                self.h5_file = h5py.File(self.data_path, 'r')
+        return self.h5_file
+
+    def __getstate__(self):
+        """在被 DataLoader 子进程序列化时移除 h5 句柄。"""
+        state = self.__dict__.copy()
+        state['h5_file'] = None
+        return state
+
+    def __setstate__(self, state):
+        """在子进程反序列化后懒打开 h5 句柄。"""
+        self.__dict__.update(state)
+        self.h5_file = None
     
     def _load_split_ids(self, splits_dir: Optional[str], split: str) -> List[str]:
         """加载数据切分ID列表"""
+        h5 = self._ensure_h5()
         if splits_dir is None:
-            # 如果没有指定切分目录，使用默认切分
-            if hasattr(self, 'h5_file') and 'data' in self.h5_file:
-                data_shape = self.h5_file['data'].shape
+            sample_keys = [k for k in h5.keys() if k.isdigit()] if self.use_official_format else []
+            if sample_keys:
+                n_total = len(sample_keys)
+            elif hasattr(self, 'h5_file') and 'data' in h5:
+                data_shape = h5['data'].shape
                 if self.use_official_format:
-                    # 官方格式：[batch, time, height, width, channels]
-                    n_total = data_shape[1]  # 时间步数
+                    n_total = data_shape[1]
                 else:
-                    # 原格式：[time, channels, height, width]
-                    n_total = data_shape[0]  # 时间步数
+                    n_total = data_shape[0]
             else:
-                n_total = 20  # 默认20个样本
+                n_total = 20
             
             total_ids = [str(i) for i in range(n_total)]
             if split == "train":
@@ -153,9 +199,9 @@ class PDEBenchBase(Dataset):
         if not split_file.exists():
             # 如果切分文件不存在，使用默认切分
             # 获取数据总数
-            if hasattr(self, 'h5_file') and isinstance(self.keys, list) and len(self.keys) > 0 and self.keys[0] in self.h5_file:
+            if hasattr(self, 'h5_file') and isinstance(self.keys, list) and len(self.keys) > 0 and self.keys[0] in h5:
                 # 检查是否为Group对象，如果是则获取第一个数据集
-                data_obj = self.h5_file[self.keys[0]]
+                data_obj = h5[self.keys[0]]
                 if hasattr(data_obj, 'shape'):
                     n_total = data_obj.shape[0]
                 elif hasattr(data_obj, 'keys'):
@@ -183,7 +229,8 @@ class PDEBenchBase(Dataset):
     def _load_norm_stats(self, splits_dir: Optional[str]) -> Dict[str, torch.Tensor]:
         """加载归一化统计量"""
         if splits_dir is None:
-            return None
+            # 如果未提供splits_dir，尝试使用默认"splits"目录
+            splits_dir = "splits"
         
         # 获取数据根目录
         if self.data_path.endswith('.h5'):
@@ -217,15 +264,18 @@ class PDEBenchBase(Dataset):
             data_root = Path(self.data_path).parent.parent
         else:
             data_root = Path(self.data_path)
-        train_ids = self._load_split_ids(data_root / "splits", "train")
+        # 使用与_load_norm_stats一致的splits目录
+        splits_dir = save_path.parent
+        train_ids = self._load_split_ids(splits_dir, "train")
         
         stats = {}
         for i, key in enumerate(self.keys):
             values = []
             
             # 直接使用键名访问数据
-            if key in self.h5_file:
-                data_obj = self.h5_file[key]
+            h5 = self._ensure_h5()
+            if key in h5:
+                data_obj = h5[key]
                 if hasattr(data_obj, 'shape'):
                     # 直接是数据集
                     data = data_obj[:]
@@ -257,8 +307,8 @@ class PDEBenchBase(Dataset):
                         if 'diffusion-reaction' in str(self.data_path).lower():
                             # 对于diffusion-reaction数据集，每个样本是一个组
                             case_key = f"{case_idx:04d}"  # 格式化为4位数字
-                            if case_key in self.h5_file:
-                                sample_group = self.h5_file[case_key]
+                            if case_key in h5:
+                                sample_group = h5[case_key]
                                 if 'data' in sample_group:
                                     # data格式：[T, H, W, C]
                                     sample_data = sample_group['data']
@@ -275,18 +325,18 @@ class PDEBenchBase(Dataset):
                         else:
                             # 官方格式：[batch, time, height, width, channels]
                             # 取第一个batch，指定时间步，所有空间点，第i个通道
-                            if i < self.h5_file['data'].shape[4]:  # 确保通道索引有效
-                                data = self.h5_file['data'][0, case_idx, :, :, i]  # [H, W]
+                            if i < h5['data'].shape[4]:  # 确保通道索引有效
+                                data = h5['data'][0, case_idx, :, :, i]  # [H, W]
                             else:
                                 # 如果通道数不足，使用第一个通道
-                                data = self.h5_file['data'][0, case_idx, :, :, 0]  # [H, W]
+                                data = h5['data'][0, case_idx, :, :, 0]  # [H, W]
                     else:
                         # 原格式：[time, channels, height, width]
-                        if i < self.h5_file['data'].shape[1]:  # 确保通道索引有效
-                            data = self.h5_file['data'][case_idx, i, :, :]  # [H, W]
+                        if i < h5['data'].shape[1]:  # 确保通道索引有效
+                            data = h5['data'][case_idx, i, :, :]  # [H, W]
                         else:
                             # 如果通道数不足，使用第一个通道
-                            data = self.h5_file['data'][case_idx, 0, :, :]  # [H, W]
+                            data = h5['data'][case_idx, 0, :, :]  # [H, W]
                     
                     values.append(data.flatten())
             
@@ -317,31 +367,33 @@ class PDEBenchBase(Dataset):
     
     def _validate_data(self):
         """验证数据格式和维度"""
-        if not self.h5_file:
+        h5 = self._ensure_h5()
+        if not h5:
             raise ValueError("HDF5 file not loaded")
         
-        # 对于官方格式，特殊处理diffusion-reaction数据集
-        if self.use_official_format and "diff-react" in str(self.data_path).lower():
+        # 对于官方格式，特殊处理数字键数据集（如diffusion-reaction等）
+        if self.use_official_format:
             # 检查是否有数字键（样本组）
-            sample_keys = [k for k in self.h5_file.keys() if k.isdigit()]
+            sample_keys = [k for k in h5.keys() if k.isdigit()]
             if sample_keys:
                 # 检查第一个样本组内是否有所需的键
-                first_sample = self.h5_file[sample_keys[0]]
+                first_sample = h5[sample_keys[0]]
                 for key in self.keys:
                     if key not in first_sample:
                         raise ValueError(f"Key '{key}' not found in sample group '{sample_keys[0]}'")
-                return
+                return  # 对于数字键数据集，验证完成后直接返回
         
-        # 检查键是否存在
-        for key in self.keys:
-            if key not in self.h5_file:
-                raise ValueError(f"Key '{key}' not found in dataset")
+        # 检查键是否存在（仅对非diff-react数据集执行）
+        if not (self.use_official_format and "diff-react" in str(self.data_path).lower()):
+            for key in self.keys:
+                if key not in h5:
+                    raise ValueError(f"Key '{key}' not found in dataset")
         
         # 对于官方格式数据，允许混合维度变量
         if self.use_official_format:
             # 检查每个键是否存在且至少有2个维度
             for key in self.keys:
-                item = self.h5_file[key]
+                item = h5[key]
                 
                 # 处理HDF5组的情况
                 if isinstance(item, h5py.Group):
@@ -375,8 +427,8 @@ class PDEBenchBase(Dataset):
             return  # 官方格式验证完成
         
         # 非官方格式的验证逻辑保持不变
-        if 'data' in self.h5_file:
-            data_shape = self.h5_file['data'].shape
+        if 'data' in h5:
+            data_shape = h5['data'].shape
             if len(data_shape) != 3:
                 raise ValueError(f"Data must be 3D [N, H, W], got shape {data_shape}")
             
@@ -388,7 +440,7 @@ class PDEBenchBase(Dataset):
         else:
             # 检查第一个键的形状作为参考
             first_key = self.keys[0]
-            item = self.h5_file[first_key]
+            item = h5[first_key]
             
             if isinstance(item, h5py.Group):
                 # 处理组的情况
@@ -430,6 +482,7 @@ class PDEBenchBase(Dataset):
     
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
         """获取数据项"""
+        h5 = self._ensure_h5()
         case_id = self.case_ids[idx]
         # case_id 可能是文件名或者包含路径的字符串
         if '/' in case_id:
@@ -456,50 +509,37 @@ class PDEBenchBase(Dataset):
         
         # 读取数据
         if self.use_official_format:
-            # 官方格式：支持 [batch, time, height, width, channels] 或 [batch, height, width, channels]
-            
-            # 特殊处理diff-react数据集
-            if "diff-react" in str(self.data_path).lower():
-                # diff-react数据集：根级别是组（'0000', '0001', ...），每个组包含'data'和'grid'
-                if case_id in self.h5_file:
-                    # 直接使用case_id访问组
-                    group = self.h5_file[case_id]
-                    if 'data' in group:
-                        # data形状：[T, H, W, C] -> 取第0个时间步
-                        data = torch.tensor(group['data'][0], dtype=torch.float32)  # [H, W, C]
-                        data = data.permute(2, 0, 1)  # [C, H, W]
-                    else:
-                        raise ValueError(f"No 'data' found in group '{case_id}'")
+            sample_keys = [k for k in h5.keys() if k.isdigit()]
+            if sample_keys:
+                if case_id in h5:
+                    group = h5[case_id]
                 else:
-                    # 使用数字索引获取组名
-                    root_keys = list(self.h5_file.keys())
+                    root_keys = list(h5.keys())
                     if case_idx < len(root_keys):
-                        group_key = root_keys[case_idx]
-                        group = self.h5_file[group_key]
-                        if 'data' in group:
-                            data = torch.tensor(group['data'][0], dtype=torch.float32)  # [H, W, C]
-                            data = data.permute(2, 0, 1)  # [C, H, W]
-                        else:
-                            raise ValueError(f"No 'data' found in group '{group_key}'")
+                        group = h5[root_keys[case_idx]]
                     else:
                         raise IndexError(f"Index {case_idx} out of range for dataset with {len(root_keys)} groups")
-            
-            elif 'data' in self.h5_file:
+                if 'data' in group:
+                    data = torch.tensor(group['data'][0], dtype=torch.float32)
+                    data = data.permute(2, 0, 1)
+                else:
+                    raise ValueError(f"No 'data' found in sample group")
+            elif 'data' in h5:
                 # 标准格式：直接有'data'键
-                data_shape = self.h5_file['data'].shape
+                data_shape = h5['data'].shape
                 if len(data_shape) == 5:
                     # 5D格式：[B, T, H, W, C]，取第一个batch，指定时间步的数据
-                    data = torch.tensor(self.h5_file['data'][0, case_idx], dtype=torch.float32)  # [H, W, C]
+                    data = torch.tensor(h5['data'][0, case_idx], dtype=torch.float32)  # [H, W, C]
                     # 转换为 [C, H, W] 格式
                     data = data.permute(2, 0, 1)  # [C, H, W]
                 elif len(data_shape) == 4:
                     # 4D格式：[B, H, W, C]，取第case_idx个batch的数据
-                    data = torch.tensor(self.h5_file['data'][case_idx], dtype=torch.float32)  # [H, W, C]
+                    data = torch.tensor(h5['data'][case_idx], dtype=torch.float32)  # [H, W, C]
                     # 转换为 [C, H, W] 格式
                     data = data.permute(2, 0, 1)  # [C, H, W]
                 elif len(data_shape) == 3:
                     # 3D格式：[B, H, W]，取第case_idx个batch的数据
-                    data = torch.tensor(self.h5_file['data'][case_idx], dtype=torch.float32)  # [H, W]
+                    data = torch.tensor(h5['data'][case_idx], dtype=torch.float32)  # [H, W]
                     # 转换为 [C, H, W] 格式，这里C=1
                     data = data.unsqueeze(0)  # [1, H, W]
                 else:
@@ -508,8 +548,8 @@ class PDEBenchBase(Dataset):
                 # 使用变量键读取数据
                 data_list = []
                 for key in self.keys:
-                    if key in self.h5_file:
-                        item = self.h5_file[key]
+                    if key in h5:
+                        item = h5[key]
                         
                         # 处理HDF5组的情况 - 这种情况通常不会发生，因为变量键通常是数据集
                         if isinstance(item, h5py.Group):
@@ -552,20 +592,20 @@ class PDEBenchBase(Dataset):
                     raise ValueError(f"No valid data found for keys: {self.keys}")
         else:
             # 原格式：针对tensor数据的特殊处理
-            if 'data' in self.h5_file:
-                data = torch.tensor(self.h5_file['data'][case_idx], dtype=torch.float32)  # [C, H, W]
+            if 'data' in h5:
+                data = torch.tensor(h5['data'][case_idx], dtype=torch.float32)  # [C, H, W]
             else:
                 # 使用变量键读取数据 - 专门处理tensor数据
                 data_list = []
                 for key in self.keys:
-                    if key in self.h5_file:
+                    if key in h5:
                         # 对于HDF5组结构，需要先访问组再访问数据
-                        if isinstance(self.h5_file[key], h5py.Group):
+                        if isinstance(h5[key], h5py.Group):
                             # 如果是组，访问其中的'data'键
-                            var_data = torch.tensor(self.h5_file[key]['data'][:], dtype=torch.float32)
+                            var_data = torch.tensor(h5[key]['data'][:], dtype=torch.float32)
                         else:
                             # 如果是数据集，直接访问
-                            var_data = torch.tensor(self.h5_file[key][:], dtype=torch.float32)
+                            var_data = torch.tensor(h5[key][:], dtype=torch.float32)
                         
                         # 确保数据为3维 [C, H, W]
                         if var_data.dim() == 2:  # [H, W] -> [1, H, W]
@@ -585,12 +625,11 @@ class PDEBenchBase(Dataset):
                 else:
                     raise ValueError(f"No valid data found for keys: {self.keys}")
         
-        # 对于diffusion-reaction数据，直接使用2个通道
-        if data.shape[0] == 2:  # 已经是2通道
-            target = data
+        # 仅使用单通道作为目标（默认取第一个通道）
+        if data.shape[0] >= 1:
+            target = data[:1]  # [1, H, W]
         else:
-            # 如果数据有多个通道，只取前2个
-            target = data[:2]  # [2, H, W]
+            raise ValueError(f"Data has no channel dimension: shape={data.shape}")
         
         # 归一化处理
         if self.normalize and self.norm_stats:
@@ -618,6 +657,13 @@ class PDEBenchBase(Dataset):
             'case_id': case_id,
             'task_params': {'task': 'base'},  # 基础任务参数
         }
+
+    def __del__(self):
+        try:
+            if getattr(self, 'h5_file', None) is not None:
+                self.h5_file.close()
+        except Exception:
+            pass
 
 
 class PDEBenchSR(PDEBenchBase):
@@ -671,7 +717,7 @@ class PDEBenchSR(PDEBenchBase):
         data = super().__getitem__(idx)
         target = data['target']  # [C, H, W]
         
-        # 生成SR观测
+        # 生成SR观测（保持与H/DC一致）
         obs_data = self._generate_sr_observation(target)
         
         # 添加噪声
@@ -683,8 +729,8 @@ class PDEBenchSR(PDEBenchBase):
         data.update(obs_data)
         data['h_params'] = self.h_params
         data['task_params'] = self.h_params  # 使用h_params作为task_params
-        # 设置observation为baseline
-        data['observation'] = obs_data['baseline']
+        # 设置observation为baseline（单通道）
+        data['observation'] = obs_data['baseline'][:1]
         
         return data
     
@@ -707,10 +753,11 @@ class PDEBenchSR(PDEBenchBase):
                 target_orig[i:i+1] = self._denormalize_data(target[i:i+1], key)
         
         # 应用H算子：blur + downsample
+        # 单通道：直接应用H算子
         lr_orig = apply_degradation_operator(
-            target_orig.unsqueeze(0), 
+            target_orig[:1].unsqueeze(0),
             self.h_params
-        ).squeeze(0)  # [C, H//scale, W//scale]
+        ).squeeze(0)  # [1, H//scale, W//scale]
         
         # 上采样回原尺寸作为baseline
         baseline_orig = F.interpolate(
@@ -723,8 +770,7 @@ class PDEBenchSR(PDEBenchBase):
         # 重新归一化baseline
         baseline = baseline_orig.clone()
         if self.normalize and self.norm_stats is not None:
-            for i, key in enumerate(self.keys):
-                baseline[i:i+1] = self._normalize_data(baseline_orig[i:i+1], key)
+            baseline[:1] = self._normalize_data(baseline_orig[:1], self.keys[0] if self.keys else 'u')
         
         # 生成坐标网格
         coords = self._generate_coords(H, W)  # [2, H, W]
@@ -733,10 +779,10 @@ class PDEBenchSR(PDEBenchBase):
         mask = torch.ones(1, H, W)  # [1, H, W]
         
         return {
-            'baseline': baseline.cpu(),  # [C, H, W] 上采样后的低分辨率观测
+            'baseline': baseline.cpu(),  # [1, H, W] 上采样后的低分辨率观测
             'coords': coords.cpu(),      # [2, H, W] 坐标网格
             'mask': mask.cpu(),          # [1, H, W] 观测mask
-            'lr_observation': lr_orig.cpu(),  # 原始低分辨率观测 [C, H//scale, W//scale]
+            'lr_observation': lr_orig.cpu(),  # 原始低分辨率观测 [1, H//scale, W//scale]
             'original_observation': lr_orig.cpu(),  # 用于损失计算的原始观测数据
         }
     
@@ -1015,8 +1061,13 @@ class PDEBenchDataModule:
         # 通用参数
         self.common_kwargs = {
             'normalize': config.get('normalize', True),
-            'image_size': config.get('image_size', 256),
+            'image_size': config.get('image_size', config.get('img_size', 256)),
         }
+        
+        # 调试信息
+        print(f"DEBUG: common_kwargs image_size = {self.common_kwargs['image_size']}")
+        print(f"DEBUG: config image_size = {config.get('image_size', 'NOT_FOUND')}")
+        print(f"DEBUG: config img_size = {config.get('img_size', 'NOT_FOUND')}")
     
     def setup(self, stage: Optional[str] = None) -> None:
         """设置数据集"""
@@ -1039,11 +1090,10 @@ class PDEBenchDataModule:
             # 检查文件是否存在
             if os.path.exists(data_path):
                 print(f"DEBUG: File exists: {data_path}")
-                # 直接使用配置的路径
                 train_path = data_path
                 val_path = data_path
                 test_path = data_path
-                splits_dir = None  # 单文件模式不需要splits_dir
+                splits_dir = self.config.get('splits_dir', None)
             else:
                 print(f"DEBUG: File does not exist: {data_path}")
                 raise FileNotFoundError(f"Data file not found: {data_path}")
@@ -1102,46 +1152,88 @@ class PDEBenchDataModule:
     
     def train_dataloader(self) -> DataLoader:
         """训练数据加载器"""
-        """训练数据加载器"""
         # 优先使用dataloader配置，如果没有则使用根级别配置
-        batch_size = self.config.get('dataloader', {}).get('batch_size', self.config.get('batch_size', 4))
-        num_workers = self.config.get('dataloader', {}).get('num_workers', self.config.get('num_workers', 0))
-        pin_memory = self.config.get('dataloader', {}).get('pin_memory', self.config.get('pin_memory', False))
-        
+        dl_cfg = self.config.get('dataloader', {})
+        batch_size = dl_cfg.get('batch_size', self.config.get('batch_size', 4))
+        num_workers = int(dl_cfg.get('num_workers', self.config.get('num_workers', 0)))
+        pin_memory = bool(dl_cfg.get('pin_memory', self.config.get('pin_memory', False)))
+        persistent_workers = bool(dl_cfg.get('persistent_workers', num_workers > 0))
+        prefetch_factor = dl_cfg.get('prefetch_factor', None)
+
+        kwargs = {
+            'num_workers': max(0, num_workers),
+            'pin_memory': pin_memory,
+            'persistent_workers': (num_workers > 0) and persistent_workers,
+            'drop_last': True,
+        }
+        if (num_workers > 0) and (prefetch_factor is not None):
+            kwargs['prefetch_factor'] = int(prefetch_factor)
+        # 仅在多进程加载时设置multiprocessing_context
+        if num_workers > 0:
+            try:
+                kwargs['multiprocessing_context'] = 'spawn'
+            except Exception:
+                pass
+
         return DataLoader(
             self.train_dataset,
             batch_size=batch_size,
             shuffle=True,
-            num_workers=0,  # 由于h5py对象不能被pickle，设置为0
-            pin_memory=False,  # 关闭pin_memory，避免设备不匹配
-            persistent_workers=False,  # 关闭持久化worker
-            drop_last=True,
+            **kwargs,
         )
     
     def val_dataloader(self) -> DataLoader:
         """验证数据加载器"""
-        # 优先使用dataloader配置，如果没有则使用根级别配置
-        batch_size = self.config.get('dataloader', {}).get('batch_size', self.config.get('batch_size', 4))
-        num_workers = self.config.get('dataloader', {}).get('num_workers', self.config.get('num_workers', 0))
-        pin_memory = self.config.get('dataloader', {}).get('pin_memory', self.config.get('pin_memory', False))
-        
+        dl_cfg = self.config.get('dataloader', {})
+        batch_size = dl_cfg.get('val_batch_size', dl_cfg.get('batch_size', self.config.get('batch_size', 4)))
+        num_workers = int(dl_cfg.get('num_workers', self.config.get('num_workers', 0)))
+        pin_memory = bool(dl_cfg.get('pin_memory', self.config.get('pin_memory', False)))
+        persistent_workers = bool(dl_cfg.get('persistent_workers', num_workers > 0))
+        prefetch_factor = dl_cfg.get('prefetch_factor', None)
+
+        kwargs = {
+            'num_workers': max(0, num_workers),
+            'pin_memory': pin_memory,
+            'persistent_workers': (num_workers > 0) and persistent_workers,
+        }
+        if (num_workers > 0) and (prefetch_factor is not None):
+            kwargs['prefetch_factor'] = int(prefetch_factor)
+        if num_workers > 0:
+            try:
+                kwargs['multiprocessing_context'] = 'spawn'
+            except Exception:
+                pass
+
         return DataLoader(
             self.val_dataset,
             batch_size=batch_size,
             shuffle=False,
-            num_workers=0,  # 由于h5py对象不能被pickle，设置为0
-            pin_memory=False,  # 关闭pin_memory，避免设备不匹配
-            persistent_workers=False,  # 关闭持久化worker
+            **kwargs,
         )
     
     def test_dataloader(self) -> DataLoader:
         """测试数据加载器"""
+        dl_cfg = self.config.get('dataloader', {})
+        num_workers = int(dl_cfg.get('num_workers', self.config.get('num_workers', 0)))
+        pin_memory = bool(dl_cfg.get('pin_memory', self.config.get('pin_memory', False)))
+        persistent_workers = bool(dl_cfg.get('persistent_workers', num_workers > 0))
+
+        kwargs = {
+            'num_workers': max(0, num_workers),
+            'pin_memory': pin_memory,
+            'persistent_workers': (num_workers > 0) and persistent_workers,
+        }
+        if num_workers > 0:
+            try:
+                kwargs['multiprocessing_context'] = 'spawn'
+            except Exception:
+                pass
+
         return DataLoader(
             self.test_dataset,
-            batch_size=1,  # 测试时使用batch_size=1
+            batch_size=1,
             shuffle=False,
-            num_workers=0,  # 测试时不使用多进程
-            pin_memory=False,
+            **kwargs,
         )
     
     def get_norm_stats(self) -> Optional[Dict[str, torch.Tensor]]:

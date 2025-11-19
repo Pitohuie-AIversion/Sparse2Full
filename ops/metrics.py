@@ -242,10 +242,72 @@ def compute_data_consistency_error(pred: torch.Tensor, observed: torch.Tensor,
     return rmse
 
 
+def compute_ssim_gpu(pred: torch.Tensor, target: torch.Tensor,
+                    data_range: Optional[float] = None,
+                    window_size: int = 11,
+                    sigma: float = 1.5) -> torch.Tensor:
+    """GPU优化的SSIM计算
+    
+    Args:
+        pred: 预测值 [B, C, H, W]
+        target: 真实值 [B, C, H, W]
+        data_range: 数据范围，如果为None则自动计算
+        window_size: 高斯窗口大小
+        sigma: 高斯窗口标准差
+        
+    Returns:
+        SSIM值 [B, C]
+    """
+    if data_range is None:
+        data_range = target.max() - target.min()
+    
+    # 创建高斯窗口
+    gauss = torch.FloatTensor([
+        np.exp(-(x - window_size//2)**2/float(2*sigma**2)) 
+        for x in range(window_size)
+    ])
+    gauss = gauss / gauss.sum()
+    
+    # 2D高斯核
+    window_1d = gauss.unsqueeze(0)
+    window_2d = window_1d.t() * window_1d
+    window = window_2d.unsqueeze(0).unsqueeze(0)
+    
+    # 移动到GPU
+    if pred.is_cuda:
+        window = window.cuda(pred.device)
+    
+    # 计算均值
+    mu1 = F.conv2d(pred, window, padding=window_size//2, groups=pred.size(1))
+    mu2 = F.conv2d(target, window, padding=window_size//2, groups=target.size(1))
+    
+    mu1_sq = mu1.pow(2)
+    mu2_sq = mu2.pow(2)
+    mu1_mu2 = mu1 * mu2
+    
+    # 计算方差和协方差
+    sigma1_sq = F.conv2d(pred * pred, window, padding=window_size//2, groups=pred.size(1)) - mu1_sq
+    sigma2_sq = F.conv2d(target * target, window, padding=window_size//2, groups=target.size(1)) - mu2_sq
+    sigma12 = F.conv2d(pred * target, window, padding=window_size//2, groups=pred.size(1)) - mu1_mu2
+    
+    # SSIM常数
+    c1 = (0.01 * data_range) ** 2
+    c2 = (0.03 * data_range) ** 2
+    
+    # 计算SSIM
+    ssim_map = ((2 * mu1_mu2 + c1) * (2 * sigma12 + c2)) / ((mu1_sq + mu2_sq + c1) * (sigma1_sq + sigma2_sq + c2))
+    
+    # 平均SSIM值
+    ssim_values = ssim_map.mean(dim=(-2, -1))  # [B, C]
+    
+    return ssim_values
+
+
 def compute_all_metrics(pred: torch.Tensor, target: torch.Tensor,
                        observed: Optional[torch.Tensor] = None,
                        mask: Optional[torch.Tensor] = None,
-                       data_range: Optional[float] = None) -> Dict[str, float]:
+                       data_range: Optional[float] = None,
+                       use_gpu_ssim: bool = True) -> Dict[str, float]:
     """计算所有评估指标
     
     Args:
@@ -254,6 +316,7 @@ def compute_all_metrics(pred: torch.Tensor, target: torch.Tensor,
         observed: 观测值 [B, C, H, W]，用于计算数据一致性误差
         mask: 观测掩码 [B, 1, H, W] 或 [B, C, H, W]
         data_range: 数据范围
+        use_gpu_ssim: 是否使用GPU优化的SSIM计算
         
     Returns:
         包含所有指标的字典（标量值）
@@ -270,7 +333,11 @@ def compute_all_metrics(pred: torch.Tensor, target: torch.Tensor,
     psnr_val = compute_psnr_batch(pred, target, data_range)
     metrics['psnr'] = float(psnr_val.mean().item())
     
-    ssim_val = compute_ssim_batch(pred, target, data_range)
+    # GPU优化的SSIM计算
+    if use_gpu_ssim and pred.is_cuda:
+        ssim_val = compute_ssim_gpu(pred, target, data_range)
+    else:
+        ssim_val = compute_ssim_batch(pred, target, data_range)
     metrics['ssim'] = float(ssim_val.mean().item())
     
     # 频域指标

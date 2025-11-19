@@ -13,7 +13,7 @@ experiment:
 
 # 数据配置
 data:
-  data_path: "E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5"
+  data_path: "datasets/sample_data.hdf5"  # 使用小样本数据用于测试
   dataset_name: "PDEBench"
   keys: ["tensor"]  # 数据变量键名
   splits_dir: "splits"
@@ -39,10 +39,10 @@ data:
   
   # 数据加载器配置
   dataloader:
-    batch_size: 4  # 适中批次大小，适应1000样本训练集
-    num_workers: 4
+    batch_size: 2  # 减少批次大小以加快测试
+    num_workers: 2
     pin_memory: true
-    persistent_workers: true
+    persistent_workers: false  # 测试模式下禁用
 
 # 模型配置
 model:
@@ -65,7 +65,7 @@ model:
 
 # 训练配置
 training:
-  epochs: 200
+  epochs: 2  # 快速测试模式：仅2个epoch
   batch_size: 4  # 适中批次大小，适应1000样本训练集
   seed: 2025
   output_dir: "runs"
@@ -89,10 +89,10 @@ training:
   # 梯度裁剪
   grad_clip_norm: 1.0  # 标准梯度裁剪
   
-  # 日志和保存
-  log_interval: 50
-  save_interval: 20
-  plot_interval: 50
+  # 日志和保存 - 测试模式调整
+  log_interval: 10  # 更频繁的日志输出
+  save_interval: 1  # 每个epoch都保存
+  plot_interval: 10
   
   # 混合精度训练
   use_amp: true
