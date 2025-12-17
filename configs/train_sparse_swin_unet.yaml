@@ -1,0 +1,96 @@
+# 稀疏注意力SwinUNet训练配置
+# Senseiver架构 - 适用于极端稀疏传感器场景
+
+data:
+  dataset_name: "PDEBench"
+  data_root: "data/PDEBench"
+  image_size: 256
+  in_channels: 1
+  out_channels: 1
+  observation:
+    mode: "sr"  # super-resolution
+    scale_factor: 4
+    noise_level: 0.01
+  batch_size: 8
+  num_workers: 4
+  splits:
+    train: "splits/train.txt"
+    val: "splits/val.txt"
+    test: "splits/test.txt"
+
+model:
+  name: "sparse_swin_unet"  # 稀疏注意力SwinUNet
+  params:
+    in_channels: 3  # [baseline, coords, mask]
+    out_channels: 1
+    img_size: 256
+    # SwinUNet配置
+    embed_dim: 96
+    depths: [2, 2, 2, 2]
+    num_heads: [3, 6, 12, 24]
+    window_size: 8
+    mlp_ratio: 4.0
+    drop_rate: 0.0
+    attn_drop_rate: 0.0
+    drop_path_rate: 0.1
+    # 稀疏注意力编码器配置
+    sparse_encoder_config:
+      embed_dim: 256
+      num_heads: 8
+      sensor_dim: 64
+      coord_dim: 64
+      mask_dim: 32
+      mlp_ratio: 4.0
+      dropout: 0.1
+      use_sparse_attention: true
+      window_size: 7
+      sparse_ratio: 0.1  # 10%稀疏度
+
+training:
+  epochs: 200
+  seed: 42
+  use_amp: true  # 混合精度训练
+  grad_clip_norm: 1.0
+  log_interval: 50
+  save_interval: 20
+  early_stopping_patience: 50
+  enable_profiling: false
+  save_visualization: true
+  
+  optimizer:
+    name: "adamw"
+    params:
+      lr: 1e-3
+      weight_decay: 1e-4
+      betas: [0.9, 0.999]
+  
+  scheduler:
+    name: "cosine_warmup"
+    warmup_steps: 1000
+    eta_min: 1e-6
+
+loss:
+  # 三件套损失函数
+  reconstruction:
+    type: "l2"
+    weight: 1.0
+  
+  spectral:
+    type: "spectral_l2"
+    weight: 0.5
+    low_freq_components: 16  # 低频分量kx=ky=16
+  
+  data_consistency:
+    type: "data_consistency"
+    weight: 1.0
+    task: "sr"
+    scale_factor: 4
+
+device:
+  use_cuda: true
+  gpu_id: 0
+
+# Hydra配置
+hydra:
+  run:
+    dir: .

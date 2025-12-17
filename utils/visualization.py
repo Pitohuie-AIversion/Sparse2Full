@@ -51,14 +51,19 @@ class ARVisualizer:
         plt.grid(True, alpha=0.3)
         
         if save_path:
-            plt.savefig(save_path, dpi=150, bbox_inches='tight')
+            fmt = Path(save_path).suffix.lstrip('.') or 'svg'
+            plt.savefig(save_path, dpi=150, bbox_inches='tight', format=fmt)
         else:
-            save_path = str(self.save_dir / 'training_curves.png')
-            plt.savefig(save_path, dpi=150, bbox_inches='tight')
+            save_path = str(self.save_dir / 'training_curves.svg')
+            plt.savefig(save_path, dpi=150, bbox_inches='tight', format='svg')
         
         plt.close()
         
         return save_path
+
+    def save_training_curves(self, history: List[Dict[str, float]], save_path: Optional[str] = None):
+        """兼容接口：保存训练曲线（调用 plot_training_curves）"""
+        return self.plot_training_curves(history, save_path)
 
     def plot_obs_gt_pred_err_horizontal(
         self,
@@ -149,8 +154,9 @@ class ARVisualizer:
         plt.tight_layout()
 
         if save_path is None:
-            save_path = str(self.save_dir / 'obs_gt_pred_err.png')
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            save_path = str(self.save_dir / 'obs_gt_pred_err.svg')
+        fmt = Path(save_path).suffix.lstrip('.') or 'svg'
+        plt.savefig(save_path, dpi=300, bbox_inches='tight', format=fmt)
         plt.close()
 
         return save_path

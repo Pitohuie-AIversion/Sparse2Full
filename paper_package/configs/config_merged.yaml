@@ -1,0 +1,230 @@
+experiment:
+  name: AR-DR2D-FNO2d-SRx4-10M-300ep-model_FNO2d-s2025-20251217084036
+  description: 快速Debug配置 - 5步AR自回归训练
+  device: cuda
+  seed: 2025
+  seeds:
+  - 2025
+  - 2026
+  - 2027
+  output_dir: runs
+  log_every_n_steps: 10
+  precision: bf16-mixed
+device:
+  accelerator: cuda
+  devices: 1
+  strategy: null
+  allow_data_parallel_fallback: true
+  precision: bf16-mixed
+ar:
+  enabled: false
+  eval_time_strategy: mean
+sequential:
+  enabled: false
+data:
+  data_path: data/2D/shallow-water/2D_rdb_NA_NA.h5
+  dataset_name: ShallowWater
+  img_size: 128
+  keys:
+  - data
+  component: u
+  use_official_format: true
+  splits_dir: splits
+  target_channels: 1
+  input_channels: 1
+  sample_limit: null
+  T_in: 1
+  T_out: 5
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+  time_step_start: 0
+  time_step_end: 101
+  time_step_stride: 10
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+      downsample_mode: area
+      align_corners: false
+      antialias: true
+  input_mode: lr
+  include_coords: false
+  include_mask: false
+  include_fourier_pe: false
+  fourier_pe_bands: 4
+  normalize: true
+  augmentation:
+    enabled: false
+    flip_prob: 0.0
+    rotate_prob: 0.0
+    noise_std: 0.0
+  dataloader:
+    batch_size: 96
+    val_batch_size: 96
+    test_batch_size: 96
+    num_workers: 12
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 6
+    drop_last: true
+    shuffle: true
+    timeout: 60
+  max_samples: 512
+hardware:
+  allow_tf32: true
+  memory:
+    cudnn_benchmark: true
+  num_workers: 0
+  pin_memory: false
+  persistent_workers: false
+model:
+  name: FNO2d
+  in_channels: 1
+  out_channels: 1
+  img_size:
+  - 128
+  - 128
+  modes1: 16
+  modes2: 16
+  width: 48
+  n_layers: 4
+  activation: gelu
+  padding: 8
+model_budget:
+  target_params_m: 10.0
+  tolerance_m: 1.0
+  auto_tune: false
+training:
+  epochs: 300
+  batch_size: 96
+  gradient_accumulation_steps: 1
+  torch_compile: false
+  torch_compile_backend: inductor
+  torch_compile_mode: reduce-overhead
+  channels_last: true
+  dataloader:
+    batch_size: 96
+    num_workers: 12
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 6
+  loss_weights:
+    reconstruction: 1.0
+    spectral: 0.5
+    data_consistency: 1.0
+  validation:
+    enabled: true
+    check_val_every_n_epoch: 5
+    save_val_batch_for_viz: false
+    log_val_metrics: false
+  optimizer:
+    name: AdamW
+    lr: 0.0005
+    weight_decay: 0.0001
+    betas:
+    - 0.9
+    - 0.999
+    eps: 1.0e-08
+    fused: false
+    foreach: false
+  scheduler:
+    name: CosineAnnealingLR
+    T_max: 1000
+    eta_min: 1.0e-06
+    warmup_epochs: 10
+  gradient_clip_val: 1.0
+  gradient_clip_algorithm: norm
+  amp:
+    enabled: false
+    autocast_dtype: bfloat16
+  curriculum:
+    enabled: false
+    stages: []
+  checkpoint:
+    save_best: true
+    save_last: true
+    max_keep: 5
+    monitor: val_loss
+    mode: min
+    save_every_n_epochs: 50
+  early_stopping:
+    enabled: false
+    patience: 200
+    monitor: val_loss
+    mode: min
+    min_delta: 1.0e-06
+loss:
+  ar_loss:
+    weight: 0.0
+    reduction: mean
+  reconstruction:
+    weight: 1.0
+  spectral:
+    weight: 0.5
+  degradation_consistency:
+    weight: 1.0
+  gradient_weight: 0.0
+validation:
+  check_val_every_n_epoch: 5
+  use_observation: true
+  metrics:
+  - rel_l2
+  - mae
+  - psnr
+  - ssim
+  rollout_steps:
+  - 1
+  convergence_criteria:
+    target_rel_l2: 0.1
+    patience_for_convergence: 10
+    min_improvement: 0.0001
+logging:
+  experiment_name: AR-DR2D-10M-300ep
+  version: null
+  default_hp_metric: false
+  log_model: false
+  performance_monitoring:
+    log_gpu_memory: true
+    log_throughput: true
+    log_batch_time: true
+  tensorboard:
+    save_dir: runs/tensorboard
+    name: ar_paper
+    version: null
+  visualization:
+    save_test_visualizations: true
+    save_samples_every_n_epochs: 50
+    num_samples_to_save: 5
+    save_training_curves: true
+    save_rollout_visualization: false
+    num_test_samples: 3
+testing:
+  enabled: true
+  run_final_test: true
+  save_predictions: false
+  compute_detailed_metrics: true
+  batch_size: 512
+  save_visualizations: true
+  num_visualization_samples: 3
+  fast_mode: false
+  minimal_logging: false
+data_augmentation:
+  enable: false
+  random_rotation:
+    enable: false
+    degrees:
+    - -5
+    - 5
+  random_flip:
+    enable: false
+    horizontal: 0.5
+    vertical: 0.3
+  gaussian_noise:
+    enable: false
+    std: 0.01
+  normalize_per_sample: false
+  compute_statistics: false

@@ -383,3 +383,51 @@ def generate_efficiency_analysis(data: List[Dict]) -> str:
 
 if __name__ == "__main__":
     generate_complete_table()
+import json
+from pathlib import Path
+
+def generate_resource_table_for_run(run_dir: str, output_dir: str) -> str:
+    run = Path(run_dir)
+    out = Path(output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    res_path = run / 'model_resources.json'
+    summ_path = run / 'resource_summary.json'
+    if not res_path.exists():
+        return ''
+    res = json.loads(res_path.read_text())
+    summ = json.loads(summ_path.read_text()) if summ_path.exists() else {}
+    lines = []
+    lines.append("# Resource Summary")
+    lines.append(f"Run: {run.name}")
+    lines.append("")
+    lines.append("- Params Total: {:,}".format(res.get('params', 0)))
+    lines.append("- FLOPs Total (G): {:.3f}".format(res.get('flops_g', 0.0)))
+    lines.append("- Latency Total (ms): {:.2f} ± {:.2f}".format(res.get('inference_latency_ms_mean', 0.0), res.get('inference_latency_ms_std', 0.0)))
+    if 'spatial' in res:
+        s = res['spatial']
+        lines.append("- Spatial Params: {:,}".format(s.get('params', 0)))
+        lines.append("- Spatial FLOPs (G): {:.3f}".format(s.get('flops_g', 0.0)))
+        lines.append("- Spatial Latency (ms): {:.2f} ± {:.2f}".format(s.get('latency_ms_mean', 0.0), s.get('latency_ms_std', 0.0)))
+    if 'temporal' in res:
+        t = res['temporal']
+        lines.append("- Temporal Params: {:,}".format(t.get('params', 0)))
+        lines.append("- Temporal FLOPs (G): {:.3f}".format(t.get('flops_g', 0.0)))
+        lines.append("- Temporal Latency (ms): {:.2f} ± {:.2f}".format(t.get('latency_ms_mean', 0.0), t.get('latency_ms_std', 0.0)))
+    # Summary fields
+    if summ:
+        lines.append("- Avg Throughput (samples/s): {:.2f}".format(summ.get('avg_throughput_samples_per_sec', 0.0)))
+        lines.append("- Avg Epoch Time (s): {:.2f}".format(summ.get('avg_epoch_time_sec', 0.0)))
+        lines.append("- GPU Peak Allocated (GB): {:.2f}".format(summ.get('max_gpu_peak_allocated_gb', 0.0)))
+        lines.append("- GPU Peak Reserved (GB): {:.2f}".format(summ.get('max_gpu_peak_reserved_gb', 0.0)))
+    md_path = out / f"{run.name}_resource_table.md"
+    md_path.write_text("\n".join(lines))
+    return str(md_path)
+
+if __name__ == '__main__':
+    import argparse
+    p = argparse.ArgumentParser()
+    p.add_argument('--run_dir', required=True)
+    p.add_argument('--output_dir', default='paper_package/metrics/')
+    args = p.parse_args()
+    path = generate_resource_table_for_run(args.run_dir, args.output_dir)
+    print(path)

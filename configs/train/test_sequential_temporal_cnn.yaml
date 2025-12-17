@@ -1,0 +1,94 @@
+# @package _global_
+defaults:
+  - base_train_real_data
+  - /data: dr2d_256
+  - /model: sequential_spatiotemporal
+  - _self_
+
+# 实验名称
+task_name: "sequential_temporal_cnn_test"
+
+# 训练配置
+training:
+  max_epochs: 20
+  batch_size: 2
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 1
+  
+# 数据配置
+data:
+  num_workers: 4
+  pin_memory: true
+  sample_size: 5  # 小样本测试
+  channels: 2      # 输入通道数（根据错误信息调整）
+  T_in: 5          # 输入时序长度
+  T_out: 1         # 输出时序长度
+  
+# 模型配置 - 使用简单的CNN作为空间骨干网络
+model:
+  name: "sequential_spatiotemporal"
+  in_channels: 2     # 输入通道数，匹配数据配置
+  out_channels: 1    # 输出通道数
+  sequential:
+    enabled: true
+    spatial_backbone: "simple_cnn"  # 使用简单的CNN
+    spatial_config:
+      in_channels: 2   # 明确指定输入通道数
+      hidden_channels: 32  # 小通道数测试
+      num_layers: 3
+      kernel_size: 3
+      activation: "relu"
+      dropout: 0.1
+      use_batch_norm: true
+    temporal_config:
+      hidden_dim: 64
+      num_layers: 2
+      num_heads: 4
+      dropout: 0.1
+    two_stage_training: true
+    stage1_epochs: 10
+    stage2_epochs: 10
+  ar:
+    enabled: false  # 禁用自回归
+
+# 优化器配置
+optimizer:
+  name: "adamw"
+  lr: 0.0001  # 较低的学习率
+  weight_decay: 0.01
+
+# 损失函数配置
+loss:
+  reconstruction:
+    weight: 1.0
+  spectral:
+    weight: 0.5
+    low_freq_k: 16
+  data_consistency:
+    weight: 1.0
+    degradation_type: "crop"
+    degradation_config:
+      crop_size: 64
+      random_crop: true
+
+# 日志配置
+logging:
+  log_every_n_steps: 1
+  val_check_interval: 1.0
+  save_top_k: 1
+
+# 硬件配置
+device:
+  accelerator: "gpu"
+  devices: 1
+  precision: 16
+  strategy: "auto"
+
+# 随机种子
+seed: 42
+
+# 输出配置
+output:
+  save_dir: "runs"
+  name: "sequential_temporal_cnn_test"
+  version: null

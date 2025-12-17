@@ -1,0 +1,670 @@
+[Env] DDP 环境变量快照: {'WORLD_SIZE': None, 'RANK': None, 'LOCAL_RANK': None, 'CUDA_VISIBLE_DEVICES': None}
+✅ 成功加载配置文件: configs/train/ar_training_config_debug.yaml
+📊 配置验证 - T_in: 1
+📊 配置验证 - T_out: 1
+📊 配置验证 - use_synthetic_data: True
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - 输出目录: runs/AR-DR2D-Debug-SwinUNet-s2025-20251102_145227
+2025-11-12 19:36:36,205 - INFO - 输出目录: runs/AR-DR2D-Debug-SwinUNet-s2025-20251102_145227
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - 📝 已保存配置快照: runs/AR-DR2D-Debug-SwinUNet-s2025-20251102_145227/config_merged.yaml
+2025-11-12 19:36:36,213 - INFO - 📝 已保存配置快照: runs/AR-DR2D-Debug-SwinUNet-s2025-20251102_145227/config_merged.yaml
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - 设备选择: raw='cuda', normalized='cuda', final='cuda'
+2025-11-12 19:36:36,214 - INFO - 设备选择: raw='cuda', normalized='cuda', final='cuda'
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - CPU线程设置: torch=0, interop=0, MKL=0, OMP=0, numexpr=0, openblas=0
+2025-11-12 19:36:36,214 - INFO - CPU线程设置: torch=0, interop=0, MKL=0, OMP=0, numexpr=0, openblas=0
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - 检测到 2 张GPU
+2025-11-12 19:36:36,214 - INFO - 检测到 2 张GPU
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - GPU 0: NVIDIA L40, 显存: 44.3 GB
+2025-11-12 19:36:36,215 - INFO - GPU 0: NVIDIA L40, 显存: 44.3 GB
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - GPU 1: NVIDIA L40, 显存: 44.3 GB
+2025-11-12 19:36:36,215 - INFO - GPU 1: NVIDIA L40, 显存: 44.3 GB
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - 启用多GPU训练，使用 2 张GPU
+2025-11-12 19:36:36,215 - INFO - 启用多GPU训练，使用 2 张GPU
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - TF32: False, cuDNN benchmark: True
+2025-11-12 19:36:36,215 - INFO - TF32: False, cuDNN benchmark: True
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - AMP autocast dtype 设置为 BF16
+2025-11-12 19:36:36,215 - INFO - AMP autocast dtype 设置为 BF16
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - TF32: True, cuDNN benchmark: True
+2025-11-12 19:36:36,215 - INFO - TF32: True, cuDNN benchmark: True
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - 内存管理配置: {'gradient_accumulation_steps': 2, 'memory_cleanup_frequency': 10, 'auto_batch_size_reduction': True, 'memory_threshold': 0.9}, AMP dtype: bfloat16
+2025-11-12 19:36:36,215 - INFO - 内存管理配置: {'gradient_accumulation_steps': 2, 'memory_cleanup_frequency': 10, 'auto_batch_size_reduction': True, 'memory_threshold': 0.9}, AMP dtype: bfloat16
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - 设置数据模块...
+2025-11-12 19:36:36,215 - INFO - 设置数据模块...
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - num_workers=4: 保持 pin_memory=True，启用 persistent_workers=True，预取因子=4
+2025-11-12 19:36:36,216 - INFO - num_workers=4: 保持 pin_memory=True，启用 persistent_workers=True，预取因子=4
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - 使用训练批次大小: 128
+2025-11-12 19:36:36,216 - INFO - 使用训练批次大小: 128
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - 使用验证批次大小: 64
+2025-11-12 19:36:36,216 - INFO - 使用验证批次大小: 64
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - 使用测试批次大小: 32
+2025-11-12 19:36:36,216 - INFO - 使用测试批次大小: 32
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - 🧪 使用合成数据模式
+2025-11-12 19:36:36,216 - INFO - 🧪 使用合成数据模式
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - ✅ 合成数据集创建完成: train=700, val=150, test=150
+2025-11-12 19:36:36,216 - INFO - ✅ 合成数据集创建完成: train=700, val=150, test=150
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - 🔍 合成数据集属性检查: has_train_dataset=True, has_val_dataset=True, has_test_dataset=True
+2025-11-12 19:36:36,216 - INFO - 🔍 合成数据集属性检查: has_train_dataset=True, has_val_dataset=True, has_test_dataset=True
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - 🔍 数据集提取 - 第一步: train=True, val=True, test=True
+2025-11-12 19:36:36,216 - INFO - 🔍 数据集提取 - 第一步: train=True, val=True, test=True
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - 🔍 数据集提取 - 第二步: train=True, val=True, test=True
+2025-11-12 19:36:36,216 - INFO - 🔍 数据集提取 - 第二步: train=True, val=True, test=True
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - ℹ️ 已禁用CPU燃烧包装，直接使用原始Dataset
+2025-11-12 19:36:36,216 - INFO - ℹ️ 已禁用CPU燃烧包装，直接使用原始Dataset
+2025-11-12 19:36:36 - RealDataARTrainer - WARNING - ⚠️ 重建DataLoader失败，回退到默认: 无法获取底层dataset且默认DataLoader不可用
+2025-11-12 19:36:36,217 - WARNING - ⚠️ 重建DataLoader失败，回退到默认: 无法获取底层dataset且默认DataLoader不可用
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - ℹ️ 合成数据模式下，保持当前DataLoader配置
+2025-11-12 19:36:36,217 - INFO - ℹ️ 合成数据模式下，保持当前DataLoader配置
+2025-11-12 19:36:36 - RealDataARTrainer - WARNING - ⚠️ DataLoader仍为None，使用最小配置强制重建
+2025-11-12 19:36:36,217 - WARNING - ⚠️ DataLoader仍为None，使用最小配置强制重建
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - 📊 数据集状态: train=True, val=True, test=True
+2025-11-12 19:36:36,217 - INFO - 📊 数据集状态: train=True, val=True, test=True
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - 训练集批次数: 6
+2025-11-12 19:36:36,217 - INFO - 训练集批次数: 6
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - 验证集批次数: 3
+2025-11-12 19:36:36,217 - INFO - 验证集批次数: 3
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - 测试集批次数: 5
+2025-11-12 19:36:36,217 - INFO - 测试集批次数: 5
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - ✅ 输入序列形状: torch.Size([128, 1, 2, 128, 128])
+2025-11-12 19:36:36,261 - INFO - ✅ 输入序列形状: torch.Size([128, 1, 2, 128, 128])
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - ✅ 目标序列形状: torch.Size([128, 1, 2, 128, 128])
+2025-11-12 19:36:36,261 - INFO - ✅ 目标序列形状: torch.Size([128, 1, 2, 128, 128])
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - ✅ 观测算子配置: {'task': 'SR', 'scale': 2, 'sigma': 1.0, 'kernel_size': 5, 'boundary': 'mirror'}
+2025-11-12 19:36:36,261 - INFO - ✅ 观测算子配置: {'task': 'SR', 'scale': 2, 'sigma': 1.0, 'kernel_size': 5, 'boundary': 'mirror'}
+2025-11-12 19:36:36 - RealDataARTrainer - WARNING - ⚠️ 归一化统计提取失败: 'RealDataARTrainer' object has no attribute 'data_module'
+2025-11-12 19:36:36,261 - WARNING - ⚠️ 归一化统计提取失败: 'RealDataARTrainer' object has no attribute 'data_module'
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - 🔎 训练样本归一化域: mean=-0.000, std=0.999
+2025-11-12 19:36:36,311 - INFO - 🔎 训练样本归一化域: mean=-0.000, std=0.999
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - ✅ 数据键设置: <bound method DictConfig.keys of {'data_path': '/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse_to_Dense_Transformer/VIVTransformer-4sh2r1-codx/pdebench_extended/data/PDEBench/pdebench/data_download/....data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5', 'dataset_name': 'RealDiffusionReaction', 'image_size': 128, 'sample_limit': 100, 'T_in': 1, 'T_out': 1, 'train_ratio': 0.8, 'val_ratio': 0.15, 'test_ratio': 0.05, 'time_step_start': 0, 'time_step_end': 50, 'time_step_stride': 1, 'observation': {'mode': 'SR', 'sr': {'scale_factor': 2, 'blur_sigma': 1.0, 'blur_kernel_size': 5, 'boundary_mode': 'mirror', 'downsample_mode': 'area', 'align_corners': False, 'antialias': True}}, 'normalize': True, 'augmentation': {'enabled': False, 'flip_prob': 0.0, 'rotate_prob': 0.0, 'noise_std': 0.0}, 'use_synthetic_data': True, 'synthetic_data_config': {'num_samples': 1000, 'image_size': 128, 'channels': 2}, 'dataloader': {'batch_size': 128, 'val_batch_size': 64, 'test_batch_size': 32, 'num_workers': 4, 'pin_memory': True, 'persistent_workers': True, 'prefetch_factor': 4, 'drop_last': True, 'shuffle': True, 'timeout': 60}, 'max_samples': 512, 'keys': ['u', 'v']}>
+2025-11-12 19:36:36,311 - INFO - ✅ 数据键设置: <bound method DictConfig.keys of {'data_path': '/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse_to_Dense_Transformer/VIVTransformer-4sh2r1-codx/pdebench_extended/data/PDEBench/pdebench/data_download/....data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5', 'dataset_name': 'RealDiffusionReaction', 'image_size': 128, 'sample_limit': 100, 'T_in': 1, 'T_out': 1, 'train_ratio': 0.8, 'val_ratio': 0.15, 'test_ratio': 0.05, 'time_step_start': 0, 'time_step_end': 50, 'time_step_stride': 1, 'observation': {'mode': 'SR', 'sr': {'scale_factor': 2, 'blur_sigma': 1.0, 'blur_kernel_size': 5, 'boundary_mode': 'mirror', 'downsample_mode': 'area', 'align_corners': False, 'antialias': True}}, 'normalize': True, 'augmentation': {'enabled': False, 'flip_prob': 0.0, 'rotate_prob': 0.0, 'noise_std': 0.0}, 'use_synthetic_data': True, 'synthetic_data_config': {'num_samples': 1000, 'image_size': 128, 'channels': 2}, 'dataloader': {'batch_size': 128, 'val_batch_size': 64, 'test_batch_size': 32, 'num_workers': 4, 'pin_memory': True, 'persistent_workers': True, 'prefetch_factor': 4, 'drop_last': True, 'shuffle': True, 'timeout': 60}, 'max_samples': 512, 'keys': ['u', 'v']}>
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - 使用传统AR模型架构
+2025-11-12 19:36:36,311 - INFO - 使用传统AR模型架构
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - 🏗️ 设置模型...
+2025-11-12 19:36:36,311 - INFO - 🏗️ 设置模型...
+2025-11-12 19:36:36 - RealDataARTrainer - WARNING - ⚠️ 调整window_size: 8→4 以匹配阶段分辨率 [32, 16, 8, 4]
+2025-11-12 19:36:36,311 - WARNING - ⚠️ 调整window_size: 8→4 以匹配阶段分辨率 [32, 16, 8, 4]
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - 🧩 BaseModel=SwinUNet, Wrapper=SwinUNet, Device=cuda
+2025-11-12 19:36:36,808 - INFO - 🧩 BaseModel=SwinUNet, Wrapper=SwinUNet, Device=cuda
+2025-11-12 19:36:36 - RealDataARTrainer - INFO - 🧠 模型设为channels_last内存格式（包含逐参数兜底）
+2025-11-12 19:36:36,817 - INFO - 🧠 模型设为channels_last内存格式（包含逐参数兜底）
+2025-11-12 19:36:37 - RealDataARTrainer - INFO - 🚀 已启用torch.compile: backend=inductor, mode=reduce-overhead
+2025-11-12 19:36:37,851 - INFO - 🚀 已启用torch.compile: backend=inductor, mode=reduce-overhead
+2025-11-12 19:36:37 - RealDataARTrainer - INFO - 🔧 注意力: use_sdpa/flash=False, sdpa_kernel=auto, TF32=False
+2025-11-12 19:36:37,851 - INFO - 🔧 注意力: use_sdpa/flash=False, sdpa_kernel=auto, TF32=False
+2025-11-12 19:36:37 - RealDataARTrainer - INFO - 🧪 AMP autocast dtype: bfloat16
+2025-11-12 19:36:37,851 - INFO - 🧪 AMP autocast dtype: bfloat16
+2025-11-12 19:36:37 - RealDataARTrainer - INFO - ⚠️ 非DDP模式下暂不启用DataParallel，避免开销和不一致性
+2025-11-12 19:36:37,851 - INFO - ⚠️ 非DDP模式下暂不启用DataParallel，避免开销和不一致性
+2025-11-12 19:36:37 - RealDataARTrainer - INFO - ✅ 模型参数量: 6,587,358 (可训练: 6,587,358)
+2025-11-12 19:36:37,852 - INFO - ✅ 模型参数量: 6,587,358 (可训练: 6,587,358)
+2025-11-12 19:36:40 - RealDataARTrainer - INFO - 📊 资源: FLOPs=0.033G@128², 延迟=0.53±0.01ms
+2025-11-12 19:36:40,724 - INFO - 📊 资源: FLOPs=0.033G@128², 延迟=0.53±0.01ms
+2025-11-12 19:36:40 - RealDataARTrainer - WARNING - ⚠️ 归一化统计组装失败: 'RealDataARTrainer' object has no attribute 'data_module'
+2025-11-12 19:36:40,726 - WARNING - ⚠️ 归一化统计组装失败: 'RealDataARTrainer' object has no attribute 'data_module'
+2025-11-12 19:36:40 - RealDataARTrainer - INFO - ⚙️ 设置优化器...
+2025-11-12 19:36:40,726 - INFO - ⚙️ 设置优化器...
+2025-11-12 19:36:40 - RealDataARTrainer - INFO - ✅ 优化器: AdamW (fused=False, foreach=False, eps=1e-08, amsgrad=False)
+2025-11-12 19:36:40,727 - INFO - ✅ 优化器: AdamW (fused=False, foreach=False, eps=1e-08, amsgrad=False)
+2025-11-12 19:36:40 - RealDataARTrainer - INFO - ✅ 调度器: CosineAnnealingLR (T_max=5, eta_min=1e-06)
+2025-11-12 19:36:40,727 - INFO - ✅ 调度器: CosineAnnealingLR (T_max=5, eta_min=1e-06)
+2025-11-12 19:36:40 - RealDataARTrainer - INFO - ✅ AMP: dtype=bf16, GradScaler=off, device=cuda
+2025-11-12 19:36:40,727 - INFO - ✅ AMP: dtype=bf16, GradScaler=off, device=cuda
+2025-11-12 19:36:40 - RealDataARTrainer - INFO - ✅ 学习率: 0.0001
+2025-11-12 19:36:40,727 - INFO - ✅ 学习率: 0.0001
+2025-11-12 19:36:40 - RealDataARTrainer - INFO - TensorBoard 监控已启用
+2025-11-12 19:36:40,729 - INFO - TensorBoard 监控已启用
+2025-11-12 19:36:40 - RealDataARTrainer - INFO - 🚀 Starting training...
+2025-11-12 19:36:40,729 - INFO - 🚀 Starting training...
+2025-11-12 19:36:40 - RealDataARTrainer - INFO - 🌐 当前训练模式：空间-only（禁用时间预测，T_in=T_out=1）
+2025-11-12 19:36:40,729 - INFO - 🌐 当前训练模式：空间-only（禁用时间预测，T_in=T_out=1）
+Epoch 1:   0%|          | 0/6 [00:00<?, ?it/s]Epoch 1:   0%|          | 0/6 [00:19<?, ?it/s]
+2025-11-12 19:37:00 - RealDataARTrainer - ERROR - ❌ 训练过程中出现错误: Unsupported dtype BFloat16
+2025-11-12 19:37:00,690 - ERROR - ❌ 训练过程中出现错误: Unsupported dtype BFloat16
+Traceback (most recent call last):
+  File "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/tools/training/train_real_data_ar.py", line 3894, in train
+    train_loss = self.train_epoch(epoch)
+                 ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/tools/training/train_real_data_ar.py", line 2804, in train_epoch
+    raise e
+  File "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/tools/training/train_real_data_ar.py", line 2707, in train_epoch
+    losses = _compute_total_loss(
+             ^^^^^^^^^^^^^^^^^^^^
+  File "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/ops/losses.py", line 275, in compute_total_loss
+    spectral_loss = _compute_spectral_loss(pred_orig, target_orig, config)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/ops/losses.py", line 544, in _compute_spectral_loss
+    pred_fft = torch.fft.fft2(pred_c, norm='ortho' if normalize else None)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: Unsupported dtype BFloat16
+2025-11-12 19:37:00 - RealDataARTrainer - INFO - 🏁 Training finished, total time: 0.01 hours
+2025-11-12 19:37:00,691 - INFO - 🏁 Training finished, total time: 0.01 hours
+2025-11-12 19:37:00 - RealDataARTrainer - INFO - 📊 Using best model for final test evaluation...
+2025-11-12 19:37:00,691 - INFO - 📊 Using best model for final test evaluation...
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 严格模式加载失败: Error(s) in loading state_dict for OptimizedModule:
+	Missing key(s) in state_dict: "_orig_mod.absolute_pos_embed", "_orig_mod.patch_embed.proj.weight", "_orig_mod.patch_embed.proj.bias", "_orig_mod.patch_embed.norm.weight", "_orig_mod.patch_embed.norm.bias", "_orig_mod.encoder_layers.0.blocks.0.norm1.weight", "_orig_mod.encoder_layers.0.blocks.0.norm1.bias", "_orig_mod.encoder_layers.0.blocks.0.attn.relative_position_bias_table", "_orig_mod.encoder_layers.0.blocks.0.attn.relative_position_index", "_orig_mod.encoder_layers.0.blocks.0.attn.qkv.weight", "_orig_mod.encoder_layers.0.blocks.0.attn.qkv.bias", "_orig_mod.encoder_layers.0.blocks.0.attn.proj.weight", "_orig_mod.encoder_layers.0.blocks.0.attn.proj.bias", "_orig_mod.encoder_layers.0.blocks.0.norm2.weight", "_orig_mod.encoder_layers.0.blocks.0.norm2.bias", "_orig_mod.encoder_layers.0.blocks.0.mlp.fc1.weight", "_orig_mod.encoder_layers.0.blocks.0.mlp.fc1.bias", "_orig_mod.encoder_layers.0.blocks.0.mlp.fc2.weight", "_orig_mod.encoder_layers.0.blocks.0.mlp.fc2.bias", "_orig_mod.encoder_layers.0.downsample.reduction.weight", "_orig_mod.encoder_layers.0.downsample.norm.weight", "_orig_mod.encoder_layers.0.downsample.norm.bias", "_orig_mod.encoder_layers.1.blocks.0.norm1.weight", "_orig_mod.encoder_layers.1.blocks.0.norm1.bias", "_orig_mod.encoder_layers.1.blocks.0.attn.relative_position_bias_table", "_orig_mod.encoder_layers.1.blocks.0.attn.relative_position_index", "_orig_mod.encoder_layers.1.blocks.0.attn.qkv.weight", "_orig_mod.encoder_layers.1.blocks.0.attn.qkv.bias", "_orig_mod.encoder_layers.1.blocks.0.attn.proj.weight", "_orig_mod.encoder_layers.1.blocks.0.attn.proj.bias", "_orig_mod.encoder_layers.1.blocks.0.norm2.weight", "_orig_mod.encoder_layers.1.blocks.0.norm2.bias", "_orig_mod.encoder_layers.1.blocks.0.mlp.fc1.weight", "_orig_mod.encoder_layers.1.blocks.0.mlp.fc1.bias", "_orig_mod.encoder_layers.1.blocks.0.mlp.fc2.weight", "_orig_mod.encoder_layers.1.blocks.0.mlp.fc2.bias", "_orig_mod.encoder_layers.1.downsample.reduction.weight", "_orig_mod.encoder_layers.1.downsample.norm.weight", "_orig_mod.encoder_layers.1.downsample.norm.bias", "_orig_mod.encoder_layers.2.blocks.0.norm1.weight", "_orig_mod.encoder_layers.2.blocks.0.norm1.bias", "_orig_mod.encoder_layers.2.blocks.0.attn.relative_position_bias_table", "_orig_mod.encoder_layers.2.blocks.0.attn.relative_position_index", "_orig_mod.encoder_layers.2.blocks.0.attn.qkv.weight", "_orig_mod.encoder_layers.2.blocks.0.attn.qkv.bias", "_orig_mod.encoder_layers.2.blocks.0.attn.proj.weight", "_orig_mod.encoder_layers.2.blocks.0.attn.proj.bias", "_orig_mod.encoder_layers.2.blocks.0.norm2.weight", "_orig_mod.encoder_layers.2.blocks.0.norm2.bias", "_orig_mod.encoder_layers.2.blocks.0.mlp.fc1.weight", "_orig_mod.encoder_layers.2.blocks.0.mlp.fc1.bias", "_orig_mod.encoder_layers.2.blocks.0.mlp.fc2.weight", "_orig_mod.encoder_layers.2.blocks.0.mlp.fc2.bias", "_orig_mod.encoder_layers.2.blocks.1.attn_mask", "_orig_mod.encoder_layers.2.blocks.1.norm1.weight", "_orig_mod.encoder_layers.2.blocks.1.norm1.bias", "_orig_mod.encoder_layers.2.blocks.1.attn.relative_position_bias_table", "_orig_mod.encoder_layers.2.blocks.1.attn.relative_position_index", "_orig_mod.encoder_layers.2.blocks.1.attn.qkv.weight", "_orig_mod.encoder_layers.2.blocks.1.attn.qkv.bias", "_orig_mod.encoder_layers.2.blocks.1.attn.proj.weight", "_orig_mod.encoder_layers.2.blocks.1.attn.proj.bias", "_orig_mod.encoder_layers.2.blocks.1.norm2.weight", "_orig_mod.encoder_layers.2.blocks.1.norm2.bias", "_orig_mod.encoder_layers.2.blocks.1.mlp.fc1.weight", "_orig_mod.encoder_layers.2.blocks.1.mlp.fc1.bias", "_orig_mod.encoder_layers.2.blocks.1.mlp.fc2.weight", "_orig_mod.encoder_layers.2.blocks.1.mlp.fc2.bias", "_orig_mod.encoder_layers.2.downsample.reduction.weight", "_orig_mod.encoder_layers.2.downsample.norm.weight", "_orig_mod.encoder_layers.2.downsample.norm.bias", "_orig_mod.encoder_layers.3.blocks.0.norm1.weight", "_orig_mod.encoder_layers.3.blocks.0.norm1.bias", "_orig_mod.encoder_layers.3.blocks.0.attn.relative_position_bias_table", "_orig_mod.encoder_layers.3.blocks.0.attn.relative_position_index", "_orig_mod.encoder_layers.3.blocks.0.attn.qkv.weight", "_orig_mod.encoder_layers.3.blocks.0.attn.qkv.bias", "_orig_mod.encoder_layers.3.blocks.0.attn.proj.weight", "_orig_mod.encoder_layers.3.blocks.0.attn.proj.bias", "_orig_mod.encoder_layers.3.blocks.0.norm2.weight", "_orig_mod.encoder_layers.3.blocks.0.norm2.bias", "_orig_mod.encoder_layers.3.blocks.0.mlp.fc1.weight", "_orig_mod.encoder_layers.3.blocks.0.mlp.fc1.bias", "_orig_mod.encoder_layers.3.blocks.0.mlp.fc2.weight", "_orig_mod.encoder_layers.3.blocks.0.mlp.fc2.bias", "_orig_mod.norm.weight", "_orig_mod.norm.bias", "_orig_mod.decoder.decoder_layers.0.swin.blocks.0.norm1.weight", "_orig_mod.decoder.decoder_layers.0.swin.blocks.0.norm1.bias", "_orig_mod.decoder.decoder_layers.0.swin.blocks.0.attn.relative_position_bias_table", "_orig_mod.decoder.decoder_layers.0.swin.blocks.0.attn.relative_position_index", "_orig_mod.decoder.decoder_layers.0.swin.blocks.0.attn.qkv.weight", "_orig_mod.decoder.decoder_layers.0.swin.blocks.0.attn.qkv.bias", "_orig_mod.decoder.decoder_layers.0.swin.blocks.0.attn.proj.weight", "_orig_mod.decoder.decoder_layers.0.swin.blocks.0.attn.proj.bias", "_orig_mod.decoder.decoder_layers.0.swin.blocks.0.norm2.weight", "_orig_mod.decoder.decoder_layers.0.swin.blocks.0.norm2.bias", "_orig_mod.decoder.decoder_layers.0.swin.blocks.0.mlp.fc1.weight", "_orig_mod.decoder.decoder_layers.0.swin.blocks.0.mlp.fc1.bias", "_orig_mod.decoder.decoder_layers.0.swin.blocks.0.mlp.fc2.weight", "_orig_mod.decoder.decoder_layers.0.swin.blocks.0.mlp.fc2.bias", "_orig_mod.decoder.decoder_layers.0.expand.expand.weight", "_orig_mod.decoder.decoder_layers.0.expand.norm.weight", "_orig_mod.decoder.decoder_layers.0.expand.norm.bias", "_orig_mod.decoder.decoder_layers.1.swin.blocks.0.norm1.weight", "_orig_mod.decoder.decoder_layers.1.swin.blocks.0.norm1.bias", "_orig_mod.decoder.decoder_layers.1.swin.blocks.0.attn.relative_position_bias_table", "_orig_mod.decoder.decoder_layers.1.swin.blocks.0.attn.relative_position_index", "_orig_mod.decoder.decoder_layers.1.swin.blocks.0.attn.qkv.weight", "_orig_mod.decoder.decoder_layers.1.swin.blocks.0.attn.qkv.bias", "_orig_mod.decoder.decoder_layers.1.swin.blocks.0.attn.proj.weight", "_orig_mod.decoder.decoder_layers.1.swin.blocks.0.attn.proj.bias", "_orig_mod.decoder.decoder_layers.1.swin.blocks.0.norm2.weight", "_orig_mod.decoder.decoder_layers.1.swin.blocks.0.norm2.bias", "_orig_mod.decoder.decoder_layers.1.swin.blocks.0.mlp.fc1.weight", "_orig_mod.decoder.decoder_layers.1.swin.blocks.0.mlp.fc1.bias", "_orig_mod.decoder.decoder_layers.1.swin.blocks.0.mlp.fc2.weight", "_orig_mod.decoder.decoder_layers.1.swin.blocks.0.mlp.fc2.bias", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.attn_mask", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.norm1.weight", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.norm1.bias", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.attn.relative_position_bias_table", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.attn.relative_position_index", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.attn.qkv.weight", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.attn.qkv.bias", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.attn.proj.weight", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.attn.proj.bias", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.norm2.weight", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.norm2.bias", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.mlp.fc1.weight", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.mlp.fc1.bias", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.mlp.fc2.weight", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.mlp.fc2.bias", "_orig_mod.decoder.decoder_layers.1.fuse.0.weight", "_orig_mod.decoder.decoder_layers.1.fuse.1.weight", "_orig_mod.decoder.decoder_layers.1.fuse.1.bias", "_orig_mod.decoder.decoder_layers.1.expand.expand.weight", "_orig_mod.decoder.decoder_layers.1.expand.norm.weight", "_orig_mod.decoder.decoder_layers.1.expand.norm.bias", "_orig_mod.decoder.decoder_layers.2.swin.blocks.0.norm1.weight", "_orig_mod.decoder.decoder_layers.2.swin.blocks.0.norm1.bias", "_orig_mod.decoder.decoder_layers.2.swin.blocks.0.attn.relative_position_bias_table", "_orig_mod.decoder.decoder_layers.2.swin.blocks.0.attn.relative_position_index", "_orig_mod.decoder.decoder_layers.2.swin.blocks.0.attn.qkv.weight", "_orig_mod.decoder.decoder_layers.2.swin.blocks.0.attn.qkv.bias", "_orig_mod.decoder.decoder_layers.2.swin.blocks.0.attn.proj.weight", "_orig_mod.decoder.decoder_layers.2.swin.blocks.0.attn.proj.bias", "_orig_mod.decoder.decoder_layers.2.swin.blocks.0.norm2.weight", "_orig_mod.decoder.decoder_layers.2.swin.blocks.0.norm2.bias", "_orig_mod.decoder.decoder_layers.2.swin.blocks.0.mlp.fc1.weight", "_orig_mod.decoder.decoder_layers.2.swin.blocks.0.mlp.fc1.bias", "_orig_mod.decoder.decoder_layers.2.swin.blocks.0.mlp.fc2.weight", "_orig_mod.decoder.decoder_layers.2.swin.blocks.0.mlp.fc2.bias", "_orig_mod.decoder.decoder_layers.2.fuse.0.weight", "_orig_mod.decoder.decoder_layers.2.fuse.1.weight", "_orig_mod.decoder.decoder_layers.2.fuse.1.bias", "_orig_mod.decoder.decoder_layers.2.expand.expand.weight", "_orig_mod.decoder.decoder_layers.2.expand.norm.weight", "_orig_mod.decoder.decoder_layers.2.expand.norm.bias", "_orig_mod.decoder.decoder_layers.3.swin.blocks.0.norm1.weight", "_orig_mod.decoder.decoder_layers.3.swin.blocks.0.norm1.bias", "_orig_mod.decoder.decoder_layers.3.swin.blocks.0.attn.relative_position_bias_table", "_orig_mod.decoder.decoder_layers.3.swin.blocks.0.attn.relative_position_index", "_orig_mod.decoder.decoder_layers.3.swin.blocks.0.attn.qkv.weight", "_orig_mod.decoder.decoder_layers.3.swin.blocks.0.attn.qkv.bias", "_orig_mod.decoder.decoder_layers.3.swin.blocks.0.attn.proj.weight", "_orig_mod.decoder.decoder_layers.3.swin.blocks.0.attn.proj.bias", "_orig_mod.decoder.decoder_layers.3.swin.blocks.0.norm2.weight", "_orig_mod.decoder.decoder_layers.3.swin.blocks.0.norm2.bias", "_orig_mod.decoder.decoder_layers.3.swin.blocks.0.mlp.fc1.weight", "_orig_mod.decoder.decoder_layers.3.swin.blocks.0.mlp.fc1.bias", "_orig_mod.decoder.decoder_layers.3.swin.blocks.0.mlp.fc2.weight", "_orig_mod.decoder.decoder_layers.3.swin.blocks.0.mlp.fc2.bias", "_orig_mod.decoder.decoder_layers.3.fuse.0.weight", "_orig_mod.decoder.decoder_layers.3.fuse.1.weight", "_orig_mod.decoder.decoder_layers.3.fuse.1.bias", "_orig_mod.final_conv.weight", "_orig_mod.final_conv.bias". 
+	Unexpected key(s) in state_dict: "absolute_pos_embed", "patch_embed.proj.weight", "patch_embed.proj.bias", "patch_embed.norm.weight", "patch_embed.norm.bias", "encoder_layers.0.blocks.0.norm1.weight", "encoder_layers.0.blocks.0.norm1.bias", "encoder_layers.0.blocks.0.attn.relative_position_bias_table", "encoder_layers.0.blocks.0.attn.relative_position_index", "encoder_layers.0.blocks.0.attn.qkv.weight", "encoder_layers.0.blocks.0.attn.qkv.bias", "encoder_layers.0.blocks.0.attn.proj.weight", "encoder_layers.0.blocks.0.attn.proj.bias", "encoder_layers.0.blocks.0.norm2.weight", "encoder_layers.0.blocks.0.norm2.bias", "encoder_layers.0.blocks.0.mlp.fc1.weight", "encoder_layers.0.blocks.0.mlp.fc1.bias", "encoder_layers.0.blocks.0.mlp.fc2.weight", "encoder_layers.0.blocks.0.mlp.fc2.bias", "encoder_layers.0.downsample.reduction.weight", "encoder_layers.0.downsample.norm.weight", "encoder_layers.0.downsample.norm.bias", "encoder_layers.1.blocks.0.norm1.weight", "encoder_layers.1.blocks.0.norm1.bias", "encoder_layers.1.blocks.0.attn.relative_position_bias_table", "encoder_layers.1.blocks.0.attn.relative_position_index", "encoder_layers.1.blocks.0.attn.qkv.weight", "encoder_layers.1.blocks.0.attn.qkv.bias", "encoder_layers.1.blocks.0.attn.proj.weight", "encoder_layers.1.blocks.0.attn.proj.bias", "encoder_layers.1.blocks.0.norm2.weight", "encoder_layers.1.blocks.0.norm2.bias", "encoder_layers.1.blocks.0.mlp.fc1.weight", "encoder_layers.1.blocks.0.mlp.fc1.bias", "encoder_layers.1.blocks.0.mlp.fc2.weight", "encoder_layers.1.blocks.0.mlp.fc2.bias", "encoder_layers.1.downsample.reduction.weight", "encoder_layers.1.downsample.norm.weight", "encoder_layers.1.downsample.norm.bias", "encoder_layers.2.blocks.0.norm1.weight", "encoder_layers.2.blocks.0.norm1.bias", "encoder_layers.2.blocks.0.attn.relative_position_bias_table", "encoder_layers.2.blocks.0.attn.relative_position_index", "encoder_layers.2.blocks.0.attn.qkv.weight", "encoder_layers.2.blocks.0.attn.qkv.bias", "encoder_layers.2.blocks.0.attn.proj.weight", "encoder_layers.2.blocks.0.attn.proj.bias", "encoder_layers.2.blocks.0.norm2.weight", "encoder_layers.2.blocks.0.norm2.bias", "encoder_layers.2.blocks.0.mlp.fc1.weight", "encoder_layers.2.blocks.0.mlp.fc1.bias", "encoder_layers.2.blocks.0.mlp.fc2.weight", "encoder_layers.2.blocks.0.mlp.fc2.bias", "encoder_layers.2.blocks.1.attn_mask", "encoder_layers.2.blocks.1.norm1.weight", "encoder_layers.2.blocks.1.norm1.bias", "encoder_layers.2.blocks.1.attn.relative_position_bias_table", "encoder_layers.2.blocks.1.attn.relative_position_index", "encoder_layers.2.blocks.1.attn.qkv.weight", "encoder_layers.2.blocks.1.attn.qkv.bias", "encoder_layers.2.blocks.1.attn.proj.weight", "encoder_layers.2.blocks.1.attn.proj.bias", "encoder_layers.2.blocks.1.norm2.weight", "encoder_layers.2.blocks.1.norm2.bias", "encoder_layers.2.blocks.1.mlp.fc1.weight", "encoder_layers.2.blocks.1.mlp.fc1.bias", "encoder_layers.2.blocks.1.mlp.fc2.weight", "encoder_layers.2.blocks.1.mlp.fc2.bias", "encoder_layers.2.downsample.reduction.weight", "encoder_layers.2.downsample.norm.weight", "encoder_layers.2.downsample.norm.bias", "encoder_layers.3.blocks.0.norm1.weight", "encoder_layers.3.blocks.0.norm1.bias", "encoder_layers.3.blocks.0.attn.relative_position_bias_table", "encoder_layers.3.blocks.0.attn.relative_position_index", "encoder_layers.3.blocks.0.attn.qkv.weight", "encoder_layers.3.blocks.0.attn.qkv.bias", "encoder_layers.3.blocks.0.attn.proj.weight", "encoder_layers.3.blocks.0.attn.proj.bias", "encoder_layers.3.blocks.0.norm2.weight", "encoder_layers.3.blocks.0.norm2.bias", "encoder_layers.3.blocks.0.mlp.fc1.weight", "encoder_layers.3.blocks.0.mlp.fc1.bias", "encoder_layers.3.blocks.0.mlp.fc2.weight", "encoder_layers.3.blocks.0.mlp.fc2.bias", "norm.weight", "norm.bias", "decoder.decoder_layers.0.swin.blocks.0.norm1.weight", "decoder.decoder_layers.0.swin.blocks.0.norm1.bias", "decoder.decoder_layers.0.swin.blocks.0.attn.relative_position_bias_table", "decoder.decoder_layers.0.swin.blocks.0.attn.relative_position_index", "decoder.decoder_layers.0.swin.blocks.0.attn.qkv.weight", "decoder.decoder_layers.0.swin.blocks.0.attn.qkv.bias", "decoder.decoder_layers.0.swin.blocks.0.attn.proj.weight", "decoder.decoder_layers.0.swin.blocks.0.attn.proj.bias", "decoder.decoder_layers.0.swin.blocks.0.norm2.weight", "decoder.decoder_layers.0.swin.blocks.0.norm2.bias", "decoder.decoder_layers.0.swin.blocks.0.mlp.fc1.weight", "decoder.decoder_layers.0.swin.blocks.0.mlp.fc1.bias", "decoder.decoder_layers.0.swin.blocks.0.mlp.fc2.weight", "decoder.decoder_layers.0.swin.blocks.0.mlp.fc2.bias", "decoder.decoder_layers.0.expand.expand.weight", "decoder.decoder_layers.0.expand.norm.weight", "decoder.decoder_layers.0.expand.norm.bias", "decoder.decoder_layers.1.swin.blocks.0.norm1.weight", "decoder.decoder_layers.1.swin.blocks.0.norm1.bias", "decoder.decoder_layers.1.swin.blocks.0.attn.relative_position_bias_table", "decoder.decoder_layers.1.swin.blocks.0.attn.relative_position_index", "decoder.decoder_layers.1.swin.blocks.0.attn.qkv.weight", "decoder.decoder_layers.1.swin.blocks.0.attn.qkv.bias", "decoder.decoder_layers.1.swin.blocks.0.attn.proj.weight", "decoder.decoder_layers.1.swin.blocks.0.attn.proj.bias", "decoder.decoder_layers.1.swin.blocks.0.norm2.weight", "decoder.decoder_layers.1.swin.blocks.0.norm2.bias", "decoder.decoder_layers.1.swin.blocks.0.mlp.fc1.weight", "decoder.decoder_layers.1.swin.blocks.0.mlp.fc1.bias", "decoder.decoder_layers.1.swin.blocks.0.mlp.fc2.weight", "decoder.decoder_layers.1.swin.blocks.0.mlp.fc2.bias", "decoder.decoder_layers.1.swin.blocks.1.attn_mask", "decoder.decoder_layers.1.swin.blocks.1.norm1.weight", "decoder.decoder_layers.1.swin.blocks.1.norm1.bias", "decoder.decoder_layers.1.swin.blocks.1.attn.relative_position_bias_table", "decoder.decoder_layers.1.swin.blocks.1.attn.relative_position_index", "decoder.decoder_layers.1.swin.blocks.1.attn.qkv.weight", "decoder.decoder_layers.1.swin.blocks.1.attn.qkv.bias", "decoder.decoder_layers.1.swin.blocks.1.attn.proj.weight", "decoder.decoder_layers.1.swin.blocks.1.attn.proj.bias", "decoder.decoder_layers.1.swin.blocks.1.norm2.weight", "decoder.decoder_layers.1.swin.blocks.1.norm2.bias", "decoder.decoder_layers.1.swin.blocks.1.mlp.fc1.weight", "decoder.decoder_layers.1.swin.blocks.1.mlp.fc1.bias", "decoder.decoder_layers.1.swin.blocks.1.mlp.fc2.weight", "decoder.decoder_layers.1.swin.blocks.1.mlp.fc2.bias", "decoder.decoder_layers.1.fuse.0.weight", "decoder.decoder_layers.1.fuse.1.weight", "decoder.decoder_layers.1.fuse.1.bias", "decoder.decoder_layers.1.expand.expand.weight", "decoder.decoder_layers.1.expand.norm.weight", "decoder.decoder_layers.1.expand.norm.bias", "decoder.decoder_layers.2.swin.blocks.0.norm1.weight", "decoder.decoder_layers.2.swin.blocks.0.norm1.bias", "decoder.decoder_layers.2.swin.blocks.0.attn.relative_position_bias_table", "decoder.decoder_layers.2.swin.blocks.0.attn.relative_position_index", "decoder.decoder_layers.2.swin.blocks.0.attn.qkv.weight", "decoder.decoder_layers.2.swin.blocks.0.attn.qkv.bias", "decoder.decoder_layers.2.swin.blocks.0.attn.proj.weight", "decoder.decoder_layers.2.swin.blocks.0.attn.proj.bias", "decoder.decoder_layers.2.swin.blocks.0.norm2.weight", "decoder.decoder_layers.2.swin.blocks.0.norm2.bias", "decoder.decoder_layers.2.swin.blocks.0.mlp.fc1.weight", "decoder.decoder_layers.2.swin.blocks.0.mlp.fc1.bias", "decoder.decoder_layers.2.swin.blocks.0.mlp.fc2.weight", "decoder.decoder_layers.2.swin.blocks.0.mlp.fc2.bias", "decoder.decoder_layers.2.fuse.0.weight", "decoder.decoder_layers.2.fuse.1.weight", "decoder.decoder_layers.2.fuse.1.bias", "decoder.decoder_layers.2.expand.expand.weight", "decoder.decoder_layers.2.expand.norm.weight", "decoder.decoder_layers.2.expand.norm.bias", "decoder.decoder_layers.3.swin.blocks.0.norm1.weight", "decoder.decoder_layers.3.swin.blocks.0.norm1.bias", "decoder.decoder_layers.3.swin.blocks.0.attn.relative_position_bias_table", "decoder.decoder_layers.3.swin.blocks.0.attn.relative_position_index", "decoder.decoder_layers.3.swin.blocks.0.attn.qkv.weight", "decoder.decoder_layers.3.swin.blocks.0.attn.qkv.bias", "decoder.decoder_layers.3.swin.blocks.0.attn.proj.weight", "decoder.decoder_layers.3.swin.blocks.0.attn.proj.bias", "decoder.decoder_layers.3.swin.blocks.0.norm2.weight", "decoder.decoder_layers.3.swin.blocks.0.norm2.bias", "decoder.decoder_layers.3.swin.blocks.0.mlp.fc1.weight", "decoder.decoder_layers.3.swin.blocks.0.mlp.fc1.bias", "decoder.decoder_layers.3.swin.blocks.0.mlp.fc2.weight", "decoder.decoder_layers.3.swin.blocks.0.mlp.fc2.bias", "decoder.decoder_layers.3.fuse.0.weight", "decoder.decoder_layers.3.fuse.1.weight", "decoder.decoder_layers.3.fuse.1.bias", "final_conv.weight", "final_conv.bias". 
+2025-11-12 19:37:00,764 - WARNING - 严格模式加载失败: Error(s) in loading state_dict for OptimizedModule:
+	Missing key(s) in state_dict: "_orig_mod.absolute_pos_embed", "_orig_mod.patch_embed.proj.weight", "_orig_mod.patch_embed.proj.bias", "_orig_mod.patch_embed.norm.weight", "_orig_mod.patch_embed.norm.bias", "_orig_mod.encoder_layers.0.blocks.0.norm1.weight", "_orig_mod.encoder_layers.0.blocks.0.norm1.bias", "_orig_mod.encoder_layers.0.blocks.0.attn.relative_position_bias_table", "_orig_mod.encoder_layers.0.blocks.0.attn.relative_position_index", "_orig_mod.encoder_layers.0.blocks.0.attn.qkv.weight", "_orig_mod.encoder_layers.0.blocks.0.attn.qkv.bias", "_orig_mod.encoder_layers.0.blocks.0.attn.proj.weight", "_orig_mod.encoder_layers.0.blocks.0.attn.proj.bias", "_orig_mod.encoder_layers.0.blocks.0.norm2.weight", "_orig_mod.encoder_layers.0.blocks.0.norm2.bias", "_orig_mod.encoder_layers.0.blocks.0.mlp.fc1.weight", "_orig_mod.encoder_layers.0.blocks.0.mlp.fc1.bias", "_orig_mod.encoder_layers.0.blocks.0.mlp.fc2.weight", "_orig_mod.encoder_layers.0.blocks.0.mlp.fc2.bias", "_orig_mod.encoder_layers.0.downsample.reduction.weight", "_orig_mod.encoder_layers.0.downsample.norm.weight", "_orig_mod.encoder_layers.0.downsample.norm.bias", "_orig_mod.encoder_layers.1.blocks.0.norm1.weight", "_orig_mod.encoder_layers.1.blocks.0.norm1.bias", "_orig_mod.encoder_layers.1.blocks.0.attn.relative_position_bias_table", "_orig_mod.encoder_layers.1.blocks.0.attn.relative_position_index", "_orig_mod.encoder_layers.1.blocks.0.attn.qkv.weight", "_orig_mod.encoder_layers.1.blocks.0.attn.qkv.bias", "_orig_mod.encoder_layers.1.blocks.0.attn.proj.weight", "_orig_mod.encoder_layers.1.blocks.0.attn.proj.bias", "_orig_mod.encoder_layers.1.blocks.0.norm2.weight", "_orig_mod.encoder_layers.1.blocks.0.norm2.bias", "_orig_mod.encoder_layers.1.blocks.0.mlp.fc1.weight", "_orig_mod.encoder_layers.1.blocks.0.mlp.fc1.bias", "_orig_mod.encoder_layers.1.blocks.0.mlp.fc2.weight", "_orig_mod.encoder_layers.1.blocks.0.mlp.fc2.bias", "_orig_mod.encoder_layers.1.downsample.reduction.weight", "_orig_mod.encoder_layers.1.downsample.norm.weight", "_orig_mod.encoder_layers.1.downsample.norm.bias", "_orig_mod.encoder_layers.2.blocks.0.norm1.weight", "_orig_mod.encoder_layers.2.blocks.0.norm1.bias", "_orig_mod.encoder_layers.2.blocks.0.attn.relative_position_bias_table", "_orig_mod.encoder_layers.2.blocks.0.attn.relative_position_index", "_orig_mod.encoder_layers.2.blocks.0.attn.qkv.weight", "_orig_mod.encoder_layers.2.blocks.0.attn.qkv.bias", "_orig_mod.encoder_layers.2.blocks.0.attn.proj.weight", "_orig_mod.encoder_layers.2.blocks.0.attn.proj.bias", "_orig_mod.encoder_layers.2.blocks.0.norm2.weight", "_orig_mod.encoder_layers.2.blocks.0.norm2.bias", "_orig_mod.encoder_layers.2.blocks.0.mlp.fc1.weight", "_orig_mod.encoder_layers.2.blocks.0.mlp.fc1.bias", "_orig_mod.encoder_layers.2.blocks.0.mlp.fc2.weight", "_orig_mod.encoder_layers.2.blocks.0.mlp.fc2.bias", "_orig_mod.encoder_layers.2.blocks.1.attn_mask", "_orig_mod.encoder_layers.2.blocks.1.norm1.weight", "_orig_mod.encoder_layers.2.blocks.1.norm1.bias", "_orig_mod.encoder_layers.2.blocks.1.attn.relative_position_bias_table", "_orig_mod.encoder_layers.2.blocks.1.attn.relative_position_index", "_orig_mod.encoder_layers.2.blocks.1.attn.qkv.weight", "_orig_mod.encoder_layers.2.blocks.1.attn.qkv.bias", "_orig_mod.encoder_layers.2.blocks.1.attn.proj.weight", "_orig_mod.encoder_layers.2.blocks.1.attn.proj.bias", "_orig_mod.encoder_layers.2.blocks.1.norm2.weight", "_orig_mod.encoder_layers.2.blocks.1.norm2.bias", "_orig_mod.encoder_layers.2.blocks.1.mlp.fc1.weight", "_orig_mod.encoder_layers.2.blocks.1.mlp.fc1.bias", "_orig_mod.encoder_layers.2.blocks.1.mlp.fc2.weight", "_orig_mod.encoder_layers.2.blocks.1.mlp.fc2.bias", "_orig_mod.encoder_layers.2.downsample.reduction.weight", "_orig_mod.encoder_layers.2.downsample.norm.weight", "_orig_mod.encoder_layers.2.downsample.norm.bias", "_orig_mod.encoder_layers.3.blocks.0.norm1.weight", "_orig_mod.encoder_layers.3.blocks.0.norm1.bias", "_orig_mod.encoder_layers.3.blocks.0.attn.relative_position_bias_table", "_orig_mod.encoder_layers.3.blocks.0.attn.relative_position_index", "_orig_mod.encoder_layers.3.blocks.0.attn.qkv.weight", "_orig_mod.encoder_layers.3.blocks.0.attn.qkv.bias", "_orig_mod.encoder_layers.3.blocks.0.attn.proj.weight", "_orig_mod.encoder_layers.3.blocks.0.attn.proj.bias", "_orig_mod.encoder_layers.3.blocks.0.norm2.weight", "_orig_mod.encoder_layers.3.blocks.0.norm2.bias", "_orig_mod.encoder_layers.3.blocks.0.mlp.fc1.weight", "_orig_mod.encoder_layers.3.blocks.0.mlp.fc1.bias", "_orig_mod.encoder_layers.3.blocks.0.mlp.fc2.weight", "_orig_mod.encoder_layers.3.blocks.0.mlp.fc2.bias", "_orig_mod.norm.weight", "_orig_mod.norm.bias", "_orig_mod.decoder.decoder_layers.0.swin.blocks.0.norm1.weight", "_orig_mod.decoder.decoder_layers.0.swin.blocks.0.norm1.bias", "_orig_mod.decoder.decoder_layers.0.swin.blocks.0.attn.relative_position_bias_table", "_orig_mod.decoder.decoder_layers.0.swin.blocks.0.attn.relative_position_index", "_orig_mod.decoder.decoder_layers.0.swin.blocks.0.attn.qkv.weight", "_orig_mod.decoder.decoder_layers.0.swin.blocks.0.attn.qkv.bias", "_orig_mod.decoder.decoder_layers.0.swin.blocks.0.attn.proj.weight", "_orig_mod.decoder.decoder_layers.0.swin.blocks.0.attn.proj.bias", "_orig_mod.decoder.decoder_layers.0.swin.blocks.0.norm2.weight", "_orig_mod.decoder.decoder_layers.0.swin.blocks.0.norm2.bias", "_orig_mod.decoder.decoder_layers.0.swin.blocks.0.mlp.fc1.weight", "_orig_mod.decoder.decoder_layers.0.swin.blocks.0.mlp.fc1.bias", "_orig_mod.decoder.decoder_layers.0.swin.blocks.0.mlp.fc2.weight", "_orig_mod.decoder.decoder_layers.0.swin.blocks.0.mlp.fc2.bias", "_orig_mod.decoder.decoder_layers.0.expand.expand.weight", "_orig_mod.decoder.decoder_layers.0.expand.norm.weight", "_orig_mod.decoder.decoder_layers.0.expand.norm.bias", "_orig_mod.decoder.decoder_layers.1.swin.blocks.0.norm1.weight", "_orig_mod.decoder.decoder_layers.1.swin.blocks.0.norm1.bias", "_orig_mod.decoder.decoder_layers.1.swin.blocks.0.attn.relative_position_bias_table", "_orig_mod.decoder.decoder_layers.1.swin.blocks.0.attn.relative_position_index", "_orig_mod.decoder.decoder_layers.1.swin.blocks.0.attn.qkv.weight", "_orig_mod.decoder.decoder_layers.1.swin.blocks.0.attn.qkv.bias", "_orig_mod.decoder.decoder_layers.1.swin.blocks.0.attn.proj.weight", "_orig_mod.decoder.decoder_layers.1.swin.blocks.0.attn.proj.bias", "_orig_mod.decoder.decoder_layers.1.swin.blocks.0.norm2.weight", "_orig_mod.decoder.decoder_layers.1.swin.blocks.0.norm2.bias", "_orig_mod.decoder.decoder_layers.1.swin.blocks.0.mlp.fc1.weight", "_orig_mod.decoder.decoder_layers.1.swin.blocks.0.mlp.fc1.bias", "_orig_mod.decoder.decoder_layers.1.swin.blocks.0.mlp.fc2.weight", "_orig_mod.decoder.decoder_layers.1.swin.blocks.0.mlp.fc2.bias", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.attn_mask", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.norm1.weight", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.norm1.bias", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.attn.relative_position_bias_table", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.attn.relative_position_index", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.attn.qkv.weight", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.attn.qkv.bias", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.attn.proj.weight", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.attn.proj.bias", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.norm2.weight", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.norm2.bias", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.mlp.fc1.weight", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.mlp.fc1.bias", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.mlp.fc2.weight", "_orig_mod.decoder.decoder_layers.1.swin.blocks.1.mlp.fc2.bias", "_orig_mod.decoder.decoder_layers.1.fuse.0.weight", "_orig_mod.decoder.decoder_layers.1.fuse.1.weight", "_orig_mod.decoder.decoder_layers.1.fuse.1.bias", "_orig_mod.decoder.decoder_layers.1.expand.expand.weight", "_orig_mod.decoder.decoder_layers.1.expand.norm.weight", "_orig_mod.decoder.decoder_layers.1.expand.norm.bias", "_orig_mod.decoder.decoder_layers.2.swin.blocks.0.norm1.weight", "_orig_mod.decoder.decoder_layers.2.swin.blocks.0.norm1.bias", "_orig_mod.decoder.decoder_layers.2.swin.blocks.0.attn.relative_position_bias_table", "_orig_mod.decoder.decoder_layers.2.swin.blocks.0.attn.relative_position_index", "_orig_mod.decoder.decoder_layers.2.swin.blocks.0.attn.qkv.weight", "_orig_mod.decoder.decoder_layers.2.swin.blocks.0.attn.qkv.bias", "_orig_mod.decoder.decoder_layers.2.swin.blocks.0.attn.proj.weight", "_orig_mod.decoder.decoder_layers.2.swin.blocks.0.attn.proj.bias", "_orig_mod.decoder.decoder_layers.2.swin.blocks.0.norm2.weight", "_orig_mod.decoder.decoder_layers.2.swin.blocks.0.norm2.bias", "_orig_mod.decoder.decoder_layers.2.swin.blocks.0.mlp.fc1.weight", "_orig_mod.decoder.decoder_layers.2.swin.blocks.0.mlp.fc1.bias", "_orig_mod.decoder.decoder_layers.2.swin.blocks.0.mlp.fc2.weight", "_orig_mod.decoder.decoder_layers.2.swin.blocks.0.mlp.fc2.bias", "_orig_mod.decoder.decoder_layers.2.fuse.0.weight", "_orig_mod.decoder.decoder_layers.2.fuse.1.weight", "_orig_mod.decoder.decoder_layers.2.fuse.1.bias", "_orig_mod.decoder.decoder_layers.2.expand.expand.weight", "_orig_mod.decoder.decoder_layers.2.expand.norm.weight", "_orig_mod.decoder.decoder_layers.2.expand.norm.bias", "_orig_mod.decoder.decoder_layers.3.swin.blocks.0.norm1.weight", "_orig_mod.decoder.decoder_layers.3.swin.blocks.0.norm1.bias", "_orig_mod.decoder.decoder_layers.3.swin.blocks.0.attn.relative_position_bias_table", "_orig_mod.decoder.decoder_layers.3.swin.blocks.0.attn.relative_position_index", "_orig_mod.decoder.decoder_layers.3.swin.blocks.0.attn.qkv.weight", "_orig_mod.decoder.decoder_layers.3.swin.blocks.0.attn.qkv.bias", "_orig_mod.decoder.decoder_layers.3.swin.blocks.0.attn.proj.weight", "_orig_mod.decoder.decoder_layers.3.swin.blocks.0.attn.proj.bias", "_orig_mod.decoder.decoder_layers.3.swin.blocks.0.norm2.weight", "_orig_mod.decoder.decoder_layers.3.swin.blocks.0.norm2.bias", "_orig_mod.decoder.decoder_layers.3.swin.blocks.0.mlp.fc1.weight", "_orig_mod.decoder.decoder_layers.3.swin.blocks.0.mlp.fc1.bias", "_orig_mod.decoder.decoder_layers.3.swin.blocks.0.mlp.fc2.weight", "_orig_mod.decoder.decoder_layers.3.swin.blocks.0.mlp.fc2.bias", "_orig_mod.decoder.decoder_layers.3.fuse.0.weight", "_orig_mod.decoder.decoder_layers.3.fuse.1.weight", "_orig_mod.decoder.decoder_layers.3.fuse.1.bias", "_orig_mod.final_conv.weight", "_orig_mod.final_conv.bias". 
+	Unexpected key(s) in state_dict: "absolute_pos_embed", "patch_embed.proj.weight", "patch_embed.proj.bias", "patch_embed.norm.weight", "patch_embed.norm.bias", "encoder_layers.0.blocks.0.norm1.weight", "encoder_layers.0.blocks.0.norm1.bias", "encoder_layers.0.blocks.0.attn.relative_position_bias_table", "encoder_layers.0.blocks.0.attn.relative_position_index", "encoder_layers.0.blocks.0.attn.qkv.weight", "encoder_layers.0.blocks.0.attn.qkv.bias", "encoder_layers.0.blocks.0.attn.proj.weight", "encoder_layers.0.blocks.0.attn.proj.bias", "encoder_layers.0.blocks.0.norm2.weight", "encoder_layers.0.blocks.0.norm2.bias", "encoder_layers.0.blocks.0.mlp.fc1.weight", "encoder_layers.0.blocks.0.mlp.fc1.bias", "encoder_layers.0.blocks.0.mlp.fc2.weight", "encoder_layers.0.blocks.0.mlp.fc2.bias", "encoder_layers.0.downsample.reduction.weight", "encoder_layers.0.downsample.norm.weight", "encoder_layers.0.downsample.norm.bias", "encoder_layers.1.blocks.0.norm1.weight", "encoder_layers.1.blocks.0.norm1.bias", "encoder_layers.1.blocks.0.attn.relative_position_bias_table", "encoder_layers.1.blocks.0.attn.relative_position_index", "encoder_layers.1.blocks.0.attn.qkv.weight", "encoder_layers.1.blocks.0.attn.qkv.bias", "encoder_layers.1.blocks.0.attn.proj.weight", "encoder_layers.1.blocks.0.attn.proj.bias", "encoder_layers.1.blocks.0.norm2.weight", "encoder_layers.1.blocks.0.norm2.bias", "encoder_layers.1.blocks.0.mlp.fc1.weight", "encoder_layers.1.blocks.0.mlp.fc1.bias", "encoder_layers.1.blocks.0.mlp.fc2.weight", "encoder_layers.1.blocks.0.mlp.fc2.bias", "encoder_layers.1.downsample.reduction.weight", "encoder_layers.1.downsample.norm.weight", "encoder_layers.1.downsample.norm.bias", "encoder_layers.2.blocks.0.norm1.weight", "encoder_layers.2.blocks.0.norm1.bias", "encoder_layers.2.blocks.0.attn.relative_position_bias_table", "encoder_layers.2.blocks.0.attn.relative_position_index", "encoder_layers.2.blocks.0.attn.qkv.weight", "encoder_layers.2.blocks.0.attn.qkv.bias", "encoder_layers.2.blocks.0.attn.proj.weight", "encoder_layers.2.blocks.0.attn.proj.bias", "encoder_layers.2.blocks.0.norm2.weight", "encoder_layers.2.blocks.0.norm2.bias", "encoder_layers.2.blocks.0.mlp.fc1.weight", "encoder_layers.2.blocks.0.mlp.fc1.bias", "encoder_layers.2.blocks.0.mlp.fc2.weight", "encoder_layers.2.blocks.0.mlp.fc2.bias", "encoder_layers.2.blocks.1.attn_mask", "encoder_layers.2.blocks.1.norm1.weight", "encoder_layers.2.blocks.1.norm1.bias", "encoder_layers.2.blocks.1.attn.relative_position_bias_table", "encoder_layers.2.blocks.1.attn.relative_position_index", "encoder_layers.2.blocks.1.attn.qkv.weight", "encoder_layers.2.blocks.1.attn.qkv.bias", "encoder_layers.2.blocks.1.attn.proj.weight", "encoder_layers.2.blocks.1.attn.proj.bias", "encoder_layers.2.blocks.1.norm2.weight", "encoder_layers.2.blocks.1.norm2.bias", "encoder_layers.2.blocks.1.mlp.fc1.weight", "encoder_layers.2.blocks.1.mlp.fc1.bias", "encoder_layers.2.blocks.1.mlp.fc2.weight", "encoder_layers.2.blocks.1.mlp.fc2.bias", "encoder_layers.2.downsample.reduction.weight", "encoder_layers.2.downsample.norm.weight", "encoder_layers.2.downsample.norm.bias", "encoder_layers.3.blocks.0.norm1.weight", "encoder_layers.3.blocks.0.norm1.bias", "encoder_layers.3.blocks.0.attn.relative_position_bias_table", "encoder_layers.3.blocks.0.attn.relative_position_index", "encoder_layers.3.blocks.0.attn.qkv.weight", "encoder_layers.3.blocks.0.attn.qkv.bias", "encoder_layers.3.blocks.0.attn.proj.weight", "encoder_layers.3.blocks.0.attn.proj.bias", "encoder_layers.3.blocks.0.norm2.weight", "encoder_layers.3.blocks.0.norm2.bias", "encoder_layers.3.blocks.0.mlp.fc1.weight", "encoder_layers.3.blocks.0.mlp.fc1.bias", "encoder_layers.3.blocks.0.mlp.fc2.weight", "encoder_layers.3.blocks.0.mlp.fc2.bias", "norm.weight", "norm.bias", "decoder.decoder_layers.0.swin.blocks.0.norm1.weight", "decoder.decoder_layers.0.swin.blocks.0.norm1.bias", "decoder.decoder_layers.0.swin.blocks.0.attn.relative_position_bias_table", "decoder.decoder_layers.0.swin.blocks.0.attn.relative_position_index", "decoder.decoder_layers.0.swin.blocks.0.attn.qkv.weight", "decoder.decoder_layers.0.swin.blocks.0.attn.qkv.bias", "decoder.decoder_layers.0.swin.blocks.0.attn.proj.weight", "decoder.decoder_layers.0.swin.blocks.0.attn.proj.bias", "decoder.decoder_layers.0.swin.blocks.0.norm2.weight", "decoder.decoder_layers.0.swin.blocks.0.norm2.bias", "decoder.decoder_layers.0.swin.blocks.0.mlp.fc1.weight", "decoder.decoder_layers.0.swin.blocks.0.mlp.fc1.bias", "decoder.decoder_layers.0.swin.blocks.0.mlp.fc2.weight", "decoder.decoder_layers.0.swin.blocks.0.mlp.fc2.bias", "decoder.decoder_layers.0.expand.expand.weight", "decoder.decoder_layers.0.expand.norm.weight", "decoder.decoder_layers.0.expand.norm.bias", "decoder.decoder_layers.1.swin.blocks.0.norm1.weight", "decoder.decoder_layers.1.swin.blocks.0.norm1.bias", "decoder.decoder_layers.1.swin.blocks.0.attn.relative_position_bias_table", "decoder.decoder_layers.1.swin.blocks.0.attn.relative_position_index", "decoder.decoder_layers.1.swin.blocks.0.attn.qkv.weight", "decoder.decoder_layers.1.swin.blocks.0.attn.qkv.bias", "decoder.decoder_layers.1.swin.blocks.0.attn.proj.weight", "decoder.decoder_layers.1.swin.blocks.0.attn.proj.bias", "decoder.decoder_layers.1.swin.blocks.0.norm2.weight", "decoder.decoder_layers.1.swin.blocks.0.norm2.bias", "decoder.decoder_layers.1.swin.blocks.0.mlp.fc1.weight", "decoder.decoder_layers.1.swin.blocks.0.mlp.fc1.bias", "decoder.decoder_layers.1.swin.blocks.0.mlp.fc2.weight", "decoder.decoder_layers.1.swin.blocks.0.mlp.fc2.bias", "decoder.decoder_layers.1.swin.blocks.1.attn_mask", "decoder.decoder_layers.1.swin.blocks.1.norm1.weight", "decoder.decoder_layers.1.swin.blocks.1.norm1.bias", "decoder.decoder_layers.1.swin.blocks.1.attn.relative_position_bias_table", "decoder.decoder_layers.1.swin.blocks.1.attn.relative_position_index", "decoder.decoder_layers.1.swin.blocks.1.attn.qkv.weight", "decoder.decoder_layers.1.swin.blocks.1.attn.qkv.bias", "decoder.decoder_layers.1.swin.blocks.1.attn.proj.weight", "decoder.decoder_layers.1.swin.blocks.1.attn.proj.bias", "decoder.decoder_layers.1.swin.blocks.1.norm2.weight", "decoder.decoder_layers.1.swin.blocks.1.norm2.bias", "decoder.decoder_layers.1.swin.blocks.1.mlp.fc1.weight", "decoder.decoder_layers.1.swin.blocks.1.mlp.fc1.bias", "decoder.decoder_layers.1.swin.blocks.1.mlp.fc2.weight", "decoder.decoder_layers.1.swin.blocks.1.mlp.fc2.bias", "decoder.decoder_layers.1.fuse.0.weight", "decoder.decoder_layers.1.fuse.1.weight", "decoder.decoder_layers.1.fuse.1.bias", "decoder.decoder_layers.1.expand.expand.weight", "decoder.decoder_layers.1.expand.norm.weight", "decoder.decoder_layers.1.expand.norm.bias", "decoder.decoder_layers.2.swin.blocks.0.norm1.weight", "decoder.decoder_layers.2.swin.blocks.0.norm1.bias", "decoder.decoder_layers.2.swin.blocks.0.attn.relative_position_bias_table", "decoder.decoder_layers.2.swin.blocks.0.attn.relative_position_index", "decoder.decoder_layers.2.swin.blocks.0.attn.qkv.weight", "decoder.decoder_layers.2.swin.blocks.0.attn.qkv.bias", "decoder.decoder_layers.2.swin.blocks.0.attn.proj.weight", "decoder.decoder_layers.2.swin.blocks.0.attn.proj.bias", "decoder.decoder_layers.2.swin.blocks.0.norm2.weight", "decoder.decoder_layers.2.swin.blocks.0.norm2.bias", "decoder.decoder_layers.2.swin.blocks.0.mlp.fc1.weight", "decoder.decoder_layers.2.swin.blocks.0.mlp.fc1.bias", "decoder.decoder_layers.2.swin.blocks.0.mlp.fc2.weight", "decoder.decoder_layers.2.swin.blocks.0.mlp.fc2.bias", "decoder.decoder_layers.2.fuse.0.weight", "decoder.decoder_layers.2.fuse.1.weight", "decoder.decoder_layers.2.fuse.1.bias", "decoder.decoder_layers.2.expand.expand.weight", "decoder.decoder_layers.2.expand.norm.weight", "decoder.decoder_layers.2.expand.norm.bias", "decoder.decoder_layers.3.swin.blocks.0.norm1.weight", "decoder.decoder_layers.3.swin.blocks.0.norm1.bias", "decoder.decoder_layers.3.swin.blocks.0.attn.relative_position_bias_table", "decoder.decoder_layers.3.swin.blocks.0.attn.relative_position_index", "decoder.decoder_layers.3.swin.blocks.0.attn.qkv.weight", "decoder.decoder_layers.3.swin.blocks.0.attn.qkv.bias", "decoder.decoder_layers.3.swin.blocks.0.attn.proj.weight", "decoder.decoder_layers.3.swin.blocks.0.attn.proj.bias", "decoder.decoder_layers.3.swin.blocks.0.norm2.weight", "decoder.decoder_layers.3.swin.blocks.0.norm2.bias", "decoder.decoder_layers.3.swin.blocks.0.mlp.fc1.weight", "decoder.decoder_layers.3.swin.blocks.0.mlp.fc1.bias", "decoder.decoder_layers.3.swin.blocks.0.mlp.fc2.weight", "decoder.decoder_layers.3.swin.blocks.0.mlp.fc2.bias", "decoder.decoder_layers.3.fuse.0.weight", "decoder.decoder_layers.3.fuse.1.weight", "decoder.decoder_layers.3.fuse.1.bias", "final_conv.weight", "final_conv.bias". 
+2025-11-12 19:37:00 - RealDataARTrainer - INFO - 尝试非严格模式加载...
+2025-11-12 19:37:00,764 - INFO - 尝试非严格模式加载...
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: absolute_pos_embed
+2025-11-12 19:37:00,765 - WARNING - 跳过不存在的参数: absolute_pos_embed
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: patch_embed.proj.weight
+2025-11-12 19:37:00,765 - WARNING - 跳过不存在的参数: patch_embed.proj.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: patch_embed.proj.bias
+2025-11-12 19:37:00,765 - WARNING - 跳过不存在的参数: patch_embed.proj.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: patch_embed.norm.weight
+2025-11-12 19:37:00,765 - WARNING - 跳过不存在的参数: patch_embed.norm.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: patch_embed.norm.bias
+2025-11-12 19:37:00,765 - WARNING - 跳过不存在的参数: patch_embed.norm.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.0.blocks.0.norm1.weight
+2025-11-12 19:37:00,765 - WARNING - 跳过不存在的参数: encoder_layers.0.blocks.0.norm1.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.0.blocks.0.norm1.bias
+2025-11-12 19:37:00,765 - WARNING - 跳过不存在的参数: encoder_layers.0.blocks.0.norm1.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.0.blocks.0.attn.relative_position_bias_table
+2025-11-12 19:37:00,765 - WARNING - 跳过不存在的参数: encoder_layers.0.blocks.0.attn.relative_position_bias_table
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.0.blocks.0.attn.relative_position_index
+2025-11-12 19:37:00,765 - WARNING - 跳过不存在的参数: encoder_layers.0.blocks.0.attn.relative_position_index
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.0.blocks.0.attn.qkv.weight
+2025-11-12 19:37:00,765 - WARNING - 跳过不存在的参数: encoder_layers.0.blocks.0.attn.qkv.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.0.blocks.0.attn.qkv.bias
+2025-11-12 19:37:00,765 - WARNING - 跳过不存在的参数: encoder_layers.0.blocks.0.attn.qkv.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.0.blocks.0.attn.proj.weight
+2025-11-12 19:37:00,765 - WARNING - 跳过不存在的参数: encoder_layers.0.blocks.0.attn.proj.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.0.blocks.0.attn.proj.bias
+2025-11-12 19:37:00,765 - WARNING - 跳过不存在的参数: encoder_layers.0.blocks.0.attn.proj.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.0.blocks.0.norm2.weight
+2025-11-12 19:37:00,765 - WARNING - 跳过不存在的参数: encoder_layers.0.blocks.0.norm2.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.0.blocks.0.norm2.bias
+2025-11-12 19:37:00,765 - WARNING - 跳过不存在的参数: encoder_layers.0.blocks.0.norm2.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.0.blocks.0.mlp.fc1.weight
+2025-11-12 19:37:00,765 - WARNING - 跳过不存在的参数: encoder_layers.0.blocks.0.mlp.fc1.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.0.blocks.0.mlp.fc1.bias
+2025-11-12 19:37:00,765 - WARNING - 跳过不存在的参数: encoder_layers.0.blocks.0.mlp.fc1.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.0.blocks.0.mlp.fc2.weight
+2025-11-12 19:37:00,765 - WARNING - 跳过不存在的参数: encoder_layers.0.blocks.0.mlp.fc2.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.0.blocks.0.mlp.fc2.bias
+2025-11-12 19:37:00,765 - WARNING - 跳过不存在的参数: encoder_layers.0.blocks.0.mlp.fc2.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.0.downsample.reduction.weight
+2025-11-12 19:37:00,765 - WARNING - 跳过不存在的参数: encoder_layers.0.downsample.reduction.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.0.downsample.norm.weight
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.0.downsample.norm.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.0.downsample.norm.bias
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.0.downsample.norm.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.1.blocks.0.norm1.weight
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.1.blocks.0.norm1.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.1.blocks.0.norm1.bias
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.1.blocks.0.norm1.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.1.blocks.0.attn.relative_position_bias_table
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.1.blocks.0.attn.relative_position_bias_table
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.1.blocks.0.attn.relative_position_index
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.1.blocks.0.attn.relative_position_index
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.1.blocks.0.attn.qkv.weight
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.1.blocks.0.attn.qkv.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.1.blocks.0.attn.qkv.bias
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.1.blocks.0.attn.qkv.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.1.blocks.0.attn.proj.weight
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.1.blocks.0.attn.proj.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.1.blocks.0.attn.proj.bias
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.1.blocks.0.attn.proj.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.1.blocks.0.norm2.weight
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.1.blocks.0.norm2.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.1.blocks.0.norm2.bias
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.1.blocks.0.norm2.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.1.blocks.0.mlp.fc1.weight
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.1.blocks.0.mlp.fc1.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.1.blocks.0.mlp.fc1.bias
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.1.blocks.0.mlp.fc1.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.1.blocks.0.mlp.fc2.weight
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.1.blocks.0.mlp.fc2.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.1.blocks.0.mlp.fc2.bias
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.1.blocks.0.mlp.fc2.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.1.downsample.reduction.weight
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.1.downsample.reduction.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.1.downsample.norm.weight
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.1.downsample.norm.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.1.downsample.norm.bias
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.1.downsample.norm.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.0.norm1.weight
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.0.norm1.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.0.norm1.bias
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.0.norm1.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.0.attn.relative_position_bias_table
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.0.attn.relative_position_bias_table
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.0.attn.relative_position_index
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.0.attn.relative_position_index
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.0.attn.qkv.weight
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.0.attn.qkv.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.0.attn.qkv.bias
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.0.attn.qkv.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.0.attn.proj.weight
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.0.attn.proj.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.0.attn.proj.bias
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.0.attn.proj.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.0.norm2.weight
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.0.norm2.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.0.norm2.bias
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.0.norm2.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.0.mlp.fc1.weight
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.0.mlp.fc1.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.0.mlp.fc1.bias
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.0.mlp.fc1.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.0.mlp.fc2.weight
+2025-11-12 19:37:00,766 - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.0.mlp.fc2.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.0.mlp.fc2.bias
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.0.mlp.fc2.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.attn_mask
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.attn_mask
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.norm1.weight
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.norm1.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.norm1.bias
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.norm1.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.attn.relative_position_bias_table
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.attn.relative_position_bias_table
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.attn.relative_position_index
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.attn.relative_position_index
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.attn.qkv.weight
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.attn.qkv.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.attn.qkv.bias
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.attn.qkv.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.attn.proj.weight
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.attn.proj.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.attn.proj.bias
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.attn.proj.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.norm2.weight
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.norm2.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.norm2.bias
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.norm2.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.mlp.fc1.weight
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.mlp.fc1.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.mlp.fc1.bias
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.mlp.fc1.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.mlp.fc2.weight
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.mlp.fc2.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.mlp.fc2.bias
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.2.blocks.1.mlp.fc2.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.downsample.reduction.weight
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.2.downsample.reduction.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.downsample.norm.weight
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.2.downsample.norm.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.2.downsample.norm.bias
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.2.downsample.norm.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.3.blocks.0.norm1.weight
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.3.blocks.0.norm1.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.3.blocks.0.norm1.bias
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.3.blocks.0.norm1.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.3.blocks.0.attn.relative_position_bias_table
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.3.blocks.0.attn.relative_position_bias_table
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.3.blocks.0.attn.relative_position_index
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.3.blocks.0.attn.relative_position_index
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.3.blocks.0.attn.qkv.weight
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.3.blocks.0.attn.qkv.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.3.blocks.0.attn.qkv.bias
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.3.blocks.0.attn.qkv.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.3.blocks.0.attn.proj.weight
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.3.blocks.0.attn.proj.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.3.blocks.0.attn.proj.bias
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.3.blocks.0.attn.proj.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.3.blocks.0.norm2.weight
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.3.blocks.0.norm2.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.3.blocks.0.norm2.bias
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.3.blocks.0.norm2.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.3.blocks.0.mlp.fc1.weight
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.3.blocks.0.mlp.fc1.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.3.blocks.0.mlp.fc1.bias
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.3.blocks.0.mlp.fc1.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.3.blocks.0.mlp.fc2.weight
+2025-11-12 19:37:00,767 - WARNING - 跳过不存在的参数: encoder_layers.3.blocks.0.mlp.fc2.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: encoder_layers.3.blocks.0.mlp.fc2.bias
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: encoder_layers.3.blocks.0.mlp.fc2.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: norm.weight
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: norm.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: norm.bias
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: norm.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.swin.blocks.0.norm1.weight
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.swin.blocks.0.norm1.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.swin.blocks.0.norm1.bias
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.swin.blocks.0.norm1.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.swin.blocks.0.attn.relative_position_bias_table
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.swin.blocks.0.attn.relative_position_bias_table
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.swin.blocks.0.attn.relative_position_index
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.swin.blocks.0.attn.relative_position_index
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.swin.blocks.0.attn.qkv.weight
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.swin.blocks.0.attn.qkv.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.swin.blocks.0.attn.qkv.bias
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.swin.blocks.0.attn.qkv.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.swin.blocks.0.attn.proj.weight
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.swin.blocks.0.attn.proj.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.swin.blocks.0.attn.proj.bias
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.swin.blocks.0.attn.proj.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.swin.blocks.0.norm2.weight
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.swin.blocks.0.norm2.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.swin.blocks.0.norm2.bias
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.swin.blocks.0.norm2.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.swin.blocks.0.mlp.fc1.weight
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.swin.blocks.0.mlp.fc1.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.swin.blocks.0.mlp.fc1.bias
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.swin.blocks.0.mlp.fc1.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.swin.blocks.0.mlp.fc2.weight
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.swin.blocks.0.mlp.fc2.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.swin.blocks.0.mlp.fc2.bias
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.swin.blocks.0.mlp.fc2.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.expand.expand.weight
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.expand.expand.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.expand.norm.weight
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.expand.norm.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.expand.norm.bias
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: decoder.decoder_layers.0.expand.norm.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.0.norm1.weight
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.0.norm1.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.0.norm1.bias
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.0.norm1.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.0.attn.relative_position_bias_table
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.0.attn.relative_position_bias_table
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.0.attn.relative_position_index
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.0.attn.relative_position_index
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.0.attn.qkv.weight
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.0.attn.qkv.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.0.attn.qkv.bias
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.0.attn.qkv.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.0.attn.proj.weight
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.0.attn.proj.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.0.attn.proj.bias
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.0.attn.proj.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.0.norm2.weight
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.0.norm2.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.0.norm2.bias
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.0.norm2.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.0.mlp.fc1.weight
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.0.mlp.fc1.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.0.mlp.fc1.bias
+2025-11-12 19:37:00,768 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.0.mlp.fc1.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.0.mlp.fc2.weight
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.0.mlp.fc2.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.0.mlp.fc2.bias
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.0.mlp.fc2.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.attn_mask
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.attn_mask
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.norm1.weight
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.norm1.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.norm1.bias
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.norm1.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.attn.relative_position_bias_table
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.attn.relative_position_bias_table
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.attn.relative_position_index
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.attn.relative_position_index
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.attn.qkv.weight
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.attn.qkv.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.attn.qkv.bias
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.attn.qkv.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.attn.proj.weight
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.attn.proj.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.attn.proj.bias
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.attn.proj.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.norm2.weight
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.norm2.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.norm2.bias
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.norm2.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.mlp.fc1.weight
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.mlp.fc1.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.mlp.fc1.bias
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.mlp.fc1.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.mlp.fc2.weight
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.mlp.fc2.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.mlp.fc2.bias
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.swin.blocks.1.mlp.fc2.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.fuse.0.weight
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.fuse.0.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.fuse.1.weight
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.fuse.1.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.fuse.1.bias
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.fuse.1.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.expand.expand.weight
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.expand.expand.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.expand.norm.weight
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.expand.norm.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.expand.norm.bias
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.1.expand.norm.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.swin.blocks.0.norm1.weight
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.swin.blocks.0.norm1.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.swin.blocks.0.norm1.bias
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.swin.blocks.0.norm1.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.swin.blocks.0.attn.relative_position_bias_table
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.swin.blocks.0.attn.relative_position_bias_table
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.swin.blocks.0.attn.relative_position_index
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.swin.blocks.0.attn.relative_position_index
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.swin.blocks.0.attn.qkv.weight
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.swin.blocks.0.attn.qkv.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.swin.blocks.0.attn.qkv.bias
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.swin.blocks.0.attn.qkv.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.swin.blocks.0.attn.proj.weight
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.swin.blocks.0.attn.proj.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.swin.blocks.0.attn.proj.bias
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.swin.blocks.0.attn.proj.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.swin.blocks.0.norm2.weight
+2025-11-12 19:37:00,769 - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.swin.blocks.0.norm2.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.swin.blocks.0.norm2.bias
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.swin.blocks.0.norm2.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.swin.blocks.0.mlp.fc1.weight
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.swin.blocks.0.mlp.fc1.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.swin.blocks.0.mlp.fc1.bias
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.swin.blocks.0.mlp.fc1.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.swin.blocks.0.mlp.fc2.weight
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.swin.blocks.0.mlp.fc2.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.swin.blocks.0.mlp.fc2.bias
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.swin.blocks.0.mlp.fc2.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.fuse.0.weight
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.fuse.0.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.fuse.1.weight
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.fuse.1.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.fuse.1.bias
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.fuse.1.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.expand.expand.weight
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.expand.expand.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.expand.norm.weight
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.expand.norm.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.expand.norm.bias
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: decoder.decoder_layers.2.expand.norm.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.swin.blocks.0.norm1.weight
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.swin.blocks.0.norm1.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.swin.blocks.0.norm1.bias
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.swin.blocks.0.norm1.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.swin.blocks.0.attn.relative_position_bias_table
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.swin.blocks.0.attn.relative_position_bias_table
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.swin.blocks.0.attn.relative_position_index
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.swin.blocks.0.attn.relative_position_index
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.swin.blocks.0.attn.qkv.weight
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.swin.blocks.0.attn.qkv.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.swin.blocks.0.attn.qkv.bias
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.swin.blocks.0.attn.qkv.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.swin.blocks.0.attn.proj.weight
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.swin.blocks.0.attn.proj.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.swin.blocks.0.attn.proj.bias
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.swin.blocks.0.attn.proj.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.swin.blocks.0.norm2.weight
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.swin.blocks.0.norm2.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.swin.blocks.0.norm2.bias
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.swin.blocks.0.norm2.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.swin.blocks.0.mlp.fc1.weight
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.swin.blocks.0.mlp.fc1.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.swin.blocks.0.mlp.fc1.bias
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.swin.blocks.0.mlp.fc1.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.swin.blocks.0.mlp.fc2.weight
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.swin.blocks.0.mlp.fc2.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.swin.blocks.0.mlp.fc2.bias
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.swin.blocks.0.mlp.fc2.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.fuse.0.weight
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.fuse.0.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.fuse.1.weight
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.fuse.1.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.fuse.1.bias
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: decoder.decoder_layers.3.fuse.1.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: final_conv.weight
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: final_conv.weight
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 跳过不存在的参数: final_conv.bias
+2025-11-12 19:37:00,770 - WARNING - 跳过不存在的参数: final_conv.bias
+2025-11-12 19:37:00 - RealDataARTrainer - WARNING - 以下参数将使用随机初始化: {'_orig_mod.decoder.decoder_layers.1.swin.blocks.1.norm1.bias', '_orig_mod.decoder.decoder_layers.2.swin.blocks.0.attn.qkv.weight', '_orig_mod.decoder.decoder_layers.1.swin.blocks.0.mlp.fc2.bias', '_orig_mod.decoder.decoder_layers.3.fuse.1.weight', '_orig_mod.encoder_layers.3.blocks.0.attn.qkv.weight', '_orig_mod.encoder_layers.1.downsample.norm.bias', '_orig_mod.encoder_layers.3.blocks.0.norm1.weight', '_orig_mod.decoder.decoder_layers.3.swin.blocks.0.norm2.bias', '_orig_mod.encoder_layers.0.downsample.reduction.weight', '_orig_mod.encoder_layers.0.blocks.0.norm2.weight', '_orig_mod.decoder.decoder_layers.1.fuse.0.weight', '_orig_mod.encoder_layers.1.blocks.0.attn.proj.weight', '_orig_mod.encoder_layers.2.blocks.1.norm2.bias', '_orig_mod.decoder.decoder_layers.1.fuse.1.bias', '_orig_mod.decoder.decoder_layers.0.swin.blocks.0.norm2.bias', '_orig_mod.encoder_layers.2.blocks.1.attn_mask', '_orig_mod.norm.weight', '_orig_mod.encoder_layers.2.blocks.0.norm1.bias', '_orig_mod.encoder_layers.2.blocks.1.attn.qkv.weight', '_orig_mod.encoder_layers.2.blocks.0.mlp.fc2.weight', '_orig_mod.decoder.decoder_layers.0.expand.norm.weight', '_orig_mod.decoder.decoder_layers.2.swin.blocks.0.mlp.fc2.bias', '_orig_mod.decoder.decoder_layers.1.swin.blocks.1.attn.proj.weight', '_orig_mod.decoder.decoder_layers.1.expand.norm.bias', '_orig_mod.decoder.decoder_layers.3.swin.blocks.0.mlp.fc2.bias', '_orig_mod.decoder.decoder_layers.1.expand.expand.weight', '_orig_mod.decoder.decoder_layers.2.swin.blocks.0.attn.proj.bias', '_orig_mod.decoder.decoder_layers.1.swin.blocks.0.attn.qkv.bias', '_orig_mod.decoder.decoder_layers.0.swin.blocks.0.mlp.fc2.bias', '_orig_mod.encoder_layers.0.blocks.0.mlp.fc1.weight', '_orig_mod.decoder.decoder_layers.1.swin.blocks.0.norm1.bias', '_orig_mod.encoder_layers.0.downsample.norm.weight', '_orig_mod.encoder_layers.1.downsample.reduction.weight', '_orig_mod.encoder_layers.2.blocks.1.mlp.fc2.bias', '_orig_mod.encoder_layers.0.blocks.0.mlp.fc2.bias', '_orig_mod.encoder_layers.3.blocks.0.mlp.fc2.weight', '_orig_mod.encoder_layers.1.blocks.0.mlp.fc2.weight', '_orig_mod.decoder.decoder_layers.3.swin.blocks.0.attn.proj.bias', '_orig_mod.encoder_layers.1.blocks.0.mlp.fc1.bias', '_orig_mod.decoder.decoder_layers.2.expand.expand.weight', '_orig_mod.encoder_layers.0.blocks.0.attn.proj.weight', '_orig_mod.encoder_layers.2.blocks.1.attn.proj.bias', '_orig_mod.encoder_layers.2.blocks.0.mlp.fc1.weight', '_orig_mod.decoder.decoder_layers.1.swin.blocks.0.mlp.fc1.bias', '_orig_mod.encoder_layers.2.blocks.1.attn.proj.weight', '_orig_mod.encoder_layers.2.blocks.1.mlp.fc2.weight', '_orig_mod.encoder_layers.2.blocks.1.norm2.weight', '_orig_mod.decoder.decoder_layers.1.swin.blocks.0.norm2.weight', '_orig_mod.encoder_layers.3.blocks.0.norm2.bias', '_orig_mod.decoder.decoder_layers.0.swin.blocks.0.norm2.weight', '_orig_mod.absolute_pos_embed', '_orig_mod.encoder_layers.0.blocks.0.norm1.bias', '_orig_mod.decoder.decoder_layers.1.swin.blocks.0.attn.relative_position_bias_table', '_orig_mod.norm.bias', '_orig_mod.encoder_layers.1.blocks.0.norm2.weight', '_orig_mod.encoder_layers.2.blocks.1.norm1.weight', '_orig_mod.decoder.decoder_layers.3.fuse.1.bias', '_orig_mod.encoder_layers.2.blocks.1.norm1.bias', '_orig_mod.encoder_layers.1.blocks.0.attn.qkv.weight', '_orig_mod.encoder_layers.0.blocks.0.attn.relative_position_index', '_orig_mod.decoder.decoder_layers.1.swin.blocks.1.attn.proj.bias', '_orig_mod.patch_embed.norm.bias', '_orig_mod.decoder.decoder_layers.2.swin.blocks.0.attn.relative_position_index', '_orig_mod.encoder_layers.2.downsample.norm.bias', '_orig_mod.encoder_layers.1.blocks.0.norm1.weight', '_orig_mod.decoder.decoder_layers.1.swin.blocks.1.mlp.fc1.bias', '_orig_mod.patch_embed.proj.weight', '_orig_mod.decoder.decoder_layers.2.swin.blocks.0.mlp.fc2.weight', '_orig_mod.encoder_layers.3.blocks.0.norm2.weight', '_orig_mod.decoder.decoder_layers.1.swin.blocks.1.mlp.fc2.weight', '_orig_mod.decoder.decoder_layers.0.swin.blocks.0.norm1.bias', '_orig_mod.decoder.decoder_layers.2.swin.blocks.0.norm2.bias', '_orig_mod.encoder_layers.3.blocks.0.mlp.fc1.bias', '_orig_mod.encoder_layers.1.blocks.0.mlp.fc1.weight', '_orig_mod.decoder.decoder_layers.3.swin.blocks.0.mlp.fc1.bias', '_orig_mod.final_conv.bias', '_orig_mod.decoder.decoder_layers.1.swin.blocks.1.norm2.bias', '_orig_mod.encoder_layers.0.blocks.0.mlp.fc2.weight', '_orig_mod.encoder_layers.1.blocks.0.attn.qkv.bias', '_orig_mod.encoder_layers.1.blocks.0.norm2.bias', '_orig_mod.decoder.decoder_layers.1.swin.blocks.1.norm1.weight', '_orig_mod.decoder.decoder_layers.0.swin.blocks.0.attn.proj.bias', '_orig_mod.decoder.decoder_layers.1.swin.blocks.1.mlp.fc2.bias', '_orig_mod.decoder.decoder_layers.2.fuse.0.weight', '_orig_mod.decoder.decoder_layers.2.fuse.1.bias', '_orig_mod.encoder_layers.0.blocks.0.norm2.bias', '_orig_mod.decoder.decoder_layers.3.swin.blocks.0.mlp.fc2.weight', '_orig_mod.encoder_layers.2.blocks.0.attn.relative_position_bias_table', '_orig_mod.encoder_layers.3.blocks.0.mlp.fc2.bias', '_orig_mod.decoder.decoder_layers.2.expand.norm.weight', '_orig_mod.encoder_layers.2.blocks.0.attn.relative_position_index', '_orig_mod.decoder.decoder_layers.1.swin.blocks.0.attn.proj.bias', '_orig_mod.encoder_layers.2.blocks.1.attn.relative_position_bias_table', '_orig_mod.decoder.decoder_layers.1.swin.blocks.0.norm1.weight', '_orig_mod.decoder.decoder_layers.3.swin.blocks.0.attn.relative_position_index', '_orig_mod.encoder_layers.1.downsample.norm.weight', '_orig_mod.encoder_layers.2.blocks.1.mlp.fc1.weight', '_orig_mod.encoder_layers.2.blocks.1.attn.qkv.bias', '_orig_mod.decoder.decoder_layers.1.swin.blocks.0.attn.proj.weight', '_orig_mod.decoder.decoder_layers.0.swin.blocks.0.attn.relative_position_index', '_orig_mod.encoder_layers.2.blocks.0.attn.proj.bias', '_orig_mod.decoder.decoder_layers.2.swin.blocks.0.norm2.weight', '_orig_mod.decoder.decoder_layers.2.swin.blocks.0.attn.proj.weight', '_orig_mod.decoder.decoder_layers.1.swin.blocks.1.norm2.weight', '_orig_mod.decoder.decoder_layers.3.swin.blocks.0.mlp.fc1.weight', '_orig_mod.decoder.decoder_layers.0.swin.blocks.0.attn.qkv.bias', '_orig_mod.encoder_layers.0.blocks.0.attn.relative_position_bias_table', '_orig_mod.decoder.decoder_layers.1.swin.blocks.1.attn.qkv.bias', '_orig_mod.decoder.decoder_layers.1.swin.blocks.1.attn.relative_position_index', '_orig_mod.decoder.decoder_layers.3.swin.blocks.0.norm2.weight', '_orig_mod.decoder.decoder_layers.3.swin.blocks.0.attn.qkv.weight', '_orig_mod.encoder_layers.3.blocks.0.attn.proj.weight', '_orig_mod.encoder_layers.1.blocks.0.norm1.bias', '_orig_mod.decoder.decoder_layers.2.swin.blocks.0.attn.relative_position_bias_table', '_orig_mod.decoder.decoder_layers.3.swin.blocks.0.attn.relative_position_bias_table', '_orig_mod.decoder.decoder_layers.3.swin.blocks.0.norm1.weight', '_orig_mod.decoder.decoder_layers.1.swin.blocks.1.attn.qkv.weight', '_orig_mod.encoder_layers.0.downsample.norm.bias', '_orig_mod.decoder.decoder_layers.0.swin.blocks.0.mlp.fc1.weight', '_orig_mod.encoder_layers.1.blocks.0.attn.proj.bias', '_orig_mod.decoder.decoder_layers.1.swin.blocks.1.attn_mask', '_orig_mod.decoder.decoder_layers.0.swin.blocks.0.norm1.weight', '_orig_mod.decoder.decoder_layers.2.expand.norm.bias', '_orig_mod.patch_embed.proj.bias', '_orig_mod.encoder_layers.0.blocks.0.attn.proj.bias', '_orig_mod.encoder_layers.0.blocks.0.attn.qkv.bias', '_orig_mod.encoder_layers.3.blocks.0.attn.qkv.bias', '_orig_mod.decoder.decoder_layers.1.swin.blocks.0.norm2.bias', '_orig_mod.encoder_layers.3.blocks.0.attn.proj.bias', '_orig_mod.encoder_layers.2.blocks.0.norm2.weight', '_orig_mod.encoder_layers.3.blocks.0.mlp.fc1.weight', '_orig_mod.decoder.decoder_layers.0.expand.expand.weight', '_orig_mod.decoder.decoder_layers.0.swin.blocks.0.attn.relative_position_bias_table', '_orig_mod.decoder.decoder_layers.1.fuse.1.weight', '_orig_mod.encoder_layers.2.blocks.0.attn.qkv.bias', '_orig_mod.encoder_layers.2.blocks.1.mlp.fc1.bias', '_orig_mod.encoder_layers.2.blocks.1.attn.relative_position_index', '_orig_mod.patch_embed.norm.weight', '_orig_mod.encoder_layers.3.blocks.0.norm1.bias', '_orig_mod.decoder.decoder_layers.0.swin.blocks.0.attn.proj.weight', '_orig_mod.decoder.decoder_layers.3.fuse.0.weight', '_orig_mod.decoder.decoder_layers.2.swin.blocks.0.mlp.fc1.bias', '_orig_mod.encoder_layers.1.blocks.0.mlp.fc2.bias', '_orig_mod.encoder_layers.0.blocks.0.norm1.weight', '_orig_mod.encoder_layers.2.downsample.norm.weight', '_orig_mod.encoder_layers.2.blocks.0.mlp.fc1.bias', '_orig_mod.decoder.decoder_layers.0.swin.blocks.0.attn.qkv.weight', '_orig_mod.decoder.decoder_layers.2.swin.blocks.0.mlp.fc1.weight', '_orig_mod.decoder.decoder_layers.2.swin.blocks.0.norm1.bias', '_orig_mod.encoder_layers.1.blocks.0.attn.relative_position_index', '_orig_mod.decoder.decoder_layers.0.swin.blocks.0.mlp.fc2.weight', '_orig_mod.encoder_layers.3.blocks.0.attn.relative_position_index', '_orig_mod.encoder_layers.2.blocks.0.attn.proj.weight', '_orig_mod.decoder.decoder_layers.1.swin.blocks.1.mlp.fc1.weight', '_orig_mod.decoder.decoder_layers.1.expand.norm.weight', '_orig_mod.decoder.decoder_layers.2.swin.blocks.0.norm1.weight', '_orig_mod.encoder_layers.1.blocks.0.attn.relative_position_bias_table', '_orig_mod.encoder_layers.0.blocks.0.mlp.fc1.bias', '_orig_mod.encoder_layers.2.downsample.reduction.weight', '_orig_mod.decoder.decoder_layers.1.swin.blocks.0.mlp.fc1.weight', '_orig_mod.decoder.decoder_layers.1.swin.blocks.0.mlp.fc2.weight', '_orig_mod.decoder.decoder_layers.3.swin.blocks.0.attn.qkv.bias', '_orig_mod.decoder.decoder_layers.1.swin.blocks.0.attn.qkv.weight', '_orig_mod.encoder_layers.2.blocks.0.attn.qkv.weight', '_orig_mod.decoder.decoder_layers.0.swin.blocks.0.mlp.fc1.bias', '_orig_mod.encoder_layers.2.blocks.0.mlp.fc2.bias', '_orig_mod.final_conv.weight', '_orig_mod.decoder.decoder_layers.0.expand.norm.bias', '_orig_mod.decoder.decoder_layers.3.swin.blocks.0.attn.proj.weight', '_orig_mod.encoder_layers.0.blocks.0.attn.qkv.weight', '_orig_mod.decoder.decoder_layers.1.swin.blocks.1.attn.relative_position_bias_table', '_orig_mod.encoder_layers.2.blocks.0.norm2.bias', '_orig_mod.decoder.decoder_layers.2.swin.blocks.0.attn.qkv.bias', '_orig_mod.decoder.decoder_layers.3.swin.blocks.0.norm1.bias', '_orig_mod.encoder_layers.2.blocks.0.norm1.weight', '_orig_mod.decoder.decoder_layers.2.fuse.1.weight', '_orig_mod.decoder.decoder_layers.1.swin.blocks.0.attn.relative_position_index', '_orig_mod.encoder_layers.3.blocks.0.attn.relative_position_bias_table'}
+2025-11-12 19:37:00,770 - WARNING - 以下参数将使用随机初始化: {'_orig_mod.decoder.decoder_layers.1.swin.blocks.1.norm1.bias', '_orig_mod.decoder.decoder_layers.2.swin.blocks.0.attn.qkv.weight', '_orig_mod.decoder.decoder_layers.1.swin.blocks.0.mlp.fc2.bias', '_orig_mod.decoder.decoder_layers.3.fuse.1.weight', '_orig_mod.encoder_layers.3.blocks.0.attn.qkv.weight', '_orig_mod.encoder_layers.1.downsample.norm.bias', '_orig_mod.encoder_layers.3.blocks.0.norm1.weight', '_orig_mod.decoder.decoder_layers.3.swin.blocks.0.norm2.bias', '_orig_mod.encoder_layers.0.downsample.reduction.weight', '_orig_mod.encoder_layers.0.blocks.0.norm2.weight', '_orig_mod.decoder.decoder_layers.1.fuse.0.weight', '_orig_mod.encoder_layers.1.blocks.0.attn.proj.weight', '_orig_mod.encoder_layers.2.blocks.1.norm2.bias', '_orig_mod.decoder.decoder_layers.1.fuse.1.bias', '_orig_mod.decoder.decoder_layers.0.swin.blocks.0.norm2.bias', '_orig_mod.encoder_layers.2.blocks.1.attn_mask', '_orig_mod.norm.weight', '_orig_mod.encoder_layers.2.blocks.0.norm1.bias', '_orig_mod.encoder_layers.2.blocks.1.attn.qkv.weight', '_orig_mod.encoder_layers.2.blocks.0.mlp.fc2.weight', '_orig_mod.decoder.decoder_layers.0.expand.norm.weight', '_orig_mod.decoder.decoder_layers.2.swin.blocks.0.mlp.fc2.bias', '_orig_mod.decoder.decoder_layers.1.swin.blocks.1.attn.proj.weight', '_orig_mod.decoder.decoder_layers.1.expand.norm.bias', '_orig_mod.decoder.decoder_layers.3.swin.blocks.0.mlp.fc2.bias', '_orig_mod.decoder.decoder_layers.1.expand.expand.weight', '_orig_mod.decoder.decoder_layers.2.swin.blocks.0.attn.proj.bias', '_orig_mod.decoder.decoder_layers.1.swin.blocks.0.attn.qkv.bias', '_orig_mod.decoder.decoder_layers.0.swin.blocks.0.mlp.fc2.bias', '_orig_mod.encoder_layers.0.blocks.0.mlp.fc1.weight', '_orig_mod.decoder.decoder_layers.1.swin.blocks.0.norm1.bias', '_orig_mod.encoder_layers.0.downsample.norm.weight', '_orig_mod.encoder_layers.1.downsample.reduction.weight', '_orig_mod.encoder_layers.2.blocks.1.mlp.fc2.bias', '_orig_mod.encoder_layers.0.blocks.0.mlp.fc2.bias', '_orig_mod.encoder_layers.3.blocks.0.mlp.fc2.weight', '_orig_mod.encoder_layers.1.blocks.0.mlp.fc2.weight', '_orig_mod.decoder.decoder_layers.3.swin.blocks.0.attn.proj.bias', '_orig_mod.encoder_layers.1.blocks.0.mlp.fc1.bias', '_orig_mod.decoder.decoder_layers.2.expand.expand.weight', '_orig_mod.encoder_layers.0.blocks.0.attn.proj.weight', '_orig_mod.encoder_layers.2.blocks.1.attn.proj.bias', '_orig_mod.encoder_layers.2.blocks.0.mlp.fc1.weight', '_orig_mod.decoder.decoder_layers.1.swin.blocks.0.mlp.fc1.bias', '_orig_mod.encoder_layers.2.blocks.1.attn.proj.weight', '_orig_mod.encoder_layers.2.blocks.1.mlp.fc2.weight', '_orig_mod.encoder_layers.2.blocks.1.norm2.weight', '_orig_mod.decoder.decoder_layers.1.swin.blocks.0.norm2.weight', '_orig_mod.encoder_layers.3.blocks.0.norm2.bias', '_orig_mod.decoder.decoder_layers.0.swin.blocks.0.norm2.weight', '_orig_mod.absolute_pos_embed', '_orig_mod.encoder_layers.0.blocks.0.norm1.bias', '_orig_mod.decoder.decoder_layers.1.swin.blocks.0.attn.relative_position_bias_table', '_orig_mod.norm.bias', '_orig_mod.encoder_layers.1.blocks.0.norm2.weight', '_orig_mod.encoder_layers.2.blocks.1.norm1.weight', '_orig_mod.decoder.decoder_layers.3.fuse.1.bias', '_orig_mod.encoder_layers.2.blocks.1.norm1.bias', '_orig_mod.encoder_layers.1.blocks.0.attn.qkv.weight', '_orig_mod.encoder_layers.0.blocks.0.attn.relative_position_index', '_orig_mod.decoder.decoder_layers.1.swin.blocks.1.attn.proj.bias', '_orig_mod.patch_embed.norm.bias', '_orig_mod.decoder.decoder_layers.2.swin.blocks.0.attn.relative_position_index', '_orig_mod.encoder_layers.2.downsample.norm.bias', '_orig_mod.encoder_layers.1.blocks.0.norm1.weight', '_orig_mod.decoder.decoder_layers.1.swin.blocks.1.mlp.fc1.bias', '_orig_mod.patch_embed.proj.weight', '_orig_mod.decoder.decoder_layers.2.swin.blocks.0.mlp.fc2.weight', '_orig_mod.encoder_layers.3.blocks.0.norm2.weight', '_orig_mod.decoder.decoder_layers.1.swin.blocks.1.mlp.fc2.weight', '_orig_mod.decoder.decoder_layers.0.swin.blocks.0.norm1.bias', '_orig_mod.decoder.decoder_layers.2.swin.blocks.0.norm2.bias', '_orig_mod.encoder_layers.3.blocks.0.mlp.fc1.bias', '_orig_mod.encoder_layers.1.blocks.0.mlp.fc1.weight', '_orig_mod.decoder.decoder_layers.3.swin.blocks.0.mlp.fc1.bias', '_orig_mod.final_conv.bias', '_orig_mod.decoder.decoder_layers.1.swin.blocks.1.norm2.bias', '_orig_mod.encoder_layers.0.blocks.0.mlp.fc2.weight', '_orig_mod.encoder_layers.1.blocks.0.attn.qkv.bias', '_orig_mod.encoder_layers.1.blocks.0.norm2.bias', '_orig_mod.decoder.decoder_layers.1.swin.blocks.1.norm1.weight', '_orig_mod.decoder.decoder_layers.0.swin.blocks.0.attn.proj.bias', '_orig_mod.decoder.decoder_layers.1.swin.blocks.1.mlp.fc2.bias', '_orig_mod.decoder.decoder_layers.2.fuse.0.weight', '_orig_mod.decoder.decoder_layers.2.fuse.1.bias', '_orig_mod.encoder_layers.0.blocks.0.norm2.bias', '_orig_mod.decoder.decoder_layers.3.swin.blocks.0.mlp.fc2.weight', '_orig_mod.encoder_layers.2.blocks.0.attn.relative_position_bias_table', '_orig_mod.encoder_layers.3.blocks.0.mlp.fc2.bias', '_orig_mod.decoder.decoder_layers.2.expand.norm.weight', '_orig_mod.encoder_layers.2.blocks.0.attn.relative_position_index', '_orig_mod.decoder.decoder_layers.1.swin.blocks.0.attn.proj.bias', '_orig_mod.encoder_layers.2.blocks.1.attn.relative_position_bias_table', '_orig_mod.decoder.decoder_layers.1.swin.blocks.0.norm1.weight', '_orig_mod.decoder.decoder_layers.3.swin.blocks.0.attn.relative_position_index', '_orig_mod.encoder_layers.1.downsample.norm.weight', '_orig_mod.encoder_layers.2.blocks.1.mlp.fc1.weight', '_orig_mod.encoder_layers.2.blocks.1.attn.qkv.bias', '_orig_mod.decoder.decoder_layers.1.swin.blocks.0.attn.proj.weight', '_orig_mod.decoder.decoder_layers.0.swin.blocks.0.attn.relative_position_index', '_orig_mod.encoder_layers.2.blocks.0.attn.proj.bias', '_orig_mod.decoder.decoder_layers.2.swin.blocks.0.norm2.weight', '_orig_mod.decoder.decoder_layers.2.swin.blocks.0.attn.proj.weight', '_orig_mod.decoder.decoder_layers.1.swin.blocks.1.norm2.weight', '_orig_mod.decoder.decoder_layers.3.swin.blocks.0.mlp.fc1.weight', '_orig_mod.decoder.decoder_layers.0.swin.blocks.0.attn.qkv.bias', '_orig_mod.encoder_layers.0.blocks.0.attn.relative_position_bias_table', '_orig_mod.decoder.decoder_layers.1.swin.blocks.1.attn.qkv.bias', '_orig_mod.decoder.decoder_layers.1.swin.blocks.1.attn.relative_position_index', '_orig_mod.decoder.decoder_layers.3.swin.blocks.0.norm2.weight', '_orig_mod.decoder.decoder_layers.3.swin.blocks.0.attn.qkv.weight', '_orig_mod.encoder_layers.3.blocks.0.attn.proj.weight', '_orig_mod.encoder_layers.1.blocks.0.norm1.bias', '_orig_mod.decoder.decoder_layers.2.swin.blocks.0.attn.relative_position_bias_table', '_orig_mod.decoder.decoder_layers.3.swin.blocks.0.attn.relative_position_bias_table', '_orig_mod.decoder.decoder_layers.3.swin.blocks.0.norm1.weight', '_orig_mod.decoder.decoder_layers.1.swin.blocks.1.attn.qkv.weight', '_orig_mod.encoder_layers.0.downsample.norm.bias', '_orig_mod.decoder.decoder_layers.0.swin.blocks.0.mlp.fc1.weight', '_orig_mod.encoder_layers.1.blocks.0.attn.proj.bias', '_orig_mod.decoder.decoder_layers.1.swin.blocks.1.attn_mask', '_orig_mod.decoder.decoder_layers.0.swin.blocks.0.norm1.weight', '_orig_mod.decoder.decoder_layers.2.expand.norm.bias', '_orig_mod.patch_embed.proj.bias', '_orig_mod.encoder_layers.0.blocks.0.attn.proj.bias', '_orig_mod.encoder_layers.0.blocks.0.attn.qkv.bias', '_orig_mod.encoder_layers.3.blocks.0.attn.qkv.bias', '_orig_mod.decoder.decoder_layers.1.swin.blocks.0.norm2.bias', '_orig_mod.encoder_layers.3.blocks.0.attn.proj.bias', '_orig_mod.encoder_layers.2.blocks.0.norm2.weight', '_orig_mod.encoder_layers.3.blocks.0.mlp.fc1.weight', '_orig_mod.decoder.decoder_layers.0.expand.expand.weight', '_orig_mod.decoder.decoder_layers.0.swin.blocks.0.attn.relative_position_bias_table', '_orig_mod.decoder.decoder_layers.1.fuse.1.weight', '_orig_mod.encoder_layers.2.blocks.0.attn.qkv.bias', '_orig_mod.encoder_layers.2.blocks.1.mlp.fc1.bias', '_orig_mod.encoder_layers.2.blocks.1.attn.relative_position_index', '_orig_mod.patch_embed.norm.weight', '_orig_mod.encoder_layers.3.blocks.0.norm1.bias', '_orig_mod.decoder.decoder_layers.0.swin.blocks.0.attn.proj.weight', '_orig_mod.decoder.decoder_layers.3.fuse.0.weight', '_orig_mod.decoder.decoder_layers.2.swin.blocks.0.mlp.fc1.bias', '_orig_mod.encoder_layers.1.blocks.0.mlp.fc2.bias', '_orig_mod.encoder_layers.0.blocks.0.norm1.weight', '_orig_mod.encoder_layers.2.downsample.norm.weight', '_orig_mod.encoder_layers.2.blocks.0.mlp.fc1.bias', '_orig_mod.decoder.decoder_layers.0.swin.blocks.0.attn.qkv.weight', '_orig_mod.decoder.decoder_layers.2.swin.blocks.0.mlp.fc1.weight', '_orig_mod.decoder.decoder_layers.2.swin.blocks.0.norm1.bias', '_orig_mod.encoder_layers.1.blocks.0.attn.relative_position_index', '_orig_mod.decoder.decoder_layers.0.swin.blocks.0.mlp.fc2.weight', '_orig_mod.encoder_layers.3.blocks.0.attn.relative_position_index', '_orig_mod.encoder_layers.2.blocks.0.attn.proj.weight', '_orig_mod.decoder.decoder_layers.1.swin.blocks.1.mlp.fc1.weight', '_orig_mod.decoder.decoder_layers.1.expand.norm.weight', '_orig_mod.decoder.decoder_layers.2.swin.blocks.0.norm1.weight', '_orig_mod.encoder_layers.1.blocks.0.attn.relative_position_bias_table', '_orig_mod.encoder_layers.0.blocks.0.mlp.fc1.bias', '_orig_mod.encoder_layers.2.downsample.reduction.weight', '_orig_mod.decoder.decoder_layers.1.swin.blocks.0.mlp.fc1.weight', '_orig_mod.decoder.decoder_layers.1.swin.blocks.0.mlp.fc2.weight', '_orig_mod.decoder.decoder_layers.3.swin.blocks.0.attn.qkv.bias', '_orig_mod.decoder.decoder_layers.1.swin.blocks.0.attn.qkv.weight', '_orig_mod.encoder_layers.2.blocks.0.attn.qkv.weight', '_orig_mod.decoder.decoder_layers.0.swin.blocks.0.mlp.fc1.bias', '_orig_mod.encoder_layers.2.blocks.0.mlp.fc2.bias', '_orig_mod.final_conv.weight', '_orig_mod.decoder.decoder_layers.0.expand.norm.bias', '_orig_mod.decoder.decoder_layers.3.swin.blocks.0.attn.proj.weight', '_orig_mod.encoder_layers.0.blocks.0.attn.qkv.weight', '_orig_mod.decoder.decoder_layers.1.swin.blocks.1.attn.relative_position_bias_table', '_orig_mod.encoder_layers.2.blocks.0.norm2.bias', '_orig_mod.decoder.decoder_layers.2.swin.blocks.0.attn.qkv.bias', '_orig_mod.decoder.decoder_layers.3.swin.blocks.0.norm1.bias', '_orig_mod.encoder_layers.2.blocks.0.norm1.weight', '_orig_mod.decoder.decoder_layers.2.fuse.1.weight', '_orig_mod.decoder.decoder_layers.1.swin.blocks.0.attn.relative_position_index', '_orig_mod.encoder_layers.3.blocks.0.attn.relative_position_bias_table'}
+2025-11-12 19:37:00 - RealDataARTrainer - INFO - ✅ 非严格模式加载成功，加载了 0/178 个参数
+2025-11-12 19:37:00,771 - INFO - ✅ 非严格模式加载成功，加载了 0/178 个参数
+2025-11-12 19:37:00 - RealDataARTrainer - ERROR - ❌ Failed to load checkpoint: 'NoneType' object has no attribute 'load_state_dict'
+2025-11-12 19:37:00,772 - ERROR - ❌ Failed to load checkpoint: 'NoneType' object has no attribute 'load_state_dict'
+2025-11-12 19:37:00 - RealDataARTrainer - INFO - 🧪 开始测试集评估...
+2025-11-12 19:37:00,772 - INFO - 🧪 开始测试集评估...
+Testing:   0%|          | 0/5 [00:00<?, ?it/s]Testing:  20%|██        | 1/5 [00:03<00:12,  3.04s/it]Testing:  40%|████      | 2/5 [00:03<00:04,  1.37s/it]Testing:  80%|████████  | 4/5 [00:03<00:00,  1.82it/s]                                                      2025-11-12 19:37:04 - RealDataARTrainer - INFO - ✅ 测试完成 - 损失: 1.063084
+2025-11-12 19:37:04,192 - INFO - ✅ 测试完成 - 损失: 1.063084
+2025-11-12 19:37:04 - RealDataARTrainer - INFO -   rel_l2: 1.031162
+2025-11-12 19:37:04,192 - INFO -   rel_l2: 1.031162
+2025-11-12 19:37:04 - RealDataARTrainer - INFO -   mae: 0.822683
+2025-11-12 19:37:04,192 - INFO -   mae: 0.822683
+2025-11-12 19:37:04 - RealDataARTrainer - INFO -   psnr: 13.569058
+2025-11-12 19:37:04,192 - INFO -   psnr: 13.569058
+2025-11-12 19:37:04 - RealDataARTrainer - INFO -   ssim: 0.013699
+2025-11-12 19:37:04,192 - INFO -   ssim: 0.013699
+2025-11-12 19:37:04 - RealDataARTrainer - INFO -   brmse: 1.032361
+2025-11-12 19:37:04,192 - INFO -   brmse: 1.032361
+2025-11-12 19:37:04 - RealDataARTrainer - INFO -   crmse: 1.029988
+2025-11-12 19:37:04,192 - INFO -   crmse: 1.029988
+2025-11-12 19:37:04 - RealDataARTrainer - INFO - ✅ Final test results saved to test_results.json
+2025-11-12 19:37:04,195 - INFO - ✅ Final test results saved to test_results.json
+2025-11-12 19:37:04 - RealDataARTrainer - INFO - 🎨 Generating test-phase visualizations...
+2025-11-12 19:37:04,196 - INFO - 🎨 Generating test-phase visualizations...
+2025-11-12 19:37:04 - RealDataARTrainer - INFO - 🎨 开始生成测试阶段可视化...
+2025-11-12 19:37:04,196 - INFO - 🎨 开始生成测试阶段可视化...
+2025-11-12 19:37:04 - RealDataARTrainer - ERROR - ❌ Failed to generate test visualizations: too many values to unpack (expected 4)
+2025-11-12 19:37:04,226 - ERROR - ❌ Failed to generate test visualizations: too many values to unpack (expected 4)
+Traceback (most recent call last):
+  File "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/tools/training/train_real_data_ar.py", line 3455, in create_test_visualizations
+    pred_seq = self.model(input_seq, T_out=current_T_out)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/share/fandixiaLab/suguangsheng/anaconda3/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/share/fandixiaLab/suguangsheng/anaconda3/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/share/fandixiaLab/suguangsheng/anaconda3/lib/python3.12/site-packages/torch/_dynamo/eval_frame.py", line 655, in _fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/share/fandixiaLab/suguangsheng/anaconda3/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/share/fandixiaLab/suguangsheng/anaconda3/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/models/swin_unet.py", line 1054, in forward
+    B, C, H, W = x.shape
+    ^^^^^^^^^^
+ValueError: too many values to unpack (expected 4)
+2025-11-12 19:37:04 - RealDataARTrainer - INFO - 📊 Final visualization report saved to paper_package/figs/AR-DR2D-Debug-SwinUNet-s2025-20251102_145227
+2025-11-12 19:37:04,231 - INFO - 📊 Final visualization report saved to paper_package/figs/AR-DR2D-Debug-SwinUNet-s2025-20251102_145227
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - 📋 Visualization files copied to paper_package
+2025-11-12 19:37:06,352 - INFO - 📋 Visualization files copied to paper_package
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - 📋 资源摘要已生成: resource_summary.json / resource_summary.md
+2025-11-12 19:37:06,353 - INFO - 📋 资源摘要已生成: resource_summary.json / resource_summary.md
+2025-11-12 19:37:06 - RealDataARTrainer - WARNING - 论文材料自动生成失败: No module named 'tools.generate_paper_package'
+2025-11-12 19:37:06,354 - WARNING - 论文材料自动生成失败: No module named 'tools.generate_paper_package'
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - 输出目录: runs/Real-DR2D-AR-T20-128-SwinUNet-s2025
+2025-11-12 19:37:06,829 - INFO - 输出目录: runs/Real-DR2D-AR-T20-128-SwinUNet-s2025
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - 📝 已保存配置快照: runs/Real-DR2D-AR-T20-128-SwinUNet-s2025/config_merged.yaml
+2025-11-12 19:37:06,835 - INFO - 📝 已保存配置快照: runs/Real-DR2D-AR-T20-128-SwinUNet-s2025/config_merged.yaml
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - 设备选择: raw='cuda', normalized='cuda', final='cuda'
+2025-11-12 19:37:06,836 - INFO - 设备选择: raw='cuda', normalized='cuda', final='cuda'
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - CPU线程设置: torch=0, interop=0, MKL=0, OMP=0, numexpr=0, openblas=0
+2025-11-12 19:37:06,836 - INFO - CPU线程设置: torch=0, interop=0, MKL=0, OMP=0, numexpr=0, openblas=0
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - 检测到 2 张GPU
+2025-11-12 19:37:06,836 - INFO - 检测到 2 张GPU
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - GPU 0: NVIDIA L40, 显存: 44.3 GB
+2025-11-12 19:37:06,836 - INFO - GPU 0: NVIDIA L40, 显存: 44.3 GB
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - GPU 1: NVIDIA L40, 显存: 44.3 GB
+2025-11-12 19:37:06,836 - INFO - GPU 1: NVIDIA L40, 显存: 44.3 GB
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - 使用单GPU训练: cuda
+2025-11-12 19:37:06,836 - INFO - 使用单GPU训练: cuda
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - TF32: False, cuDNN benchmark: False
+2025-11-12 19:37:06,836 - INFO - TF32: False, cuDNN benchmark: False
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - TF32: True, cuDNN benchmark: True
+2025-11-12 19:37:06,842 - INFO - TF32: True, cuDNN benchmark: True
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - 内存管理配置: {'gradient_accumulation_steps': 1, 'memory_cleanup_frequency': 10, 'auto_batch_size_reduction': True, 'memory_threshold': 0.9}, AMP dtype: default
+2025-11-12 19:37:06,842 - INFO - 内存管理配置: {'gradient_accumulation_steps': 1, 'memory_cleanup_frequency': 10, 'auto_batch_size_reduction': True, 'memory_threshold': 0.9}, AMP dtype: default
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - 设置数据模块...
+2025-11-12 19:37:06,842 - INFO - 设置数据模块...
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - num_workers=32: 保持 pin_memory=False，启用 persistent_workers=True，预取因子=16
+2025-11-12 19:37:06,842 - INFO - num_workers=32: 保持 pin_memory=False，启用 persistent_workers=True，预取因子=16
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - 使用训练批次大小: 8
+2025-11-12 19:37:06,842 - INFO - 使用训练批次大小: 8
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - 使用验证批次大小: 8
+2025-11-12 19:37:06,842 - INFO - 使用验证批次大小: 8
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - 使用测试批次大小: 1
+2025-11-12 19:37:06,842 - INFO - 使用测试批次大小: 1
+⚙️ DataLoader并行: num_workers=0, prefetch_factor=16, persistent_workers=True, multiprocessing_context=None
+🧩 HDF5内存映射: memory_map_dataset=False; 🧠 RAM预加载: preload_entire_dataset=False
+🗂️ 窗口缓存: enabled=False, max_gb=None, lru_size=1024; 📦 批次缓存: enabled=False, max_gb=None
+2025-11-12 19:37:06 - RealDataARTrainer - WARNING - 数据模块setup失败，启用合成数据回退: 数据文件不存在: E:/2D/diffusion-reaction/2D_diff-react_NA_NA.h5
+2025-11-12 19:37:06,843 - WARNING - 数据模块setup失败，启用合成数据回退: 数据文件不存在: E:/2D/diffusion-reaction/2D_diff-react_NA_NA.h5
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - ✅ 合成数据集创建完成: train=358, val=76, test=78
+2025-11-12 19:37:06,844 - INFO - ✅ 合成数据集创建完成: train=358, val=76, test=78
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - 🔍 合成数据集属性检查: has_train_dataset=True, has_val_dataset=True, has_test_dataset=True
+2025-11-12 19:37:06,844 - INFO - 🔍 合成数据集属性检查: has_train_dataset=True, has_val_dataset=True, has_test_dataset=True
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - 🔍 数据集提取 - 第一步: train=True, val=True, test=True
+2025-11-12 19:37:06,844 - INFO - 🔍 数据集提取 - 第一步: train=True, val=True, test=True
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - 🔍 数据集提取 - 第二步: train=True, val=True, test=True
+2025-11-12 19:37:06,844 - INFO - 🔍 数据集提取 - 第二步: train=True, val=True, test=True
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - ℹ️ 已禁用CPU燃烧包装，直接使用原始Dataset
+2025-11-12 19:37:06,844 - INFO - ℹ️ 已禁用CPU燃烧包装，直接使用原始Dataset
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - DataLoader不支持pin_memory_device参数，已跳过该设置
+2025-11-12 19:37:06,844 - INFO - DataLoader不支持pin_memory_device参数，已跳过该设置
+2025-11-12 19:37:06 - RealDataARTrainer - WARNING - ⚠️ 重建DataLoader失败，回退到默认: 无法获取底层dataset且默认DataLoader不可用
+2025-11-12 19:37:06,844 - WARNING - ⚠️ 重建DataLoader失败，回退到默认: 无法获取底层dataset且默认DataLoader不可用
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - ℹ️ 合成数据模式下，保持当前DataLoader配置
+2025-11-12 19:37:06,844 - INFO - ℹ️ 合成数据模式下，保持当前DataLoader配置
+2025-11-12 19:37:06 - RealDataARTrainer - WARNING - ⚠️ DataLoader仍为None，使用最小配置强制重建
+2025-11-12 19:37:06,844 - WARNING - ⚠️ DataLoader仍为None，使用最小配置强制重建
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - 📊 数据集状态: train=True, val=True, test=True
+2025-11-12 19:37:06,844 - INFO - 📊 数据集状态: train=True, val=True, test=True
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - 训练集批次数: 45
+2025-11-12 19:37:06,844 - INFO - 训练集批次数: 45
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - 验证集批次数: 10
+2025-11-12 19:37:06,844 - INFO - 验证集批次数: 10
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - 测试集批次数: 78
+2025-11-12 19:37:06,844 - INFO - 测试集批次数: 78
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - ✅ 输入序列形状: torch.Size([8, 1, 2, 128, 128])
+2025-11-12 19:37:06,884 - INFO - ✅ 输入序列形状: torch.Size([8, 1, 2, 128, 128])
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - ✅ 目标序列形状: torch.Size([8, 20, 2, 128, 128])
+2025-11-12 19:37:06,884 - INFO - ✅ 目标序列形状: torch.Size([8, 20, 2, 128, 128])
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - ✅ 观测算子配置: {'task': 'SR', 'scale': 2, 'sigma': 1.0, 'kernel_size': 5, 'boundary': 'mirror'}
+2025-11-12 19:37:06,884 - INFO - ✅ 观测算子配置: {'task': 'SR', 'scale': 2, 'sigma': 1.0, 'kernel_size': 5, 'boundary': 'mirror'}
+2025-11-12 19:37:06 - RealDataARTrainer - WARNING - ⚠️ 未找到训练集归一化统计，DC与谱损失将跳过反归一化
+2025-11-12 19:37:06,884 - WARNING - ⚠️ 未找到训练集归一化统计，DC与谱损失将跳过反归一化
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - 🔎 训练样本归一化域: mean=-0.001, std=0.997
+2025-11-12 19:37:06,885 - INFO - 🔎 训练样本归一化域: mean=-0.001, std=0.997
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - ✅ 数据键设置: <bound method DictConfig.keys of {'data_path': 'E:/2D/diffusion-reaction/2D_diff-react_NA_NA.h5', 'T_in': 1, 'T_out': 20, 'img_size': 128, 'channels': 2, 'train_ratio': 0.7, 'val_ratio': 0.15, 'test_ratio': 0.15, 'time_step_start': 0, 'time_step_end': 980, 'time_step_stride': 1, 'normalize': True, 'augmentation': {'enabled': True, 'flip_prob': 0.5, 'rotate_prob': 0.3, 'noise_std': 0.01}, 'keys': ['u', 'v'], 'dataloader': {'batch_size': 8, 'val_batch_size': 8, 'test_batch_size': 1, 'num_workers': 0, 'pin_memory': False, 'persistent_workers': True, 'prefetch_factor': 16, 'drop_last': True, 'shuffle': True}, 'max_samples': 512}>
+2025-11-12 19:37:06,885 - INFO - ✅ 数据键设置: <bound method DictConfig.keys of {'data_path': 'E:/2D/diffusion-reaction/2D_diff-react_NA_NA.h5', 'T_in': 1, 'T_out': 20, 'img_size': 128, 'channels': 2, 'train_ratio': 0.7, 'val_ratio': 0.15, 'test_ratio': 0.15, 'time_step_start': 0, 'time_step_end': 980, 'time_step_stride': 1, 'normalize': True, 'augmentation': {'enabled': True, 'flip_prob': 0.5, 'rotate_prob': 0.3, 'noise_std': 0.01}, 'keys': ['u', 'v'], 'dataloader': {'batch_size': 8, 'val_batch_size': 8, 'test_batch_size': 1, 'num_workers': 0, 'pin_memory': False, 'persistent_workers': True, 'prefetch_factor': 16, 'drop_last': True, 'shuffle': True}, 'max_samples': 512}>
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - 使用传统AR模型架构
+2025-11-12 19:37:06,885 - INFO - 使用传统AR模型架构
+2025-11-12 19:37:06 - RealDataARTrainer - INFO - 🏗️ 设置模型...
+2025-11-12 19:37:06,885 - INFO - 🏗️ 设置模型...
+2025-11-12 19:37:06 - RealDataARTrainer - WARNING - ⚠️ 调整window_size: 8→4 以匹配阶段分辨率 [32, 16, 8, 4]
+2025-11-12 19:37:06,885 - WARNING - ⚠️ 调整window_size: 8→4 以匹配阶段分辨率 [32, 16, 8, 4]
+2025-11-12 19:37:07 - RealDataARTrainer - INFO - 🧩 BaseModel=SwinUNet, Wrapper=ARWrapper, Device=cuda
+2025-11-12 19:37:07,926 - INFO - 🧩 BaseModel=SwinUNet, Wrapper=ARWrapper, Device=cuda
+2025-11-12 19:37:07 - RealDataARTrainer - INFO - 🔧 注意力: use_sdpa/flash=False, sdpa_kernel=auto, TF32=False
+2025-11-12 19:37:07,926 - INFO - 🔧 注意力: use_sdpa/flash=False, sdpa_kernel=auto, TF32=False
+2025-11-12 19:37:07 - RealDataARTrainer - INFO - 🧪 AMP autocast dtype: default
+2025-11-12 19:37:07,927 - INFO - 🧪 AMP autocast dtype: default
+2025-11-12 19:37:07 - RealDataARTrainer - INFO - ✅ 模型参数量: 55,674,038 (可训练: 55,674,038)
+2025-11-12 19:37:07,928 - INFO - ✅ 模型参数量: 55,674,038 (可训练: 55,674,038)
+2025-11-12 19:37:08 - RealDataARTrainer - INFO - 📊 资源: FLOPs=0.109G@128², 延迟=11.47±0.02ms
+2025-11-12 19:37:08,250 - INFO - 📊 资源: FLOPs=0.109G@128², 延迟=11.47±0.02ms
+2025-11-12 19:37:08 - RealDataARTrainer - WARNING - ⚠️ 数据集未提供mean/std，使用默认0/1 归一化统计（含通道级 'mean/std'）
+2025-11-12 19:37:08,251 - WARNING - ⚠️ 数据集未提供mean/std，使用默认0/1 归一化统计（含通道级 'mean/std'）
+2025-11-12 19:37:08 - RealDataARTrainer - INFO - ⚙️ 设置优化器...
+2025-11-12 19:37:08,251 - INFO - ⚙️ 设置优化器...
+2025-11-12 19:37:08 - RealDataARTrainer - INFO - ✅ 优化器: AdamW (fused=False, foreach=False, eps=1e-08, amsgrad=False)
+2025-11-12 19:37:08,252 - INFO - ✅ 优化器: AdamW (fused=False, foreach=False, eps=1e-08, amsgrad=False)
+2025-11-12 19:37:08 - RealDataARTrainer - INFO - ✅ 调度器: CosineAnnealingLR (T_max=1, eta_min=1e-06)
+2025-11-12 19:37:08,253 - INFO - ✅ 调度器: CosineAnnealingLR (T_max=1, eta_min=1e-06)
+2025-11-12 19:37:08 - RealDataARTrainer - INFO - ✅ AMP: dtype=bf16, GradScaler=off, device=cuda
+2025-11-12 19:37:08,253 - INFO - ✅ AMP: dtype=bf16, GradScaler=off, device=cuda
+2025-11-12 19:37:08 - RealDataARTrainer - INFO - ✅ 学习率: 0.0001
+2025-11-12 19:37:08,253 - INFO - ✅ 学习率: 0.0001
+2025-11-12 19:37:08 - RealDataARTrainer - INFO - TensorBoard 监控已启用
+2025-11-12 19:37:08,254 - INFO - TensorBoard 监控已启用

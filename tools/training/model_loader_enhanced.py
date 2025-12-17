@@ -658,8 +658,73 @@ class EnhancedModelLoader:
                     if still_missing:
                         raise ValueError(f"Missing required parameters for {actual_name}: {still_missing}")
             
-            # Create model instance
             model = model_class(**valid_params)
+            try:
+                budget_cfg = None
+                if config is not None:
+                    if isinstance(config, dict):
+                        budget_cfg = config.get('model_budget') or config.get('training', {}).get('model_budget')
+                    else:
+                        budget_cfg = getattr(config, 'model_budget', None)
+                        if budget_cfg is None and hasattr(config, 'training'):
+                            budget_cfg = getattr(config.training, 'model_budget', None)
+                if budget_cfg:
+                    import time
+                    import numpy as np
+                    total_params = sum(p.numel() for p in model.parameters())
+                    params_m = total_params / 1e6
+                    img_size = None
+                    try:
+                        img_size = int(valid_params.get('img_size') or getattr(model, 'img_size', None) or 224)
+                    except Exception:
+                        img_size = 224
+                    in_ch = int(valid_params.get('in_channels') or getattr(model, 'in_channels', 3) or 3)
+                    h = w = img_size
+                    name_l = model.__class__.__name__.lower()
+                    if 'fno' in name_l:
+                        flops_g = total_params * 2 * (h * w) / 1e9
+                    elif ('transformer' in name_l) or ('swin' in name_l) or ('former' in name_l):
+                        flops_g = total_params * 4 * (h * w) / 1e9
+                    elif 'unet' in name_l:
+                        flops_g = total_params * 2 * (h * w) / 1e9
+                    elif 'mlp' in name_l:
+                        flops_g = total_params * 2 / 1e9
+                    else:
+                        flops_g = total_params * 2 * (h * w) / 1e9
+                    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+                    model.eval()
+                    model = model.to(device)
+                    x = torch.randn(1, in_ch, h, w).to(device)
+                    with torch.no_grad():
+                        for _ in range(5):
+                            _ = model(x)
+                    if device != 'cpu':
+                        torch.cuda.synchronize()
+                    times_ms = []
+                    with torch.no_grad():
+                        for _ in range(10):
+                            t0 = time.time()
+                            _ = model(x)
+                            if device != 'cpu':
+                                torch.cuda.synchronize()
+                            t1 = time.time()
+                            times_ms.append((t1 - t0) * 1000.0)
+                    latency_ms = float(np.mean(times_ms))
+                    max_params_m = float(budget_cfg.get('max_params_m', float('inf')))
+                    max_flops_g = float(budget_cfg.get('max_flops_g', float('inf')))
+                    max_latency_ms = float(budget_cfg.get('max_latency_ms', float('inf')))
+                    violations = []
+                    if params_m > max_params_m:
+                        violations.append(f"params {params_m:.2f}M > {max_params_m:.2f}M")
+                    if flops_g > max_flops_g:
+                        violations.append(f"FLOPs {flops_g:.2f}G > {max_flops_g:.2f}G")
+                    if latency_ms > max_latency_ms:
+                        violations.append(f"latency {latency_ms:.2f}ms > {max_latency_ms:.2f}ms")
+                    if violations:
+                        raise ValueError("Model budget exceeded: " + "; ".join(violations))
+            except Exception as e:
+                logger.error(f"Model budget enforcement failed: {e}")
+                raise
             logger.info(f"Successfully created model {actual_name} with parameters: {list(valid_params.keys())}")
             
             # Store model config for later use

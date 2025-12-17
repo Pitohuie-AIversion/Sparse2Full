@@ -195,25 +195,49 @@ def _apply_crop_degradation(x: torch.Tensor, params: Dict) -> torch.Tensor:
 
 
 def apply_degradation_operator(x: torch.Tensor, params: Dict) -> torch.Tensor:
-    """统一退化入口：根据 params['task'] 分派到 SR/Crop。"""
-    task = params.get("task", "")
-    print(f"DEBUG: task = {task}, type = {type(task)}")
-    print(f"DEBUG: params = {params}")
+    # 1. 参数提取与兼容性处理
+    # 如果 params 中包含 h_params，优先使用它（这是 obs_data 的标准结构）
+    eff_params = params
+    if "h_params" in params and isinstance(params["h_params"], dict):
+        eff_params = params["h_params"]
     
-    # 处理task是列表的情况
+    # 2. 获取任务类型
+    task = eff_params.get("task", "")
     if isinstance(task, list):
-        if len(task) > 0:
-            task = str(task[0]).strip()
-        else:
-            task = ""
+        task = str(task[0]).strip() if len(task) > 0 else ""
     else:
         task = str(task).strip()
     
-    if task == "SR":
-        return _apply_sr_degradation(x, params)
-    if task == "Crop":
-        return _apply_crop_degradation(x, params)
-    raise ValueError(f"Unsupported degradation task: {task}")
+    # 3. 执行退化
+    t = task.lower()
+    if t in {"sr", "super_resolution"}:
+        y = _apply_sr_degradation(x, eff_params)
+    elif t in {"crop", "cropping", "crop_reconstruction"}:
+        y = _apply_crop_degradation(x, eff_params)
+    elif t in {"identity", "none", "raw", ""}:
+        y = x
+    elif task == "SR":
+        y = _apply_sr_degradation(x, eff_params)
+    elif task == "Crop":
+        y = _apply_crop_degradation(x, eff_params)
+    else:
+        raise ValueError(f"Unsupported degradation task: {task}")
+        
+    # 4. 严格形状验证 (Strict Shape Validation)
+    # 如果 params 中包含真实观测 'y' (即 obs_data['y'])，必须保证输出形状一致
+    if "y" in params and params["y"] is not None:
+        target_obs = params["y"]
+        if isinstance(target_obs, torch.Tensor):
+            if y.shape[-2:] != target_obs.shape[-2:]:
+                msg = (f"Degradation Operator Validation Failed: Shape mismatch.\n"
+                       f"  Task: {task}\n"
+                       f"  Input shape: {x.shape}\n"
+                       f"  Output (H(x)) shape: {y.shape}\n"
+                       f"  Target (y) shape: {target_obs.shape}\n"
+                       f"  H(x) must match target observation dimensions.")
+                raise ValueError(msg)
+
+    return y
 
 
 def verify_degradation_consistency(
@@ -318,51 +342,32 @@ def _infer_sr_scale_from_task(task_value: Optional[str]) -> Optional[int]:
 
 
 def get_observation_operator(config: Dict) -> Callable[[torch.Tensor], torch.Tensor]:
-    """根据配置返回观测算子 H 的可调用对象。
-
-    支持：
-    - SR：GaussianBlur(σ,k=5)+INTER_AREA 下采样 × scale
-    - Crop：中心对齐裁剪（当目标更大时进行对称填充）
-
-    兼容配置键：
-    - 任务/模式：`task`, `mode`, `observation_mode`
-    - SR 参数：`scale`, `sr_scale`, `sigma`, `kernel_size`, `boundary`
-    - Crop 参数：`crop_size` 或 `crop_h`/`crop_w`, `crop_box`, `boundary`
-    """
-    mode = str(config.get("observation_mode", config.get("mode", config.get("task", "SR")))).strip()
-    mode_lower = mode.lower()
-
-    if mode_lower in {"sr", "super_resolution", "srx2", "srx4", "srx8"}:
+    mode = str(config.get("observation_mode", config.get("mode", config.get("task", "SR")))).strip().lower()
+    if mode in {"none", "identity", "raw", ""}:
+        return lambda x: x
+    if mode in {"sr", "super_resolution", "srx2", "srx4", "srx8"}:
         scale = config.get("scale", config.get("sr_scale"))
         if scale is None:
             scale = _infer_sr_scale_from_task(config.get("task"))
         if scale is None:
             raise ValueError("SR observation requires 'scale' or 'sr_scale' in config, or a task like 'SRx4'.")
-
         sigma = float(config.get("sigma", 1.0))
         kernel_size = int(config.get("kernel_size", 5))
         boundary = str(config.get("boundary", "mirror"))
         downsample_mode = str(config.get("downsample_interpolation", config.get("downsample_mode", "area")))
-        op = SuperResolutionOperator(scale=int(scale), sigma=sigma, kernel_size=kernel_size, boundary=boundary, downsample_mode=downsample_mode)
-        return op
-
-    if mode_lower in {"crop", "cropping", "crop_reconstruction"}:
+        return SuperResolutionOperator(scale=int(scale), sigma=sigma, kernel_size=kernel_size, boundary=boundary, downsample_mode=downsample_mode)
+    if mode in {"crop", "cropping", "crop_reconstruction"}:
         crop_size = config.get("crop_size")
         if crop_size is None:
-            # 兼容分别提供的高宽
             h = config.get("crop_h")
             w = config.get("crop_w")
             if h is not None and w is not None:
                 crop_size = (int(h), int(w))
-
         if crop_size is None:
             raise ValueError("Crop observation requires 'crop_size' or both 'crop_h' and 'crop_w'.")
-
         crop_box = config.get("crop_box")
         boundary = str(config.get("boundary", "mirror"))
-        op = CropOperator(crop_size=tuple(map(int, crop_size)), crop_box=crop_box, boundary=boundary)
-        return op
-
+        return CropOperator(crop_size=tuple(map(int, crop_size)), crop_box=crop_box, boundary=boundary)
     raise ValueError(f"Unsupported observation_mode/task: {mode}")
 
 

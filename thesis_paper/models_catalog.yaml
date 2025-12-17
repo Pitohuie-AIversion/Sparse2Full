@@ -1,0 +1,186 @@
+budget:
+  params_target: 10000000
+  epochs: 300
+
+entrypoints:
+  - name: train_real_data_ar
+    path: tools/training/train_real_data_ar.py
+    abs_path: /share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/tools/training/train_real_data_ar.py
+
+catalog:
+  - category: CNN
+    models:
+      - name: UNet
+        class: UNet
+        path: models/spatial/unet.py
+        code_ref: models/spatial/unet.py:96
+        description: 经典编码器-解码器+跳连，强局部归纳偏置
+        params_target: 10000000
+        epochs: 300
+      - name: UNetPlusPlus
+        class: UNetPlusPlus
+        path: models/spatial/unet_plus_plus.py
+        code_ref: models/spatial/unet_plus_plus.py:37
+        description: 密集跳连与多尺度融合，提升细节重建
+        params_target: 10000000
+        epochs: 300
+      - name: NAFNetLite
+        class: NAFNetLite
+        path: models/spatial/nafnet_lite.py
+        code_ref: models/spatial/nafnet_lite.py:22
+        description: 轻量化非注意力网络，移动端友好
+        params_target: 10000000
+        epochs: 300
+      - name: UformerLite
+        class: UformerLite
+        path: models/spatial/uformer_lite.py
+        code_ref: models/spatial/uformer_lite.py:33
+        description: 轻量Transformer风格的UNet变体
+        params_target: 10000000
+        epochs: 300
+      - name: RestormerLite
+        class: RestormerLite
+        path: models/spatial/restormer_lite.py
+        code_ref: models/spatial/restormer_lite.py:60
+        description: 轻量Restormer块与DW-PW卷积，稳健细节恢复
+        params_target: 10000000
+        epochs: 300
+      - name: SwinIRLite
+        class: SwinIRLite
+        path: models/spatial/swinir_lite.py
+        code_ref: models/spatial/swinir_lite.py:20
+        description: 精简SwinIR残差块堆叠，高效重建
+        params_target: 10000000
+        epochs: 300
+
+  - category: FNO
+    models:
+      - name: FNO2d
+        class: FNO2d
+        path: models/spatial/fno2d.py
+        code_ref: models/spatial/fno2d.py:92
+        description: 二维傅里叶神经算子，频域卷积建模PDE算子
+        params_target: 10000000
+        epochs: 300
+      - name: StableFNO2d
+        class: StableFNO2d
+        path: models/spatial/fno2d_stable.py
+        code_ref: models/spatial/fno2d_stable.py:155
+        description: 稳定化谱卷积层，提升数值稳健性
+        params_target: 10000000
+        epochs: 300
+      - name: UFNOUNet
+        class: UFNOUNet
+        path: models/spatial/ufno_unet_bottleneck.py
+        code_ref: models/spatial/ufno_unet_bottleneck.py:153
+        description: UNet主干 + FNO瓶颈的混合频域模型
+        params_target: 10000000
+        epochs: 300
+
+  - category: Transformer
+    models:
+      - name: VisionTransformer
+        class: VisionTransformer
+        path: models/spatial/vit.py
+        code_ref: models/spatial/vit.py:207
+        description: 纯Transformer编码器，patch嵌入到像素重建
+        params_target: 10000000
+        epochs: 300
+      - name: SwinTransformerTiny
+        class: SwinTransformerTiny
+        path: models/spatial/swin_t.py
+        code_ref: models/spatial/swin_t.py:477
+        description: 分层窗口注意力Transformer的小型变体
+        params_target: 10000000
+        epochs: 300
+      - name: SegFormer
+        class: SegFormer
+        path: models/spatial/segformer.py
+        code_ref: models/spatial/segformer.py:131
+        description: 轻量分层Transformer编码器+MLP解码器
+        params_target: 10000000
+        epochs: 300
+      - name: UNetFormer
+        class: UNetFormer
+        path: models/spatial/unetformer.py
+        code_ref: models/spatial/unetformer.py:220
+        description: Transformer块与卷积块融合的UNet式结构
+        params_target: 10000000
+        epochs: 300
+      - name: Transformer
+        class: Transformer
+        path: models/spatial/transformer.py
+        code_ref: models/spatial/transformer.py:250
+        description: 标准Encoder-Decoder Transformer，适配2D重建任务
+        params_target: 10000000
+        epochs: 300
+
+  - category: Hybrid
+    models:
+      - name: SegFormerUNetFormer
+        class: SegFormerUNetFormer
+        path: models/spatial/segformer_unetformer.py
+        code_ref: models/spatial/segformer_unetformer.py:367
+        description: 分层Transformer编码器+UNet式轻解码器
+        params_target: 10000000
+        epochs: 300
+      - name: HybridModel
+        class: HybridModel
+        path: models/spatial/hybrid.py
+        code_ref: models/spatial/hybrid.py:16
+        description: Attention∥FNO∥UNet多分支融合的混合模型
+        params_target: 10000000
+        epochs: 300
+      - name: SwinUNet
+        class: SwinUNet
+        path: models/spatial/swin_unet.py
+        code_ref: models/spatial/swin_unet.py:850
+        description: 基于Swin块的对称UNet结构
+        params_target: 10000000
+        epochs: 300
+      - name: SparseSwinUNet
+        class: SparseSwinUNet
+        path: models/spatial/sparse_attention_encoder.py
+        code_ref: models/spatial/sparse_attention_encoder.py:313
+        description: 稀疏注意力编码头+SwinUNet主体，面向稀疏观测
+        params_target: 10000000
+        epochs: 300
+
+  - category: MLP
+    models:
+      - name: MLPMixer
+        class: MLPMixer
+        path: models/spatial/mlp_mixer.py
+        code_ref: models/spatial/mlp_mixer.py:156
+        description: token/通道混合的纯MLP架构
+        params_target: 10000000
+        epochs: 300
+      - name: MLPModel
+        class: MLPModel
+        path: models/spatial/mlp.py
+        code_ref: models/spatial/mlp.py:16
+        description: 通用MLP，支持坐标/patch两种编码方式
+        params_target: 10000000
+        epochs: 300
+
+  - category: Implicit Function
+    models:
+      - name: LIIFModel(head)
+        class: LIIFModel
+        path: models/spatial/liif_head.py
+        code_ref: models/spatial/liif_head.py:274
+        description: 连续坐标查询的隐式头，适配任意分辨率输出
+        params_target: 10000000
+        epochs: 300
+      - name: LIIFModel
+        class: LIIFModel
+        path: models/spatial/liif.py
+        code_ref: models/spatial/liif.py:207
+        description: 局部隐式图像函数，用MLP实现连续重建
+        params_target: 10000000
+        epochs: 300
+
+notes:
+  - 所有模型统一接口：forward(x[B,C_in,H,W])→y[B,C_out,H,W]
+  - 预算为目标参数量与训练epochs的默认方案，可在实验YAML中覆盖
+  - 比较时统一输入分辨率与观测算子H，报告Params/FLOPs/显存/时延

@@ -1,0 +1,188 @@
+# 物理感知Transformer时序模块配置
+# 专门为PDE求解设计的Transformer架构
+
+model:
+  name: "PhysicsTransformer"  # 模型名称
+  
+  # 基础架构参数
+  in_channels: 2  # 输入通道数（速度场u,v）
+  out_channels: 2  # 输出通道数
+  img_size: [64, 64]  # 图像尺寸 [H, W]
+  T_in: 5  # 输入时间步数
+  T_out: 3  # 输出时间步数
+  hidden_dim: 256  # Transformer隐藏层维度
+  num_heads: 8  # 注意力头数
+  num_layers: 4  # Transformer层数
+  dropout: 0.1  # dropout比率
+  
+  # 物理约束参数
+  pde_type: "navier_stokes"  # PDE类型: heat, wave, navier_stokes, reaction_diffusion
+  physics_weight: 0.1  # 物理约束权重
+  causal_weight: 0.1  # 因果性约束权重
+  use_frequency_encoding: true  # 是否使用频率编码
+  
+  # 约束权重配置
+  constraint_weights:
+    pde_residual: 1.0      # PDE残差约束
+    energy_conservation: 0.5  # 能量守恒约束
+    boundary_condition: 0.3  # 边界条件约束
+    causality: 0.2          # 因果性约束
+    smoothness: 0.1         # 平滑性约束
+  
+  # 训练模式
+  mode: "ar"  # 预测模式: 'ar' (自回归), 'nar' (非自回归)
+
+# 训练参数
+training:
+  # 优化器配置
+  optimizer:
+    name: "AdamW"
+    lr: 1e-3
+    weight_decay: 1e-4
+    betas: [0.9, 0.999]
+  
+  # 学习率调度
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 100
+    eta_min: 1e-6
+  
+  # 损失函数权重
+  loss_weights:
+    reconstruction: 1.0    # 重构损失
+    physics: 0.1           # 物理约束损失
+    temporal_smooth: 0.05  # 时间平滑损失
+    spatial_smooth: 0.05   # 空间平滑损失
+  
+  # 训练策略
+  batch_size: 4
+  max_epochs: 200
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 1
+  
+  # 早停策略
+  early_stopping:
+    patience: 20
+    monitor: "val_loss"
+    mode: "min"
+    min_delta: 1e-4
+
+# 数据配置
+data:
+  # 数据集参数
+  dataset:
+    name: "PDEBench"  # 数据集名称
+    data_path: "data/pdebench/navier_stokes/"  # 数据路径
+    variables: ["u", "v"]  # 变量名称
+    normalize: true  # 是否归一化
+  
+  # 数据增强
+  augmentation:
+    temporal_crop: true  # 时序裁剪
+    spatial_crop: true   # 空间裁剪
+    noise_injection: 0.01  # 噪声注入
+    flip_probability: 0.5  # 翻转概率
+  
+  # 数据加载
+  num_workers: 4
+  pin_memory: true
+  prefetch_factor: 2
+
+# 验证配置
+validation:
+  # 验证频率
+  val_check_interval: 1.0  # 每个epoch验证一次
+  
+  # 验证指标
+  metrics:
+    - "rel_l2"      # 相对L2误差
+    - "mae"         # 平均绝对误差
+    - "rmse"        # 均方根误差
+    - "physics_mse" # 物理约束MSE
+  
+  # 可视化
+  visualization:
+    enabled: true
+    num_samples: 5  # 可视化样本数
+    save_interval: 10  # 每10个epoch保存一次
+
+# 测试配置
+testing:
+  # 测试指标
+  metrics:
+    - "rel_l2"
+    - "mae" 
+    - "rmse"
+    - "ssim"        # 结构相似性
+    - "psnr"        # 峰值信噪比
+    - "physics_mse"
+    - "energy_conservation"  # 能量守恒检查
+    - "causality_check"      # 因果性检查
+  
+  # 物理一致性检查
+  physics_check:
+    enabled: true
+    tolerance: 1e-3  # 物理一致性容差
+    checks:
+      - "energy_conservation"
+      - "causality"
+      - "boundary_conditions"
+      - "smoothness"
+
+# 硬件配置
+hardware:
+  # GPU配置
+  gpu:
+    enabled: true
+    device_ids: [0]  # 使用的GPU ID
+    mixed_precision: true  # 混合精度训练
+  
+  # 内存优化
+  memory:
+    gradient_checkpointing: false  # 梯度检查点
+    clear_cache_interval: 50  # 清理缓存间隔
+
+# 日志配置
+logging:
+  # 日志级别
+  level: "INFO"
+  
+  # 日志保存
+  save_dir: "logs/physics_transformer"
+  
+  # 实验跟踪
+  experiment_name: "physics_transformer_navier_stokes"
+  tags: ["physics_aware", "transformer", "pde", "navier_stokes"]
+  
+  # 模型检查点
+  checkpoint:
+    save_top_k: 3  # 保存最好的3个模型
+    monitor: "val_loss"
+    mode: "min"
+    filename: "physics_transformer-{epoch:02d}-{val_loss:.4f}"
+
+# 实验配置
+experiment:
+  # 实验名称
+  name: "PhysicsTransformer_NavierStokes"
+  
+  # 实验描述
+  description: "物理感知Transformer在Navier-Stokes方程求解中的应用"
+  
+  # 实验目标
+  objectives:
+    - "提高PDE求解精度"
+    - "保证物理一致性"
+    - "增强时序建模能力"
+  
+  # 基线对比
+  baselines:
+    - "SwinTemporal"
+    - "ARNARWrapper"
+    - "传统数值方法"
+  
+  # 成功标准
+  success_criteria:
+    rel_l2_improvement: 0.1  # 相对L2误差改善10%
+    physics_consistency: 0.95  # 物理一致性达到95%
+    computational_efficiency: 2.0  # 计算效率提升2倍

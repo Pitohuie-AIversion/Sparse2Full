@@ -36,7 +36,7 @@ for path in (training_dir, project_root):
 
 # 导入模块
 from datasets.real_dr_dataset import RealDiffusionReactionDataModule
-from models.swin_temporal_wrapper import SwinTemporalWrapper
+from models.temporal.wrappers.swin_temporal_wrapper import SwinTemporalWrapper
 from models.swin_unet import SwinUNet
 from models.ar.wrapper import ARWrapper
 from ops.losses import compute_total_loss
@@ -434,28 +434,143 @@ class TemporalEnhancedTrainer:
             self.loss_functions['spectral'] = spectral_loss
             self.loss_weights['spectral'] = self.config.loss.spectral.weight
         
-        # 时序一致性损失
+        # 时序一致性损失 - 改进版本
         if 'temporal_consistency' in self.config.loss:
-            def temporal_consistency_loss(pred_seq):
-                # 计算时间步之间的差分
-                diff = pred_seq[:, 1:] - pred_seq[:, :-1]
-                # 平滑性损失
-                return torch.mean(torch.norm(diff, dim=(-2, -1)))
+            def temporal_consistency_loss(pred_seq, target_seq):
+                """改进的时序一致性：对齐真实动力学变化而非简单平滑"""
+                # 基础：导数一致性损失 - 对齐变化模式而非惩罚变化
+                pred_diff = pred_seq[:, 1:] - pred_seq[:, :-1]
+                target_diff = target_seq[:, 1:] - target_seq[:, :-1]
+                
+                # 相对L2损失：对齐变化幅度和方向
+                diff_error = pred_diff - target_diff
+                num = torch.sqrt((diff_error**2).sum(dim=(-3, -2, -1)) + 1e-8)
+                den = torch.sqrt((target_diff**2).sum(dim=(-3, -2, -1)) + 1e-8)
+                derivative_loss = torch.mean(num / den)
+                
+                # 能量变化一致性 - 匹配物理能量演化
+                pred_energy = (pred_seq**2).sum(dim=(-3, -2, -1))
+                target_energy = (target_seq**2).sum(dim=(-3, -2, -1))
+                
+                pred_energy_diff = pred_energy[:, 1:] - pred_energy[:, :-1]
+                target_energy_diff = target_energy[:, 1:] - target_energy[:, :-1]
+                
+                energy_diff_error = torch.abs(pred_energy_diff - target_energy_diff)
+                energy_diff_norm = torch.abs(target_energy_diff) + 1e-8
+                energy_consistency_loss = torch.mean(energy_diff_error / energy_diff_norm)
+                
+                # 二阶导数一致性（曲率）- 对齐加速度变化
+                pred_second_diff = pred_diff[:, 1:] - pred_diff[:, :-1]
+                target_second_diff = target_diff[:, 1:] - target_diff[:, :-1]
+                
+                second_derivative_error = pred_second_diff - target_second_diff
+                num_2nd = torch.sqrt((second_derivative_error**2).sum(dim=(-3, -2, -1)) + 1e-8)
+                den_2nd = torch.sqrt((target_second_diff**2).sum(dim=(-3, -2, -1)) + 1e-8)
+                curvature_loss = torch.mean(num_2nd / den_2nd)
+                
+                # 组合损失 - 主要关注一阶导数，辅以能量和二阶导数
+                total_temporal_loss = (
+                    0.6 * derivative_loss +          # 主要：变化模式对齐
+                    0.3 * energy_consistency_loss +   # 辅助：能量演化匹配
+                    0.1 * curvature_loss                # 微调：曲率一致性
+                )
+                
+                return total_temporal_loss
             
             self.loss_functions['temporal_consistency'] = temporal_consistency_loss
             self.loss_weights['temporal_consistency'] = self.config.loss.temporal_consistency.weight
+            
+            # 添加时序一致性权重的课程学习调度
+            self.temporal_weight_scheduler = self.create_temporal_weight_scheduler()
+            
+    def create_temporal_weight_scheduler(self):
+        """创建时序一致性权重的课程学习调度器"""
+        def scheduler(epoch, base_weight=self.config.loss.temporal_consistency.weight):
+            """根据训练阶段动态调整时序一致性权重"""
+            total_epochs = self.config.training.epochs
+            
+            # 阶段1：前20%训练，低权重（避免早期过约束）
+            if epoch < total_epochs * 0.2:
+                return base_weight * 0.3
+            
+            # 阶段2：20%-60%训练，逐步增加权重
+            elif epoch < total_epochs * 0.6:
+                progress = (epoch - total_epochs * 0.2) / (total_epochs * 0.4)
+                return base_weight * (0.3 + 0.7 * progress)
+            
+            # 阶段3：60%-100%训练，高权重（强化时序一致性）
+            else:
+                return base_weight * 1.2  # 稍微超过基础权重
         
-        # 稳定性损失
+        return scheduler
+        
+        # 稳定性损失 - 改进版本
         if 'stability' in self.config.loss:
             def stability_loss(pred_seq, threshold=5.0):
-                # 检测发散
+                """改进的稳定性损失：检测发散和异常增长"""
                 energy = torch.norm(pred_seq, dim=(-2, -1))
                 growth = energy[:, 1:] / (energy[:, :-1] + 1e-8)
+                
+                # 检测发散（能量异常增长）
                 divergence_penalty = torch.relu(growth - threshold)
-                return torch.mean(divergence_penalty)
+                
+                # 检测震荡（能量快速变化）
+                energy_variance = torch.std(growth, dim=1)
+                oscillation_penalty = torch.relu(energy_variance - 1.0)
+                
+                # 检测长期漂移（平均增长偏离1.0太多）
+                mean_growth = torch.mean(growth, dim=1)
+                drift_penalty = torch.abs(mean_growth - 1.0)
+                
+                # 组合稳定性约束
+                total_stability_loss = (
+                    torch.mean(divergence_penalty) * 0.6 +      # 主要：发散检测
+                    torch.mean(oscillation_penalty) * 0.3 +    # 次要：震荡检测
+                    torch.mean(drift_penalty) * 0.1             # 微调：长期漂移
+                )
+                
+                return total_stability_loss
             
             self.loss_functions['stability'] = stability_loss
             self.loss_weights['stability'] = self.config.loss.stability.weight
+        
+        # AR模式下的roll-out一致性损失（可选增强）
+        if self.config.get('ar_rollout_consistency', False):
+            def ar_rollout_consistency_loss(pred_seq, target_seq):
+                """AR模式下的roll-out一致性：对齐逐步预测与真实变化"""
+                # 只在前半段应用更强的约束（避免误差累积过大）
+                T = pred_seq.shape[1]
+                mid_point = T // 2
+                
+                # 前半段：强约束
+                early_pred = pred_seq[:, :mid_point]
+                early_target = target_seq[:, :mid_point]
+                
+                # 变化一致性
+                pred_diff_early = early_pred[:, 1:] - early_pred[:, :-1]
+                target_diff_early = early_target[:, 1:] - early_target[:, :-1]
+                
+                early_consistency = F.mse_loss(pred_diff_early, target_diff_early)
+                
+                # 后半段：宽松约束（允许合理误差累积）
+                if mid_point < T:
+                    late_pred = pred_seq[:, mid_point:]
+                    late_target = target_seq[:, mid_point:]
+                    
+                    # 只约束能量范围，不强制精确对齐
+                    late_energy_pred = torch.norm(late_pred, dim=(-3, -2, -1))
+                    late_energy_target = torch.norm(late_target, dim=(-3, -2, -1))
+                    
+                    # 允许±20%的能量偏差
+                    energy_ratio = late_energy_pred / (late_energy_target + 1e-8)
+                    late_consistency = torch.mean(torch.clamp(torch.abs(energy_ratio - 1.0) - 0.2, min=0.0))
+                else:
+                    late_consistency = 0.0
+                
+                return early_consistency * 0.7 + late_consistency * 0.3
+            
+            self.loss_functions['ar_rollout_consistency'] = ar_rollout_consistency_loss
+            self.loss_weights['ar_rollout_consistency'] = self.config.get('ar_rollout_consistency_weight', 0.1)
         
         self.logger.info(f"✅ 损失函数: {list(self.loss_functions.keys())}")
         self.logger.info(f"✅ 损失权重: {self.loss_weights}")
@@ -530,15 +645,24 @@ class TemporalEnhancedTrainer:
         }
     
     def compute_total_loss(self, pred_seq: torch.Tensor, target_seq: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, float]]:
-        """计算总损失"""
+        """计算总损失 - 改进版本支持更详细的损失分解和动态权重调整"""
         total_loss = 0.0
         loss_components = {}
+        detailed_components = {}
+        
+        # 动态调整时序一致性权重（如果存在调度器）
+        if hasattr(self, 'temporal_weight_scheduler') and 'temporal_consistency' in self.loss_weights:
+            current_epoch = getattr(self, 'current_epoch', 0)
+            dynamic_weight = self.temporal_weight_scheduler(current_epoch)
+            self.loss_weights['temporal_consistency'] = dynamic_weight
+            detailed_components['temporal_consistency_dynamic_weight'] = dynamic_weight
         
         for loss_name, loss_fn in self.loss_functions.items():
             weight = self.loss_weights[loss_name]
             
             if loss_name == 'temporal_consistency':
-                loss_value = loss_fn(pred_seq)
+                # 新的时序一致性损失需要target_seq
+                loss_value = loss_fn(pred_seq, target_seq)
             elif loss_name == 'stability':
                 loss_value = loss_fn(pred_seq)
             else:
@@ -547,12 +671,19 @@ class TemporalEnhancedTrainer:
             weighted_loss = weight * loss_value
             total_loss += weighted_loss
             loss_components[loss_name] = loss_value.item()
+            
+            # 记录加权损失
+            detailed_components[f'{loss_name}_weighted'] = weighted_loss.item()
+        
+        # 合并详细组件到主要组件中
+        loss_components.update(detailed_components)
         
         return total_loss, loss_components
     
     def train_epoch(self, epoch: int) -> Tuple[float, Dict[str, float]]:
-        """训练一个epoch"""
+        """训练一个epoch - 改进版本支持动态权重调整"""
         self.model.train()
+        self.current_epoch = epoch  # 记录当前epoch用于权重调度
         total_loss = 0.0
         total_loss_components = {name: 0.0 for name in self.loss_functions.keys()}
         num_batches = len(self.train_loader)
@@ -630,7 +761,7 @@ class TemporalEnhancedTrainer:
                     'LR': f'{self.optimizer.param_groups[0]["lr"]:.2e}'
                 })
                 
-                # 记录到TensorBoard
+                # 记录到TensorBoard - 改进版本支持更详细的损失记录
                 if batch_idx % self.config.experiment.log_every_n_steps == 0:
                     global_step = epoch * num_batches + batch_idx
                     self.writer.add_scalar('Train/Loss', loss.item(), global_step)
@@ -638,9 +769,19 @@ class TemporalEnhancedTrainer:
                     self.writer.add_scalar('Train/T_out', current_T_out, global_step)
                     self.writer.add_scalar('Train/Stage', curriculum_config['stage'], global_step)
                     
-                    # 记录损失组件
+                    # 记录损失组件 - 支持嵌套组件
                     for name, value in loss_components.items():
-                        self.writer.add_scalar(f'Train/Loss_{name}', value, global_step)
+                        if isinstance(value, (int, float)):
+                            self.writer.add_scalar(f'Train/Loss_{name}', value, global_step)
+                        elif isinstance(value, dict):
+                            for sub_name, sub_value in value.items():
+                                if isinstance(sub_value, (int, float)):
+                                    self.writer.add_scalar(f'Train/Loss_{name}_{sub_name}', sub_value, global_step)
+                    
+                    # 记录动态权重（如果存在）
+                    if hasattr(self, 'temporal_weight_scheduler'):
+                        current_temporal_weight = self.loss_weights.get('temporal_consistency', 0)
+                        self.writer.add_scalar('Train/TemporalWeight_Dynamic', current_temporal_weight, global_step)
                 
             except RuntimeError as e:
                 if "out of memory" in str(e):

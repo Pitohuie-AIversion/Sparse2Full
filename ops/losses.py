@@ -11,8 +11,6 @@ import torch
 import torch.nn.functional as F
 from omegaconf import DictConfig
 
-from .degradation import apply_degradation_operator
-
 # 为测试兼容提供CombinedLoss别名，复用utils.losses.TotalLoss实现
 try:
     from utils.losses import TotalLoss as CombinedLoss  # noqa: F401
@@ -128,20 +126,15 @@ class DCLoss(torch.nn.Module):
         self.config = config
         
     def forward(self, 
-                pred_orig: torch.Tensor, 
-                obs_data: torch.Tensor, 
-                h_params: Dict) -> torch.Tensor:
-        """计算数据一致性损失"""
-        # 应用观测算子H到预测结果
-        pred_obs = apply_degradation_operator(
-            pred_orig, 
-            h_params
-        )
+                pred_obs: torch.Tensor, 
+                target_obs: torch.Tensor) -> torch.Tensor:
+        """计算数据一致性损失
         
-        # 与观测数据比较
-        target_obs = obs_data  # obs_data直接是张量，不是字典
-        
-        # 确保pred_obs和target_obs的尺寸匹配
+        Args:
+            pred_obs: 经过观测算子H处理后的预测值 [B, C, H, W]
+            target_obs: 观测数据 [B, C, H, W]
+        """
+        # 确保尺寸匹配
         if pred_obs.shape != target_obs.shape:
             # 如果尺寸不匹配，将target_obs调整到pred_obs的尺寸
             target_obs = F.interpolate(
@@ -156,7 +149,7 @@ class DCLoss(torch.nn.Module):
         return loss
 
 
-def compute_total_loss(
+def compute_total_loss_base(
     pred_z: torch.Tensor, 
     target_z: torch.Tensor, 
     obs_data: Dict, 
@@ -255,10 +248,22 @@ def compute_total_loss(
             # 梯度项
             w_grad = getattr(config.loss, 'gradient_weight', w_grad)
     
+    pred_z = torch.nan_to_num(pred_z, nan=0.0, posinf=1e6, neginf=-1e6)
+    target_z = torch.nan_to_num(target_z, nan=0.0, posinf=1e6, neginf=-1e6)
     losses = {}
     
     # 1. 重建损失（在z-score域计算）
-    reconstruction_loss = _compute_reconstruction_loss(pred_z, target_z, obs_data)
+    # 支持选择 r2 作为唯一重建损失（通过配置 loss.reconstruction.type: r2）
+    use_r2 = False
+    try:
+        if hasattr(config, 'loss') and hasattr(config.loss, 'reconstruction'):
+            use_r2 = str(getattr(config.loss.reconstruction, 'type', '')).lower() == 'r2'
+    except Exception:
+        use_r2 = False
+    if use_r2:
+        reconstruction_loss = _compute_r2_loss(pred_z, target_z)
+    else:
+        reconstruction_loss = _compute_reconstruction_loss(pred_z, target_z, obs_data)
     losses['reconstruction_loss'] = reconstruction_loss
     
     # 2. 频谱损失（在原值域计算）
@@ -279,15 +284,13 @@ def compute_total_loss(
     
     # 3. 数据一致性损失（在原值域计算）
     if w_dc > 0:
-        # 获取数据键，支持不同的配置结构
-        data_keys = config.data.get('keys', None) if hasattr(config, 'data') else None
-        if data_keys is None:
-            # 如果没有keys，使用默认的反归一化
-            pred_orig = _denormalize_tensor(pred_z, norm_stats, None)
-            dc_loss = _compute_data_consistency_loss(pred_orig, obs_data, norm_stats, None)
+        # 使用预先计算好的 pred_obs（由Trainer提供）
+        pred_obs = obs_data.get('pred_obs')
+        if pred_obs is not None:
+            dc_loss = _compute_data_consistency_loss(pred_obs, obs_data)
         else:
-            pred_orig = _denormalize_tensor(pred_z, norm_stats, data_keys)
-            dc_loss = _compute_data_consistency_loss(pred_orig, obs_data, norm_stats, data_keys)
+            # 如果未提供pred_obs，则跳过DC损失（禁止在Loss中调用degradation）
+            dc_loss = torch.tensor(0.0, device=device)
         losses['dc_loss'] = dc_loss
     else:
         losses['dc_loss'] = torch.tensor(0.0, device=device)
@@ -311,10 +314,10 @@ def compute_total_loss(
     return losses
 
 
-def compute_temporal_loss(
+def compute_total_loss(
     pred_z: torch.Tensor,
     target_z: torch.Tensor,
-    obs_data: Optional[Any],
+    obs_data: Dict,
     norm_stats: Optional[Dict[str, torch.Tensor]],
     config: DictConfig
 ) -> Dict[str, torch.Tensor]:
@@ -325,7 +328,7 @@ def compute_temporal_loss(
     - 多步时对各分量按时间维平均，保持与黄金法则一致。
     """
     if pred_z.dim() == 4 and target_z.dim() == 4:
-        return compute_total_loss(pred_z, target_z, obs_data or {}, norm_stats, config)
+        return compute_total_loss_base(pred_z, target_z, obs_data or {}, norm_stats, config)
 
     if pred_z.dim() != 5 or target_z.dim() != 5:
         raise ValueError("compute_temporal_loss expects 4D or 5D tensors")
@@ -356,6 +359,10 @@ def compute_temporal_loss(
             if 'mask' in obs_data:
                 mask_val = obs_data['mask']
                 obs_t['mask'] = mask_val[:, t] if isinstance(mask_val, torch.Tensor) and mask_val.dim() == 5 else mask_val
+            # 预计算的观测预测 pred_obs 也可能带时间维
+            if 'pred_obs' in obs_data:
+                pred_obs_val = obs_data['pred_obs']
+                obs_t['pred_obs'] = pred_obs_val[:, t] if isinstance(pred_obs_val, torch.Tensor) and pred_obs_val.dim() == 5 else pred_obs_val
             # H 参数直接复用
             if 'h_params' in obs_data:
                 obs_t['h_params'] = obs_data['h_params']
@@ -366,7 +373,7 @@ def compute_temporal_loss(
         else:
             obs_t = {}
 
-        losses_t = compute_total_loss(pred_t, target_t, obs_t, norm_stats, config)
+        losses_t = compute_total_loss_base(pred_t, target_t, obs_t, norm_stats, config)
         rec_list.append(losses_t.get('reconstruction_loss', torch.tensor(0.0, device=device)))
         spec_list.append(losses_t.get('spectral_loss', torch.tensor(0.0, device=device)))
         dc_list.append(losses_t.get('dc_loss', torch.tensor(0.0, device=device)))
@@ -471,8 +478,38 @@ def _compute_reconstruction_loss(
     
     # 组合损失（主要使用Rel-L2）
     reconstruction_loss = rel_l2 + 0.1 * mae
-    
+
     return reconstruction_loss
+
+
+def _compute_r2_loss(
+    pred: torch.Tensor,
+    target: torch.Tensor,
+    eps: float = 1e-8
+) -> torch.Tensor:
+    """R²损失（1 − R²），在 z-score 域计算。
+
+    R² = 1 − SSE/SST，其中 SSE = Σ(y−ŷ)²，SST = Σ(y−ȳ)²。
+    当 SST≈0（目标方差接近0）时，回退为 MSE。
+    返回批次与通道平均的标量损失。
+    """
+    # [B, C, H, W]
+    B, C = target.size(0), target.size(1)
+    # 展平空间维度
+    pred_f = pred.view(B, C, -1)
+    tgt_f = target.view(B, C, -1)
+    # SSE
+    sse = torch.sum((tgt_f - pred_f) ** 2, dim=2)  # [B, C]
+    # SST
+    tgt_mean = torch.mean(tgt_f, dim=2, keepdim=True)  # [B, C, 1]
+    sst = torch.sum((tgt_f - tgt_mean) ** 2, dim=2)  # [B, C]
+    # 处理零方差：回退为MSE
+    denom = torch.clamp(sst, min=eps)
+    r2 = 1.0 - (sse / denom)  # [B, C]
+    # 将异常值裁剪到合理范围
+    r2 = torch.nan_to_num(r2, nan=0.0, posinf=0.0, neginf=0.0)
+    loss = 1.0 - r2  # 1 − R²
+    return loss.mean()
 
 
 def _compute_spectral_loss(
@@ -515,6 +552,11 @@ def _compute_spectral_loss(
             boundary_mode = getattr(config.loss, 'boundary_mode', boundary_mode)
     boundary_mode = boundary_mode or 'mirror'
     
+    pred = torch.nan_to_num(pred, nan=0.0, posinf=1e6, neginf=-1e6)
+    target = torch.nan_to_num(target, nan=0.0, posinf=1e6, neginf=-1e6)
+    # 确保FFT使用支持的dtype
+    pred = pred.to(torch.float32)
+    target = target.to(torch.float32)
     B, C, H, W = pred.shape
     
     # 边界处理：镜像延拓 / 零填充 / 无处理（周期）
@@ -528,6 +570,9 @@ def _compute_spectral_loss(
         # none/periodic: 不进行延拓，直接FFT
         pred_extended = pred
         target_extended = target
+    # 再次确保扩展后为float32
+    pred_extended = pred_extended.to(torch.float32)
+    target_extended = target_extended.to(torch.float32)
     
     spectral_losses = []
     
@@ -537,12 +582,12 @@ def _compute_spectral_loss(
         
         if use_rfft:
             # 使用实数FFT
-            pred_fft = torch.fft.rfft2(pred_c, norm='ortho' if normalize else None)
-            target_fft = torch.fft.rfft2(target_c, norm='ortho' if normalize else None)
+            pred_fft = torch.fft.rfft2(pred_c.to(torch.float32), norm='ortho' if normalize else None)
+            target_fft = torch.fft.rfft2(target_c.to(torch.float32), norm='ortho' if normalize else None)
         else:
             # 使用复数FFT
-            pred_fft = torch.fft.fft2(pred_c, norm='ortho' if normalize else None)
-            target_fft = torch.fft.fft2(target_c, norm='ortho' if normalize else None)
+            pred_fft = torch.fft.fft2(pred_c.to(torch.float32), norm='ortho' if normalize else None)
+            target_fft = torch.fft.fft2(target_c.to(torch.float32), norm='ortho' if normalize else None)
         
         # 只比较低频部分
         low_freq_modes_int = int(low_freq_modes)
@@ -550,8 +595,8 @@ def _compute_spectral_loss(
         target_fft_low = target_fft[:, :low_freq_modes_int, :low_freq_modes_int]
         
         # 计算频谱损失（使用L2损失）
-        spectral_loss_c = F.mse_loss(pred_fft_low.real, target_fft_low.real) + \
-                         F.mse_loss(pred_fft_low.imag, target_fft_low.imag)
+        spectral_loss_c = F.mse_loss(torch.nan_to_num(pred_fft_low.real), torch.nan_to_num(target_fft_low.real)) + \
+                         F.mse_loss(torch.nan_to_num(pred_fft_low.imag), torch.nan_to_num(target_fft_low.imag))
         
         spectral_losses.append(spectral_loss_c)
     
@@ -562,76 +607,47 @@ def _compute_spectral_loss(
 
 
 def _compute_data_consistency_loss(
-    pred: torch.Tensor,
+    pred_obs: torch.Tensor,
     obs_data: Dict,
-    norm_stats: Optional[Dict[str, torch.Tensor]] = None,
-    keys: Optional[list] = None,
 ) -> torch.Tensor:
     """计算数据一致性损失
     
     DC损失：‖H(ŷ)−y‖₂
     
     Args:
-        pred: 预测（原值域）[B, C, H, W]
+        pred_obs: 经过观测算子H处理后的预测值 [B, C, H, W]
         obs_data: 观测数据字典
-        norm_stats: 归一化统计量
-        keys: 数据键名列表
         
     Returns:
         数据一致性损失
     """
-    print(f"DEBUG: obs_data keys = {list(obs_data.keys())}")
-    print(f"DEBUG: pred shape = {pred.shape}")
-    
-    h_params = obs_data['h_params']
-    print(f"DEBUG: In _compute_data_consistency_loss, h_params = {h_params}")
-    print(f"DEBUG: h_params type: {type(h_params)}")
-    
-    # 应用H算子到预测
-    h_pred = apply_degradation_operator(pred, h_params)
-    
-    # 获取对应的观测数据（原值域），兼容多种键名
+    # 获取对应的观测数据（原值域）
     observation = obs_data.get('observation')
     if observation is None:
-        for alt_key in ['lr_observation', 'degraded', 'observation_lr', 'obs', 'y']:
-            if alt_key in obs_data:
-                observation = obs_data[alt_key]
-                break
-    
-    if observation is None:
-        # 如果没有直接的观测数据，从baseline生成
-        baseline_z = obs_data.get('baseline')  # z-score域
-        if baseline_z is not None and norm_stats is not None:
-            # 反归一化baseline到原值域
-            baseline_orig = _denormalize_tensor(baseline_z, norm_stats, keys)
-            # 应用H算子生成观测
-            observation = apply_degradation_operator(baseline_orig, h_params)
-        else:
-            # 无法获取观测数据，返回零损失
-            return torch.tensor(0.0, device=pred.device)
+        # 如果没有observation，尝试从baseline获取（注意：这里假设baseline已经是观测域或者能通过外部逻辑转换，
+        # 但Loss函数本身不再负责转换。如果baseline是z-score域且无H，无法计算DC）
+        return torch.tensor(0.0, device=pred_obs.device)
     
     # 确保observation在原值域且维度匹配
-    if observation.shape != h_pred.shape:
+    if observation.shape != pred_obs.shape:
         # 检查维度是否匹配
-        if observation.dim() != h_pred.dim():
-            print(f"WARNING: observation dim {observation.dim()} != h_pred dim {h_pred.dim()}")
-            return torch.tensor(0.0, device=pred.device)
+        if observation.dim() != pred_obs.dim():
+            return torch.tensor(0.0, device=pred_obs.device)
         
         # 检查通道数是否匹配
-        if observation.shape[1] != h_pred.shape[1]:
+        if observation.shape[1] != pred_obs.shape[1]:
             # 调整通道数
-            if observation.shape[1] > h_pred.shape[1]:
-                observation = observation[:, :h_pred.shape[1]]
+            if observation.shape[1] > pred_obs.shape[1]:
+                observation = observation[:, :pred_obs.shape[1]]
             else:
-                print(f"WARNING: observation channels {observation.shape[1]} < h_pred channels {h_pred.shape[1]}")
-                return torch.tensor(0.0, device=pred.device)
+                return torch.tensor(0.0, device=pred_obs.device)
         
         # 调整空间尺寸
-        if observation.shape[-2:] != h_pred.shape[-2:]:
-            observation = F.interpolate(observation, size=h_pred.shape[-2:], mode='bilinear', align_corners=False)
+        if observation.shape[-2:] != pred_obs.shape[-2:]:
+            observation = F.interpolate(observation, size=pred_obs.shape[-2:], mode='bilinear', align_corners=False)
     
     # 计算DC损失
-    dc_loss = F.mse_loss(h_pred, observation)
+    dc_loss = F.mse_loss(pred_obs, observation)
     
     return dc_loss
 
@@ -689,6 +705,8 @@ def _compute_relative_l2_loss(
     Returns:
         相对L2损失
     """
+    pred = torch.nan_to_num(pred, nan=0.0, posinf=1e6, neginf=-1e6)
+    target = torch.nan_to_num(target, nan=0.0, posinf=1e6, neginf=-1e6)
     # 计算每个样本的相对L2损失
     diff_norm = torch.norm(pred - target, p=2, dim=(1, 2, 3))  # [B]
     target_norm = torch.norm(target, p=2, dim=(1, 2, 3))  # [B]
@@ -696,7 +714,9 @@ def _compute_relative_l2_loss(
     rel_l2 = diff_norm / (target_norm + eps)
     
     # 返回批次平均
-    return rel_l2.mean()
+    rel = diff_norm / (target_norm + eps)
+    rel = torch.nan_to_num(rel, nan=0.0, posinf=1e6, neginf=1e6)
+    return rel.mean()
 
 
 def _denormalize_tensor(
@@ -764,8 +784,17 @@ def _denormalize_tensor(
             # 反归一化：x_orig = x_z * std + mean
             tensor_orig[:, i:i+1] = tensor_z[:, i:i+1] * std.reshape(1, 1, 1, 1) + mean.reshape(1, 1, 1, 1)
         else:
-            # 如果没有找到对应的归一化统计量，保持原值
-            print(f"Warning: No normalization stats found for key '{key}', keeping original values")
+            # 回退到全局通道级 mean/std
+            if isinstance(norm_stats, dict) and ('mean' in norm_stats and 'std' in norm_stats):
+                mean = norm_stats['mean'].to(tensor_z.device)
+                std = norm_stats['std'].to(tensor_z.device)
+                if mean.dim() == 0:
+                    mean = mean.repeat(tensor_z.size(1))
+                if std.dim() == 0:
+                    std = std.repeat(tensor_z.size(1))
+                tensor_orig[:, i:i+1] = tensor_z[:, i:i+1] * std[i].reshape(1, 1, 1, 1) + mean[i].reshape(1, 1, 1, 1)
+            else:
+                print(f"Warning: No normalization stats found for key '{key}', keeping original values")
     
     return tensor_orig
 
@@ -889,19 +918,16 @@ def l1_mae(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
 
 
 def rel_l2(x: torch.Tensor, y: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
-    """计算相对L2损失（适用于时序数据）
-    
-    Args:
-        x: 预测张量 [B, T, C, H, W]
-        y: 目标张量 [B, T, C, H, W]
-        eps: 数值稳定性常数
-        
-    Returns:
-        相对L2损失
-    """
-    num = torch.sqrt(((x-y)**2).sum(dim=(2,3,4)))  # [B, T]
-    den = torch.sqrt((y**2).sum(dim=(2,3,4))) + eps  # [B, T]
-    return (num/den).mean()
+    """计算相对L2损失，兼容 [B,T,C,H,W] 与 [B,C,H,W]"""
+    if x.dim() == 5 and y.dim() == 5:
+        num = torch.sqrt(((x-y)**2).sum(dim=(2,3,4)))  # [B, T]
+        den = torch.sqrt((y**2).sum(dim=(2,3,4))) + eps  # [B, T]
+        return (num/den).mean()
+    if x.dim() == 4 and y.dim() == 4:
+        num = torch.sqrt(((x-y)**2).sum(dim=(1,2,3)))  # [B]
+        den = torch.sqrt((y**2).sum(dim=(1,2,3))) + eps  # [B]
+        return (num/den).mean()
+    raise ValueError(f"Unsupported shapes for rel_l2: x={tuple(x.shape)}, y={tuple(y.shape)}")
 
 
 def compute_ar_loss(
@@ -948,19 +974,22 @@ def compute_ar_total_loss(
     norm_stats: Optional[Dict[str, torch.Tensor]], 
     config: DictConfig
 ) -> Dict[str, torch.Tensor]:
-    """计算自回归模型的总损失，包含重建损失、频谱损失和数据一致性损失
-    
-    Args:
-        pred_seq: 预测序列（z-score域）[B, T_out, C, H, W]
-        gt_seq: 真值序列（z-score域）[B, T_out, C, H, W]
-        obs_data: 观测数据字典
-        norm_stats: 归一化统计量
-        config: 损失配置
-        
-    Returns:
-        损失字典
-    """
+    """计算自回归模型的总损失，包含重建损失、频谱损失和数据一致性损失"""
     device = pred_seq.device
+    # 输入稳定化
+    pred_seq = torch.nan_to_num(pred_seq, nan=0.0, posinf=1e3, neginf=-1e3)
+    gt_seq = torch.nan_to_num(gt_seq, nan=0.0, posinf=1e3, neginf=-1e3)
+    # 对齐时间长度（课程阶段切换时可能出现 T_pred≠T_gt）
+    try:
+        T_pred = int(pred_seq.shape[1])
+        T_gt = int(gt_seq.shape[1])
+        T_use = min(T_pred, T_gt)
+        if T_pred != T_use:
+            pred_seq = pred_seq[:, :T_use]
+        if T_gt != T_use:
+            gt_seq = gt_seq[:, :T_use]
+    except Exception:
+        pass
     B, T, C, H, W = pred_seq.shape
     
     # 获取损失权重
@@ -974,7 +1003,7 @@ def compute_ar_total_loss(
     else:
         w_mae = 0.1
     
-    # 频谱损失权重
+    # 频谱损失权重（统一从 config.loss.spectral.weight 读取）
     if hasattr(config, 'loss'):
         if hasattr(config.loss, 'spectral') and hasattr(config.loss.spectral, 'weight'):
             w_spec = float(config.loss.spectral.weight)
@@ -985,7 +1014,7 @@ def compute_ar_total_loss(
     else:
         w_spec = 0.0
 
-    # DC损失权重（兼容 data_consistency 与 degradation_consistency 两种键名）
+    # DC损失权重（统一从 config.loss.data_consistency 或 degradation_consistency 读取）
     w_dc = 0.0
     if hasattr(config, 'loss'):
         if hasattr(config.loss, 'data_consistency') and hasattr(config.loss.data_consistency, 'weight'):
@@ -1003,17 +1032,62 @@ def compute_ar_total_loss(
         elif hasattr(config.loss, 'degradation_consistency') and isinstance(config.loss.degradation_consistency, (int, float)):
             w_dc = float(config.loss.degradation_consistency)
     
+    pred_z = torch.nan_to_num(pred_seq, nan=0.0, posinf=1e6, neginf=-1e6)
+    target_z = torch.nan_to_num(gt_seq, nan=0.0, posinf=1e6, neginf=-1e6)
     losses = {}
     
     # 1. 重建损失（在z-score域计算）
-    rel2_loss = rel_l2(pred_seq, gt_seq)
-    mae_loss = l1_mae(pred_seq, gt_seq)
-    reconstruction_loss = w_rel2 * rel2_loss + w_mae * mae_loss
+    rel2_loss = torch.nan_to_num(rel_l2(pred_seq, gt_seq), nan=0.0, posinf=1e3, neginf=1e3)
+    mae_loss = torch.nan_to_num(l1_mae(pred_seq, gt_seq), nan=0.0, posinf=1e3, neginf=1e3)
+    # 时序一致性：导数一致性 + 能量演化一致性（课程调度）
+    try:
+        # 时间差分
+        pred_diff = pred_seq[:, 1:] - pred_seq[:, :-1]
+        gt_diff = gt_seq[:, 1:] - gt_seq[:, :-1]
+        diff_err = pred_diff - gt_diff
+        num = torch.sqrt((diff_err**2).sum(dim=(-3, -2, -1)) + 1e-8)
+        den = torch.sqrt((gt_diff**2).sum(dim=(-3, -2, -1)) + 1e-8)
+        derivative_consistency = torch.nan_to_num(torch.mean(num / den), nan=0.0, posinf=1e3, neginf=1e3)
+        # 能量演化
+        pred_energy = (pred_seq**2).sum(dim=(-3, -2, -1))
+        gt_energy = (gt_seq**2).sum(dim=(-3, -2, -1))
+        pred_energy_diff = pred_energy[:, 1:] - pred_energy[:, :-1]
+        gt_energy_diff = gt_energy[:, 1:] - gt_energy[:, :-1]
+        energy_err = torch.abs(pred_energy_diff - gt_energy_diff)
+        energy_norm = torch.abs(gt_energy_diff) + 1e-8
+        energy_consistency = torch.nan_to_num(torch.mean(energy_err / energy_norm), nan=0.0, posinf=1e3, neginf=1e3)
+        lw = getattr(getattr(config, 'training', None), 'loss_weights', None)
+        if lw is not None and hasattr(lw, 'derivative_consistency') and hasattr(lw, 'energy_consistency'):
+            try:
+                w_deriv = float(getattr(lw, 'derivative_consistency'))
+            except Exception:
+                w_deriv = 0.0
+            try:
+                w_energy = float(getattr(lw, 'energy_consistency'))
+            except Exception:
+                w_energy = 0.0
+        else:
+            tf_decay = getattr(getattr(config, 'training', None), 'curriculum', None)
+            if tf_decay is not None:
+                decay_val = float(getattr(tf_decay, 'teacher_forcing_decay', 0.95))
+            else:
+                decay_val = 0.95
+            w_deriv = 0.2 * (1.0 - decay_val)
+            w_energy = 0.1 * (1.0 - decay_val)
+    except Exception:
+        derivative_consistency = torch.tensor(0.0, device=device)
+        energy_consistency = torch.tensor(0.0, device=device)
+        w_deriv = 0.0
+        w_energy = 0.0
+    reconstruction_loss = w_rel2 * rel2_loss + w_mae * mae_loss + w_deriv * derivative_consistency + w_energy * energy_consistency
+    reconstruction_loss = torch.nan_to_num(reconstruction_loss, nan=0.0, posinf=1e6, neginf=1e6)
     losses['reconstruction_loss'] = reconstruction_loss
     losses['rel2_loss'] = rel2_loss
     losses['mae_loss'] = mae_loss
+    losses['derivative_consistency'] = derivative_consistency
+    losses['energy_consistency'] = energy_consistency
     
-    # 2. 频谱损失（在原值域计算）- 可选
+    # 2. 频谱损失（在原值域计算）
     if w_spec > 0:
         # 将序列转换为批次处理
         pred_flat = pred_seq.reshape(B*T, C, H, W).contiguous()
@@ -1036,66 +1110,62 @@ def compute_ar_total_loss(
 
         # 计算频谱损失
         spectral_loss = _compute_spectral_loss(pred_orig, target_orig, config)
+        spectral_loss = torch.nan_to_num(spectral_loss, nan=0.0, posinf=1e6, neginf=1e6)
         losses['spectral_loss'] = spectral_loss
     else:
         losses['spectral_loss'] = torch.tensor(0.0, device=device)
     
-    # 3. 数据一致性损失（在原值域计算）- 可选
-    if w_dc > 0 and 'observation_seq' in obs_data:
-        # 将序列转换为批次处理 - 添加安全检查确保维度匹配
-        try:
-            pred_flat = pred_seq.reshape(B*T, C, H, W).contiguous()
-        except RuntimeError as e:
-            # 如果reshape失败，检查实际维度并调整
-            actual_elements = pred_seq.numel()
-            expected_elements = B * T * C * H * W
-            if actual_elements != expected_elements:
-                print(f"WARNING: Dimension mismatch in pred_seq reshape: expected {expected_elements}, got {actual_elements}")
-                print(f"pred_seq shape: {pred_seq.shape}, expected: [{B}, {T}, {C}, {H}, {W}]")
-                # 尝试修复维度 - 可能是T_out维度不匹配
-                if pred_seq.dim() == 4:
-                    # FNO2D输出是4D [B, C, H, W]，需要扩展到5D
-                    pred_seq = pred_seq.unsqueeze(1).expand(-1, T, -1, -1, -1)
-                elif pred_seq.shape[1] != T:
-                    # T维度不匹配，调整T值
-                    actual_T = pred_seq.shape[1]
-                    T = actual_T
-                    pred_flat = pred_seq.reshape(B*T, C, H, W).contiguous()
+    # 3. 数据一致性损失（在原值域计算）
+    if w_dc > 0:
+        # 优先使用预计算的 pred_obs (由 Trainer 通过 H 算子生成)
+        # obs_data 中应包含 'pred_obs' (单步) 或 'pred_obs_seq' (多步)
+        pred_obs_seq = obs_data.get('pred_obs_seq')
+        if pred_obs_seq is None and 'pred_obs' in obs_data:
+             # 兼容单步命名
+             pred_obs_seq = obs_data['pred_obs']
+        
+        if pred_obs_seq is not None:
+            # 确保维度匹配
+            if pred_obs_seq.dim() == 4 and T > 1:
+                 pred_obs_seq = pred_obs_seq.unsqueeze(1).expand(-1, T, -1, -1, -1)
+            
+            # 展平处理
+            try:
+                B_obs, T_obs = pred_obs_seq.shape[:2]
+                pred_obs_flat = pred_obs_seq.reshape(B_obs*T_obs, *pred_obs_seq.shape[2:]).contiguous()
+            except Exception:
+                # 容错：如果无法展平，可能已经展平或维度不对，跳过DC
+                pred_obs_flat = None
+            
+            if pred_obs_flat is not None:
+                # 准备观测真值
+                # obs_data['observation_seq'] -> flatten
+                observation_seq = obs_data.get('observation_seq')
+                if observation_seq is not None:
+                    # 对齐时间步
+                    if observation_seq.shape[1] != pred_obs_seq.shape[1]:
+                        T_common = min(observation_seq.shape[1], pred_obs_seq.shape[1])
+                        observation_seq = observation_seq[:, :T_common]
+                        # 同时截断 pred_obs_flat (需要重新flatten)
+                        pred_obs_seq_cut = pred_obs_seq[:, :T_common]
+                        pred_obs_flat = pred_obs_seq_cut.reshape(pred_obs_seq_cut.shape[0]*pred_obs_seq_cut.shape[1], *pred_obs_seq_cut.shape[2:])
+                    
+                    obs_flat = observation_seq.reshape(observation_seq.shape[0]*observation_seq.shape[1], *observation_seq.shape[2:])
+                    
+                    # 构造临时 obs_data 供 _compute_data_consistency_loss 使用
+                    obs_data_dc = {'observation': obs_flat}
+                    
+                    # 计算DC损失
+                    dc_loss = _compute_data_consistency_loss(pred_obs_flat, obs_data_dc)
+                    dc_loss = torch.nan_to_num(dc_loss, nan=0.0, posinf=1e6, neginf=1e6)
+                    losses['dc_loss'] = dc_loss
                 else:
-                    raise e
+                     losses['dc_loss'] = torch.tensor(0.0, device=device)
             else:
-                raise e
-
-        # 安全解析 keys：若未提供或类型异常则置为 None，启用通道级 mean/std
-        data_keys = None
-        try:
-            if hasattr(config, 'data'):
-                maybe_keys = getattr(config.data, 'keys', None)
-                if isinstance(maybe_keys, (list, tuple)) and all(isinstance(k, str) and k.isalpha() for k in maybe_keys):
-                    data_keys = list(maybe_keys)
-        except Exception:
-            data_keys = None
-
-        # 反归一化到原值域
-        pred_orig = _denormalize_tensor(pred_flat, norm_stats, data_keys)
-
-        # 准备观测数据
-        obs_data_flat = {}
-        for key, value in obs_data.items():
-            if key.endswith('_seq') and isinstance(value, torch.Tensor):
-                # 处理序列数据 - 添加安全检查
-                try:
-                    obs_data_flat[key.replace('_seq', '')] = value.reshape(B*T, *value.shape[2:]).contiguous()
-                except RuntimeError:
-                    # 如果观测数据也有维度问题，跳过或调整
-                    print(f"WARNING: Skipping reshape for obs_data key {key}, shape {value.shape}")
-                    continue
-            else:
-                obs_data_flat[key] = value
-
-        # 计算DC损失
-        dc_loss = _compute_data_consistency_loss(pred_orig, obs_data_flat, norm_stats, data_keys)
-        losses['dc_loss'] = dc_loss
+                 losses['dc_loss'] = torch.tensor(0.0, device=device)
+        else:
+            # 未提供 pred_obs，无法计算 DC 损失（禁止在 Loss 中调用 H）
+            losses['dc_loss'] = torch.tensor(0.0, device=device)
     else:
         losses['dc_loss'] = torch.tensor(0.0, device=device)
     
@@ -1105,6 +1175,7 @@ def compute_ar_total_loss(
         w_spec * losses['spectral_loss'] +
         w_dc * losses['dc_loss']
     )
+    total_loss = torch.nan_to_num(total_loss, nan=0.0, posinf=1e6, neginf=1e6)
     losses['total_loss'] = total_loss
     
     return losses

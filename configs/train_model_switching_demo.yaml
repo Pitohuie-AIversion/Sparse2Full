@@ -1,0 +1,162 @@
+# 可更换模型的训练配置
+# PDEBench稀疏观测重建系统 - 模型灵活切换配置
+
+defaults:
+  - _self_
+
+# 实验配置
+experiment:
+  name: "model_switching_demo"  # 将根据模型名称自动更新
+  device: "cuda:0"
+  seed: 2025
+  output_dir: "runs"
+
+# 数据配置 - 适配不同模型需求
+data:
+  data_path: "datasets/sample_data.hdf5"  # 小样本数据用于快速测试
+  dataset_name: "PDEBench"
+  keys: ["tensor"]
+  splits_dir: "splits"
+  image_size: 128
+  
+  # 观测配置
+  observation:
+    mode: "SR"
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: "mirror"
+  
+  # 预处理配置
+  preprocessing:
+    normalize: true
+    cache_data: false
+  
+  # 数据加载器配置
+  dataloader:
+    batch_size: 2
+    num_workers: 2
+    pin_memory: true
+    persistent_workers: false
+
+# 模型配置 - 支持灵活切换
+model:
+  # 可选项: "UNet", "SwinUNet", "Hybrid", "FNO2d", "MLP"
+  name: "SwinUNet"  # 🔄 在这里更换您想要的模型
+  
+  params:
+    # 通用参数 - 适配所有模型
+    in_channels: 1
+    out_channels: 1
+    img_size: 128
+    
+    # 模型特定参数 - 根据选择的模型自动适配
+    kwargs:
+      # === UNet 特定参数 ===
+      # 如果使用UNet，取消下面的注释
+      # features: [64, 128, 256, 512]
+      # bilinear: true
+      # dropout: 0.0
+      
+      # === SwinUNet 特定参数 ===
+      # 当前配置为SwinUNet
+      patch_size: 4
+      window_size: 8
+      depths: [2, 2, 6, 2]
+      num_heads: [3, 6, 12, 24]
+      embed_dim: 96
+      mlp_ratio: 4.0
+      drop_rate: 0.0
+      attn_drop_rate: 0.0
+      drop_path_rate: 0.1
+      
+      # === Hybrid 特定参数 ===
+      # 如果使用Hybrid，取消下面的注释
+      # use_attention: true
+      # use_fno: true
+      # use_unet: true
+      # fusion_strategy: "concat"
+      
+      # === FNO2d 特定参数 ===
+      # 如果使用FNO2d，取消下面的注释
+      # modes: 16
+      # width: 32
+      # layers: 4
+
+# 训练配置
+training:
+  epochs: 5  # 快速测试模式
+  batch_size: 4
+  seed: 2025
+  output_dir: "runs"
+  
+  # 优化器配置
+  optimizer:
+    name: "AdamW"
+    params:
+      lr: 1.0e-4
+      weight_decay: 1.0e-4
+      betas: [0.9, 0.999]
+  
+  # 学习率调度器
+  scheduler:
+    name: "cosine_warmup"
+    params:
+      T_max: 200
+      warmup_steps: 1000
+      eta_min: 1.0e-6
+  
+  # 梯度裁剪
+  grad_clip_norm: 1.0
+  
+  # 日志和保存
+  log_interval: 10
+  save_interval: 1
+  plot_interval: 10
+  
+  # 混合精度训练
+  use_amp: true
+
+# 损失函数配置
+loss:
+  rec_weight: 1.0
+  spec_weight: 0.0
+  dc_weight: 0.0
+  
+  rec_loss_type: "l2"
+  spec_loss_type: "l2"
+  dc_loss_type: "l2"
+  
+  low_freq_modes: 4
+  mirror_padding: false
+  
+  use_gradient_loss: false
+  use_pde_residual_loss: false
+
+# 验证配置
+validation:
+  batch_size: 8
+  metrics:
+    - "rel_l2"
+    - "mae"
+    - "psnr"
+    - "ssim"
+
+# 设备配置
+device:
+  use_cuda: true
+  cuda_device: 0
+  num_workers: 4
+  pin_memory: true
+
+# 日志配置
+logging:
+  level: "INFO"
+  use_tensorboard: true
+  use_wandb: false
+  
+# 可复现性配置
+reproducibility:
+  deterministic: true
+  benchmark: false

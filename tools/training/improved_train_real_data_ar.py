@@ -226,6 +226,45 @@ class ImprovedTrainer:
         self.learning_rates = []
         self.gradient_norms = []
     
+    def _build_obs_data(self, baseline: torch.Tensor) -> Dict[str, Any]:
+        obs_cfg = getattr(self.config.data, "observation", None)
+        if obs_cfg is None:
+            return {"observation": None, "baseline": baseline, "h_params": None}
+        try:
+            mode_raw = obs_cfg.get("mode", "sr")
+            mode = str(mode_raw[0] if isinstance(mode_raw, (list, tuple)) else mode_raw).lower()
+        except Exception:
+            mode = "sr"
+        if mode == "sr":
+            sr_sub = obs_cfg.get("sr", {}) if isinstance(obs_cfg.get("sr", {}), dict) else {}
+            scale = obs_cfg.get("scale_factor", sr_sub.get("scale_factor", 2))
+            sigma = obs_cfg.get("blur_sigma", sr_sub.get("blur_sigma", 1.0))
+            kernel_size = obs_cfg.get("kernel_size", sr_sub.get("blur_kernel_size", 5))
+            boundary = obs_cfg.get("boundary", sr_sub.get("boundary_mode", "mirror"))
+            downsample = obs_cfg.get("downsample_interpolation", sr_sub.get("downsample_mode", "area"))
+            h_params = {
+                "task": "SR",
+                "scale": int(scale),
+                "sigma": float(sigma),
+                "kernel_size": int(kernel_size),
+                "boundary": str(boundary),
+                "downsample_interpolation": str(downsample),
+            }
+        elif mode == "crop":
+            crop_sub = obs_cfg.get("crop", {}) if isinstance(obs_cfg.get("crop", {}), dict) else {}
+            crop_size = obs_cfg.get("crop_size", crop_sub.get("crop_size"))
+            crop_box = obs_cfg.get("crop_box", crop_sub.get("crop_box"))
+            boundary = obs_cfg.get("boundary", crop_sub.get("boundary_mode", "mirror"))
+            h_params = {
+                "task": "Crop",
+                "crop_size": crop_size,
+                "crop_box": crop_box,
+                "boundary": str(boundary),
+            }
+        else:
+            h_params = None
+        return {"observation": None, "baseline": baseline, "h_params": h_params}
+    
     def _count_parameters(self) -> int:
         """计算模型参数数量"""
         return sum(p.numel() for p in self.model.parameters() if p.requires_grad)
@@ -271,15 +310,7 @@ class ImprovedTrainer:
             if self.config.training.amp.enabled:
                 with torch.cuda.amp.autocast(dtype=torch.bfloat16):
                     pred = self.model(x)
-                    
-                    # 准备观测数据
-                    obs_data = {
-                        'observation': None,  # 空间-only模式
-                        'baseline': x,
-                        'h_params': {'task': 'SR', 'scale': 2, 'sigma': 1.0, 'kernel_size': 5, 'boundary': 'mirror'}
-                    }
-                    
-                    # 计算损失
+                    obs_data = self._build_obs_data(x)
                     losses = self.loss_fn(
                         pred_z=pred,
                         target_z=target,
@@ -290,15 +321,7 @@ class ImprovedTrainer:
                     )
             else:
                 pred = self.model(x)
-                
-                # 准备观测数据
-                obs_data = {
-                    'observation': None,
-                    'baseline': x,
-                    'h_params': {'task': 'SR', 'scale': 2, 'sigma': 1.0, 'kernel_size': 5, 'boundary': 'mirror'}
-                }
-                
-                # 计算损失
+                obs_data = self._build_obs_data(x)
                 losses = self.loss_fn(
                     pred_z=pred,
                     target_z=target,

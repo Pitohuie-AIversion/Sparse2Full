@@ -1,0 +1,161 @@
+# 3-epoch 优化版基准配置（开启更积极的性能优化）
+
+experiment:
+  name: "AR-DR2D-Benchmark-Optimized-3ep-s2025"
+  description: "3轮优化配置，用于性能对比"
+  device: cuda
+  seed: 2025
+  output_dir: runs
+  log_every_n_steps: 10
+
+logging:
+  performance_monitoring:
+    log_gpu_memory: true
+    log_throughput: true
+    log_batch_time: true
+    memory_snapshot_frequency: 20
+  tensorboard:
+    save_dir: runs/tensorboard
+    name: ar_benchmark_opt_3ep
+    version: null
+
+data:
+  data_path: "/invalid/path/to/pdebench/2D_diff-react_NA_NA.h5"
+  dataset_name: RealDiffusionReaction
+  image_size: 128
+  max_samples: 1024
+  T_in: 1
+  T_out: 5
+  train_ratio: 0.8
+  val_ratio: 0.2
+  test_ratio: 0.0
+  time_step_start: 0
+  time_step_end: 20
+  time_step_stride: 1
+  normalize: true
+  augmentation:
+    enabled: false
+  keys: ["u", "v"]
+  dataloader:
+    batch_size: 128
+    val_batch_size: 128
+    test_batch_size: 32
+    num_workers: 16
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 16
+    drop_last: true
+
+observation:
+  mode: sr
+  scale_factor: 2
+  blur_sigma: 1.0
+  kernel_size: 5
+  downsample_interpolation: area
+  boundary: mirror
+  crop_size: null
+  crop_box: null
+
+model:
+  name: ARWrapper
+  base_model: SwinUNet
+  in_channels: 2
+  out_channels: 2
+  img_size: 128
+  patch_size: 4
+  window_size: 8
+  depths: [2, 2, 4, 2]
+  num_heads: [3, 6, 12, 24]
+  embed_dim: 64
+  mlp_ratio: 4.0
+  drop_rate: 0.1
+  attn_drop_rate: 0.1
+  drop_path_rate: 0.1
+  ar_config:
+    detach_rollout: true
+    scheduled_sampling: false
+    teacher_forcing_ratio: 1.0
+
+training:
+  epochs: 3
+  batch_size: 128
+  gradient_accumulation_steps: 1
+  enable_checkpointing: true
+  enable_progress_bar: true
+  precision: "bf16-mixed"
+  memory_cleanup_frequency: 1
+  auto_batch_size_reduction: true
+  memory_threshold: 0.92
+
+  optimizer:
+    name: AdamW
+    lr: 0.0015
+    weight_decay: 1e-4
+    betas: [0.9, 0.999]
+    eps: 1e-8
+    fused: true
+    foreach: false
+
+  scheduler:
+    name: CosineAnnealingLR
+    T_max: 3
+    eta_min: 1e-6
+    warmup_epochs: 0
+
+  gradient_clip_val: 1.0
+  gradient_clip_algorithm: norm
+
+  amp:
+    enabled: true
+    opt_level: O1
+    cast_model_type: bfloat16
+    autocast_dtype: bfloat16
+
+  early_stopping:
+    enabled: true
+    patience: 2
+    min_delta: 0.0
+    monitor: val_loss
+    mode: min
+
+  checkpoint:
+    save_best: true
+    save_last: true
+    max_keep: 2
+    save_every_n_epochs: 0
+    monitor: val_loss
+    mode: min
+
+validation:
+  check_val_every_n_epoch: 1
+  metrics: ["rel_l2", "mae"]
+
+testing:
+  enabled: false
+  run_final_test: false
+
+benchmark:
+  enabled: true
+  run_before_training: true
+  num_batches: 20
+
+# 三件套损失（黄金法则）：重建+频域+一致性
+loss:
+  reconstruction:
+    weight: 1.0
+  spectral:
+    weight: 0.1
+    low_freq_modes: 16
+    use_rfft: false
+    normalize: false
+    boundary_mode: mirror
+  data_consistency:
+    weight: 0.5
+
+hardware:
+  num_workers: 16
+  memory:
+    allow_tf32: true
+    cudnn_benchmark: true
+    memory_efficient: true
+    pin_memory_device: null

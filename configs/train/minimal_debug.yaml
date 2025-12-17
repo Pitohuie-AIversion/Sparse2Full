@@ -1,0 +1,152 @@
+# 极简调试配置 - 消除所有潜在阻塞点
+experiment:
+  name: "Minimal-Debug-SwinUNet"
+  description: "最小配置测试训练流程"
+  device: cuda:0
+  seed: 2025
+  output_dir: runs
+
+device:
+  accelerator: cuda
+  devices: 1
+  strategy: auto
+  precision: bf16-mixed
+
+# 禁用所有时序功能
+ar:
+  enabled: false
+
+sequential:
+  enabled: false
+
+# 最小数据配置
+data:
+  dataset_name: RealDiffusionReaction
+  data_path: "/tmp/synthetic_data.h5"  # 虚拟路径用于合成数据
+  use_synthetic_data: true
+  synthetic_data_config:
+    num_samples: 50  # 极少量样本
+    image_size: 64   # 小尺寸图像
+    channels: 2
+  
+  T_in: 1
+  T_out: 1
+  image_size: 64
+  sample_limit: 50
+  
+  train_ratio: 0.8
+  val_ratio: 0.15
+  test_ratio: 0.05
+  
+  normalize: true
+  augmentation:
+    enabled: false
+  
+  # 最小数据加载器配置
+  dataloader:
+    batch_size: 4    # 极小批次
+    val_batch_size: 2
+    test_batch_size: 1
+    num_workers: 0   # 禁用多进程
+    pin_memory: false
+    persistent_workers: false
+    prefetch_factor: 2
+    drop_last: true
+    shuffle: false   # 禁用洗牌
+
+# 最小模型配置
+model:
+  name: SwinUNet
+  in_channels: 2
+  out_channels: 2
+  img_size: 64
+  patch_size: 2
+  window_size: 4
+  depths: [1, 1, 1, 1]  # 最浅网络
+  num_heads: [1, 2, 4, 8]
+  embed_dim: 24       # 最小嵌入维度
+  mlp_ratio: 2.0
+  drop_rate: 0.0
+  attn_drop_rate: 0.0
+  drop_path_rate: 0.0
+
+# 最小训练配置
+training:
+  epochs: 2           # 仅2个epoch
+  batch_size: 4
+  gradient_accumulation_steps: 1
+  
+  # 最小优化器
+  optimizer:
+    name: "AdamW"
+    lr: 0.001         # 较高学习率
+    weight_decay: 0.0
+    fused: false
+    foreach: false
+  
+  # 最小调度器
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 2
+    eta_min: 1e-6
+  
+  # 基本设置
+  gradient_clip_val: 0
+  
+  # 最小AMP
+  amp:
+    enabled: true
+    autocast_dtype: bfloat16
+  
+  # 最小验证
+  validation:
+    enabled: true
+    check_val_every_n_epoch: 1
+    log_val_metrics: false
+  
+  # 最小检查点
+  checkpoint:
+    save_best: false
+    save_last: false
+    max_keep: 1
+  
+  # 禁用早停
+  early_stopping:
+    enabled: false
+
+# 最小损失配置
+loss:
+  reconstruction:
+    weight: 1.0
+  spectral:
+    weight: 0.0
+  degradation_consistency:
+    weight: 0.0
+  gradient_weight: 0.0
+
+# 最小日志配置
+logging:
+  experiment_name: "minimal-debug"
+  log_every_n_steps: 1
+  performance_monitoring:
+    log_gpu_memory: false
+    log_throughput: false
+    log_batch_time: false
+  tensorboard:
+    save_dir: runs/tensorboard
+    name: minimal_debug
+  visualization:
+    save_samples_every_n_epochs: 0
+    num_samples_to_save: 0
+    save_training_curves: false
+
+# 最小测试配置
+testing:
+  enabled: false
+  
+# 禁用数据增强
+data_augmentation:
+  enable: false
+
+# 随机种子
+seed: 2025

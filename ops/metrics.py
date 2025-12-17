@@ -79,7 +79,9 @@ def compute_psnr_batch(pred: torch.Tensor, target: torch.Tensor,
         PSNR值 [B, C]
     """
     if data_range is None:
-        data_range = target.max() - target.min()
+        # 使用目标的动态范围，但避免在z-score域误判，最小范围设下界
+        dr = (target.max() - target.min()).detach()
+        data_range = float(torch.clamp(dr, min=1e-3).item())
     
     mse = F.mse_loss(pred, target, reduction='none')  # [B, C, H, W]
     mse = mse.view(mse.size(0), mse.size(1), -1).mean(dim=2)  # [B, C]

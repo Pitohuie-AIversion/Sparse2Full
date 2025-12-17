@@ -116,6 +116,46 @@ def count_h5_fds(pid: int) -> int:
     return cnt
 
 
+def get_gpu_info() -> list:
+    code, out, _ = sh(
+        "nvidia-smi --query-gpu=index,memory.used,memory.total,utilization.gpu --format=csv,noheader,nounits"
+    )
+    infos = []
+    if code == 0:
+        for ln in out.strip().splitlines():
+            parts = [p.strip() for p in ln.split(",")]
+            if len(parts) >= 4:
+                try:
+                    idx = int(parts[0])
+                    used_gb = float(parts[1]) / 1024.0
+                    total_gb = float(parts[2]) / 1024.0
+                    util = float(parts[3])
+                    infos.append((idx, used_gb, total_gb, util))
+                except Exception:
+                    continue
+    return infos
+
+
+def get_proc_gpu_mem(pid: int) -> Optional[float]:
+    code, out, _ = sh(
+        "nvidia-smi --query-compute-apps=pid,used_memory --format=csv,noheader,nounits"
+    )
+    if code == 0:
+        total_mb = 0.0
+        for ln in out.strip().splitlines():
+            parts = [p.strip() for p in ln.split(",")]
+            if len(parts) >= 2:
+                try:
+                    proc = int(parts[0])
+                    if proc == pid:
+                        mb = float(parts[1])
+                        total_mb += mb
+                except Exception:
+                    continue
+        return total_mb / 1024.0 if total_mb > 0 else 0.0
+    return None
+
+
 def parse_log(log_path: Optional[str]) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
     if not log_path or not os.path.isfile(log_path):
         return None, None, None, None
@@ -168,6 +208,8 @@ def main():
         pcpu = get_proc_cpu(pid) if pid else None
         children = get_children_count(pid) if pid else 0
         h5fds = count_h5_fds(pid) if pid else 0
+        gpu_infos = get_gpu_info()
+        proc_gpu = get_proc_gpu_mem(pid) if pid else None
 
         used_hist.append((time.time(), used))
         # keep last 10 samples for rate
@@ -191,11 +233,18 @@ def main():
         pcpu_str = f"{pcpu:.2f}" if pcpu is not None else "NA"
         iowait_str = f"{io_wait:.2f}" if io_wait is not None else "NA"
         idle_str = f"{cpu_idle:.2f}" if cpu_idle is not None else "NA"
+        gpu_str = " ".join(
+            [
+                f"GPU{idx}:{util:.0f}% {used:.2f}/{total:.0f}GB"
+                for (idx, used, total, util) in gpu_infos
+            ]
+        ) or "GPU:NA"
+        proc_gpu_str = f"{proc_gpu:.2f}" if proc_gpu is not None else "NA"
         line = (
             f"[{ts}] used={used:.2f}GB buff/cache={buffcache:.2f}GB avail={avail:.2f}GB "
             f"iowait={iowait_str}% idle={idle_str}% "
             f"rss={rss_str}GB pcpu={pcpu_str}% children={children} h5_fds={h5fds} "
-            f"rate={rate_str}GB/min eta800={eta_str}min"
+            f"rate={rate_str}GB/min eta800={eta_str}min | {gpu_str} proc_gpu={proc_gpu_str}GB"
         )
         print(line)
         # 里程碑标注

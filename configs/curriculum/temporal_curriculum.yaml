@@ -1,0 +1,344 @@
+# 时序课程学习配置
+# 支持多种课程学习策略，包括渐进式、分阶段、自适应等
+
+# 课程学习全局配置
+curriculum_config:
+  enabled: true
+  strategy: "multi_stage"  # progressive, staged, adaptive, multi_stage
+  
+  # 全局参数
+  global_params:
+    warmup_epochs: 10
+    transition_smoothing: true
+    performance_monitoring: true
+    early_termination: true
+    
+  # 性能阈值
+  performance_thresholds:
+    rel_l2_threshold: 0.1
+    improvement_patience: 15
+    min_improvement: 0.01
+
+# 渐进式课程学习
+progressive_curriculum:
+  enabled: false
+  
+  # 时间步渐进
+  temporal_progression:
+    start_T_out: 1
+    end_T_out: 16
+    growth_strategy: "exponential"  # linear, exponential, logarithmic
+    
+    # 线性增长
+    linear:
+      growth_rate: 1
+      growth_epochs: 20
+      
+    # 指数增长
+    exponential:
+      base: 1.2
+      growth_epochs: 15
+      
+    # 对数增长
+    logarithmic:
+      scale: 2.0
+      growth_epochs: 25
+      
+  # 复杂度渐进
+  complexity_progression:
+    enabled: true
+    
+    # 模型复杂度
+    model_complexity:
+      start_depth: 2
+      end_depth: 6
+      growth_epochs: 30
+      
+    # 数据复杂度
+    data_complexity:
+      start_noise_level: 0.001
+      end_noise_level: 0.01
+      growth_epochs: 25
+
+# 分阶段课程学习
+staged_curriculum:
+  enabled: true
+  
+  # 阶段定义
+  stages:
+    # 第一阶段：基础AR训练
+    - name: "foundation_ar"
+      description: "基础自回归训练，建立基本的时序建模能力"
+      epochs: 40
+      
+      # 模型配置
+      model_config:
+        prediction_mode: "ar"
+        T_in: 4
+        T_out: 1
+        
+      # 训练配置
+      training_config:
+        teacher_forcing_ratio: 1.0
+        learning_rate_multiplier: 0.5
+        batch_size_multiplier: 1.0
+        
+      # 损失权重
+      loss_weights:
+        primary_loss: 1.0
+        temporal_consistency: 0.1
+        
+      # 成功标准
+      success_criteria:
+        rel_l2_threshold: 0.15
+        patience: 10
+        
+    # 第二阶段：短期预测
+    - name: "short_term_prediction"
+      description: "短期多步预测训练"
+      epochs: 50
+      
+      model_config:
+        prediction_mode: "ar"
+        T_in: 4
+        T_out: 3
+        
+      training_config:
+        teacher_forcing_ratio: 0.9
+        learning_rate_multiplier: 0.8
+        batch_size_multiplier: 1.0
+        
+      loss_weights:
+        primary_loss: 1.0
+        temporal_consistency: 0.2
+        spectral_loss: 0.1
+        
+      success_criteria:
+        rel_l2_threshold: 0.12
+        patience: 12
+        
+    # 第三阶段：中期预测
+    - name: "medium_term_prediction"
+      description: "中期多步预测训练"
+      epochs: 60
+      
+      model_config:
+        prediction_mode: "ar"
+        T_in: 4
+        T_out: 6
+        
+      training_config:
+        teacher_forcing_ratio: 0.7
+        learning_rate_multiplier: 1.0
+        batch_size_multiplier: 0.8
+        
+      loss_weights:
+        primary_loss: 1.0
+        temporal_consistency: 0.3
+        spectral_loss: 0.2
+        
+      success_criteria:
+        rel_l2_threshold: 0.10
+        patience: 15
+        
+    # 第四阶段：长期预测
+    - name: "long_term_prediction"
+      description: "长期多步预测训练"
+      epochs: 70
+      
+      model_config:
+        prediction_mode: "ar"
+        T_in: 4
+        T_out: 8
+        
+      training_config:
+        teacher_forcing_ratio: 0.5
+        learning_rate_multiplier: 1.0
+        batch_size_multiplier: 0.6
+        
+      loss_weights:
+        primary_loss: 1.0
+        temporal_consistency: 0.4
+        spectral_loss: 0.3
+        physics_constraint: 0.1
+        
+      success_criteria:
+        rel_l2_threshold: 0.08
+        patience: 20
+        
+    # 第五阶段：混合模式训练
+    - name: "hybrid_training"
+      description: "AR和NAR混合训练"
+      epochs: 80
+      
+      model_config:
+        prediction_mode: "hybrid"
+        T_in: 4
+        T_out: 8
+        
+      training_config:
+        teacher_forcing_ratio: 0.3
+        learning_rate_multiplier: 0.9
+        batch_size_multiplier: 0.8
+        
+      loss_weights:
+        ar_loss: 0.6
+        nar_loss: 0.4
+        temporal_consistency: 0.3
+        spectral_loss: 0.2
+        
+      success_criteria:
+        rel_l2_threshold: 0.06
+        patience: 25
+        
+    # 第六阶段：NAR精调
+    - name: "nar_refinement"
+      description: "NAR模式精调训练"
+      epochs: 60
+      
+      model_config:
+        prediction_mode: "nar"
+        T_in: 4
+        T_out: 8
+        
+      training_config:
+        teacher_forcing_ratio: 0.0
+        learning_rate_multiplier: 0.7
+        batch_size_multiplier: 1.0
+        
+      loss_weights:
+        nar_loss: 1.0
+        temporal_consistency: 0.2
+        spectral_loss: 0.3
+        
+      success_criteria:
+        rel_l2_threshold: 0.05
+        patience: 30
+
+# 自适应课程学习
+adaptive_curriculum:
+  enabled: false
+  
+  # 自适应策略
+  adaptation_strategy:
+    type: "performance_based"  # performance_based, gradient_based, loss_based
+    
+    # 基于性能的自适应
+    performance_based:
+      metric: "val/rel_l2"
+      improvement_threshold: 0.01
+      patience: 10
+      adaptation_factor: 1.2
+      
+    # 基于梯度的自适应
+    gradient_based:
+      gradient_norm_threshold: 1.0
+      adaptation_sensitivity: 0.1
+      
+    # 基于损失的自适应
+    loss_based:
+      loss_plateau_threshold: 0.001
+      plateau_patience: 8
+      
+  # 自适应参数
+  adaptive_params:
+    # T_out自适应
+    T_out_adaptation:
+      enabled: true
+      min_T_out: 1
+      max_T_out: 16
+      increment: 1
+      
+    # 学习率自适应
+    lr_adaptation:
+      enabled: true
+      adaptation_range: [0.5, 2.0]
+      
+    # 批次大小自适应
+    batch_size_adaptation:
+      enabled: false
+      adaptation_range: [0.5, 1.5]
+
+# 多阶段课程学习（组合策略）
+multi_stage_curriculum:
+  enabled: false
+  
+  # 阶段组合
+  stage_combination:
+    # 第一轮：基础训练
+    round_1:
+      strategy: "staged"
+      stages: ["foundation_ar", "short_term_prediction"]
+      
+    # 第二轮：进阶训练
+    round_2:
+      strategy: "progressive"
+      start_T_out: 3
+      end_T_out: 8
+      
+    # 第三轮：精调训练
+    round_3:
+      strategy: "adaptive"
+      focus: "nar_refinement"
+
+# 课程学习监控
+monitoring:
+  # 性能跟踪
+  performance_tracking:
+    enabled: true
+    metrics: ["rel_l2", "mae", "temporal_consistency"]
+    save_frequency: 5
+    
+  # 阶段转换监控
+  stage_transition:
+    enabled: true
+    log_transitions: true
+    save_checkpoints: true
+    
+  # 自适应监控
+  adaptation_monitoring:
+    enabled: true
+    track_adaptations: true
+    save_adaptation_history: true
+
+# 课程学习可视化
+visualization:
+  enabled: true
+  
+  # 进度可视化
+  progress_visualization:
+    enabled: true
+    plot_metrics: true
+    plot_stages: true
+    
+  # 性能对比
+  performance_comparison:
+    enabled: true
+    compare_stages: true
+    baseline_comparison: true
+    
+  # 保存配置
+  save_config:
+    save_plots: true
+    save_data: true
+    output_dir: "curriculum_analysis"
+
+# 课程学习优化
+optimization:
+  # 内存优化
+  memory_optimization:
+    enabled: true
+    gradient_checkpointing: true
+    mixed_precision: true
+    
+  # 计算优化
+  computational_optimization:
+    enabled: true
+    dynamic_batching: true
+    adaptive_accumulation: true
+    
+  # 存储优化
+  storage_optimization:
+    enabled: true
+    checkpoint_compression: true
+    selective_saving: true

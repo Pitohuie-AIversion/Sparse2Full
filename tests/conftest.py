@@ -84,8 +84,29 @@ def tolerance_config():
         'atol': 1e-6,
         'rtol': 1e-5,
         'grad_atol': 1e-6,
-        'grad_rtol': 1e-5
+        'grad_rtol': 1e-5,
+        'dc_threshold': 1e-8,
     }
+
+
+@pytest.fixture
+def temp_dir(tmp_path):
+    return tmp_path
+
+
+@pytest.fixture
+def sample_h5_data(temp_dir):
+    import h5py
+
+    path = temp_dir / "sample.h5"
+    rng = np.random.default_rng(123)
+    with h5py.File(path, "w") as f:
+        for i in range(8):
+            g = f.create_group(str(i))
+            g.create_dataset("u", data=rng.standard_normal((128, 128), dtype=np.float32))
+            g.create_dataset("v", data=rng.standard_normal((128, 128), dtype=np.float32))
+            g.create_dataset("p", data=rng.standard_normal((128, 128), dtype=np.float32))
+    return path
 
 
 class TestUtils:

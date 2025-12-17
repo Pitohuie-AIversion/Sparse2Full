@@ -1,0 +1,206 @@
+experiment:
+  name: "AR-DR2D-FNO2d-SRx4-10M"
+  description: "FNO2d空间模型，SRx4，配置与SwinTWithEncoder对齐"
+  device: cuda
+  seed: 2025
+  seeds: [2025, 2026, 2027]
+  output_dir: runs
+  log_every_n_steps: 10
+
+device:
+  accelerator: cuda
+  devices: 1
+  strategy: null
+  allow_data_parallel_fallback: true
+  precision: bf16-mixed
+
+ar:
+  enabled: false
+
+sequential:
+  enabled: false
+
+data:
+  data_path: "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/data/DR2D/2D_diff-react_NA_NA.h5"
+  dataset_name: RealDiffusionReaction
+  img_size: 128
+  keys: ["data"]
+  component: u
+  use_official_format: true
+  splits_dir: splits
+  target_channels: 1
+  input_channels: 1
+  sample_limit: null
+
+  T_in: 1
+  T_out: 1
+
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+
+  time_step_start: 0
+  time_step_end: 101
+  time_step_stride: 10
+
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+      downsample_mode: area
+      align_corners: false
+      antialias: true
+
+  input_mode: lr
+  include_coords: false
+  include_mask: false
+  include_fourier_pe: false
+  fourier_pe_bands: 4
+
+  normalize: true
+  augmentation:
+    enabled: false
+    flip_prob: 0.0
+    rotate_prob: 0.0
+    noise_std: 0.0
+
+  dataloader:
+    batch_size: 96
+    val_batch_size: 96
+    test_batch_size: 96
+    num_workers: 12
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 6
+    drop_last: true
+    shuffle: true
+    timeout: 60
+
+hardware:
+  allow_tf32: true
+  memory:
+    cudnn_benchmark: true
+
+model:
+  name: FNO2d
+  in_channels: 1
+  out_channels: 1
+  img_size: 128
+  modes1: 16
+  modes2: 16
+  width: 48
+  n_layers: 4
+  activation: gelu
+  padding: 8
+
+model_budget:
+  target_params_m: 10.0
+  tolerance_m: 1.0
+  auto_tune: false
+
+training:
+  epochs: 5
+  batch_size: 96
+  gradient_accumulation_steps: 1
+
+  torch_compile: false
+  torch_compile_backend: "inductor"
+  torch_compile_mode: "reduce-overhead"
+  channels_last: true
+
+  dataloader:
+    batch_size: 96
+    num_workers: 12
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 6
+
+  loss_weights:
+    reconstruction: 1.0
+    spectral: 0.5
+    data_consistency: 1.0
+
+  validation:
+    enabled: true
+    check_val_every_n_epoch: 5
+    save_val_batch_for_viz: false
+    log_val_metrics: false
+
+  optimizer:
+    name: "AdamW"
+    lr: 0.0005
+    weight_decay: 0.0001
+    betas: [0.9, 0.999]
+    eps: 1e-8
+    fused: false
+    foreach: false
+
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 1000
+    eta_min: 1e-6
+    warmup_epochs: 10
+
+  gradient_clip_val: 1.0
+  gradient_clip_algorithm: norm
+
+  amp:
+    enabled: false
+    autocast_dtype: bfloat16
+
+  curriculum:
+    enabled: false
+    stages: []
+
+  checkpoint:
+    save_best: true
+    save_last: true
+    max_keep: 5
+    monitor: val_loss
+    mode: min
+    save_every_n_epochs: 50
+
+  early_stopping:
+    enabled: false
+    patience: 200
+    monitor: val_loss
+    mode: min
+    min_delta: 1e-6
+
+loss:
+  ar_loss:
+    weight: 0.0
+    reduction: mean
+
+  reconstruction:
+    weight: 1.0
+  spectral:
+    weight: 0.0
+  degradation_consistency:
+    weight: 0.0
+  gradient_weight: 0.0
+
+validation:
+  check_val_every_n_epoch: 5
+  use_observation: true
+
+  metrics:
+    - rel_l2
+    - mae
+    - psnr
+    - ssim
+
+  rollout_steps: [1]
+
+  convergence_criteria:
+    target_rel_l2: 0.1
+    patience_for_convergence: 10
+    min_improvement: 1e-4
+
+logging:
+  experiment_name: "AR-DR2D-FNO2d-SRx4-10M"
+  version: null
+  default_hp_metric: false

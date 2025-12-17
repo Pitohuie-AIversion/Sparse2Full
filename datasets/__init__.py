@@ -4,9 +4,8 @@
 仅在需要时导入具体数据集实现。
 """
 
-# 安全导入：PDEBench相关模块（若失败则置为None，不影响其他数据集使用）
 try:
-    from .pde_bench import PDEBenchDataset, create_dataloader  # type: ignore
+    from .pdebench_dataset import PDEBenchDataset, create_dataloader  # type: ignore
 except Exception:
     PDEBenchDataset = None  # type: ignore
     create_dataloader = None  # type: ignore

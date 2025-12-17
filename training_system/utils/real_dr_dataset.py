@@ -168,11 +168,20 @@ class RealDiffusionReactionDataset(Dataset):
         
         if all_data:
             all_data = np.concatenate(all_data, axis=0)
+            mean_np = np.mean(all_data, axis=(0, 1, 2))
+            std_np = np.std(all_data, axis=(0, 1, 2))
             self._normalization_stats = {
-                'mean': np.mean(all_data, axis=(0, 1, 2)),
-                'std': np.std(all_data, axis=(0, 1, 2))
+                'mean': mean_np,
+                'std': std_np
             }
-            logger.info(f"归一化统计 - 均值: {self._normalization_stats['mean']}, 标准差: {self._normalization_stats['std']}")
+            # 兼容训练器读取：提供 Tensor 形式的 mean/std 属性
+            try:
+                self.mean = torch.tensor(mean_np, dtype=torch.float32)
+                self.std = torch.tensor(std_np, dtype=torch.float32)
+                self.n_channels = int(self.channels)
+            except Exception:
+                pass
+            logger.info(f"归一化统计 - 均值: {mean_np}, 标准差: {std_np}")
     
     def _normalize(self, data: np.ndarray) -> np.ndarray:
         """归一化数据"""
@@ -239,13 +248,13 @@ class RealDiffusionReactionDataset(Dataset):
 
         # 构造H参数，统一别名
         h_params = None
-        if mode in ['sr', 'super_resolution']:
+        if mode in ['sr', 'super_resolution', 'SR']:
             scale = obs.get('scale', obs.get('scale_factor', obs.get('sr_scale', 1)))
             sigma = obs.get('sigma', obs.get('blur_sigma', 1.0))
             kernel = obs.get('kernel_size', obs.get('blur_kernel_size', 5))
             boundary = obs.get('boundary', obs.get('boundary_mode', 'mirror'))
             h_params = {
-                'task': 'sr',
+                'task': 'SR',
                 'scale': int(scale),
                 'sigma': float(sigma),
                 'kernel_size': int(kernel),
@@ -261,7 +270,7 @@ class RealDiffusionReactionDataset(Dataset):
                 crop_h, crop_w = int(h * crop_ratio), int(w * crop_ratio)
                 crop_size = (crop_h, crop_w)
             h_params = {
-                'task': 'crop',
+                'task': 'Crop',
                 'crop_size': crop_size,
                 'boundary': str(boundary),
             }
@@ -318,29 +327,30 @@ class RealDiffusionReactionDataset(Dataset):
             input_seq = zoom(input_seq, (1, scale_factor, scale_factor, 1), order=1)
             target_seq = zoom(target_seq, (1, scale_factor, scale_factor, 1), order=1)
         
-        # 归一化
+        # 观测生成应在原值域进行
+        obs_seq_raw = self._generate_observation(sample_data[time_idx:time_idx + self.T_in])
+        # 归一化（z-score）
         input_seq = self._normalize(input_seq)
         target_seq = self._normalize(target_seq)
+        obs_seq = self._normalize(obs_seq_raw)
         
-        # 应用数据增强
+        # 应用数据增强（保持在归一化域）
         input_seq = self._apply_augmentation(input_seq)
         target_seq = self._apply_augmentation(target_seq)
-        
-        # 生成观测数据（baseline，上采样到原尺寸）。如可用，同时生成LR观测以供DC使用。
-        obs_seq = self._generate_observation(input_seq)
+        obs_seq = self._apply_augmentation(obs_seq)
         observed_lr_tensor = None
         if self.observation_config is not None and apply_degradation_operator is not None:
             # 构造与 _generate_observation 同步的参数
             obs = self.observation_config or {}
             mode = str(obs.get('mode', obs.get('observation_mode', 'SR'))).lower()
             h_params = None
-            if mode in ['sr', 'super_resolution']:
+            if mode in ['sr', 'super_resolution', 'SR']:
                 scale = obs.get('scale', obs.get('scale_factor', obs.get('sr_scale', 1)))
                 sigma = obs.get('sigma', obs.get('blur_sigma', 1.0))
                 kernel = obs.get('kernel_size', obs.get('blur_kernel_size', 5))
                 boundary = obs.get('boundary', obs.get('boundary_mode', 'mirror'))
                 h_params = {
-                    'task': 'sr',
+                    'task': 'SR',
                     'scale': int(scale),
                     'sigma': float(sigma),
                     'kernel_size': int(kernel),
@@ -355,13 +365,14 @@ class RealDiffusionReactionDataset(Dataset):
                     crop_h, crop_w = int(h * crop_ratio), int(w * crop_ratio)
                     crop_size = (crop_h, crop_w)
                 h_params = {
-                    'task': 'crop',
+                    'task': 'Crop',
                     'crop_size': crop_size,
                     'boundary': str(boundary),
                 }
 
             if h_params is not None:
-                t_in = torch.from_numpy(input_seq).float().permute(0, 3, 1, 2)
+                # 在原值域生成LR观测张量
+                t_in = torch.from_numpy(sample_data[time_idx:time_idx + self.T_in]).float().permute(0, 3, 1, 2)
                 degraded_lr = apply_degradation_operator(t_in, h_params)  # [T, C, h', w']
                 observed_lr_tensor = degraded_lr  # 在结果中以张量形式返回
         
@@ -369,19 +380,89 @@ class RealDiffusionReactionDataset(Dataset):
         input_tensor = torch.FloatTensor(input_seq).permute(0, 3, 1, 2)  # [T, C, H, W]
         target_tensor = torch.FloatTensor(target_seq).permute(0, 3, 1, 2)
         obs_tensor = torch.FloatTensor(obs_seq).permute(0, 3, 1, 2)
+        Tn, Hn, Wn = input_seq.shape[0], input_seq.shape[1], input_seq.shape[2]
+        # 像素中心坐标（align_corners=False）：x=2*(j+0.5)/W-1, y=2*(i+0.5)/H-1
+        j_idx = np.arange(Wn, dtype=np.float32)
+        i_idx = np.arange(Hn, dtype=np.float32)
+        x_centers = (2.0 * (j_idx + 0.5) / float(Wn)) - 1.0
+        y_centers = (2.0 * (i_idx + 0.5) / float(Hn)) - 1.0
+        Xg, Yg = np.meshgrid(x_centers, y_centers)
+        coords_hr = np.stack([Xg, Yg], axis=-1)
+        coords_hr = np.repeat(coords_hr[np.newaxis, ...], Tn, axis=0)
+        coords_hr_tensor = torch.FloatTensor(coords_hr).permute(0, 3, 1, 2)
+        # fourier positional encoding（按配置开关）
+        pe_hr_tensor = None
+        try:
+            include_pe = bool(getattr(self.config.data, 'include_fourier_pe', False))
+            bands = int(getattr(self.config.data, 'fourier_pe_bands', 4))
+        except Exception:
+            include_pe, bands = False, 0
+        if include_pe and bands > 0:
+            xs = torch.from_numpy(Xg).float()
+            ys = torch.from_numpy(Yg).float()
+            pes = []
+            for k in range(bands):
+                f = float(2 ** k * np.pi)
+                pes.append(torch.sin(f * xs))
+                pes.append(torch.cos(f * xs))
+                pes.append(torch.sin(f * ys))
+                pes.append(torch.cos(f * ys))
+            pe_stack = torch.stack(pes, dim=0)  # [P, H, W]
+            pe_stack = pe_stack.unsqueeze(0).repeat(Tn, 1, 1, 1)  # [T, P, H, W]
+            pe_hr_tensor = pe_stack
+        mask_hr = np.zeros((Tn, 1, Hn, Wn), dtype=np.float32)
+        if observed_lr_tensor is not None:
+            h_lr = int(observed_lr_tensor.shape[-2])
+            w_lr = int(observed_lr_tensor.shape[-1])
+            mask = np.zeros((1, Hn, Wn), dtype=np.float32)
+            for i in range(h_lr):
+                ih0 = int(np.round(i * Hn / float(h_lr)))
+                ih1 = int(np.round((i + 1) * Hn / float(h_lr)))
+                ih0 = max(0, min(Hn, ih0))
+                ih1 = max(ih0 + 1, min(Hn, ih1))
+                for j in range(w_lr):
+                    jw0 = int(np.round(j * Wn / float(w_lr)))
+                    jw1 = int(np.round((j + 1) * Wn / float(w_lr)))
+                    jw0 = max(0, min(Wn, jw0))
+                    jw1 = max(jw0 + 1, min(Wn, jw1))
+                    mask[0, ih0:ih1, jw0:jw1] = 1.0
+            mask_hr = np.repeat(mask[np.newaxis, ...], Tn, axis=0)
+        mask_hr_tensor = torch.FloatTensor(mask_hr)
+        coords_lr_tensor = None
+        mask_lr_tensor = None
+        if observed_lr_tensor is not None:
+            Tl, Cl, hl, wl = observed_lr_tensor.shape
+            j_idx_lr = np.arange(wl, dtype=np.float32)
+            i_idx_lr = np.arange(hl, dtype=np.float32)
+            x_centers_lr = (2.0 * (j_idx_lr + 0.5) / float(wl)) - 1.0
+            y_centers_lr = (2.0 * (i_idx_lr + 0.5) / float(hl)) - 1.0
+            Xg_lr, Yg_lr = np.meshgrid(x_centers_lr, y_centers_lr)
+            coords_lr = np.stack([Xg_lr, Yg_lr], axis=-1)
+            coords_lr = np.repeat(coords_lr[np.newaxis, ...], Tl, axis=0)
+            coords_lr_tensor = torch.FloatTensor(coords_lr).permute(0, 3, 1, 2)
+            ones_lr = torch.ones((Tl, 1, hl, wl), dtype=torch.float32)
+            mask_lr_tensor = ones_lr
         
         result = {
             'input_sequence': input_tensor,  # [T_in, C, H, W]
             'target_sequence': target_tensor,  # [T_out, C, H, W]
             'observed_sequence': obs_tensor,  # [T_in, C, H, W]
+            'coords_sequence': coords_hr_tensor,
+            'mask_sequence': mask_hr_tensor,
             'sample_idx': sample_idx,
             'start_time': time_idx,
             'key': sample_info['key']
         }
+        if pe_hr_tensor is not None:
+            result['fourier_pe_sequence'] = pe_hr_tensor
 
         # 可选：返回LR观测以供数据一致性损失使用
         if observed_lr_tensor is not None:
             result['observed_lr_sequence'] = observed_lr_tensor  # [T_in, C, h', w']
+            if coords_lr_tensor is not None:
+                result['coords_lr_sequence'] = coords_lr_tensor
+            if mask_lr_tensor is not None:
+                result['mask_lr_sequence'] = mask_lr_tensor
         
         if self._cache is not None:
             self._cache[idx] = result
@@ -446,13 +527,31 @@ class RealDiffusionReactionDataModule:
         self._persistent_workers = _persistent_workers_cfg and (self._num_workers and self._num_workers > 0)
         
     def setup(self, stage: str = None):
-        """设置数据模块"""
         data_config = self.config.data
-        # 安全获取样本键列表（避免DictConfig.keys方法冲突）
         try:
             data_keys = data_config.get('keys') if hasattr(data_config, 'get') else getattr(data_config, 'keys', [])
         except Exception:
             data_keys = []
+        splits_dir = getattr(data_config, 'splits_dir', None)
+        train_keys_from_splits = None
+        val_keys_from_splits = None
+        test_keys_from_splits = None
+        if splits_dir:
+            base = Path(str(splits_dir))
+            train_file = base / 'train.txt'
+            val_file = base / 'val.txt'
+            test_file = base / 'test.txt'
+            def _read_split(fp):
+                with open(fp, 'r') as f:
+                    return [ln.strip() for ln in f if ln.strip()]
+            if not (train_file.exists() and val_file.exists() and test_file.exists()):
+                raise FileNotFoundError(
+                    f"splits_dir={splits_dir} 下缺少 train/val/test.txt，"
+                    f"请按照项目规范提供固定划分文件"
+                )
+            train_keys_from_splits = _read_split(train_file)
+            val_keys_from_splits = _read_split(val_file)
+            test_keys_from_splits = _read_split(test_file)
         
         # 根据是否启用AR/时序预测，强制纯空间T_out=1
         t_out_eff = getattr(data_config, 'T_out', 1)
@@ -469,12 +568,39 @@ class RealDiffusionReactionDataModule:
 
         # 兼容字段别名与默认值
         img_size = getattr(data_config, 'img_size', getattr(data_config, 'image_size', 128))
-        channels = getattr(data_config, 'channels', 2)
+        channels = getattr(data_config, 'channels', getattr(data_config, 'input_channels', 2))
 
-        # 训练数据集
+        # 规范化与缓存配置（兼容两种写法）
+        try:
+            preprocessing_cfg = getattr(data_config, 'preprocessing', None)
+        except Exception:
+            preprocessing_cfg = None
+        normalize_flag = True
+        try:
+            if hasattr(data_config, 'normalize'):
+                normalize_flag = bool(getattr(data_config, 'normalize'))
+            elif preprocessing_cfg is not None and hasattr(preprocessing_cfg, 'normalize'):
+                normalize_flag = bool(getattr(preprocessing_cfg, 'normalize'))
+        except Exception:
+            normalize_flag = True
+        cache_flag = False
+        try:
+            if preprocessing_cfg is not None and hasattr(preprocessing_cfg, 'cache_data'):
+                cache_flag = bool(getattr(preprocessing_cfg, 'cache_data'))
+        except Exception:
+            cache_flag = False
+
+        # 构建稳定的split：必须使用splits目录提供的固定划分
+        if not (train_keys_from_splits and val_keys_from_splits and test_keys_from_splits):
+            raise RuntimeError(
+                "RealDiffusionReactionDataModule 需要固定的 train/val/test 划分文件。\n"
+                "请在 data.splits_dir 下提供 train.txt、val.txt、test.txt，"
+                "每行一个样本键（例如 0000, 0001, ...）。"
+            )
+        train_keys = train_keys_from_splits if (train_keys_from_splits and len(train_keys_from_splits) > 0) else data_keys
         self.train_dataset = RealDiffusionReactionDataset(
             data_path=data_config.data_path,
-            keys=data_keys,
+            keys=train_keys,
             split='train',
             img_size=img_size,
             channels=channels,
@@ -483,19 +609,19 @@ class RealDiffusionReactionDataModule:
             time_step_start=data_config.time_step_start,
             time_step_end=data_config.time_step_end,
             time_step_stride=data_config.time_step_stride,
-            train_ratio=data_config.train_ratio,
-            val_ratio=data_config.val_ratio,
-            test_ratio=data_config.test_ratio,
-            normalize=data_config.preprocessing.normalize,
+            train_ratio=float(getattr(data_config, 'train_ratio', 0.8)),
+            val_ratio=float(getattr(data_config, 'val_ratio', 0.1)),
+            test_ratio=float(getattr(data_config, 'test_ratio', 0.1)),
+            normalize=normalize_flag,
             augmentation=data_config.get('augmentation', {}),
             observation_config=data_config.get('observation'),
-            cache_data=data_config.preprocessing.cache_data
+            cache_data=cache_flag
         )
         
-        # 验证数据集
+        val_keys = val_keys_from_splits if (val_keys_from_splits and len(val_keys_from_splits) > 0) else data_keys
         self.val_dataset = RealDiffusionReactionDataset(
             data_path=data_config.data_path,
-            keys=data_keys,
+            keys=val_keys,
             split='val',
             img_size=img_size,
             channels=channels,
@@ -504,19 +630,19 @@ class RealDiffusionReactionDataModule:
             time_step_start=data_config.time_step_start,
             time_step_end=data_config.time_step_end,
             time_step_stride=data_config.time_step_stride,
-            train_ratio=data_config.train_ratio,
-            val_ratio=data_config.val_ratio,
-            test_ratio=data_config.test_ratio,
-            normalize=data_config.preprocessing.normalize,
+            train_ratio=float(getattr(data_config, 'train_ratio', 0.8)),
+            val_ratio=float(getattr(data_config, 'val_ratio', 0.1)),
+            test_ratio=float(getattr(data_config, 'test_ratio', 0.1)),
+            normalize=normalize_flag,
             augmentation={'enabled': False},  # 验证集不增强
             observation_config=data_config.get('observation'),
-            cache_data=data_config.preprocessing.cache_data
+            cache_data=cache_flag
         )
         
-        # 测试数据集
+        test_keys = test_keys_from_splits if (test_keys_from_splits and len(test_keys_from_splits) > 0) else data_keys
         self.test_dataset = RealDiffusionReactionDataset(
             data_path=data_config.data_path,
-            keys=data_keys,
+            keys=test_keys,
             split='test',
             img_size=img_size,
             channels=channels,
@@ -525,13 +651,13 @@ class RealDiffusionReactionDataModule:
             time_step_start=data_config.time_step_start,
             time_step_end=data_config.time_step_end,
             time_step_stride=data_config.time_step_stride,
-            train_ratio=data_config.train_ratio,
-            val_ratio=data_config.val_ratio,
-            test_ratio=data_config.test_ratio,
-            normalize=data_config.preprocessing.normalize,
+            train_ratio=float(getattr(data_config, 'train_ratio', 0.8)),
+            val_ratio=float(getattr(data_config, 'val_ratio', 0.1)),
+            test_ratio=float(getattr(data_config, 'test_ratio', 0.1)),
+            normalize=normalize_flag,
             augmentation={'enabled': False},  # 测试集不增强
             observation_config=data_config.get('observation'),
-            cache_data=data_config.preprocessing.cache_data
+            cache_data=cache_flag
         )
         
         logger.info(f"数据模块设置完成:")
@@ -543,7 +669,25 @@ class RealDiffusionReactionDataModule:
     def norm_stats(self):
         """提供归一化统计，供损失与评估在原值域进行反归一化时使用"""
         try:
-            return getattr(self.train_dataset, "_normalization_stats", None)
+            train_ds = getattr(self, "train_dataset", None)
+            if train_ds is None:
+                return None
+            mean = getattr(train_ds, "mean", None)
+            std = getattr(train_ds, "std", None)
+            if mean is None or std is None:
+                ns = getattr(train_ds, "_normalization_stats", None)
+                if ns is None:
+                    return None
+                mean = ns.get("mean", None)
+                std = ns.get("std", None)
+            if mean is None or std is None:
+                return None
+            mean_t = torch.as_tensor(mean, dtype=torch.float32)
+            std_t = torch.as_tensor(std, dtype=torch.float32)
+            return {
+                "data_mean": mean_t,
+                "data_std": std_t,
+            }
         except Exception:
             return None
     

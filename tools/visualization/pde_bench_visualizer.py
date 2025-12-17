@@ -37,7 +37,7 @@ class PDEBenchVisualizer:
         viz_dir = exp_dir / "visualizations"
         images = []
         if viz_dir.exists():
-            for p in sorted(viz_dir.glob("*.png")):
+            for p in sorted(list(viz_dir.glob("*.svg")) + list(viz_dir.glob("*.png"))):
                 images.append(p.name)
 
         metrics = self._read_metrics(exp_dir) or {}
@@ -90,11 +90,11 @@ class PDEBenchVisualizer:
         # Optionally copy images
         try:
             if viz_dir.exists():
-                for p in viz_dir.glob("*.png"):
+                for p in list(viz_dir.glob("*.svg")) + list(viz_dir.glob("*.png")):
                     dst = self.output_dir / p.name
                     if not dst.exists():
                         dst.write_bytes(p.read_bytes())
         except Exception:
             pass
-
+        
         return out_html

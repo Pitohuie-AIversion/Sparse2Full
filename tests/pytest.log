@@ -1,0 +1,15 @@
+2025-12-17 20:23:12 [   DEBUG] __init__.py:47: Creating converter from 7 to 5
+2025-12-17 20:23:12 [   DEBUG] __init__.py:47: Creating converter from 5 to 7
+2025-12-17 20:23:12 [   DEBUG] __init__.py:47: Creating converter from 7 to 5
+2025-12-17 20:23:12 [   DEBUG] __init__.py:47: Creating converter from 5 to 7
+2025-12-17 20:23:12 [   DEBUG] __init__.py:337: matplotlib data path: /share/fandixiaLab/suguangsheng/anaconda3/lib/python3.12/site-packages/matplotlib/mpl-data
+2025-12-17 20:23:12 [   DEBUG] __init__.py:337: CONFIGDIR=/share/fandixiaLab/suguangsheng/.config/matplotlib
+2025-12-17 20:23:12 [   DEBUG] __init__.py:1498: interactive is False
+2025-12-17 20:23:12 [   DEBUG] __init__.py:1499: platform is linux
+2025-12-17 20:23:12 [   DEBUG] __init__.py:337: CACHEDIR=/share/fandixiaLab/suguangsheng/.cache/matplotlib
+2025-12-17 20:23:12 [   DEBUG] font_manager.py:1574: Using fontManager instance from /share/fandixiaLab/suguangsheng/.cache/matplotlib/fontlist-v330.json
+2025-12-17 20:23:13 [    INFO] utils.py:145: Note: detected 192 virtual cores but NumExpr set to maximum of 64, check "NUMEXPR_MAX_THREADS" environment variable.
+2025-12-17 20:23:13 [    INFO] utils.py:148: Note: NumExpr detected 192 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
+2025-12-17 20:23:13 [    INFO] utils.py:160: NumExpr defaulting to 8 threads.
+2025-12-17 20:23:15 [   DEBUG] cmd.py:977: Popen(['git', 'version'], cwd=/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full, universal_newlines=False, shell=None, istream=None)
+2025-12-17 20:23:15 [   DEBUG] cmd.py:977: Popen(['git', 'version'], cwd=/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full, universal_newlines=False, shell=None, istream=None)
