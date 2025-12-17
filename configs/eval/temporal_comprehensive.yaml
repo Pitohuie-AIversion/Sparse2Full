@@ -1,0 +1,385 @@
+# 时序模型综合评估配置
+# 支持多种评估指标、多步预测评估、稳定性分析等
+
+# 评估全局配置
+eval_config:
+  enabled: true
+  eval_mode: "comprehensive"  # quick, standard, comprehensive
+  
+  # 评估频率
+  eval_frequency:
+    during_training: 5      # 每5个epoch评估一次
+    final_evaluation: true  # 训练结束后完整评估
+    
+  # 评估数据
+  eval_data:
+    use_test_set: true
+    use_val_set: true
+    custom_eval_set: false
+
+# 基础评估指标
+basic_metrics:
+  enabled: true
+  
+  # 回归指标
+  regression_metrics:
+    - name: "mse"
+      weight: 1.0
+      
+    - name: "mae" 
+      weight: 1.0
+      
+    - name: "rel_l2"
+      weight: 2.0  # 主要指标，权重更高
+      eps: 1e-8
+      
+    - name: "rmse"
+      weight: 1.0
+      
+  # 图像质量指标
+  image_quality_metrics:
+    - name: "psnr"
+      weight: 1.0
+      data_range: 1.0
+      
+    - name: "ssim"
+      weight: 1.5
+      window_size: 11
+      
+    - name: "ms_ssim"
+      weight: 1.0
+      weights: [0.0448, 0.2856, 0.3001, 0.2363, 0.1333]
+
+# 时序特定指标
+temporal_metrics:
+  enabled: true
+  
+  # 时序一致性指标
+  temporal_consistency:
+    enabled: true
+    
+    # 平滑性指标
+    smoothness:
+      enabled: true
+      method: "gradient"  # gradient, variance, autocorr
+      weight: 1.0
+      
+    # 连续性指标
+    continuity:
+      enabled: true
+      method: "difference"
+      weight: 1.0
+      
+    # 周期性指标
+    periodicity:
+      enabled: false
+      method: "fft"
+      weight: 0.5
+      
+  # 长期稳定性指标
+  long_term_stability:
+    enabled: true
+    
+    # 发散检测
+    divergence_detection:
+      enabled: true
+      threshold: 10.0
+      method: "exponential_growth"
+      
+    # 能量保守性
+    energy_conservation:
+      enabled: true
+      tolerance: 0.1
+      
+    # 边界条件保持
+    boundary_preservation:
+      enabled: false
+      tolerance: 0.05
+      
+  # 频域指标
+  spectral_metrics:
+    enabled: true
+    
+    # 频谱保真度
+    spectral_fidelity:
+      enabled: true
+      frequency_bands: [0, 8, 16, 32]  # 低、中、高频段
+      weights: [2.0, 1.5, 1.0, 0.5]
+      
+    # 功率谱密度
+    power_spectral_density:
+      enabled: true
+      method: "welch"
+      
+    # 相位一致性
+    phase_consistency:
+      enabled: false
+      method: "coherence"
+
+# 多步预测评估
+multistep_evaluation:
+  enabled: true
+  
+  # 评估配置
+  rollout_config:
+    max_steps: [1, 2, 4, 8, 12, 16, 20, 32]
+    evaluation_modes: ["ar", "nar", "hybrid"]
+    
+  # 多步指标
+  multistep_metrics:
+    # 平均性能
+    mean_performance:
+      enabled: true
+      metrics: ["rel_l2", "mae", "psnr"]
+      
+    # 最后一步性能
+    final_step_performance:
+      enabled: true
+      metrics: ["rel_l2", "mae", "ssim"]
+      
+    # 最差步性能
+    worst_step_performance:
+      enabled: true
+      metrics: ["rel_l2", "mae"]
+      
+    # 性能衰减分析
+    performance_decay:
+      enabled: true
+      decay_metric: "rel_l2"
+      fit_method: "exponential"  # linear, exponential, polynomial
+      
+  # 累积误差分析
+  cumulative_error:
+    enabled: true
+    error_propagation: true
+    error_amplification: true
+
+# 模式特定评估
+mode_specific_evaluation:
+  enabled: true
+  
+  # AR模式评估
+  ar_evaluation:
+    enabled: true
+    
+    # Teacher forcing vs Free running
+    teacher_forcing_comparison:
+      enabled: true
+      tf_ratios: [1.0, 0.8, 0.5, 0.2, 0.0]
+      
+    # 调度采样影响
+    scheduled_sampling_analysis:
+      enabled: true
+      sampling_probs: [1.0, 0.8, 0.6, 0.4, 0.2]
+      
+  # NAR模式评估
+  nar_evaluation:
+    enabled: true
+    
+    # 并行预测质量
+    parallel_prediction_quality:
+      enabled: true
+      consistency_check: true
+      
+    # 注意力分析
+    attention_analysis:
+      enabled: true
+      save_attention_maps: true
+      
+  # HYBRID模式评估
+  hybrid_evaluation:
+    enabled: true
+    
+    # 模式融合分析
+    mode_fusion_analysis:
+      enabled: true
+      fusion_weights: [0.2, 0.4, 0.6, 0.8]
+      
+    # 互补性分析
+    complementarity_analysis:
+      enabled: true
+
+# 稳定性分析
+stability_analysis:
+  enabled: true
+  
+  # 数值稳定性
+  numerical_stability:
+    enabled: true
+    
+    # NaN/Inf检测
+    nan_inf_detection:
+      enabled: true
+      
+    # 梯度爆炸检测
+    gradient_explosion:
+      enabled: true
+      threshold: 10.0
+      
+    # 数值精度分析
+    numerical_precision:
+      enabled: true
+      precision_levels: ["float16", "float32", "float64"]
+      
+  # 训练稳定性
+  training_stability:
+    enabled: true
+    
+    # 损失曲线分析
+    loss_curve_analysis:
+      enabled: true
+      smoothness_check: true
+      convergence_check: true
+      
+    # 学习率敏感性
+    lr_sensitivity:
+      enabled: false
+      lr_range: [1e-5, 1e-3]
+      
+  # 推理稳定性
+  inference_stability:
+    enabled: true
+    
+    # 初始条件敏感性
+    initial_condition_sensitivity:
+      enabled: true
+      perturbation_levels: [0.001, 0.01, 0.1]
+      
+    # 参数扰动敏感性
+    parameter_perturbation:
+      enabled: false
+      perturbation_ratio: 0.01
+
+# 性能分析
+performance_analysis:
+  enabled: true
+  
+  # 计算性能
+  computational_performance:
+    enabled: true
+    
+    # 推理速度
+    inference_speed:
+      enabled: true
+      batch_sizes: [1, 4, 8, 16]
+      
+    # 内存使用
+    memory_usage:
+      enabled: true
+      profile_memory: true
+      
+    # FLOPs计算
+    flops_analysis:
+      enabled: true
+      input_shapes: [[1, 4, 1, 128, 128], [1, 8, 1, 128, 128]]
+      
+  # 可扩展性分析
+  scalability_analysis:
+    enabled: true
+    
+    # 时间步扩展性
+    temporal_scalability:
+      enabled: true
+      T_out_range: [1, 2, 4, 8, 16, 32]
+      
+    # 空间分辨率扩展性
+    spatial_scalability:
+      enabled: false
+      resolutions: [64, 128, 256, 512]
+
+# 对比分析
+comparative_analysis:
+  enabled: true
+  
+  # 基线对比
+  baseline_comparison:
+    enabled: true
+    baselines: ["persistence", "linear_interpolation", "simple_ar"]
+    
+  # 消融研究
+  ablation_study:
+    enabled: true
+    components: ["temporal_encoder", "nar_head", "scheduled_sampling"]
+    
+  # 架构对比
+  architecture_comparison:
+    enabled: false
+    architectures: ["swin_unet", "unet", "fno"]
+
+# 可视化配置
+visualization:
+  enabled: true
+  
+  # 预测可视化
+  prediction_visualization:
+    enabled: true
+    num_cases: 8
+    timesteps_to_show: [0, 2, 4, 7]
+    save_animations: true
+    
+  # 误差分析可视化
+  error_visualization:
+    enabled: true
+    error_maps: true
+    error_evolution: true
+    
+  # 注意力可视化
+  attention_visualization:
+    enabled: true
+    save_attention_maps: true
+    
+  # 频谱分析可视化
+  spectral_visualization:
+    enabled: true
+    power_spectrum: true
+    phase_spectrum: false
+    
+  # 性能曲线可视化
+  performance_curves:
+    enabled: true
+    multistep_curves: true
+    mode_comparison: true
+
+# 报告生成
+report_generation:
+  enabled: true
+  
+  # 报告格式
+  formats: ["html", "pdf", "json"]
+  
+  # 报告内容
+  content:
+    executive_summary: true
+    detailed_metrics: true
+    visualizations: true
+    recommendations: true
+    
+  # 自动分析
+  automated_analysis:
+    enabled: true
+    performance_ranking: true
+    failure_case_analysis: true
+    improvement_suggestions: true
+
+# 输出配置
+output_config:
+  # 保存路径
+  output_dir: "eval_results"
+  
+  # 保存内容
+  save_predictions: true
+  save_metrics: true
+  save_visualizations: true
+  save_raw_data: false
+  
+  # 压缩配置
+  compression:
+    enabled: true
+    format: "zip"
+    
+# 调试配置
+debug_config:
+  enabled: false
+  verbose_logging: false
+  save_intermediate_results: false
+  profile_evaluation: false

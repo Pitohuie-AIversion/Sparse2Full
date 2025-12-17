@@ -2,7 +2,7 @@
 
 实现PDEBench稀疏观测重建系统的所有评测指标：
 - Rel-L2: 相对L2误差
-- MAE: 平均绝对误差  
+- MAE: 平均绝对误差
 - PSNR: 峰值信噪比
 - SSIM: 结构相似性指数
 - fRMSE: 频域RMSE (low/mid/high)
@@ -16,26 +16,33 @@
 - 支持显著性检验
 """
 
+import logging
+from typing import Any
+
+import numpy as np
 import torch
 import torch.nn.functional as F
-import numpy as np
-from typing import Dict, List, Optional, Tuple, Union
+from numpy.typing import NDArray
 from skimage.metrics import structural_similarity as ssim
-import scipy.stats as stats
 
-from ops.degradation import apply_degradation_operator
-
+try:
+    from ops.degradation import apply_degradation_operator
+except ImportError:
+    # Fallback or dummy for when ops is not available (e.g. strict unit testing without env)
+    # But in production this should be available.
+    def apply_degradation_operator(x: torch.Tensor, obs: dict[str, Any]) -> torch.Tensor:
+        return x
 
 class MetricsCalculator:
     """指标计算器
-    
+
     提供完整的评测指标计算功能
     支持批量计算和统计分析
     """
-    
-    def __init__(self, image_size: Tuple[int, int] = (256, 256), 
+
+    def __init__(self, image_size: tuple[int, int] = (256, 256),
                  boundary_width: int = 16,
-                 freq_bands: Optional[Dict[str, Tuple[int, int]]] = None):
+                 freq_bands: dict[str, tuple[int, int]] | None = None):
         """
         Args:
             image_size: 图像尺寸 (H, W)
@@ -44,432 +51,405 @@ class MetricsCalculator:
         """
         self.image_size = image_size
         self.boundary_width = boundary_width
-        
+
         # 默认频段设置
         if freq_bands is None:
             max_freq = min(image_size) // 2
             self.freq_bands = {
                 'low': (0, max_freq // 4),
-                'mid': (max_freq // 4, max_freq // 2), 
+                'mid': (max_freq // 4, max_freq // 2),
                 'high': (max_freq // 2, max_freq)
             }
         else:
             self.freq_bands = freq_bands
-        
+
         # 预计算掩码
         self._precompute_masks()
-    
-    def update_image_size(self, new_size: Tuple[int, int]):
+
+        # 获取日志记录器
+        self.logger = logging.getLogger("MetricsCalculator")
+
+    def update_image_size(self, new_size: tuple[int, int]) -> None:
         """更新图像尺寸并重新计算掩码"""
         if new_size != self.image_size:
+            if self.logger.isEnabledFor(logging.DEBUG):
+                self.logger.debug(f"Updating image size from {self.image_size} to {new_size}")
             self.image_size = new_size
             self._precompute_masks()
-    
+
     def _precompute_masks(self) -> None:
         """预计算各种掩码"""
         H, W = self.image_size
-        
+
         # 边界掩码
         self.boundary_mask = torch.zeros(H, W, dtype=torch.bool)
         bw = self.boundary_width
-        self.boundary_mask[:bw, :] = True  # 上边界
-        self.boundary_mask[-bw:, :] = True  # 下边界
-        self.boundary_mask[:, :bw] = True  # 左边界
-        self.boundary_mask[:, -bw:] = True  # 右边界
-        
+        # 防止 boundary_width 大于图像尺寸的一半
+        bw = min(bw, H // 2, W // 2)
+        if bw > 0:
+            self.boundary_mask[:bw, :] = True  # 上边界
+            self.boundary_mask[-bw:, :] = True  # 下边界
+            self.boundary_mask[:, :bw] = True  # 左边界
+            self.boundary_mask[:, -bw:] = True  # 右边界
+
         # 中心掩码
         self.center_mask = ~self.boundary_mask
-        
+
         # 频域掩码
         self.freq_masks = {}
         for band_name, (low_freq, high_freq) in self.freq_bands.items():
             mask = self._create_freq_mask(H, W, low_freq, high_freq)
             self.freq_masks[band_name] = mask
-    
+
     def _create_freq_mask(self, H: int, W: int, low_freq: int, high_freq: int) -> torch.Tensor:
         """创建频域掩码"""
         # 创建频率网格
         ky = torch.fft.fftfreq(H, d=1.0).abs()
         kx = torch.fft.fftfreq(W, d=1.0).abs()
         ky_grid, kx_grid = torch.meshgrid(ky, kx, indexing='ij')
-        
+
         # 径向频率
         k_radial = torch.sqrt(kx_grid**2 + ky_grid**2)
-        
+
         # 频率范围掩码
         mask = (k_radial >= low_freq / max(H, W)) & (k_radial < high_freq / max(H, W))
         return mask
-    
-    def compute_rel_l2(self, pred, target, eps: float = 1e-8):
-        """计算相对L2误差
-        
-        Args:
-            pred: 预测值 [B, C, H, W] 或 [B, T, C, H, W] (torch.Tensor 或 numpy.ndarray)
-            target: 真实值 [B, C, H, W] 或 [B, T, C, H, W] (torch.Tensor 或 numpy.ndarray)
-            eps: 数值稳定性常数
-            
-        Returns:
-            rel_l2: 相对L2误差 [B, C] 或标量
+
+    def _normalize_tensor_dims(self, x: torch.Tensor | NDArray[Any], label: str = "tensor") -> torch.Tensor:
+        """规范化张量维度为 [N, C, H, W]
+
+        处理规则：
+        - [H, W] -> [1, 1, H, W]
+        - [C, H, W] -> [1, C, H, W] (优先视为CHW，除非判定为HWC)
+        - [N, C, H, W] -> 保持
+        - [B, T, C, H, W] -> [B, C, H, W] (取最后一帧)
         """
-        # 转换为torch张量
-        if isinstance(pred, np.ndarray):
-            pred = torch.from_numpy(pred)
-        if isinstance(target, np.ndarray):
-            target = torch.from_numpy(target)
-            
-        # 处理5D张量 [B, T, C, H, W]
-        if len(pred.shape) == 5:
-            B, T, C, H, W = pred.shape
-            # 取最后一个时间步或平均所有时间步
-            pred = pred[:, -1]  # [B, C, H, W]
-            target = target[:, -1]  # [B, C, H, W]
-        
-        # 按通道计算
+        if isinstance(x, np.ndarray):
+            x = torch.from_numpy(x)
+        if not isinstance(x, torch.Tensor):
+            raise TypeError(f"{label} must be torch.Tensor or np.ndarray, got {type(x)}")
+
+        if x.dim() == 2:
+            # [H, W] -> [1, 1, H, W]
+            return x.unsqueeze(0).unsqueeze(0)
+
+        elif x.dim() == 3:
+            # 判定 HWC 还是 CHW
+            d0, d1, d2 = x.shape
+            # 启发式：若最后一维很小且前两维较大，视为 HWC
+            # 例如 (128, 128, 3) vs (3, 128, 128)
+            if d2 <= 4 and d0 > 8 and d1 > 8:
+                # HWC -> CHW -> [1, C, H, W]
+                return x.permute(2, 0, 1).unsqueeze(0)
+            else:
+                # CHW -> [1, C, H, W]
+                return x.unsqueeze(0)
+
+        elif x.dim() == 4:
+            return x
+
+        elif x.dim() == 5:
+            # [B, T, C, H, W] -> [B, C, H, W] (取最后一帧)
+            return x[:, -1, ...]
+
+        raise ValueError(f"{label} must be 2D/3D/4D/5D tensor, got dim={x.dim()} with shape={tuple(x.shape)}")
+
+    def compute_rel_l2(self, pred: torch.Tensor, target: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
+        pred = self._normalize_tensor_dims(pred, "pred_rel_l2")
+        target = self._normalize_tensor_dims(target, "target_rel_l2")
+        if pred.shape[:2] != target.shape[:2]:
+            raise ValueError(f"Dimension mismatch in B/C: pred {pred.shape} vs target {target.shape}")
+        if pred.shape[-2:] != target.shape[-2:]:
+            pred = F.interpolate(pred, size=target.shape[-2:], mode="bilinear", align_corners=False)
+        pred_flat = pred.reshape(pred.size(0), pred.size(1), -1)
+        target_flat = target.reshape(target.size(0), target.size(1), -1)
+        diff_norm = torch.norm(pred_flat - target_flat, dim=-1)
+        target_norm = torch.norm(target_flat, dim=-1)
+        return diff_norm / (target_norm + eps)
+
+    def compute_mae(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        pred = self._normalize_tensor_dims(pred, "pred_mae")
+        target = self._normalize_tensor_dims(target, "target_mae")
+        if pred.shape[:2] != target.shape[:2]:
+            raise ValueError(f"Dimension mismatch in B/C: pred {pred.shape} vs target {target.shape}")
+        if pred.shape[-2:] != target.shape[-2:]:
+            pred = F.interpolate(pred, size=target.shape[-2:], mode="bilinear", align_corners=False)
+        pred_flat = pred.reshape(pred.size(0), pred.size(1), -1)
+        target_flat = target.reshape(target.size(0), target.size(1), -1)
+        return torch.mean(torch.abs(pred_flat - target_flat), dim=-1)
+
+    def compute_psnr(self, pred: torch.Tensor, target: torch.Tensor, max_val: float | None = None) -> torch.Tensor:
+        pred = self._normalize_tensor_dims(pred, "pred_psnr")
+        target = self._normalize_tensor_dims(target, "target_psnr")
+        if pred.shape[:2] != target.shape[:2]:
+            raise ValueError(f"Dimension mismatch in B/C: pred {pred.shape} vs target {target.shape}")
+        if pred.shape[-2:] != target.shape[-2:]:
+            pred = F.interpolate(pred, size=target.shape[-2:], mode="bilinear", align_corners=False)
         diff = pred - target
-        mse = torch.mean(diff**2, dim=(-2, -1))  # [B, C]
-        target_norm = torch.mean(target**2, dim=(-2, -1)) + eps  # [B, C]
-        
-        rel_l2 = torch.sqrt(mse / target_norm)
-        
-        return rel_l2
-    
-    def compute_mae(self, pred, target):
-        """计算平均绝对误差"""
-        # 转换为torch张量
-        if isinstance(pred, np.ndarray):
-            pred = torch.from_numpy(pred)
-        if isinstance(target, np.ndarray):
-            target = torch.from_numpy(target)
-            
-        # 处理5D张量 [B, T, C, H, W]
-        if len(pred.shape) == 5:
-            B, T, C, H, W = pred.shape
-            # 取最后一个时间步或平均所有时间步
-            pred = pred[:, -1]  # [B, C, H, W]
-            target = target[:, -1]  # [B, C, H, W]
-        
-        diff = torch.abs(pred - target)
-        mae = torch.mean(diff, dim=(-2, -1))  # [B, C]
-        return mae
-    
-    def compute_psnr(self, pred, target, max_val: Optional[float] = None):
-        """计算峰值信噪比
-        
-        Args:
-            pred: 预测值 [B, C, H, W] 或 [B, T, C, H, W] (torch.Tensor 或 numpy.ndarray)
-            target: 真实值 [B, C, H, W] 或 [B, T, C, H, W] (torch.Tensor 或 numpy.ndarray)
-            max_val: 最大值，如果为None则自动计算
-            
-        Returns:
-            psnr: PSNR值 [B, C]
-        """
-        # 转换为torch张量
-        if isinstance(pred, np.ndarray):
-            pred = torch.from_numpy(pred)
-        if isinstance(target, np.ndarray):
-            target = torch.from_numpy(target)
-            
-        # 处理5D张量 [B, T, C, H, W]
-        if len(pred.shape) == 5:
-            B, T, C, H, W = pred.shape
-            # 取最后一个时间步或平均所有时间步
-            pred = pred[:, -1]  # [B, C, H, W]
-            target = target[:, -1]  # [B, C, H, W]
+        mse = torch.mean(diff * diff, dim=(-2, -1))
+        mse = torch.clamp(mse, min=1e-10)
         if max_val is None:
-            max_val = torch.max(target)
-        
-        mse = torch.mean((pred - target)**2, dim=(-2, -1))  # [B, C]
-        psnr = 20 * torch.log10(max_val / (torch.sqrt(mse) + 1e-8))
-        
-        return psnr
-    
-    def compute_ssim(self, pred, target):
-        """计算结构相似性指数
-        
-        使用scikit-image的SSIM实现
-        """
-        # 转换为torch张量
-        if isinstance(pred, np.ndarray):
-            pred = torch.from_numpy(pred)
-        if isinstance(target, np.ndarray):
-            target = torch.from_numpy(target)
-            
-        # 处理5D张量 [B, T, C, H, W]
-        if len(pred.shape) == 5:
-            B, T, C, H, W = pred.shape
-            # 取最后一个时间步或平均所有时间步
-            pred = pred[:, -1]  # [B, C, H, W]
-            target = target[:, -1]  # [B, C, H, W]
-        
-        B, C, H, W = pred.shape
-        ssim_values = torch.zeros(B, C)
-        
-        # 转换为numpy数组进行SSIM计算
-        if isinstance(pred, torch.Tensor):
-            pred_np = pred.detach().cpu().numpy()
+            dr = (target.amax(dim=(-2, -1)) - target.amin(dim=(-2, -1)))
+            dr = torch.clamp(dr, min=1e-6)
         else:
-            pred_np = pred
-            
-        if isinstance(target, torch.Tensor):
-            target_np = target.detach().cpu().numpy()
-        else:
-            target_np = target
-        
-        for b in range(B):
-            for c in range(C):
-                # 计算单通道SSIM
-                ssim_val = ssim(
-                    target_np[b, c], 
-                    pred_np[b, c],
-                    data_range=target_np[b, c].max() - target_np[b, c].min()
-                )
-                ssim_values[b, c] = ssim_val
-        
-        return ssim_values
-    
-    def compute_freq_rmse(self, pred, target):
-        """计算频域RMSE
-        
-        Args:
-            pred: 预测值 [B, C, H, W] (torch.Tensor 或 numpy.ndarray)
-            target: 真实值 [B, C, H, W] (torch.Tensor 或 numpy.ndarray)
-            
-        Returns:
-            freq_rmse: 各频段RMSE字典
-        """
-        # 转换为torch张量
-        if isinstance(pred, np.ndarray):
-            pred = torch.from_numpy(pred)
-        if isinstance(target, np.ndarray):
-            target = torch.from_numpy(target)
-            
-        # 检查尺寸是否匹配，如果不匹配则调整
-        if pred.shape != target.shape:
-            # 将pred调整到target的尺寸
-            pred = torch.nn.functional.interpolate(
-                pred, size=target.shape[-2:], 
-                mode='bilinear', align_corners=False
-            )
-        
-        # 处理5D张量 [B, T, C, H, W]
-        if len(pred.shape) == 5:
-            B, T, C, H, W = pred.shape
-            # 取最后一个时间步或平均所有时间步
-            pred = pred[:, -1]  # [B, C, H, W]
-            target = target[:, -1]  # [B, C, H, W]
-        
-        # 更新图像尺寸以匹配当前数据
-        current_size = target.shape[-2:]
+            dr = torch.full_like(mse, float(max_val))
+        return 20.0 * torch.log10(dr / torch.sqrt(mse))
+
+    def compute_ssim(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        pred = self._normalize_tensor_dims(pred, "pred_ssim")
+        target = self._normalize_tensor_dims(target, "target_ssim")
+        if pred.shape[:2] != target.shape[:2]:
+            raise ValueError(f"Dimension mismatch in B/C: pred {pred.shape} vs target {target.shape}")
+        if pred.shape[-2:] != target.shape[-2:]:
+            pred = F.interpolate(pred, size=target.shape[-2:], mode="bilinear", align_corners=False)
+
+        pred_np = pred.detach().cpu().numpy()
+        target_np = target.detach().cpu().numpy()
+        out = torch.zeros(pred.shape[0], pred.shape[1], dtype=torch.float32, device=pred.device)
+
+        for b in range(pred.shape[0]):
+            for c in range(pred.shape[1]):
+                t = target_np[b, c]
+                p = pred_np[b, c]
+                dr = float(np.max(t)) - float(np.min(t))
+                if not np.isfinite(dr) or dr <= 0:
+                    dr = 1.0
+                h, w = int(t.shape[0]), int(t.shape[1])
+                min_dim = min(h, w)
+                if min_dim < 3:
+                    val = 1.0 if np.allclose(t, p) else 0.0
+                elif min_dim < 7:
+                    win_size = min_dim if (min_dim % 2 == 1) else (min_dim - 1)
+                    val = ssim(
+                        t,
+                        p,
+                        data_range=dr,
+                        win_size=win_size,
+                        gaussian_weights=False,
+                        use_sample_covariance=False,
+                    )
+                else:
+                    val = ssim(
+                        t,
+                        p,
+                        data_range=dr,
+                        gaussian_weights=True,
+                        sigma=1.5,
+                        use_sample_covariance=False,
+                    )
+                out[b, c] = float(val)
+        return out
+
+    def compute_freq_rmse(self, pred: torch.Tensor, target: torch.Tensor) -> dict[str, torch.Tensor]:
+        pred = self._normalize_tensor_dims(pred, "pred_freq")
+        target = self._normalize_tensor_dims(target, "target_freq")
+        if pred.shape[:2] != target.shape[:2]:
+            raise ValueError(f"Dimension mismatch in B/C: pred {pred.shape} vs target {target.shape}")
+        if pred.shape[-2:] != target.shape[-2:]:
+            pred = F.interpolate(pred, size=target.shape[-2:], mode="bilinear", align_corners=False)
+
+        current_size = (int(target.shape[-2]), int(target.shape[-1]))
         if current_size != self.image_size:
             self.update_image_size(current_size)
-        
-        B, C, H, W = pred.shape
-        freq_rmse = {}
-        
+
+        pred_fft = torch.fft.fft2(pred, dim=(-2, -1))
+        target_fft = torch.fft.fft2(target, dim=(-2, -1))
+        diff = pred_fft - target_fft
+
+        out: dict[str, torch.Tensor] = {}
         for band_name, mask in self.freq_masks.items():
-            # 确保mask在正确的设备上
-            if hasattr(pred, 'device'):
-                mask = mask.to(pred.device)
-            
-            # FFT变换
-            pred_fft = torch.fft.fft2(pred)
-            target_fft = torch.fft.fft2(target)
-            
-            # 应用频域掩码
-            pred_fft_masked = pred_fft * mask.unsqueeze(0).unsqueeze(0)
-            target_fft_masked = target_fft * mask.unsqueeze(0).unsqueeze(0)
-            
-            # 逆变换回空间域
-            pred_filtered = torch.fft.ifft2(pred_fft_masked).real
-            target_filtered = torch.fft.ifft2(target_fft_masked).real
-            
-            # 计算RMSE
-            mse = torch.mean((pred_filtered - target_filtered)**2, dim=(-2, -1))
-            rmse = torch.sqrt(mse)
-            
-            freq_rmse[band_name] = rmse
-        
-        return freq_rmse
-    
-    def compute_boundary_rmse(self, pred, target):
-        """计算边界RMSE"""
-        # 转换为torch张量
-        if isinstance(pred, np.ndarray):
-            pred = torch.from_numpy(pred)
-        if isinstance(target, np.ndarray):
-            target = torch.from_numpy(target)
-            
-        # 确保mask在正确的设备上
-        if hasattr(pred, 'device'):
-            mask = self.boundary_mask.to(pred.device)
-        else:
-            mask = self.boundary_mask
-        
-        # 应用边界掩码
-        pred_boundary = pred * mask.unsqueeze(0).unsqueeze(0)
-        target_boundary = target * mask.unsqueeze(0).unsqueeze(0)
-        
-        # 计算边界区域的MSE
-        diff_sq = (pred_boundary - target_boundary)**2
-        mse = torch.sum(diff_sq, dim=(-2, -1)) / torch.sum(mask)  # [B, C]
-        rmse = torch.sqrt(mse)
-        
-        return rmse
-    
-    def compute_center_rmse(self, pred, target):
-        """计算中心RMSE"""
-        # 转换为torch张量
-        if isinstance(pred, np.ndarray):
-            pred = torch.from_numpy(pred)
-        if isinstance(target, np.ndarray):
-            target = torch.from_numpy(target)
-            
-        # 确保mask在正确的设备上
-        if hasattr(pred, 'device'):
-            mask = self.center_mask.to(pred.device)
-        else:
-            mask = self.center_mask
-        
-        # 应用中心掩码
-        pred_center = pred * mask.unsqueeze(0).unsqueeze(0)
-        target_center = target * mask.unsqueeze(0).unsqueeze(0)
-        
-        # 计算中心区域的MSE
-        diff_sq = (pred_center - target_center)**2
-        mse = torch.sum(diff_sq, dim=(-2, -1)) / torch.sum(mask)  # [B, C]
-        rmse = torch.sqrt(mse)
-        
-        return rmse
-    
-    def compute_data_consistency_error(self, pred: torch.Tensor, obs_data: Dict,
-                                     norm_stats: Optional[Dict] = None) -> torch.Tensor:
+            m = mask.to(device=pred.device)
+            denom = int(m.sum().item())
+            if denom <= 0:
+                out[band_name] = torch.zeros(pred.shape[0], pred.shape[1], device=pred.device)
+                continue
+            sel = diff * m[None, None, :, :]
+            mse = torch.sum(torch.abs(sel) ** 2, dim=(-2, -1)) / float(denom)
+            out[band_name] = torch.sqrt(mse)
+        return out
+
+    def compute_boundary_rmse(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        pred = self._normalize_tensor_dims(pred, "pred_brmse")
+        target = self._normalize_tensor_dims(target, "target_brmse")
+        if pred.shape[:2] != target.shape[:2]:
+            raise ValueError(f"Dimension mismatch in B/C: pred {pred.shape} vs target {target.shape}")
+        if pred.shape[-2:] != target.shape[-2:]:
+            pred = F.interpolate(pred, size=target.shape[-2:], mode="bilinear", align_corners=False)
+
+        current_size = (int(target.shape[-2]), int(target.shape[-1]))
+        if current_size != self.image_size:
+            self.update_image_size(current_size)
+        mask = self.boundary_mask.to(device=pred.device)
+        denom = int(mask.sum().item())
+        if denom <= 0:
+            return torch.zeros(pred.shape[0], pred.shape[1], device=pred.device)
+        diff2 = (pred - target) ** 2
+        mse = torch.sum(diff2 * mask[None, None, :, :], dim=(-2, -1)) / float(denom)
+        return torch.sqrt(mse)
+
+    def compute_center_rmse(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        pred = self._normalize_tensor_dims(pred, "pred_crmse")
+        target = self._normalize_tensor_dims(target, "target_crmse")
+        if pred.shape[:2] != target.shape[:2]:
+            raise ValueError(f"Dimension mismatch in B/C: pred {pred.shape} vs target {target.shape}")
+        if pred.shape[-2:] != target.shape[-2:]:
+            pred = F.interpolate(pred, size=target.shape[-2:], mode="bilinear", align_corners=False)
+
+        current_size = (int(target.shape[-2]), int(target.shape[-1]))
+        if current_size != self.image_size:
+            self.update_image_size(current_size)
+        mask = self.center_mask.to(device=pred.device)
+        denom = int(mask.sum().item())
+        if denom <= 0:
+            return torch.zeros(pred.shape[0], pred.shape[1], device=pred.device)
+        diff2 = (pred - target) ** 2
+        mse = torch.sum(diff2 * mask[None, None, :, :], dim=(-2, -1)) / float(denom)
+        return torch.sqrt(mse)
+
+    def compute_data_consistency_error(self, pred: torch.Tensor, obs_data: dict[str, Any],
+                                     norm_stats: dict[str, Any] | None = None) -> torch.Tensor:
         """计算数据一致性误差 ||H(ŷ)−y||
-        
-        Args:
-            pred: 预测值（z-score域） [B, C, H, W]
-            obs_data: 观测数据字典
-            norm_stats: 归一化统计量
-            
-        Returns:
-            dc_error: 数据一致性误差 [B, C]
+
+        目标：DC Error 必须比较 H(pred) 与 obs_data['y']。
+        obs_data['y'] 必须存储真实观测（低分辨率）。
         """
-        # 反归一化到原值域
-        if norm_stats is not None:
-            mean = torch.tensor(norm_stats['mean']).to(pred.device).reshape(1, -1, 1, 1)
-            std = torch.tensor(norm_stats['std']).to(pred.device).reshape(1, -1, 1, 1)
-            pred_orig = pred * std + mean
+        # 1. 维度规范化
+        pred = self._normalize_tensor_dims(pred, "pred_dc_error")
+
+        # 2. 获取并验证 target_obs (必须是 obs_data['y'])
+        target_obs = obs_data.get('y', None)
+        if target_obs is None:
+            keys_str = ", ".join(sorted([str(k) for k in obs_data.keys()]))
+            msg = f"obs_data must contain 'y' for DC error. obs_data keys: [{keys_str}]"
+            self.logger.error(msg)
+            raise ValueError(msg)
+
+        # 3. 规范化 target_obs 维度
+        target_obs = self._normalize_tensor_dims(target_obs, "target_obs")
+
+        # 4. 确定 pred 的输入域并应用观测算子
+        observation_is_norm = bool(obs_data.get('observation_is_norm', False))
+
+        if norm_stats is not None and not observation_is_norm:
+            # 反归一化到原值域
+            if 'mean' in norm_stats and 'std' in norm_stats:
+                mean = torch.as_tensor(norm_stats['mean'], device=pred.device).reshape(1, -1, 1, 1)
+                std = torch.as_tensor(norm_stats['std'], device=pred.device).reshape(1, -1, 1, 1)
+                pred_input = pred * std + mean
+            else:
+                pred_input = pred
         else:
-            pred_orig = pred
-        
+            # 保持输入域
+            pred_input = pred
+
         # 应用观测算子H
-        pred_obs = apply_degradation_operator(pred_orig, obs_data)
-        
-        # 计算与观测数据的误差
-        target_obs = obs_data['baseline']
+        pred_obs = apply_degradation_operator(pred_input, obs_data)
+
+        # 确保设备和类型一致
+        pred_obs = pred_obs.to(device=target_obs.device, dtype=target_obs.dtype)
+
+        # 5. 验证一致性 (Strict Validation)
+        # 检查形状一致性
+        if pred_obs.shape[-2:] != target_obs.shape[-2:]:
+            msg = (f"DC Error Validation Failed: Shape mismatch. "
+                   f"H(pred) shape: {pred_obs.shape}, Target(y) shape: {target_obs.shape}. "
+                   f"Domain normalized: {observation_is_norm}. "
+                   f"Target must match H(pred) dimensions.")
+            self.logger.error(msg)
+            raise ValueError(msg)
+
         mse = torch.mean((pred_obs - target_obs)**2, dim=(-2, -1))  # [B, C]
         dc_error = torch.sqrt(mse)
-        
+
         return dc_error
-    
+
     def compute_all_metrics(self, pred: torch.Tensor, target: torch.Tensor,
-                           obs_data: Optional[Dict] = None,
-                           norm_stats: Optional[Dict] = None,
-                           include_freq_metrics: bool = True) -> Dict[str, torch.Tensor]:
+                           obs_data: dict[str, Any] | None = None,
+                           norm_stats: dict[str, Any] | None = None,
+                           include_freq_metrics: bool = True) -> dict[str, torch.Tensor]:
         """计算所有指标
-        
-        Args:
-            pred: 预测值 [B, C, H, W]
-            target: 真实值 [B, C, H, W]
-            obs_data: 观测数据（用于数据一致性）
-            norm_stats: 归一化统计量
-            include_freq_metrics: 是否计算频域指标
-            
-        Returns:
-            metrics: 所有指标的字典
+
+        核心逻辑：
+        1. 统一维度规范化 -> [N, C, H, W]
+        2. 空间对齐 -> pred 插值到 target 尺寸 (不允许 target 插值到 pred)
+        3. 计算各指标
         """
-        metrics = {}
-        
-        # 基础指标
-        metrics['rel_l2'] = self.compute_rel_l2(pred, target)
-        metrics['mae'] = self.compute_mae(pred, target)
-        metrics['psnr'] = self.compute_psnr(pred, target)
-        metrics['ssim'] = self.compute_ssim(pred, target)
-        
-        # 频域指标（可选）
-        if include_freq_metrics:
-            freq_rmse = self.compute_freq_rmse(pred, target)
-            for band_name, rmse in freq_rmse.items():
-                metrics[f'frmse_{band_name}'] = rmse
-        
-        # 空间域指标
-        metrics['brmse'] = self.compute_boundary_rmse(pred, target)
-        metrics['crmse'] = self.compute_center_rmse(pred, target)
-        
-        # 数据一致性指标
-        if obs_data is not None:
-            metrics['dc_error'] = self.compute_data_consistency_error(pred, obs_data, norm_stats)
-        
+        # 1. 维度规范化 (全局入口强制执行)
+        pred = self._normalize_tensor_dims(pred, "pred_all")
+        target = self._normalize_tensor_dims(target, "target_all")
+
+        if pred.dim() != 4 or target.dim() != 4:
+            raise ValueError(f"compute_all_metrics expects NCHW after normalization, got pred.dim={pred.dim()} target.dim={target.dim()} (pred={tuple(pred.shape)}, target={tuple(target.shape)})")
+
+        # 严格检查 Batch 和 Channel 维度一致性
+        if pred.shape[:2] != target.shape[:2]:
+            raise ValueError(f"Dimension mismatch in B/C: pred {pred.shape} vs target {target.shape}")
+
+        # 2. 空间维度一致性检查与插值
+        if pred.shape[-2:] != target.shape[-2:]:
+            # 只允许插值 pred 到 target
+            if self.logger.isEnabledFor(logging.WARNING):
+                self.logger.warning(f"Spatial mismatch: pred {pred.shape} vs target {target.shape}. Interpolating pred to target.")
+            pred = F.interpolate(pred, size=target.shape[-2:], mode='bilinear', align_corners=False)
+
+        # 3. 更新 image_size 以确保 mask 正确 (基于 target 的尺寸)
+        current_size = (int(target.shape[-2]), int(target.shape[-1]))
+        if current_size != self.image_size:
+            self.update_image_size(current_size)
+
+        metrics: dict[str, torch.Tensor] = {}
+
+        try:
+            metrics['rel_l2'] = self.compute_rel_l2(pred, target)
+            metrics['mae'] = self.compute_mae(pred, target)
+            metrics['psnr'] = self.compute_psnr(pred, target)
+            metrics['ssim'] = self.compute_ssim(pred, target)
+
+            if include_freq_metrics:
+                freq_rmse = self.compute_freq_rmse(pred, target)
+                for band_name, rmse in freq_rmse.items():
+                    metrics[f'frmse_{band_name}'] = rmse
+
+            metrics['brmse'] = self.compute_boundary_rmse(pred, target)
+            metrics['crmse'] = self.compute_center_rmse(pred, target)
+
+            if obs_data is not None:
+                metrics['dc_error'] = self.compute_data_consistency_error(pred, obs_data, norm_stats)
+
+        except Exception as e:
+            self.logger.error(f"Error in compute_all_metrics internal calc: {e}")
+            self.logger.error(f"Shapes - Pred: {pred.shape}, Target: {target.shape}")
+            raise
+
         return metrics
 
 
 class StatisticalAnalyzer:
-    """统计分析器
-    
-    提供多种子实验的统计分析功能
-    包括均值、标准差、显著性检验等
-    """
-    
-    def __init__(self):
-        self.results = []
-    
-    def add_result(self, result: Dict[str, Union[float, torch.Tensor]]):
+    """统计分析器"""
+
+    def __init__(self) -> None:
+        self.results: list[dict[str, float | torch.Tensor]] = []
+
+    def add_result(self, result: dict[str, float | torch.Tensor]) -> None:
         """添加单次实验结果"""
         self.results.append(result)
-    
-    def compute_statistics(self) -> Dict[str, Dict[str, float]]:
+
+    def compute_statistics(self) -> dict[str, dict[str, float]]:
         """计算统计信息"""
         return self.aggregate_metrics(self.results)
-    
-    def generate_report(self, baseline_name: str = None) -> str:
-        """生成统计报告"""
-        if not self.results:
-            return "No results to report."
-        
-        stats = self.compute_statistics()
-        
-        lines = []
-        lines.append("Statistical Analysis Report")
-        lines.append("=" * 50)
-        
-        for metric_name, metric_stats in stats.items():
-            lines.append(f"\n{metric_name}:")
-            lines.append(f"  Mean: {metric_stats['mean']:.6f}")
-            lines.append(f"  Std:  {metric_stats['std']:.6f}")
-            lines.append(f"  Min:  {metric_stats['min']:.6f}")
-            lines.append(f"  Max:  {metric_stats['max']:.6f}")
-            lines.append(f"  Count: {metric_stats['count']}")
-        
-        return "\n".join(lines)
-    
-    def aggregate_metrics(self, metrics_list: List[Dict[str, torch.Tensor]]) -> Dict[str, Dict[str, float]]:
-        """聚合多次实验的指标
-        
-        Args:
-            metrics_list: 多次实验的指标列表
-            
-        Returns:
-            aggregated: {'metric_name': {'mean': float, 'std': float, 'min': float, 'max': float}}
-        """
+
+    def aggregate_metrics(self, metrics_list: list[dict[str, torch.Tensor]]) -> dict[str, dict[str, float]]:
+        """聚合多次实验的指标"""
         if not metrics_list:
             return {}
-        
+
         # 获取所有指标名称
-        metric_names = set()
+        metric_names: set[str] = set()
         for metrics in metrics_list:
             metric_names.update(metrics.keys())
-        
+
         aggregated = {}
-        
+
         for metric_name in metric_names:
             # 收集该指标的所有值
             values = []
@@ -486,364 +466,200 @@ class StatisticalAnalyzer:
                         value = float(metric_value)
                     else:
                         continue  # 跳过无法处理的类型
-                    
-                    # 跳过NaN值
-                    if not np.isnan(value):
-                        values.append(value)
-            
+
+                    values.append(value)
+
             if values:
-                values = np.array(values)
                 aggregated[metric_name] = {
                     'mean': float(np.mean(values)),
-                    'std': float(np.std(values, ddof=1) if len(values) > 1 else 0),
+                    'std': float(np.std(values, ddof=1)) if len(values) > 1 else 0.0,
                     'min': float(np.min(values)),
                     'max': float(np.max(values)),
                     'count': len(values)
                 }
-        
-        return aggregated
-    
-    def compute_significance_test(self, baseline_metrics: List[Dict[str, torch.Tensor]],
-                                 method_metrics: List[Dict[str, torch.Tensor]],
-                                 metric_name: str = 'rel_l2',
-                                 alpha: float = 0.05) -> Dict[str, float]:
-        """计算显著性检验
-        
-        Args:
-            baseline_metrics: 基线方法的指标列表
-            method_metrics: 对比方法的指标列表
-            metric_name: 要检验的指标名称
-            alpha: 显著性水平
-            
-        Returns:
-            test_result: {'t_stat': float, 'p_value': float, 'cohen_d': float, 'significant': bool}
-        """
-        # 提取指标值
-        baseline_values = []
-        for metrics in baseline_metrics:
-            if metric_name in metrics:
-                metric_value = metrics[metric_name]
-                if isinstance(metric_value, torch.Tensor):
-                    value = torch.mean(metric_value).item()
-                elif isinstance(metric_value, (int, float)):
-                    value = float(metric_value)
-                else:
-                    continue
-                baseline_values.append(value)
-        
-        method_values = []
-        for metrics in method_metrics:
-            if metric_name in metrics:
-                metric_value = metrics[metric_name]
-                if isinstance(metric_value, torch.Tensor):
-                    value = torch.mean(metric_value).item()
-                elif isinstance(metric_value, (int, float)):
-                    value = float(metric_value)
-                else:
-                    continue
-                method_values.append(value)
-        
-        if len(baseline_values) == 0 or len(method_values) == 0:
-            return {'error': 'Insufficient data for significance test'}
-        
-        # 检查是否有足够的样本进行统计检验
-        if len(baseline_values) < 2 or len(method_values) < 2:
-            return {
-                'error': 'Insufficient samples for significance test (need at least 2 samples per group)',
-                'baseline_count': len(baseline_values),
-                'method_count': len(method_values)
-            }
-        
-        baseline_values = np.array(baseline_values)
-        method_values = np.array(method_values)
-        
-        # 检查方差是否为零（所有值相同）
-        baseline_var = np.var(baseline_values, ddof=1)
-        method_var = np.var(method_values, ddof=1)
-        
-        if baseline_var == 0 and method_var == 0:
-            # 两组方差都为0，直接比较均值
-            mean_diff = np.mean(method_values) - np.mean(baseline_values)
-            return {
-                't_stat': float('inf') if mean_diff != 0 else 0.0,
-                'p_value': 0.0 if mean_diff != 0 else 1.0,
-                'effect_size': float('inf') if mean_diff != 0 else 0.0,
-                'is_significant': mean_diff != 0,
-                'alpha': alpha,
-                'note': 'Zero variance in both groups'
-            }
-        
-        try:
-            # Paired t-test if same number of samples
-            if len(baseline_values) == len(method_values):
-                t_stat, p_value = stats.ttest_rel(baseline_values, method_values)
-            else:
-                # Independent t-test
-                t_stat, p_value = stats.ttest_ind(baseline_values, method_values)
-            
-            # Cohen's d (effect size)
-            pooled_std = np.sqrt(((len(baseline_values) - 1) * baseline_var +
-                                 (len(method_values) - 1) * method_var) /
-                                (len(baseline_values) + len(method_values) - 2))
-            
-            if pooled_std == 0:
-                cohen_d = 0.0
-            else:
-                cohen_d = (np.mean(method_values) - np.mean(baseline_values)) / pooled_std
-            
-            return {
-                't_stat': float(t_stat) if not np.isnan(t_stat) else 0.0,
-                'p_value': float(p_value) if not np.isnan(p_value) else 1.0,
-                'effect_size': float(cohen_d) if not np.isnan(cohen_d) else 0.0,
-                'is_significant': bool(p_value < alpha) if not np.isnan(p_value) else False,
-                'alpha': alpha
-            }
-            
-        except Exception as e:
-            return {
-                'error': f'Statistical test failed: {str(e)}',
-                'baseline_values': baseline_values.tolist(),
-                'method_values': method_values.tolist()
-            }
-    
-    def generate_summary_table(self, results: Dict[str, Dict[str, Dict[str, float]]],
-                              metric_names: List[str] = None) -> str:
-        """生成汇总表格
-        
-        Args:
-            results: {'method_name': {'metric_name': {'mean': float, 'std': float, ...}}}
-            metric_names: 要包含的指标名称列表
-            
-        Returns:
-            table_str: 格式化的表格字符串
-        """
-        if metric_names is None:
-            # 获取所有指标名称
-            all_metrics = set()
-            for method_results in results.values():
-                all_metrics.update(method_results.keys())
-            metric_names = sorted(list(all_metrics))
-        
-        # 构建表格
-        lines = []
-        
-        # 表头
-        header = "Method"
-        for metric_name in metric_names:
-            header += f"\t{metric_name}"
-        lines.append(header)
-        
-        # 数据行
-        for method_name, method_results in results.items():
-            row = method_name
-            for metric_name in metric_names:
-                if metric_name in method_results:
-                    stats = method_results[metric_name]
-                    mean = stats['mean']
-                    std = stats['std']
-                    row += f"\t{mean:.4f}±{std:.4f}"
-                else:
-                    row += "\t-"
-            lines.append(row)
-        
-        return "\n".join(lines)
 
+        return aggregated
+
+# --- Global Cache for Top-Level Access ---
+_GLOBAL_CALCULATOR: MetricsCalculator | None = None
 
 def compute_all_metrics(pred: torch.Tensor, target: torch.Tensor,
-                       obs_data: Optional[Dict] = None,
-                       norm_stats: Optional[Dict] = None,
-                       image_size: Tuple[int, int] = (256, 256),
-                       include_freq_metrics: bool = True) -> Dict[str, torch.Tensor]:
-    """便捷函数：计算所有指标
-    
+                        obs_data: dict[str, Any] | None = None,
+                        norm_stats: dict[str, Any] | None = None,
+                        image_size: tuple[int, int] | None = None,
+                        include_freq_metrics: bool = True,
+                        **kwargs: Any) -> dict[str, torch.Tensor | float]:
+    """顶层函数，用于计算所有指标
+
     Args:
-        pred: 预测值 [B, C, H, W]
-        target: 真实值 [B, C, H, W]
-        obs_data: 观测数据（用于数据一致性）
-        norm_stats: 归一化统计量
-        image_size: 图像尺寸
-        include_freq_metrics: 是否计算频域指标
-        
+        pred: 预测值
+        target: 真实值
+        obs_data: 观测数据（可选）
+        norm_stats: 归一化统计量（可选）
+        image_size: 图像尺寸（可选），如果提供则更新 calculator
+        include_freq_metrics: 是否包含频域指标
+        **kwargs: 兼容性参数（忽略）
+
     Returns:
-        metrics: 所有指标的字典
+        metrics: 指标字典
     """
-    calculator = MetricsCalculator(image_size=image_size)
-    return calculator.compute_all_metrics(pred, target, obs_data, norm_stats, include_freq_metrics=include_freq_metrics)
+    global _GLOBAL_CALCULATOR
+
+    try:
+        # 初始化全局实例
+        if _GLOBAL_CALCULATOR is None:
+            if image_size is None:
+                 # 默认 256，稍后会根据 target 自动 update
+                _GLOBAL_CALCULATOR = MetricsCalculator(image_size=(256, 256))
+            else:
+                _GLOBAL_CALCULATOR = MetricsCalculator(image_size=image_size)
+
+        # 如果显式传入了 image_size，则尝试更新
+        if image_size is not None:
+            _GLOBAL_CALCULATOR.update_image_size(image_size)
+
+        # 调用计算
+        raw = _GLOBAL_CALCULATOR.compute_all_metrics(
+            pred=pred,
+            target=target,
+            obs_data=obs_data,
+            norm_stats=norm_stats,
+            include_freq_metrics=include_freq_metrics
+        )
+
+        out: dict[str, torch.Tensor | float] = {}
+        for k, v in raw.items():
+            if isinstance(v, torch.Tensor):
+                out[k] = float(v.mean().item())
+            else:
+                out[k] = float(v)
+        return out
+
+    except Exception as e:
+        # 捕获异常并提供详细调试信息，尽量避免 simple fallback
+        print("!!! Error in top-level compute_all_metrics !!!")
+        print(f"Pred shape: {pred.shape if hasattr(pred, 'shape') else 'N/A'}")
+        print(f"Target shape: {target.shape if hasattr(target, 'shape') else 'N/A'}")
+        print(f"Error details: {e}")
+
+        # 尝试最后的兜底：如果只是维度问题，_normalize_tensor_dims 应该已经处理了
+        # 如果是其他计算错误，抛出
+        raise
 
 
-def aggregate_multi_seed_results(results_list: List[Dict[str, torch.Tensor]]) -> Dict[str, Dict[str, float]]:
-    """便捷函数：聚合多种子结果
-    
-    Args:
-        results_list: 多次实验结果列表
-        
-    Returns:
-        aggregated: 聚合后的统计结果
-    """
-    analyzer = StatisticalAnalyzer()
-    return analyzer.aggregate_metrics(results_list)
+def compute_metrics(
+    pred: torch.Tensor,
+    target: torch.Tensor,
+    obs_data: dict[str, Any] | None = None,
+    norm_stats: dict[str, Any] | None = None,
+    image_size: tuple[int, int] | None = None,
+    include_freq_metrics: bool = True,
+    **kwargs: Any,
+) -> dict[str, torch.Tensor | float]:
+    return compute_all_metrics(
+        pred=pred,
+        target=target,
+        obs_data=obs_data,
+        norm_stats=norm_stats,
+        image_size=image_size,
+        include_freq_metrics=include_freq_metrics,
+        **kwargs,
+    )
 
 
-def compute_conservation_metrics(pred: torch.Tensor, target: torch.Tensor) -> Dict[str, torch.Tensor]:
-    """计算守恒量指标
-    
-    对于物理场，检查质量、动量、能量等守恒量的保持情况
-    
-    Args:
-        pred: 预测值 [B, C, H, W]
-        target: 真实值 [B, C, H, W]
-        
-    Returns:
-        conservation_metrics: 守恒量指标
-    """
-    metrics = {}
-    
-    # 质量守恒（总和）
-    pred_mass = torch.sum(pred, dim=(-2, -1))  # [B, C]
-    target_mass = torch.sum(target, dim=(-2, -1))  # [B, C]
-    mass_error = torch.abs(pred_mass - target_mass) / (torch.abs(target_mass) + 1e-8)
-    metrics['mass_conservation_error'] = mass_error
-    
-    # 能量守恒（L2范数的平方）
-    pred_energy = torch.sum(pred**2, dim=(-2, -1))  # [B, C]
-    target_energy = torch.sum(target**2, dim=(-2, -1))  # [B, C]
-    energy_error = torch.abs(pred_energy - target_energy) / (target_energy + 1e-8)
-    metrics['energy_conservation_error'] = energy_error
-    
-    # 动量守恒（一阶矩）
-    H, W = pred.shape[-2:]
-    y_coords = torch.arange(H, dtype=pred.dtype, device=pred.device).view(H, 1)
-    x_coords = torch.arange(W, dtype=pred.dtype, device=pred.device).view(1, W)
-    
-    pred_momentum_y = torch.sum(pred * y_coords.unsqueeze(0).unsqueeze(0), dim=(-2, -1))
-    target_momentum_y = torch.sum(target * y_coords.unsqueeze(0).unsqueeze(0), dim=(-2, -1))
-    momentum_y_error = torch.abs(pred_momentum_y - target_momentum_y) / (torch.abs(target_momentum_y) + 1e-8)
-    metrics['momentum_y_conservation_error'] = momentum_y_error
-    
-    pred_momentum_x = torch.sum(pred * x_coords.unsqueeze(0).unsqueeze(0), dim=(-2, -1))
-    target_momentum_x = torch.sum(target * x_coords.unsqueeze(0).unsqueeze(0), dim=(-2, -1))
-    momentum_x_error = torch.abs(pred_momentum_x - target_momentum_x) / (torch.abs(target_momentum_x) + 1e-8)
-    metrics['momentum_x_conservation_error'] = momentum_x_error
-    
-    return metrics
-
-
-def compute_spectral_analysis(pred: torch.Tensor, target: torch.Tensor) -> Dict[str, torch.Tensor]:
-    """计算频谱分析指标
-    
-    Args:
-        pred: 预测值 [B, C, H, W]
-        target: 真实值 [B, C, H, W]
-        
-    Returns:
-        spectral_metrics: 频谱分析指标
-    """
-    metrics = {}
-    
-    # FFT变换
-    pred_fft = torch.fft.fft2(pred)
-    target_fft = torch.fft.fft2(target)
-    
-    # 功率谱
-    pred_power = torch.abs(pred_fft)**2
-    target_power = torch.abs(target_fft)**2
-    
-    # 功率谱误差
-    power_error = torch.mean((pred_power - target_power)**2, dim=(-2, -1))
-    metrics['power_spectrum_mse'] = power_error
-    
-    # 相位误差
-    pred_phase = torch.angle(pred_fft)
-    target_phase = torch.angle(target_fft)
-    phase_diff = torch.abs(pred_phase - target_phase)
-    # 处理相位的周期性
-    phase_diff = torch.min(phase_diff, 2 * np.pi - phase_diff)
-    phase_error = torch.mean(phase_diff**2, dim=(-2, -1))
-    metrics['phase_mse'] = phase_error
-    
-    # 频域相关系数
-    pred_fft_flat = pred_fft.view(pred_fft.shape[0], pred_fft.shape[1], -1)
-    target_fft_flat = target_fft.view(target_fft.shape[0], target_fft.shape[1], -1)
-    
-    # 计算复数相关系数的实部
-    correlation = torch.real(torch.sum(pred_fft_flat * torch.conj(target_fft_flat), dim=-1))
-    pred_norm = torch.sqrt(torch.sum(torch.abs(pred_fft_flat)**2, dim=-1))
-    target_norm = torch.sqrt(torch.sum(torch.abs(target_fft_flat)**2, dim=-1))
-    
-    freq_correlation = correlation / (pred_norm * target_norm + 1e-8)
-    metrics['frequency_correlation'] = freq_correlation
-    
-    return metrics
-
-
-def compute_metrics(pred: torch.Tensor, target: torch.Tensor,
-                   obs_data: Optional[Dict] = None,
-                   norm_stats: Optional[Dict] = None,
-                   image_size: Tuple[int, int] = (256, 256),
-                   include_freq_metrics: bool = True) -> Dict[str, torch.Tensor]:
-    """便捷函数：计算基础指标（兼容性函数）
-    
-    Args:
-        pred: 预测值 [B, C, H, W]
-        target: 真实值 [B, C, H, W]
-        obs_data: 观测数据（用于数据一致性）
-        norm_stats: 归一化统计量
-        image_size: 图像尺寸
-        
-    Returns:
-        metrics: 基础指标的字典
-    """
-    return compute_all_metrics(pred, target, obs_data, norm_stats, image_size, include_freq_metrics=include_freq_metrics)
-
-
-# ---- 兼容 tests 的便捷函数包装 ----
 def rel_l2_error(pred: torch.Tensor, target: torch.Tensor, eps: float = 1e-8) -> float:
-    """返回标量 Rel-L2 误差（批次与通道平均）"""
-    calc = MetricsCalculator(image_size=tuple(target.shape[-2:]))
-    rel = calc.compute_rel_l2(pred, target, eps=eps)
-    return float(torch.mean(rel).item())
+    calc = MetricsCalculator(
+        image_size=(int(target.shape[-2]), int(target.shape[-1]))
+        if hasattr(target, "shape") and target.dim() >= 2
+        else (256, 256)
+    )
+    return float(calc.compute_rel_l2(pred, target, eps=eps).mean().item())
 
 
 def mae_error(pred: torch.Tensor, target: torch.Tensor) -> float:
-    """返回标量 MAE（批次与通道平均）"""
-    calc = MetricsCalculator(image_size=tuple(target.shape[-2:]))
-    mae = calc.compute_mae(pred, target)
-    return float(torch.mean(mae).item())
+    calc = MetricsCalculator(
+        image_size=(int(target.shape[-2]), int(target.shape[-1]))
+        if hasattr(target, "shape") and target.dim() >= 2
+        else (256, 256)
+    )
+    return float(calc.compute_mae(pred, target).mean().item())
 
 
-def psnr_metric(pred: torch.Tensor, target: torch.Tensor, max_val: Optional[float] = None) -> float:
-    """返回标量 PSNR（批次与通道平均）"""
-    calc = MetricsCalculator(image_size=tuple(target.shape[-2:]))
-    psnr = calc.compute_psnr(pred, target, max_val=max_val)
-    return float(torch.mean(psnr).item())
+def psnr_metric(pred: torch.Tensor, target: torch.Tensor, max_val: float | None = None) -> float:
+    calc = MetricsCalculator(
+        image_size=(int(target.shape[-2]), int(target.shape[-1]))
+        if hasattr(target, "shape") and target.dim() >= 2
+        else (256, 256)
+    )
+    return float(calc.compute_psnr(pred, target, max_val=max_val).mean().item())
 
 
 def ssim_metric(pred: torch.Tensor, target: torch.Tensor) -> float:
-    """返回标量 SSIM（批次与通道平均）"""
-    calc = MetricsCalculator(image_size=tuple(target.shape[-2:]))
-    ssim_vals = calc.compute_ssim(pred, target)
-    return float(torch.mean(ssim_vals).item())
+    calc = MetricsCalculator(
+        image_size=(int(target.shape[-2]), int(target.shape[-1]))
+        if hasattr(target, "shape") and target.dim() >= 2
+        else (256, 256)
+    )
+    return float(calc.compute_ssim(pred, target).mean().item())
 
 
-def frequency_rmse(pred: torch.Tensor, target: torch.Tensor, freq_range: str = 'low') -> float:
-    """返回指定频段的 RMSE 标量（批次与通道平均）"""
-    calc = MetricsCalculator(image_size=tuple(target.shape[-2:]))
-    freq_dict = calc.compute_freq_rmse(pred, target)
-    rmse = freq_dict.get(freq_range)
-    if rmse is None:
-        raise ValueError(f"Unknown freq_range '{freq_range}'. Available: {list(freq_dict.keys())}")
-    return float(torch.mean(rmse).item())
+def frequency_rmse(pred: torch.Tensor, target: torch.Tensor, freq_range: str = "low") -> float:
+    calc = MetricsCalculator(
+        image_size=(int(target.shape[-2]), int(target.shape[-1]))
+        if hasattr(target, "shape") and target.dim() >= 2
+        else (256, 256)
+    )
+    rmse = calc.compute_freq_rmse(pred, target)
+    if freq_range not in rmse:
+        raise ValueError(f"Unknown freq_range: {freq_range}")
+    return float(rmse[freq_range].mean().item())
 
 
 def boundary_rmse(pred: torch.Tensor, target: torch.Tensor, boundary_width: int = 16) -> float:
-    """返回边界带 RMSE 标量"""
-    calc = MetricsCalculator(image_size=tuple(target.shape[-2:]), boundary_width=boundary_width)
-    rmse = calc.compute_boundary_rmse(pred, target)
-    return float(torch.mean(rmse).item())
+    calc = MetricsCalculator(
+        image_size=(int(target.shape[-2]), int(target.shape[-1]))
+        if hasattr(target, "shape") and target.dim() >= 2
+        else (256, 256),
+        boundary_width=boundary_width,
+    )
+    return float(calc.compute_boundary_rmse(pred, target).mean().item())
 
 
 def center_rmse(pred: torch.Tensor, target: torch.Tensor, boundary_width: int = 16) -> float:
-    """返回中心区域 RMSE 标量"""
-    calc = MetricsCalculator(image_size=tuple(target.shape[-2:]), boundary_width=boundary_width)
-    rmse = calc.compute_center_rmse(pred, target)
-    return float(torch.mean(rmse).item())
+    calc = MetricsCalculator(
+        image_size=(int(target.shape[-2]), int(target.shape[-1]))
+        if hasattr(target, "shape") and target.dim() >= 2
+        else (256, 256),
+        boundary_width=boundary_width,
+    )
+    return float(calc.compute_center_rmse(pred, target).mean().item())
+
+if __name__ == "__main__":
+    # 最小自测
+    print("Running self-test for compute_all_metrics...")
+
+    # 1. Test 4D [B, C, H, W]
+    pred = torch.randn(1, 1, 64, 64)
+    target = torch.randn(1, 1, 64, 64)
+    metrics = compute_all_metrics(pred, target, image_size=(64, 64))
+    print(f"4D Input: {metrics.keys()}")
+
+    # 2. Test 2D [H, W]
+    pred_2d = torch.randn(64, 64)
+    target_2d = torch.randn(64, 64)
+    metrics_2d = compute_all_metrics(pred_2d, target_2d) # implicit image_size update
+    print(f"2D Input: {metrics_2d.keys()}")
+
+    # 3. Test 5D [B, T, C, H, W]
+    pred_5d = torch.randn(1, 5, 1, 64, 64)
+    target_5d = torch.randn(1, 5, 1, 64, 64)
+    metrics_5d = compute_all_metrics(pred_5d, target_5d)
+    print(f"5D Input: {metrics_5d.keys()}")
+
+    # 4. Test Spatial Mismatch [B, C, 32, 32] vs [B, C, 64, 64]
+    pred_small = torch.randn(1, 1, 32, 32)
+    target_large = torch.randn(1, 1, 64, 64)
+    metrics_mismatch = compute_all_metrics(pred_small, target_large)
+    print(f"Mismatch Input: {metrics_mismatch.keys()} (should pass via interpolate)")
+
+    print("Self-test passed!")

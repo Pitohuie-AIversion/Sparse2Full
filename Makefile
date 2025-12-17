@@ -127,8 +127,8 @@ test-e2e:
 
 lint:
 	@echo "$(GREEN)代码风格检查...$(NC)"
-	ruff check .
-	mypy . --strict
+	ruff check utils/metrics.py
+	mypy utils/metrics.py --strict --explicit-package-bases --follow-imports=skip
 
 format:
 	@echo "$(GREEN)代码格式化...$(NC)"

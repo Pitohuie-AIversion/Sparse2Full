@@ -1,0 +1,167 @@
+# 100样本GPU最大化配置 - 优先GPU，其次CPU，最后RAM
+# 保持模型大小392M参数和100样本不变
+
+experiment:
+  name: "ar_100samples_gpu_maximized"
+  description: "100样本GPU利用率最大化，仅R2损失，392M模型"
+  device: cuda:0
+  seed: 2025
+  output_dir: "./runs/ar_100samples_gpu_maximized"
+
+# 数据配置 - 仅100个样本，最大化数据加载速度
+data:
+  data_path: "./data/PDEBench/1D-diffusion-reaction/"
+  dataset_name: PDEBenchAR
+  image_size: 128
+  sample_limit: 100  # 严格限制100样本
+  
+  # AR配置 - 单步预测提高速度
+  T_in: 1
+  T_out: 1
+  
+  # 数据分割
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  
+  # 数据加载器 - 最大化GPU吞吐量
+  batch_size: 96  # 提高批次大小增加GPU利用率
+  num_workers: 20  # 最大化CPU数据预处理
+  pin_memory: true
+  prefetch_factor: 64  # 最大预取
+  persistent_workers: true
+  drop_last: true  # 保持批次大小一致
+  
+  # 观测配置 - 增加计算密度
+  observation:
+    mode: SR
+    scale_factor: 4
+    blur_sigma: 1.0
+    kernel_size: 5
+    boundary: mirror
+  
+  # 预处理
+  normalize: true
+  augmentation:
+    enabled: false
+
+# 模型配置 - 保持392M参数不变，优化计算密度
+model:
+  name: "SwinUNet"
+  in_channels: 1
+  out_channels: 1
+  img_size: 128
+  # 保持原有模型大小：392M参数
+  embed_dim: 192  # 维持embed_dim不变
+  depths: [2, 2, 18, 2]  # 保持depths不变
+  num_heads: [6, 12, 24, 48]
+  window_size: 8
+  mlp_ratio: 4.0
+  qkv_bias: true
+  drop_rate: 0.0  # 禁用dropout提高GPU效率
+  attn_drop_rate: 0.0
+  drop_path_rate: 0.1
+  patch_norm: true
+  use_checkpoint: false  # 禁用检查点提高速度
+
+# 仅R2损失 - 如用户要求，简化计算
+loss:
+  reconstruction:
+    type: "rel_l2"  # R2损失
+    weight: 1.0
+    reduction: "mean"
+  spectral:
+    enabled: false
+  data_consistency:
+    enabled: false
+  gradient:
+    enabled: false
+  pde_residual:
+    enabled: false
+
+# 训练配置 - 最大化GPU利用率
+training:
+  epochs: 100  # 足够训练
+  save_freq: 20  # 减少保存频率
+  log_freq: 10
+  val_freq: 10  # 验证频率
+  
+  # 优化器 - 使用最快配置
+  optimizer:
+    name: "AdamW"
+    lr: 0.0003  # 稍高学习率加速收敛
+    weight_decay: 0.05
+    betas: [0.9, 0.999]
+    eps: 1e-8
+    fused: true  # GPU加速
+    foreach: false
+  
+  # 调度器
+  scheduler:
+    name: "cosine_with_warmup"
+    warmup_epochs: 15
+    max_epochs: 100
+    min_lr: 1e-6
+  
+  # 梯度优化
+  gradient_clip_val: 1.0  # 减少梯度裁剪开销
+  
+  # AMP - 最大化GPU性能
+  amp:
+    enabled: true
+    dtype: "fp16"  # FP16提高GPU吞吐量
+    init_scale: 2048.0  # 提高初始scale
+
+# 验证配置
+validation:
+  batch_size: 96  # 与训练相同批次
+  num_workers: 16
+  visualize_predictions: true
+  visualize_freq: 20  # 减少可视化频率
+  num_visualization_samples: 12
+  save_predictions: true
+  metrics:
+    - "rel_l2"
+    - "mae"
+    - "mse"
+
+# 系统优化 - 优先GPU，其次CPU，最后RAM
+system:
+  cuda:
+    benchmark: true      # cudnn benchmark
+    tf32: true          # TF32加速
+    allow_tf32: true
+    deterministic: false  # 禁用确定性算法
+  
+  # CPU优化 - 辅助GPU
+  threads:
+    torch_num_threads: 20  # 最大化CPU线程
+    omp_num_threads: 20
+    mkldnn_num_threads: 20
+    numa_enabled: true   # NUMA优化
+  
+  # 内存管理 - 平衡使用
+  memory:
+    pytorch:
+      allocator:
+        backend: "native"
+        config: "expandable_segments:True"
+      cuda:
+        max_split_size_mb: 256  # 平衡内存碎片和效率
+        garbage_collection_threshold: 0.7
+  
+  # 分布式训练
+  distributed:
+    backend: "nccl"
+    find_unused_parameters: false  # 提高DDP效率
+    gradient_as_bucket_view: true  # 内存优化
+
+# 日志 - 最小化开销
+logging:
+  level: "INFO"
+  file:
+    enabled: true
+    max_bytes: 5242880  # 5MB，减少日志文件大小
+    backup_count: 3
+  wandb:
+    enabled: false  # 完全禁用WandB减少网络开销

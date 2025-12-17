@@ -48,6 +48,14 @@ class BaseModel(nn.Module, ABC):
         # 性能统计
         self._param_count = None
         self._flops = None
+
+    @property
+    def in_ch(self) -> int:
+        return self.in_channels
+
+    @property
+    def out_ch(self) -> int:
+        return self.out_channels
     
     @abstractmethod
     def forward(self, x: torch.Tensor, **kwargs) -> torch.Tensor:
@@ -225,6 +233,9 @@ def create_model(model_name: str, **kwargs) -> BaseModel:
         # 移除其他AR相关参数，避免传递给基础模型
         kwargs.pop('T_out', None)
         kwargs.pop('teacher_forcing_ratio', None)
+        # 避免错误传参到基础模型
+        for k in ['use_ar', 'use_nar', 'nar_cfg', 'ar_cfg']:
+            kwargs.pop(k, None)
         
         model = ARWrapper(single_frame_model=base_model, **ar_kwargs)
         return model
@@ -240,7 +251,7 @@ def create_model(model_name: str, **kwargs) -> BaseModel:
         from .unet_plus_plus import UNetPlusPlus
         model_class = UNetPlusPlus
     elif model_name_lower in ['fno2d']:
-        from .fno2d import FNO2d
+        from .spatial.fno2d import FNO2d
         model_class = FNO2d
     elif model_name_lower in ['ufno_unet', 'ufnounet', 'ufno-unet']:
         from .ufno_unet_bottleneck import UFNOUNet

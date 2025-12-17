@@ -24,8 +24,13 @@ from pathlib import Path
 # 将项目根目录加入 sys.path，确保可导入 utils/ops 等本地模块
 try:
     project_root = Path(__file__).resolve().parents[1]
-    if str(project_root) not in sys.path:
-        sys.path.append(str(project_root))
+    p = str(project_root)
+    try:
+        if p in sys.path:
+            sys.path.remove(p)
+    except Exception:
+        pass
+    sys.path.insert(0, p)
 except Exception:
     pass
 
@@ -186,9 +191,16 @@ def main():
     if args.config:
         cfg = OmegaConf.load(args.config)
         obs_cfg = getattr(cfg, 'observation', {})
+        # 规范化任务名到统一集合 {"SR", "Crop", "Identity"}
+        _mode = str(getattr(obs_cfg, 'mode', 'sr')).strip()
+        _mode_norm = (
+            'SR' if _mode.lower() in {'sr', 'super', 'super_resolution', 'super-resolution'} else
+            'Crop' if _mode.lower() in {'crop', 'patch'} else
+            'Identity'
+        )
         # 提取观测参数（支持sr/crop等），统一键名到apply_degradation_operator
         params_override = {
-            'task': getattr(obs_cfg, 'mode', 'sr'),
+            'task': _mode_norm,
             'scale': int(getattr(obs_cfg, 'scale_factor', 1)),
             'sigma': float(getattr(obs_cfg, 'blur_sigma', 0.0)),
             'kernel_size': int(getattr(obs_cfg, 'kernel_size', 5)),

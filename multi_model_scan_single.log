@@ -1,0 +1,198 @@
+2025-11-15 17:44:06,783 - MultiModelScanSingle - INFO - ============================================================
+2025-11-15 17:44:06,783 - MultiModelScanSingle - INFO - 开始多模型完整扫描实验 - 单次运行模式
+2025-11-15 17:44:06,783 - MultiModelScanSingle - INFO - 总计: 7 个模型 × 3 个种子 = 21 个实验
+2025-11-15 17:44:06,783 - MultiModelScanSingle - INFO - ============================================================
+2025-11-15 17:44:06,783 - MultiModelScanSingle - INFO - 
+🔍 开始baseline组实验 (4 个模型)
+2025-11-15 17:44:06,783 - MultiModelScanSingle - INFO - --------------------------------------------------
+2025-11-15 17:44:06,783 - MultiModelScanSingle - INFO - 
+实验进度: [1/21] 模型: swin_unet, 种子: 42
+2025-11-15 17:44:06,783 - MultiModelScanSingle - INFO - 开始实验: swin_unet_s42
+2025-11-15 17:47:15,749 - MultiModelScanSingle - ERROR - ❌ 实验 swin_unet_s42 失败 (用时: 189.0s)
+2025-11-15 17:47:15,750 - MultiModelScanSingle - ERROR - 错误信息: 2025-11-15 17:45:12,132 - INFO - 输出目录: paper_package/multi_model_scan_real_data_single/swin_unet_s42/AR-DR2D-swin_unet-s42-RealData_20251115_174512
+2025-11-15 17:45:12,207 - INFO - 📝 已保存配置快照: paper_package/multi_model_scan_real_data_single/swin_unet_s42/AR-DR2D-swin_unet-s42-RealData_20251115_174512/config_merged.yaml
+2025-11-15 17:45:12,232 - INFO - 设备选择: raw='cuda', normalized='cuda', final='cuda'
+2025-11-15 17:45:12,233 - INFO - CPU线程设置: torch=0, interop=0, MKL=0, OMP=0, numexpr=0, openblas=0...
+2025-11-15 17:47:25,763 - MultiModelScanSingle - INFO - 
+实验进度: [2/21] 模型: swin_unet, 种子: 123
+2025-11-15 17:47:25,763 - MultiModelScanSingle - INFO - 开始实验: swin_unet_s123
+2025-11-15 17:50:32,085 - MultiModelScanSingle - ERROR - ❌ 实验 swin_unet_s123 失败 (用时: 186.3s)
+2025-11-15 17:50:32,085 - MultiModelScanSingle - ERROR - 错误信息: 2025-11-15 17:48:28,246 - INFO - 输出目录: paper_package/multi_model_scan_real_data_single/swin_unet_s123/AR-DR2D-swin_unet-s123-RealData_20251115_174828
+2025-11-15 17:48:28,307 - INFO - 📝 已保存配置快照: paper_package/multi_model_scan_real_data_single/swin_unet_s123/AR-DR2D-swin_unet-s123-RealData_20251115_174828/config_merged.yaml
+2025-11-15 17:48:28,313 - INFO - 设备选择: raw='cuda', normalized='cuda', final='cuda'
+2025-11-15 17:48:28,313 - INFO - CPU线程设置: torch=0, interop=0, MKL=0, OMP=0, numexpr=0, openbl...
+2025-11-15 17:50:42,131 - MultiModelScanSingle - INFO - 
+实验进度: [3/21] 模型: swin_unet, 种子: 456
+2025-11-15 17:50:42,131 - MultiModelScanSingle - INFO - 开始实验: swin_unet_s456
+2025-11-15 17:53:20,702 - MultiModelScanSingle - ERROR - ❌ 实验 swin_unet_s456 失败 (用时: 158.6s)
+2025-11-15 17:53:20,702 - MultiModelScanSingle - ERROR - 错误信息: 2025-11-15 17:51:17,348 - INFO - 输出目录: paper_package/multi_model_scan_real_data_single/swin_unet_s456/AR-DR2D-swin_unet-s456-RealData_20251115_175117
+2025-11-15 17:51:17,449 - INFO - 📝 已保存配置快照: paper_package/multi_model_scan_real_data_single/swin_unet_s456/AR-DR2D-swin_unet-s456-RealData_20251115_175117/config_merged.yaml
+2025-11-15 17:51:17,477 - INFO - 设备选择: raw='cuda', normalized='cuda', final='cuda'
+2025-11-15 17:51:17,478 - INFO - CPU线程设置: torch=0, interop=0, MKL=0, OMP=0, numexpr=0, openbl...
+2025-11-15 17:53:30,716 - MultiModelScanSingle - INFO - 
+实验进度: [4/21] 模型: unet, 种子: 42
+2025-11-15 17:53:30,716 - MultiModelScanSingle - INFO - 开始实验: unet_s42
+2025-11-15 17:54:38,347 - MultiModelScanSingle - ERROR - ❌ 实验 unet_s42 失败 (用时: 67.6s)
+2025-11-15 17:54:38,347 - MultiModelScanSingle - ERROR - 错误信息: 2025-11-15 17:54:17,813 - INFO - 输出目录: paper_package/multi_model_scan_real_data_single/unet_s42/AR-DR2D-unet-s42-RealData_20251115_175417
+2025-11-15 17:54:17,902 - INFO - 📝 已保存配置快照: paper_package/multi_model_scan_real_data_single/unet_s42/AR-DR2D-unet-s42-RealData_20251115_175417/config_merged.yaml
+2025-11-15 17:54:17,925 - INFO - 设备选择: raw='cuda', normalized='cuda', final='cuda'
+2025-11-15 17:54:17,925 - INFO - CPU线程设置: torch=0, interop=0, MKL=0, OMP=0, numexpr=0, openblas=0
+2025-11-15 17:54:17...
+2025-11-15 17:54:48,390 - MultiModelScanSingle - INFO - 
+实验进度: [5/21] 模型: unet, 种子: 123
+2025-11-15 17:54:48,390 - MultiModelScanSingle - INFO - 开始实验: unet_s123
+2025-11-15 17:55:32,539 - MultiModelScanSingle - ERROR - ❌ 实验 unet_s123 失败 (用时: 44.1s)
+2025-11-15 17:55:32,539 - MultiModelScanSingle - ERROR - 错误信息: 2025-11-15 17:55:11,936 - INFO - 输出目录: paper_package/multi_model_scan_real_data_single/unet_s123/AR-DR2D-unet-s123-RealData_20251115_175511
+2025-11-15 17:55:11,964 - INFO - 📝 已保存配置快照: paper_package/multi_model_scan_real_data_single/unet_s123/AR-DR2D-unet-s123-RealData_20251115_175511/config_merged.yaml
+2025-11-15 17:55:11,966 - INFO - 设备选择: raw='cuda', normalized='cuda', final='cuda'
+2025-11-15 17:55:11,966 - INFO - CPU线程设置: torch=0, interop=0, MKL=0, OMP=0, numexpr=0, openblas=0
+2025-11-15 17:5...
+2025-11-15 17:55:42,564 - MultiModelScanSingle - INFO - 
+实验进度: [6/21] 模型: unet, 种子: 456
+2025-11-15 17:55:42,564 - MultiModelScanSingle - INFO - 开始实验: unet_s456
+2025-11-15 17:56:16,276 - MultiModelScanSingle - ERROR - ❌ 实验 unet_s456 失败 (用时: 33.7s)
+2025-11-15 17:56:16,277 - MultiModelScanSingle - ERROR - 错误信息: 2025-11-15 17:55:55,890 - INFO - 输出目录: paper_package/multi_model_scan_real_data_single/unet_s456/AR-DR2D-unet-s456-RealData_20251115_175555
+2025-11-15 17:55:55,955 - INFO - 📝 已保存配置快照: paper_package/multi_model_scan_real_data_single/unet_s456/AR-DR2D-unet-s456-RealData_20251115_175555/config_merged.yaml
+2025-11-15 17:55:55,963 - INFO - 设备选择: raw='cuda', normalized='cuda', final='cuda'
+2025-11-15 17:55:55,963 - INFO - CPU线程设置: torch=0, interop=0, MKL=0, OMP=0, numexpr=0, openblas=0
+2025-11-15 17:5...
+2025-11-15 17:56:26,308 - MultiModelScanSingle - INFO - 
+实验进度: [7/21] 模型: fno2d, 种子: 42
+2025-11-15 17:56:26,308 - MultiModelScanSingle - INFO - 开始实验: fno2d_s42
+2025-11-15 17:56:57,400 - MultiModelScanSingle - ERROR - ❌ 实验 fno2d_s42 失败 (用时: 31.1s)
+2025-11-15 17:56:57,400 - MultiModelScanSingle - ERROR - 错误信息: 2025-11-15 17:56:46,562 - INFO - 输出目录: paper_package/multi_model_scan_real_data_single/fno2d_s42/AR-DR2D-fno2d-s42-RealData_20251115_175646
+2025-11-15 17:56:46,608 - INFO - 📝 已保存配置快照: paper_package/multi_model_scan_real_data_single/fno2d_s42/AR-DR2D-fno2d-s42-RealData_20251115_175646/config_merged.yaml
+2025-11-15 17:56:46,614 - INFO - 设备选择: raw='cuda', normalized='cuda', final='cuda'
+2025-11-15 17:56:46,615 - INFO - CPU线程设置: torch=0, interop=0, MKL=0, OMP=0, numexpr=0, openblas=0
+2025-11-15 17:5...
+2025-11-15 17:57:07,438 - MultiModelScanSingle - INFO - 
+实验进度: [8/21] 模型: fno2d, 种子: 123
+2025-11-15 17:57:07,438 - MultiModelScanSingle - INFO - 开始实验: fno2d_s123
+2025-11-15 17:57:23,685 - MultiModelScanSingle - ERROR - ❌ 实验 fno2d_s123 失败 (用时: 16.2s)
+2025-11-15 17:57:23,685 - MultiModelScanSingle - ERROR - 错误信息: 2025-11-15 17:57:15,776 - INFO - 输出目录: paper_package/multi_model_scan_real_data_single/fno2d_s123/AR-DR2D-fno2d-s123-RealData_20251115_175715
+2025-11-15 17:57:15,792 - INFO - 📝 已保存配置快照: paper_package/multi_model_scan_real_data_single/fno2d_s123/AR-DR2D-fno2d-s123-RealData_20251115_175715/config_merged.yaml
+2025-11-15 17:57:15,793 - INFO - 设备选择: raw='cuda', normalized='cuda', final='cuda'
+2025-11-15 17:57:15,793 - INFO - CPU线程设置: torch=0, interop=0, MKL=0, OMP=0, numexpr=0, openblas=0
+2025-11-15 ...
+2025-11-15 17:57:33,687 - MultiModelScanSingle - INFO - 
+实验进度: [9/21] 模型: fno2d, 种子: 456
+2025-11-15 17:57:33,687 - MultiModelScanSingle - INFO - 开始实验: fno2d_s456
+2025-11-15 17:58:09,231 - MultiModelScanSingle - ERROR - ❌ 实验 fno2d_s456 失败 (用时: 35.5s)
+2025-11-15 17:58:09,231 - MultiModelScanSingle - ERROR - 错误信息: 2025-11-15 17:57:58,218 - INFO - 输出目录: paper_package/multi_model_scan_real_data_single/fno2d_s456/AR-DR2D-fno2d-s456-RealData_20251115_175758
+2025-11-15 17:57:58,293 - INFO - 📝 已保存配置快照: paper_package/multi_model_scan_real_data_single/fno2d_s456/AR-DR2D-fno2d-s456-RealData_20251115_175758/config_merged.yaml
+2025-11-15 17:57:58,295 - INFO - 设备选择: raw='cuda', normalized='cuda', final='cuda'
+2025-11-15 17:57:58,295 - INFO - CPU线程设置: torch=0, interop=0, MKL=0, OMP=0, numexpr=0, openblas=0
+2025-11-15 ...
+2025-11-15 17:58:19,265 - MultiModelScanSingle - INFO - 
+实验进度: [10/21] 模型: segformer, 种子: 42
+2025-11-15 17:58:19,266 - MultiModelScanSingle - INFO - 开始实验: segformer_s42
+2025-11-15 17:59:23,778 - MultiModelScanSingle - ERROR - ❌ 实验 segformer_s42 失败 (用时: 64.4s)
+2025-11-15 17:59:23,779 - MultiModelScanSingle - ERROR - 错误信息: 2025-11-15 17:58:35,315 - INFO - 输出目录: paper_package/multi_model_scan_real_data_single/segformer_s42/AR-DR2D-segformer-s42-RealData_20251115_175835
+2025-11-15 17:58:35,353 - INFO - 📝 已保存配置快照: paper_package/multi_model_scan_real_data_single/segformer_s42/AR-DR2D-segformer-s42-RealData_20251115_175835/config_merged.yaml
+2025-11-15 17:58:35,360 - INFO - 设备选择: raw='cuda', normalized='cuda', final='cuda'
+2025-11-15 17:58:35,360 - INFO - CPU线程设置: torch=0, interop=0, MKL=0, OMP=0, numexpr=0, openblas=0...
+2025-11-15 17:59:33,816 - MultiModelScanSingle - INFO - 
+实验进度: [11/21] 模型: segformer, 种子: 123
+2025-11-15 17:59:33,816 - MultiModelScanSingle - INFO - 开始实验: segformer_s123
+2025-11-15 18:00:53,190 - MultiModelScanSingle - ERROR - ❌ 实验 segformer_s123 失败 (用时: 79.4s)
+2025-11-15 18:00:53,190 - MultiModelScanSingle - ERROR - 错误信息: 2025-11-15 18:00:04,548 - INFO - 输出目录: paper_package/multi_model_scan_real_data_single/segformer_s123/AR-DR2D-segformer-s123-RealData_20251115_180004
+2025-11-15 18:00:04,613 - INFO - 📝 已保存配置快照: paper_package/multi_model_scan_real_data_single/segformer_s123/AR-DR2D-segformer-s123-RealData_20251115_180004/config_merged.yaml
+2025-11-15 18:00:04,638 - INFO - 设备选择: raw='cuda', normalized='cuda', final='cuda'
+2025-11-15 18:00:04,638 - INFO - CPU线程设置: torch=0, interop=0, MKL=0, OMP=0, numexpr=0, openbl...
+2025-11-15 18:01:03,233 - MultiModelScanSingle - INFO - 
+实验进度: [12/21] 模型: segformer, 种子: 456
+2025-11-15 18:01:03,233 - MultiModelScanSingle - INFO - 开始实验: segformer_s456
+2025-11-15 18:02:35,386 - MultiModelScanSingle - ERROR - ❌ 实验 segformer_s456 失败 (用时: 92.1s)
+2025-11-15 18:02:35,386 - MultiModelScanSingle - ERROR - 错误信息: 2025-11-15 18:01:46,153 - INFO - 输出目录: paper_package/multi_model_scan_real_data_single/segformer_s456/AR-DR2D-segformer-s456-RealData_20251115_180146
+2025-11-15 18:01:46,200 - INFO - 📝 已保存配置快照: paper_package/multi_model_scan_real_data_single/segformer_s456/AR-DR2D-segformer-s456-RealData_20251115_180146/config_merged.yaml
+2025-11-15 18:01:46,211 - INFO - 设备选择: raw='cuda', normalized='cuda', final='cuda'
+2025-11-15 18:01:46,212 - INFO - CPU线程设置: torch=0, interop=0, MKL=0, OMP=0, numexpr=0, openbl...
+2025-11-15 18:02:45,420 - MultiModelScanSingle - INFO - 
+🔍 开始advanced组实验 (3 个模型)
+2025-11-15 18:02:45,420 - MultiModelScanSingle - INFO - --------------------------------------------------
+2025-11-15 18:02:45,420 - MultiModelScanSingle - INFO - 
+实验进度: [13/21] 模型: hybrid, 种子: 42
+2025-11-15 18:02:45,420 - MultiModelScanSingle - INFO - 开始实验: hybrid_s42
+2025-11-15 18:03:26,912 - MultiModelScanSingle - ERROR - ❌ 实验 hybrid_s42 失败 (用时: 41.5s)
+2025-11-15 18:03:26,912 - MultiModelScanSingle - ERROR - 错误信息: 2025-11-15 18:03:20,743 - INFO - 输出目录: paper_package/multi_model_scan_real_data_single/hybrid_s42/AR-DR2D-hybrid-s42-RealData_20251115_180320
+2025-11-15 18:03:20,751 - INFO - 📝 已保存配置快照: paper_package/multi_model_scan_real_data_single/hybrid_s42/AR-DR2D-hybrid-s42-RealData_20251115_180320/config_merged.yaml
+2025-11-15 18:03:20,752 - INFO - 设备选择: raw='cuda', normalized='cuda', final='cuda'
+2025-11-15 18:03:20,753 - INFO - CPU线程设置: torch=0, interop=0, MKL=0, OMP=0, numexpr=0, openblas=0
+2025-11-15 ...
+2025-11-15 18:03:36,959 - MultiModelScanSingle - INFO - 
+实验进度: [14/21] 模型: hybrid, 种子: 123
+2025-11-15 18:03:36,959 - MultiModelScanSingle - INFO - 开始实验: hybrid_s123
+2025-11-15 18:03:54,349 - MultiModelScanSingle - ERROR - ❌ 实验 hybrid_s123 失败 (用时: 17.4s)
+2025-11-15 18:03:54,350 - MultiModelScanSingle - ERROR - 错误信息: 2025-11-15 18:03:48,231 - INFO - 输出目录: paper_package/multi_model_scan_real_data_single/hybrid_s123/AR-DR2D-hybrid-s123-RealData_20251115_180348
+2025-11-15 18:03:48,288 - INFO - 📝 已保存配置快照: paper_package/multi_model_scan_real_data_single/hybrid_s123/AR-DR2D-hybrid-s123-RealData_20251115_180348/config_merged.yaml
+2025-11-15 18:03:48,289 - INFO - 设备选择: raw='cuda', normalized='cuda', final='cuda'
+2025-11-15 18:03:48,290 - INFO - CPU线程设置: torch=0, interop=0, MKL=0, OMP=0, numexpr=0, openblas=0
+2025-11...
+2025-11-15 18:04:04,392 - MultiModelScanSingle - INFO - 
+实验进度: [15/21] 模型: hybrid, 种子: 456
+2025-11-15 18:04:04,392 - MultiModelScanSingle - INFO - 开始实验: hybrid_s456
+2025-11-15 18:04:34,183 - MultiModelScanSingle - ERROR - ❌ 实验 hybrid_s456 失败 (用时: 29.8s)
+2025-11-15 18:04:34,184 - MultiModelScanSingle - ERROR - 错误信息: 2025-11-15 18:04:28,240 - INFO - 输出目录: paper_package/multi_model_scan_real_data_single/hybrid_s456/AR-DR2D-hybrid-s456-RealData_20251115_180428
+2025-11-15 18:04:28,271 - INFO - 📝 已保存配置快照: paper_package/multi_model_scan_real_data_single/hybrid_s456/AR-DR2D-hybrid-s456-RealData_20251115_180428/config_merged.yaml
+2025-11-15 18:04:28,291 - INFO - 设备选择: raw='cuda', normalized='cuda', final='cuda'
+2025-11-15 18:04:28,292 - INFO - CPU线程设置: torch=0, interop=0, MKL=0, OMP=0, numexpr=0, openblas=0
+2025-11...
+2025-11-15 18:04:44,196 - MultiModelScanSingle - INFO - 
+实验进度: [16/21] 模型: vit, 种子: 42
+2025-11-15 18:04:44,196 - MultiModelScanSingle - INFO - 开始实验: vit_s42
+2025-11-15 18:06:50,255 - MultiModelScanSingle - ERROR - ❌ 实验 vit_s42 失败 (用时: 126.0s)
+2025-11-15 18:06:50,255 - MultiModelScanSingle - ERROR - 错误信息: 2025-11-15 18:04:56,263 - INFO - 输出目录: paper_package/multi_model_scan_real_data_single/vit_s42/AR-DR2D-vit-s42-RealData_20251115_180456
+2025-11-15 18:04:56,320 - INFO - 📝 已保存配置快照: paper_package/multi_model_scan_real_data_single/vit_s42/AR-DR2D-vit-s42-RealData_20251115_180456/config_merged.yaml
+2025-11-15 18:04:56,332 - INFO - 设备选择: raw='cuda', normalized='cuda', final='cuda'
+2025-11-15 18:04:56,332 - INFO - CPU线程设置: torch=0, interop=0, MKL=0, OMP=0, numexpr=0, openblas=0
+2025-11-15 18:04:56,332...
+2025-11-15 18:07:00,259 - MultiModelScanSingle - INFO - 
+实验进度: [17/21] 模型: vit, 种子: 123
+2025-11-15 18:07:00,259 - MultiModelScanSingle - INFO - 开始实验: vit_s123
+2025-11-15 18:09:40,122 - MultiModelScanSingle - ERROR - ❌ 实验 vit_s123 失败 (用时: 159.8s)
+2025-11-15 18:09:40,122 - MultiModelScanSingle - ERROR - 错误信息: 2025-11-15 18:07:45,863 - INFO - 输出目录: paper_package/multi_model_scan_real_data_single/vit_s123/AR-DR2D-vit-s123-RealData_20251115_180745
+2025-11-15 18:07:45,900 - INFO - 📝 已保存配置快照: paper_package/multi_model_scan_real_data_single/vit_s123/AR-DR2D-vit-s123-RealData_20251115_180745/config_merged.yaml
+2025-11-15 18:07:45,902 - INFO - 设备选择: raw='cuda', normalized='cuda', final='cuda'
+2025-11-15 18:07:45,902 - INFO - CPU线程设置: torch=0, interop=0, MKL=0, OMP=0, numexpr=0, openblas=0
+2025-11-15 18:07:45...
+2025-11-15 18:09:50,153 - MultiModelScanSingle - INFO - 
+实验进度: [18/21] 模型: vit, 种子: 456
+2025-11-15 18:09:50,153 - MultiModelScanSingle - INFO - 开始实验: vit_s456
+2025-11-15 18:12:24,705 - MultiModelScanSingle - ERROR - ❌ 实验 vit_s456 失败 (用时: 154.6s)
+2025-11-15 18:12:24,705 - MultiModelScanSingle - ERROR - 错误信息: 2025-11-15 18:10:30,283 - INFO - 输出目录: paper_package/multi_model_scan_real_data_single/vit_s456/AR-DR2D-vit-s456-RealData_20251115_181030
+2025-11-15 18:10:30,366 - INFO - 📝 已保存配置快照: paper_package/multi_model_scan_real_data_single/vit_s456/AR-DR2D-vit-s456-RealData_20251115_181030/config_merged.yaml
+2025-11-15 18:10:30,398 - INFO - 设备选择: raw='cuda', normalized='cuda', final='cuda'
+2025-11-15 18:10:30,399 - INFO - CPU线程设置: torch=0, interop=0, MKL=0, OMP=0, numexpr=0, openblas=0
+2025-11-15 18:10:30...
+2025-11-15 18:12:34,728 - MultiModelScanSingle - INFO - 
+实验进度: [19/21] 模型: mlp_mixer, 种子: 42
+2025-11-15 18:12:34,729 - MultiModelScanSingle - INFO - 开始实验: mlp_mixer_s42
+2025-11-15 18:13:56,458 - MultiModelScanSingle - ERROR - ❌ 实验 mlp_mixer_s42 失败 (用时: 81.7s)
+2025-11-15 18:13:56,458 - MultiModelScanSingle - ERROR - 错误信息: 2025-11-15 18:13:14,857 - INFO - 输出目录: paper_package/multi_model_scan_real_data_single/mlp_mixer_s42/AR-DR2D-mlp_mixer-s42-RealData_20251115_181314
+2025-11-15 18:13:14,895 - INFO - 📝 已保存配置快照: paper_package/multi_model_scan_real_data_single/mlp_mixer_s42/AR-DR2D-mlp_mixer-s42-RealData_20251115_181314/config_merged.yaml
+2025-11-15 18:13:14,896 - INFO - 设备选择: raw='cuda', normalized='cuda', final='cuda'
+2025-11-15 18:13:14,897 - INFO - CPU线程设置: torch=0, interop=0, MKL=0, OMP=0, numexpr=0, openblas=0...
+2025-11-15 18:14:06,476 - MultiModelScanSingle - INFO - 
+实验进度: [20/21] 模型: mlp_mixer, 种子: 123
+2025-11-15 18:14:06,477 - MultiModelScanSingle - INFO - 开始实验: mlp_mixer_s123
+2025-11-15 18:15:23,506 - MultiModelScanSingle - ERROR - ❌ 实验 mlp_mixer_s123 失败 (用时: 77.0s)
+2025-11-15 18:15:23,506 - MultiModelScanSingle - ERROR - 错误信息: 2025-11-15 18:14:41,617 - INFO - 输出目录: paper_package/multi_model_scan_real_data_single/mlp_mixer_s123/AR-DR2D-mlp_mixer-s123-RealData_20251115_181441
+2025-11-15 18:14:41,696 - INFO - 📝 已保存配置快照: paper_package/multi_model_scan_real_data_single/mlp_mixer_s123/AR-DR2D-mlp_mixer-s123-RealData_20251115_181441/config_merged.yaml
+2025-11-15 18:14:41,708 - INFO - 设备选择: raw='cuda', normalized='cuda', final='cuda'
+2025-11-15 18:14:41,708 - INFO - CPU线程设置: torch=0, interop=0, MKL=0, OMP=0, numexpr=0, openbl...
+2025-11-15 18:15:33,519 - MultiModelScanSingle - INFO - 
+实验进度: [21/21] 模型: mlp_mixer, 种子: 456
+2025-11-15 18:15:33,519 - MultiModelScanSingle - INFO - 开始实验: mlp_mixer_s456
+2025-11-15 18:16:44,000 - MultiModelScanSingle - ERROR - ❌ 实验 mlp_mixer_s456 失败 (用时: 70.5s)
+2025-11-15 18:16:44,000 - MultiModelScanSingle - ERROR - 错误信息: 2025-11-15 18:16:02,468 - INFO - 输出目录: paper_package/multi_model_scan_real_data_single/mlp_mixer_s456/AR-DR2D-mlp_mixer-s456-RealData_20251115_181602
+2025-11-15 18:16:02,526 - INFO - 📝 已保存配置快照: paper_package/multi_model_scan_real_data_single/mlp_mixer_s456/AR-DR2D-mlp_mixer-s456-RealData_20251115_181602/config_merged.yaml
+2025-11-15 18:16:02,548 - INFO - 设备选择: raw='cuda', normalized='cuda', final='cuda'
+2025-11-15 18:16:02,548 - INFO - CPU线程设置: torch=0, interop=0, MKL=0, OMP=0, numexpr=0, openbl...
+2025-11-15 18:16:54,011 - MultiModelScanSingle - INFO - 
+============================================================
+2025-11-15 18:16:54,011 - MultiModelScanSingle - INFO - 实验扫描完成!
+2025-11-15 18:16:54,011 - MultiModelScanSingle - INFO - 总实验数: 21
+2025-11-15 18:16:54,011 - MultiModelScanSingle - INFO - 成功: 0 (0.0%)
+2025-11-15 18:16:54,011 - MultiModelScanSingle - INFO - 失败: 21
+2025-11-15 18:16:54,011 - MultiModelScanSingle - INFO - 结果保存至: paper_package/multi_model_scan_real_data_single
+2025-11-15 18:16:54,011 - MultiModelScanSingle - INFO - ============================================================

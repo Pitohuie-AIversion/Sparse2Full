@@ -87,10 +87,14 @@ dmypy.json
 
 # Training outputs and logs
 runs/
+runs20251127/
 outputs/
 logs/
 tensorboard/
 wandb/
+
+# Archived runs
+runsold2/
 
 # Data directories
 data/
@@ -122,6 +126,8 @@ Thumbs.db
 # Large training runs and checkpoints
 tools/runs/
 paper_package/checkpoints/
+paper_package20251127/
+benchmark_models.log
 benchmark_results/
 consistency_check_results/
 model_interface_validation_results/

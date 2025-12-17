@@ -1,1250 +1,507 @@
-"""PDEBench数据处理模块
+from __future__ import annotations
 
-实现PDEBench数据读取器、观测生成器和数据一致性算子。
-严格按照开发手册要求，确保观测算子H与训练DC复用同一实现。
-"""
-
-import os
-import json
-from typing import Dict, List, Tuple, Optional, Union, Any
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
-import h5py
 import numpy as np
 import torch
 import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms
 from omegaconf import DictConfig
-import cv2
+from torch.utils.data import DataLoader, Dataset
 
 from ops.degradation import apply_degradation_operator
 
-# 说明：为了启用 DataLoader 多进程并行加载，避免 h5py 对象在子进程中 pickling 失败，
-# 我们对数据集增加安全的句柄管理：
-# - 不在序列化状态中保留 h5 文件句柄；
-# - 在子进程首次访问时懒打开只读句柄（swmr=True, libver='latest'）。
+
+def _as_path(p: Union[str, Path]) -> Path:
+    return p if isinstance(p, Path) else Path(p)
+
+
+def _read_split_ids(splits_dir: Optional[Union[str, Path]], split: str) -> Optional[List[str]]:
+    if splits_dir is None:
+        return None
+    split_path = _as_path(splits_dir) / f"{split}.txt"
+    if not split_path.exists():
+        return None
+    ids: List[str] = []
+    for line in split_path.read_text(encoding="utf-8", errors="ignore").splitlines():
+        s = line.strip()
+        if s:
+            ids.append(s)
+    return ids
+
+
+def _infer_h5_case_ids(h5: Any) -> List[str]:
+    if "tensor" in h5:
+        n = int(h5["tensor"].shape[0])
+        return [str(i) for i in range(n)]
+    return sorted([k for k in h5.keys() if isinstance(k, str)])
+
+
+def _load_case_tensor(h5: Any, case_id: str, keys: Sequence[str]) -> torch.Tensor:
+    if "tensor" in h5:
+        x = h5["tensor"][int(case_id)]
+        arr = np.asarray(x)
+        if arr.ndim == 2:
+            arr = arr[None, ...]
+        elif arr.ndim == 3:
+            pass
+        elif arr.ndim == 4:
+            arr = arr[-1]
+        else:
+            raise ValueError(f"Unsupported tensor ndim: {arr.ndim}")
+        return torch.from_numpy(arr.astype(np.float32))
+
+    g = h5[case_id]
+    chans: List[np.ndarray] = []
+    for k in keys:
+        if k not in g:
+            raise KeyError(f"Missing key '{k}' in case '{case_id}'")
+        arr = np.asarray(g[k]).astype(np.float32)
+        if arr.ndim == 2:
+            chans.append(arr)
+        elif arr.ndim == 3:
+            chans.append(arr[-1])
+        else:
+            raise ValueError(f"Unsupported dataset shape for {case_id}/{k}: {arr.shape}")
+    stacked = np.stack(chans, axis=0)
+    return torch.from_numpy(stacked)
+
+
+def _make_coords(h: int, w: int, device: torch.device) -> torch.Tensor:
+    xs = torch.linspace(-1.0, 1.0, steps=w, device=device)
+    ys = torch.linspace(-1.0, 1.0, steps=h, device=device)
+    grid_x = xs[None, :].repeat(h, 1)
+    grid_y = ys[:, None].repeat(1, w)
+    return torch.stack([grid_x, grid_y], dim=0)
+
+
+@dataclass(frozen=True)
+class _ObsCfg:
+    mode: str
+    scale: int = 1
+    sigma: float = 0.0
+    kernel_size: int = 1
+    noise_std: float = 0.0
+    crop_size: Tuple[int, int] = (0, 0)
+    patch_align: int = 1
+    center_sampler: str = "uniform"
+    boundary: str = "mirror"
+
+
+def _parse_obs_cfg(cfg: Any) -> _ObsCfg:
+    if cfg is None:
+        return _ObsCfg(mode="SR")
+
+    mode = str(getattr(cfg, "mode", "SR"))
+    sr = getattr(cfg, "sr", None)
+    crop = getattr(cfg, "crop", None)
+    if mode.lower() == "sr":
+        scale = int(getattr(sr, "scale_factor", getattr(cfg, "scale", 1))) if sr is not None else int(getattr(cfg, "scale", 1))
+        sigma = float(getattr(sr, "blur_sigma", getattr(cfg, "sigma", 0.0))) if sr is not None else float(getattr(cfg, "sigma", 0.0))
+        kernel = int(getattr(sr, "blur_kernel_size", getattr(cfg, "blur_kernel", getattr(cfg, "kernel_size", 1)))) if sr is not None else int(getattr(cfg, "blur_kernel", getattr(cfg, "kernel_size", 1)))
+        boundary = str(getattr(sr, "boundary_mode", getattr(cfg, "boundary", "mirror"))) if sr is not None else str(getattr(cfg, "boundary", "mirror"))
+        noise_std = float(getattr(sr, "noise_std", getattr(cfg, "noise_std", 0.0))) if sr is not None else float(getattr(cfg, "noise_std", 0.0))
+        return _ObsCfg(mode="SR", scale=scale, sigma=sigma, kernel_size=kernel, noise_std=noise_std, boundary=boundary)
+
+    if mode.lower() == "crop":
+        crop_size = getattr(crop, "crop_size", getattr(cfg, "crop_size", (0, 0)))
+        if isinstance(crop_size, (list, tuple)) and len(crop_size) == 2:
+            cs = (int(crop_size[0]), int(crop_size[1]))
+        else:
+            cs = (0, 0)
+        patch_align = int(getattr(crop, "patch_align", getattr(cfg, "patch_align", 1))) if crop is not None else int(getattr(cfg, "patch_align", 1))
+        center_sampler = str(getattr(crop, "crop_strategy", getattr(cfg, "center_sampler", "uniform"))) if crop is not None else str(getattr(cfg, "center_sampler", "uniform"))
+        boundary = str(getattr(crop, "boundary_mode", getattr(cfg, "boundary", "mirror"))) if crop is not None else str(getattr(cfg, "boundary", "mirror"))
+        return _ObsCfg(mode="Crop", crop_size=cs, patch_align=patch_align, center_sampler=center_sampler, boundary=boundary)
+
+    return _ObsCfg(mode=mode)
 
 
 class PDEBenchBase(Dataset):
-    """PDEBench数据集基类
-    
-    支持HDF5格式数据读取，统一化处理多键名数据，z-score归一化。
-    支持官方PDEBench格式：[batch, time, height, width, channels]
-    """
-    
     def __init__(
         self,
-        data_path: str,
-        keys: List[str],
+        data_path: Union[str, Path],
+        keys: Sequence[str],
         split: str = "train",
-        splits_dir: Optional[str] = None,
-        normalize: bool = True,
-        image_size: int = 256,
-        use_official_format: bool = False,  # 修改默认值为False
-        case_ids: Optional[List[int]] = None,  # 新增参数
-    ):
-        """初始化PDEBench数据集
-        
-        Args:
-            data_path: HDF5文件路径
-            keys: 数据键名列表，如["u"]或["rho","ux","uy"]
-            split: 数据切分，"train"/"val"/"test"
-            splits_dir: 数据切分文件目录
-            normalize: 是否进行z-score归一化
-            image_size: 图像尺寸
-            use_official_format: 是否使用官方PDEBench格式 [batch, time, height, width, channels]
-            case_ids: 指定的样本ID列表，如果提供则覆盖默认切分
-        """
-        self.data_path = data_path
-        self.keys = keys
+        splits_dir: Optional[Union[str, Path]] = None,
+        normalize: bool = False,
+        image_size: Optional[int] = None,
+    ) -> None:
+        self.data_path = str(data_path)
+        self.keys = list(keys)
         self.split = split
-        self.normalize = normalize
-        self.image_size = image_size
-        self.use_official_format = use_official_format
-        # HDF5 句柄在 __init__ 打开用于初始化与校验，但在序列化时会被清除，
-        # 子进程会在首次访问时懒打开。
-        self.h5_file = None
-        self._h5_opened_once = False
+        self.splits_dir = str(splits_dir) if splits_dir is not None else None
+        self.normalize = bool(normalize)
+        self.image_size = int(image_size) if image_size is not None else None
 
-        def _open_h5() -> h5py.File:
-            return h5py.File(self.data_path, 'r', swmr=True, libver='latest')
+        import h5py
 
-        # 打开一次以完成初始化校验
-        self.h5_file = _open_h5()
-        self._h5_opened_once = True
-        
-        # 句柄已在上方打开
-        
-        # 加载数据切分
-        if case_ids is not None:
-            # 使用指定的case_ids
-            self.case_ids = [str(cid) for cid in case_ids]
-            print(f"DEBUG: Using provided case_ids: {self.case_ids}")
-        else:
-            # 使用默认切分
-            self.case_ids = self._load_split_ids(splits_dir, split)
-        
-        # 加载归一化统计量（优先使用配置中的splits_dir，保证单文件模式也可统计）
-        self.norm_stats = self._load_norm_stats(splits_dir) if normalize else None
-        
-        # 验证数据完整性
-        self._validate_data()
-        
-        # 打印调试信息
-        print(f"DEBUG: use_official_format = {self.use_official_format}")
-        print(f"DEBUG: keys = {self.keys}, type = {type(self.keys)}")
-        print(f"DEBUG: keys is list: {isinstance(self.keys, list)}")
-        print(f"DEBUG: HDF5 file keys: {list(self.h5_file.keys())}")
-        if 'data' in self.h5_file:
-            print(f"DEBUG: data shape = {self.h5_file['data'].shape}")
-        
-        # 转换keys为普通list（如果是ListConfig或其他可迭代对象）
-        if hasattr(self.keys, '__iter__') and not isinstance(self.keys, str):
-            self.keys = list(self.keys)
-            print(f"DEBUG: Converted keys to list: {self.keys}")
-        elif hasattr(self.keys, 'keys'):  # 处理可能的方法对象
-            print(f"WARNING: keys appears to be a method object: {self.keys}")
-            # 如果是方法对象，使用默认值
-            self.keys = ["u"]
-            print(f"DEBUG: Using default keys: {self.keys}")
-        
-        if isinstance(self.keys, list) and len(self.keys) > 0 and self.keys[0] in self.h5_file:
-            item = self.h5_file[self.keys[0]]
-            if isinstance(item, h5py.Group):
-                group_keys = list(item.keys())
-                if group_keys:
-                    print(f"DEBUG: {self.keys[0]} is a group with keys: {group_keys}")
-                    first_dataset = item[group_keys[0]]
-                    if hasattr(first_dataset, 'shape'):
-                        print(f"DEBUG: {self.keys[0]}/{group_keys[0]} shape = {first_dataset.shape}")
-                    else:
-                        print(f"DEBUG: {self.keys[0]}/{group_keys[0]} is not a dataset")
-                else:
-                    print(f"DEBUG: Group '{self.keys[0]}' is empty")
-            elif hasattr(item, 'shape'):
-                print(f"DEBUG: {self.keys[0]} shape = {item.shape}")
-            else:
-                print(f"DEBUG: {self.keys[0]} is neither a Group nor a Dataset")
-        else:
-            print(f"DEBUG: Key '{self.keys[0] if self.keys else 'None'}' not found in HDF5 file")
+        with h5py.File(self.data_path, "r") as f:
+            all_ids = _infer_h5_case_ids(f)
 
-        # 初始化完成后立即关闭句柄，以允许 DataLoader 子进程对数据集进行序列化
-        try:
-            if self.h5_file is not None:
-                self.h5_file.close()
-        except Exception:
-            pass
-        finally:
-            self.h5_file = None
+        split_ids = _read_split_ids(self.splits_dir, split)
+        if split_ids is None:
+            self.case_ids = all_ids
+        else:
+            valid = set(all_ids)
+            self.case_ids = [cid for cid in split_ids if cid in valid]
 
-    def _ensure_h5(self) -> h5py.File:
-        """确保在当前进程拥有可用的只读 HDF5 句柄。"""
-        if self.h5_file is None:
-            try:
-                self.h5_file = h5py.File(self.data_path, 'r', swmr=True, libver='latest')
-            except Exception:
-                # 回退到普通只读打开
-                self.h5_file = h5py.File(self.data_path, 'r')
-        return self.h5_file
+        self.norm_stats: Optional[Dict[str, float]] = None
+        if self.normalize:
+            self.norm_stats = self._get_or_compute_norm_stats()
 
-    def __getstate__(self):
-        """在被 DataLoader 子进程序列化时移除 h5 句柄。"""
-        state = self.__dict__.copy()
-        state['h5_file'] = None
-        return state
-
-    def __setstate__(self, state):
-        """在子进程反序列化后懒打开 h5 句柄。"""
-        self.__dict__.update(state)
-        self.h5_file = None
-    
-    def _load_split_ids(self, splits_dir: Optional[str], split: str) -> List[str]:
-        """加载数据切分ID列表"""
-        h5 = self._ensure_h5()
-        if splits_dir is None:
-            sample_keys = [k for k in h5.keys() if k.isdigit()] if self.use_official_format else []
-            if sample_keys:
-                n_total = len(sample_keys)
-            elif hasattr(self, 'h5_file') and 'data' in h5:
-                data_shape = h5['data'].shape
-                if self.use_official_format:
-                    n_total = data_shape[1]
-                else:
-                    n_total = data_shape[0]
-            else:
-                n_total = 20
-            
-            total_ids = [str(i) for i in range(n_total)]
-            if split == "train":
-                return total_ids[:int(0.8 * n_total)]
-            elif split == "val":
-                return total_ids[int(0.8 * n_total):int(0.9 * n_total)]
-            else:  # test
-                return total_ids[int(0.9 * n_total):]
-        
-        # 获取数据根目录
-        if self.data_path.endswith('.h5'):
-            # 如果data_path是具体的h5文件，获取其父目录
-            data_root = Path(self.data_path).parent.parent
-        else:
-            # 如果data_path是目录，直接使用
-            data_root = Path(self.data_path)
-        
-        if isinstance(splits_dir, str):
-            split_file = data_root / splits_dir / f"{split}.txt"
-        else:
-            split_file = splits_dir / f"{split}.txt"
-        
-        if not split_file.exists():
-            # 如果切分文件不存在，使用默认切分
-            # 获取数据总数
-            if hasattr(self, 'h5_file') and isinstance(self.keys, list) and len(self.keys) > 0 and self.keys[0] in h5:
-                # 检查是否为Group对象，如果是则获取第一个数据集
-                data_obj = h5[self.keys[0]]
-                if hasattr(data_obj, 'shape'):
-                    n_total = data_obj.shape[0]
-                elif hasattr(data_obj, 'keys'):
-                    # 如果是Group，获取第一个数据集的shape
-                    first_key = list(data_obj.keys())[0]
-                    n_total = data_obj[first_key].shape[0]
-                else:
-                    n_total = 1000  # 默认值
-            else:
-                n_total = 1000  # 默认值
-            
-            total_ids = [str(i) for i in range(n_total)]
-            if split == "train":
-                return total_ids[:int(0.8 * n_total)]
-            elif split == "val":
-                return total_ids[int(0.8 * n_total):int(0.9 * n_total)]
-            else:  # test
-                return total_ids[int(0.9 * n_total):]
-        
-        with open(split_file, 'r') as f:
-            case_ids = [line.strip() for line in f if line.strip()]
-        
-        return case_ids
-    
-    def _load_norm_stats(self, splits_dir: Optional[str]) -> Dict[str, torch.Tensor]:
-        """加载归一化统计量"""
-        if splits_dir is None:
-            # 如果未提供splits_dir，尝试使用默认"splits"目录
-            splits_dir = "splits"
-        
-        # 获取数据根目录
-        if self.data_path.endswith('.h5'):
-            data_root = Path(self.data_path).parent.parent
-        else:
-            data_root = Path(self.data_path)
-        stats_file = data_root / splits_dir / "norm_stat.npz"
-        if not stats_file.exists():
-            # 如果统计文件不存在，计算并保存
-            return self._compute_norm_stats(stats_file)
-        
-        try:
-            stats = np.load(stats_file)
-            norm_stats = {}
-            for key in self.keys:
-                norm_stats[f"{key}_mean"] = torch.tensor(stats[f"{key}_mean"], dtype=torch.float32)
-                norm_stats[f"{key}_std"] = torch.tensor(stats[f"{key}_std"], dtype=torch.float32)
-            
-            return norm_stats
-        except Exception as e:
-            print(f"Warning: Failed to load norm stats from {stats_file}: {e}")
-            # 如果加载失败，重新计算
-            return self._compute_norm_stats(stats_file)
-    
-    def _compute_norm_stats(self, save_path: Path) -> Dict[str, torch.Tensor]:
-        """计算并保存归一化统计量"""
-        print("Computing normalization statistics...")
-        
-        # 只在训练集上计算统计量
-        if self.data_path.endswith('.h5'):
-            data_root = Path(self.data_path).parent.parent
-        else:
-            data_root = Path(self.data_path)
-        # 使用与_load_norm_stats一致的splits目录
-        splits_dir = save_path.parent
-        train_ids = self._load_split_ids(splits_dir, "train")
-        
-        stats = {}
-        for i, key in enumerate(self.keys):
-            values = []
-            
-            # 直接使用键名访问数据
-            h5 = self._ensure_h5()
-            if key in h5:
-                data_obj = h5[key]
-                if hasattr(data_obj, 'shape'):
-                    # 直接是数据集
-                    data = data_obj[:]
-                    print(f"Data shape for {key}: {data.shape}")
-                    values.append(data.flatten())
-                elif hasattr(data_obj, 'keys'):
-                    # 是Group，获取第一个数据集
-                    first_key = list(data_obj.keys())[0]
-                    data = data_obj[first_key][:]
-                    print(f"Data shape for {key}/{first_key}: {data.shape}")
-                    values.append(data.flatten())
-                else:
-                    print(f"Warning: Unknown data type for key {key}")
-                    continue
-            else:
-                print(f"Warning: Key {key} not found in HDF5 file")
-                # 使用默认数据
-                for case_id in train_ids:
-                    # case_id 是文件名，需要从中提取数字索引
-                    if case_id.endswith('.h5'):
-                        # 从文件名中提取数字，如 "sample_data_2.h5" -> 2
-                        case_idx = int(case_id.split('_')[-1].split('.')[0])
-                    else:
-                        case_idx = int(case_id)
-                    
-                    # 读取数据
-                    if self.use_official_format:
-                        # 检查是否是diffusion-reaction格式（样本组内有data键）
-                        if 'diffusion-reaction' in str(self.data_path).lower():
-                            # 对于diffusion-reaction数据集，每个样本是一个组
-                            case_key = f"{case_idx:04d}"  # 格式化为4位数字
-                            if case_key in h5:
-                                sample_group = h5[case_key]
-                                if 'data' in sample_group:
-                                    # data格式：[T, H, W, C]
-                                    sample_data = sample_group['data']
-                                    if i < sample_data.shape[3]:  # 确保通道索引有效
-                                        data = sample_data[0, :, :, i]  # 取第一个时间步 [H, W]
-                                    else:
-                                        data = sample_data[0, :, :, 0]  # 使用第一个通道
-                                else:
-                                    # 如果没有data键，创建默认数据
-                                    data = np.zeros((128, 128))
-                            else:
-                                # 如果样本不存在，创建默认数据
-                                data = np.zeros((128, 128))
-                        else:
-                            # 官方格式：[batch, time, height, width, channels]
-                            # 取第一个batch，指定时间步，所有空间点，第i个通道
-                            if i < h5['data'].shape[4]:  # 确保通道索引有效
-                                data = h5['data'][0, case_idx, :, :, i]  # [H, W]
-                            else:
-                                # 如果通道数不足，使用第一个通道
-                                data = h5['data'][0, case_idx, :, :, 0]  # [H, W]
-                    else:
-                        # 原格式：[time, channels, height, width]
-                        if i < h5['data'].shape[1]:  # 确保通道索引有效
-                            data = h5['data'][case_idx, i, :, :]  # [H, W]
-                        else:
-                            # 如果通道数不足，使用第一个通道
-                            data = h5['data'][case_idx, 0, :, :]  # [H, W]
-                    
-                    values.append(data.flatten())
-            
-            if values:
-                all_values = np.concatenate(values)
-                mean = np.mean(all_values)
-                std = np.std(all_values)
-                
-                # 避免除零
-                if std < 1e-8:
-                    std = 1.0
-                    print(f"Warning: std too small for {key}, set to 1.0")
-                
-                stats[f"{key}_mean"] = mean
-                stats[f"{key}_std"] = std
-        
-        # 保存统计量
-        save_path.parent.mkdir(parents=True, exist_ok=True)
-        np.savez(save_path, **stats)
-        
-        # 转换为torch tensor
-        norm_stats = {}
-        for key in self.keys:
-            norm_stats[f"{key}_mean"] = torch.tensor(stats[f"{key}_mean"], dtype=torch.float32)
-            norm_stats[f"{key}_std"] = torch.tensor(stats[f"{key}_std"], dtype=torch.float32)
-        
-        return norm_stats
-    
-    def _validate_data(self):
-        """验证数据格式和维度"""
-        h5 = self._ensure_h5()
-        if not h5:
-            raise ValueError("HDF5 file not loaded")
-        
-        # 对于官方格式，特殊处理数字键数据集（如diffusion-reaction等）
-        if self.use_official_format:
-            # 检查是否有数字键（样本组）
-            sample_keys = [k for k in h5.keys() if k.isdigit()]
-            if sample_keys:
-                # 检查第一个样本组内是否有所需的键
-                first_sample = h5[sample_keys[0]]
-                for key in self.keys:
-                    if key not in first_sample:
-                        raise ValueError(f"Key '{key}' not found in sample group '{sample_keys[0]}'")
-                return  # 对于数字键数据集，验证完成后直接返回
-        
-        # 检查键是否存在（仅对非diff-react数据集执行）
-        if not (self.use_official_format and "diff-react" in str(self.data_path).lower()):
-            for key in self.keys:
-                if key not in h5:
-                    raise ValueError(f"Key '{key}' not found in dataset")
-        
-        # 对于官方格式数据，允许混合维度变量
-        if self.use_official_format:
-            # 检查每个键是否存在且至少有2个维度
-            for key in self.keys:
-                item = h5[key]
-                
-                # 处理HDF5组的情况
-                if isinstance(item, h5py.Group):
-                    # 如果是组，检查组内是否有数据集
-                    group_keys = list(item.keys())
-                    if not group_keys:
-                        raise ValueError(f"Group '{key}' is empty")
-                    
-                    # 检查组内第一个数据集的维度
-                    first_dataset = item[group_keys[0]]
-                    if hasattr(first_dataset, 'shape'):
-                        if len(first_dataset.shape) < 2:
-                            raise ValueError(f"Dataset '{key}/{group_keys[0]}' must have at least 2 dimensions, got {len(first_dataset.shape)}")
-                    else:
-                        raise ValueError(f"Item '{key}/{group_keys[0]}' is not a valid dataset")
-                        
-                elif hasattr(item, 'shape'):
-                    # 如果是数据集，直接检查维度
-                    if len(item.shape) < 2:
-                        raise ValueError(f"Dataset '{key}' must have at least 2 dimensions, got {len(item.shape)}")
-                    
-                    # 对于4D数据格式，不强制要求5D
-                    data_shape = item.shape
-                    if len(data_shape) == 4:
-                        print(f"Dataset '{key}' has 4D shape {data_shape}, treating as [B, H, W, C] format")
-                    elif len(data_shape) == 5:
-                        print(f"Dataset '{key}' has 5D shape {data_shape}, treating as [B, T, H, W, C] format")
-                else:
-                    raise ValueError(f"Item '{key}' is neither a Group nor a Dataset")
-            
-            return  # 官方格式验证完成
-        
-        # 非官方格式的验证逻辑保持不变
-        if 'data' in h5:
-            data_shape = h5['data'].shape
-            if len(data_shape) != 3:
-                raise ValueError(f"Data must be 3D [N, H, W], got shape {data_shape}")
-            
-            n_samples, height, width = data_shape
-            expected_channels = len(self.keys)
-            
-            if n_samples != expected_channels:
-                raise ValueError(f"Data has {n_samples} channels but {expected_channels} keys specified")
-        else:
-            # 检查第一个键的形状作为参考
-            first_key = self.keys[0]
-            item = h5[first_key]
-            
-            if isinstance(item, h5py.Group):
-                # 处理组的情况
-                group_keys = list(item.keys())
-                if group_keys:
-                    data_shape = item[group_keys[0]].shape
-                else:
-                    raise ValueError(f"Group '{first_key}' is empty")
-            elif hasattr(item, 'shape'):
-                data_shape = item.shape
-            else:
-                raise ValueError(f"Cannot determine shape for key '{first_key}'")
-            
-            if len(data_shape) < 2:
-                raise ValueError(f"Data must have at least 2 dimensions, got shape {data_shape}")
-
-    def _normalize_data(self, data: torch.Tensor, key: str) -> torch.Tensor:
-        """对数据进行z-score归一化"""
-        if not self.normalize or self.norm_stats is None:
-            return data
-        
-        mean = self.norm_stats[f"{key}_mean"]
-        std = self.norm_stats[f"{key}_std"]
-        
-        return (data - mean) / (std + 1e-8)
-    
-    def _denormalize_data(self, data: torch.Tensor, key: str) -> torch.Tensor:
-        """反归一化数据到原值域"""
-        if not self.normalize or self.norm_stats is None:
-            return data
-        
-        mean = self.norm_stats[f"{key}_mean"]
-        std = self.norm_stats[f"{key}_std"]
-        
-        return data * std + mean
-    
     def __len__(self) -> int:
         return len(self.case_ids)
-    
-    def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
-        """获取数据项"""
-        h5 = self._ensure_h5()
-        case_id = self.case_ids[idx]
-        # case_id 可能是文件名或者包含路径的字符串
-        if '/' in case_id:
-            # 处理类似 "sample_data_2.h5/sample_6" 的情况
-            parts = case_id.split('/')
-            if len(parts) >= 2:
-                # 从最后一部分提取数字，如 "sample_6" -> 6
-                sample_part = parts[-1]
-                if 'sample_' in sample_part:
-                    case_idx = int(sample_part.split('_')[-1])
-                else:
-                    case_idx = idx  # 使用索引作为备选
-            else:
-                case_idx = idx
-        elif case_id.endswith('.h5'):
-            # 从文件名中提取数字，如 "sample_data_2.h5" -> 2
-            case_idx = int(case_id.split('_')[-1].split('.')[0])
-        else:
-            try:
-                case_idx = int(case_id)
-            except ValueError:
-                # 如果无法转换为整数，使用索引
-                case_idx = idx
-        
-        # 读取数据
-        if self.use_official_format:
-            sample_keys = [k for k in h5.keys() if k.isdigit()]
-            if sample_keys:
-                if case_id in h5:
-                    group = h5[case_id]
-                else:
-                    root_keys = list(h5.keys())
-                    if case_idx < len(root_keys):
-                        group = h5[root_keys[case_idx]]
-                    else:
-                        raise IndexError(f"Index {case_idx} out of range for dataset with {len(root_keys)} groups")
-                if 'data' in group:
-                    data = torch.tensor(group['data'][0], dtype=torch.float32)
-                    data = data.permute(2, 0, 1)
-                else:
-                    raise ValueError(f"No 'data' found in sample group")
-            elif 'data' in h5:
-                # 标准格式：直接有'data'键
-                data_shape = h5['data'].shape
-                if len(data_shape) == 5:
-                    # 5D格式：[B, T, H, W, C]，取第一个batch，指定时间步的数据
-                    data = torch.tensor(h5['data'][0, case_idx], dtype=torch.float32)  # [H, W, C]
-                    # 转换为 [C, H, W] 格式
-                    data = data.permute(2, 0, 1)  # [C, H, W]
-                elif len(data_shape) == 4:
-                    # 4D格式：[B, H, W, C]，取第case_idx个batch的数据
-                    data = torch.tensor(h5['data'][case_idx], dtype=torch.float32)  # [H, W, C]
-                    # 转换为 [C, H, W] 格式
-                    data = data.permute(2, 0, 1)  # [C, H, W]
-                elif len(data_shape) == 3:
-                    # 3D格式：[B, H, W]，取第case_idx个batch的数据
-                    data = torch.tensor(h5['data'][case_idx], dtype=torch.float32)  # [H, W]
-                    # 转换为 [C, H, W] 格式，这里C=1
-                    data = data.unsqueeze(0)  # [1, H, W]
-                else:
-                    raise ValueError(f"Unsupported data shape: {data_shape}")
-            else:
-                # 使用变量键读取数据
-                data_list = []
-                for key in self.keys:
-                    if key in h5:
-                        item = h5[key]
-                        
-                        # 处理HDF5组的情况 - 这种情况通常不会发生，因为变量键通常是数据集
-                        if isinstance(item, h5py.Group):
-                            # 如果变量键本身是组，说明数据结构异常，跳过这个键
-                            print(f"Warning: Variable key '{key}' is a group, skipping...")
-                            continue
-                        else:
-                            # 如果是数据集，直接读取
-                            key_shape = item.shape
-                            
-                            # 检查索引是否有效
-                            if len(key_shape) >= 1 and case_idx >= key_shape[0]:
-                                raise IndexError(f"Index {case_idx} out of range for dataset '{key}' with shape {key_shape}")
-                            
-                            if len(key_shape) == 5:
-                                # 5D格式：[B, T, H, W, C] - ns_incom数据集
-                                var_data = torch.tensor(item[0, case_idx], dtype=torch.float32)  # [H, W, C] 或 [H, W]
-                            elif len(key_shape) == 4:
-                                # 4D格式：[B, H, W, C] 或 [T, H, W, C]
-                                var_data = torch.tensor(item[case_idx], dtype=torch.float32)  # [H, W, C] 或 [H, W]
-                            elif len(key_shape) == 2:
-                                # 2D格式：[B, T] - 时间数据等标量数据，跳过
-                                continue
-                            else:
-                                raise ValueError(f"Unsupported key shape for {key}: {key_shape}")
-                            
-                            # 确保数据维度正确
-                            if var_data.dim() == 2:  # [H, W] -> [1, H, W]
-                                var_data = var_data.unsqueeze(0)
-                            elif var_data.dim() == 3:  # [H, W, C] -> [C, H, W]
-                                var_data = var_data.permute(2, 0, 1)
-                            elif var_data.dim() == 4:  # [T, H, W, C] -> [C, H, W] (取第0个时间步)
-                                var_data = var_data[0].permute(2, 0, 1)
-                        
-                        data_list.append(var_data)
-                
-                if data_list:
-                    data = torch.cat(data_list, dim=0)  # [C, H, W]
-                else:
-                    raise ValueError(f"No valid data found for keys: {self.keys}")
-        else:
-            # 原格式：针对tensor数据的特殊处理
-            if 'data' in h5:
-                data = torch.tensor(h5['data'][case_idx], dtype=torch.float32)  # [C, H, W]
-            else:
-                # 使用变量键读取数据 - 专门处理tensor数据
-                data_list = []
-                for key in self.keys:
-                    if key in h5:
-                        # 对于HDF5组结构，需要先访问组再访问数据
-                        if isinstance(h5[key], h5py.Group):
-                            # 如果是组，访问其中的'data'键
-                            var_data = torch.tensor(h5[key]['data'][:], dtype=torch.float32)
-                        else:
-                            # 如果是数据集，直接访问
-                            var_data = torch.tensor(h5[key][:], dtype=torch.float32)
-                        
-                        # 确保数据为3维 [C, H, W]
-                        if var_data.dim() == 2:  # [H, W] -> [1, H, W]
-                            var_data = var_data.unsqueeze(0)
-                        elif var_data.dim() == 3:  # 已经是 [C, H, W] 格式
-                            pass
-                        elif var_data.dim() == 4:  # [T, H, W, C] -> [C, H, W] (取第0个时间步)
-                            var_data = var_data[0].permute(2, 0, 1)  # [H, W, C] -> [C, H, W]
-                        else:
-                            raise ValueError(f"Unexpected tensor dimension for key '{key}': {var_data.shape}")
-                        
-                        data_list.append(var_data)
-                
-                # 拼接所有键的数据
-                if data_list:
-                    data = torch.cat(data_list, dim=0)  # [C, H, W]
-                else:
-                    raise ValueError(f"No valid data found for keys: {self.keys}")
-        
-        # 仅使用单通道作为目标（默认取第一个通道）
-        if data.shape[0] >= 1:
-            target = data[:1]  # [1, H, W]
-        else:
-            raise ValueError(f"Data has no channel dimension: shape={data.shape}")
-        
-        # 归一化处理
-        if self.normalize and self.norm_stats:
-            for i in range(target.shape[0]):
-                if i < len(self.keys):
-                    key = self.keys[i]
-                    target[i:i+1] = self._normalize_data(target[i:i+1], key)
-        
-        # 调整尺寸到指定大小
-        if target.shape[-2:] != (self.image_size, self.image_size):
-            target = F.interpolate(
-                target.unsqueeze(0), 
-                size=(self.image_size, self.image_size),
-                mode='bilinear', 
-                align_corners=False
-            ).squeeze(0)
-        
-        # 生成观测数据（这里需要根据观测模式生成）
-        # 暂时返回target作为observation，后续会在子类中重写
-        observation = target.clone()
-        
-        return {
-            'target': target.cpu(),  # [C, H, W]
-            'observation': observation.cpu(),  # [C, H, W] 观测数据
-            'case_id': case_id,
-            'task_params': {'task': 'base'},  # 基础任务参数
-        }
 
-    def __del__(self):
-        try:
-            if getattr(self, 'h5_file', None) is not None:
-                self.h5_file.close()
-        except Exception:
-            pass
+    def _get_or_compute_norm_stats(self) -> Dict[str, float]:
+        if self.splits_dir is None:
+            raise ValueError("splits_dir must be provided when normalize=True")
+        stats_path = _as_path(self.splits_dir) / "norm_stat.npz"
+        if stats_path.exists():
+            data = np.load(stats_path)
+            return {k: float(data[k]) for k in data.files}
+
+        train_ids = _read_split_ids(self.splits_dir, "train")
+        if train_ids is None:
+            train_ids = self.case_ids
+
+        import h5py
+
+        sums = {k: 0.0 for k in self.keys}
+        sumsq = {k: 0.0 for k in self.keys}
+        counts = {k: 0 for k in self.keys}
+        with h5py.File(self.data_path, "r") as f:
+            for cid in train_ids:
+                if cid not in self.case_ids and "tensor" not in f:
+                    continue
+                x = _load_case_tensor(f, cid, self.keys)
+                for i, k in enumerate(self.keys):
+                    v = x[i].float()
+                    sums[k] += float(v.sum().item())
+                    sumsq[k] += float((v * v).sum().item())
+                    counts[k] += int(v.numel())
+        out: Dict[str, float] = {}
+        for k in self.keys:
+            c = max(counts[k], 1)
+            mean = sums[k] / float(c)
+            var = max(sumsq[k] / float(c) - mean * mean, 1e-12)
+            std = float(np.sqrt(var))
+            out[f"{k}_mean"] = float(mean)
+            out[f"{k}_std"] = float(std)
+        stats_path.parent.mkdir(parents=True, exist_ok=True)
+        np.savez(stats_path, **out)
+        return out
+
+    def _normalize_data(self, x: torch.Tensor, key: str) -> torch.Tensor:
+        if not self.normalize or self.norm_stats is None:
+            return x
+        m = float(self.norm_stats.get(f"{key}_mean", 0.0))
+        s = float(self.norm_stats.get(f"{key}_std", 1.0))
+        s = s if s > 0 else 1.0
+        return (x - m) / s
+
+    def _denormalize_data(self, x: torch.Tensor, key: str) -> torch.Tensor:
+        if not self.normalize or self.norm_stats is None:
+            return x
+        m = float(self.norm_stats.get(f"{key}_mean", 0.0))
+        s = float(self.norm_stats.get(f"{key}_std", 1.0))
+        s = s if s > 0 else 1.0
+        return x * s + m
+
+    def __getitem__(self, idx: int) -> Dict[str, Any]:
+        cid = self.case_ids[idx]
+        import h5py
+
+        with h5py.File(self.data_path, "r") as f:
+            x = _load_case_tensor(f, cid, self.keys)
+
+        if self.image_size is not None:
+            _, h, w = x.shape
+            if h != self.image_size or w != self.image_size:
+                x = F.interpolate(x.unsqueeze(0), size=(self.image_size, self.image_size), mode="bilinear", align_corners=False).squeeze(0)
+
+        for i, k in enumerate(self.keys):
+            x[i] = self._normalize_data(x[i], k)
+
+        return {"target": x, "case_id": cid, "keys": list(self.keys)}
 
 
 class PDEBenchSR(PDEBenchBase):
-    """超分辨率观测数据集
-    
-    实现SR模式的观测生成：高斯模糊 + 区域下采样
-    """
-    
     def __init__(
         self,
-        data_path: str,
-        keys: List[str],
-        scale: int,
+        data_path: Union[str, Path],
+        keys: Sequence[str],
+        scale: int = 4,
         sigma: float = 1.0,
         blur_kernel: int = 5,
         boundary: str = "mirror",
         noise_std: float = 0.0,
-        **kwargs
-    ):
-        """初始化SR数据集
-        
-        Args:
-            scale: 下采样倍率
-            sigma: 高斯模糊标准差
-            blur_kernel: 模糊核大小
-            boundary: 边界策略 "mirror"/"wrap"/"zero"
-            noise_std: 噪声标准差
-        """
-        # 过滤掉不属于基类的参数
-        base_kwargs = {k: v for k, v in kwargs.items() 
-                      if k in ['split', 'splits_dir', 'normalize', 'image_size', 'use_official_format', 'case_ids']}
-        super().__init__(data_path, keys, **base_kwargs)
-        
-        self.scale = scale
-        self.sigma = sigma
-        self.blur_kernel = blur_kernel
-        self.boundary = boundary
-        self.noise_std = noise_std
-        
-        # H算子参数，确保与训练DC一致
+        split: str = "train",
+        splits_dir: Optional[Union[str, Path]] = None,
+        normalize: bool = False,
+        image_size: Optional[int] = None,
+    ) -> None:
+        super().__init__(
+            data_path=data_path,
+            keys=keys,
+            split=split,
+            splits_dir=splits_dir,
+            normalize=normalize,
+            image_size=image_size,
+        )
+        self.scale = int(scale)
+        self.sigma = float(sigma)
+        self.blur_kernel = int(blur_kernel)
+        self.boundary = str(boundary)
+        self.noise_std = float(noise_std)
         self.h_params = {
-            'task': 'SR',
-            'scale': scale,
-            'sigma': sigma,
-            'kernel_size': blur_kernel,
-            'boundary': boundary,
+            "task": "SR",
+            "scale": self.scale,
+            "sigma": self.sigma,
+            "kernel_size": self.blur_kernel,
+            "boundary": self.boundary,
         }
-    
-    def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
-        """获取SR观测数据"""
-        data = super().__getitem__(idx)
-        target = data['target']  # [C, H, W]
-        
-        # 生成SR观测（保持与H/DC一致）
-        obs_data = self._generate_sr_observation(target)
-        
-        # 添加噪声
+
+    def __getitem__(self, idx: int) -> Dict[str, Any]:
+        out = super().__getitem__(idx)
+        target: torch.Tensor = out["target"]
+        c, h, w = target.shape
+
+        lr = apply_degradation_operator(target.unsqueeze(0), self.h_params).squeeze(0)
         if self.noise_std > 0:
-            noise = torch.randn_like(obs_data['baseline']) * self.noise_std
-            obs_data['baseline'] = obs_data['baseline'] + noise
-        
-        # 更新数据字典
-        data.update(obs_data)
-        data['h_params'] = self.h_params
-        data['task_params'] = self.h_params  # 使用h_params作为task_params
-        # 设置observation为baseline（单通道）
-        data['observation'] = obs_data['baseline'][:1]
-        
-        return data
-    
-    def _generate_sr_observation(self, target: torch.Tensor) -> Dict[str, torch.Tensor]:
-        """生成SR观测数据
-        
-        Args:
-            target: 目标数据 [C, H, W]
-            
-        Returns:
-            观测数据字典，包含baseline, coords, mask
-        """
-        C, H, W = target.shape
-        
-        # 使用统一的H算子生成观测
-        # 注意：这里需要反归一化到原值域进行H操作
-        target_orig = target.clone()
-        if self.normalize and self.norm_stats is not None:
-            for i, key in enumerate(self.keys):
-                target_orig[i:i+1] = self._denormalize_data(target[i:i+1], key)
-        
-        # 应用H算子：blur + downsample
-        # 单通道：直接应用H算子
-        lr_orig = apply_degradation_operator(
-            target_orig[:1].unsqueeze(0),
-            self.h_params
-        ).squeeze(0)  # [1, H//scale, W//scale]
-        
-        # 上采样回原尺寸作为baseline
-        baseline_orig = F.interpolate(
-            lr_orig.unsqueeze(0),
-            size=(H, W),
-            mode='bilinear',
-            align_corners=False
-        ).squeeze(0)  # [C, H, W]
-        
-        # 重新归一化baseline
-        baseline = baseline_orig.clone()
-        if self.normalize and self.norm_stats is not None:
-            baseline[:1] = self._normalize_data(baseline_orig[:1], self.keys[0] if self.keys else 'u')
-        
-        # 生成坐标网格
-        coords = self._generate_coords(H, W)  # [2, H, W]
-        
-        # 生成mask（SR模式下全为1）
-        mask = torch.ones(1, H, W)  # [1, H, W]
-        
-        return {
-            'baseline': baseline.cpu(),  # [1, H, W] 上采样后的低分辨率观测
-            'coords': coords.cpu(),      # [2, H, W] 坐标网格
-            'mask': mask.cpu(),          # [1, H, W] 观测mask
-            'lr_observation': lr_orig.cpu(),  # 原始低分辨率观测 [1, H//scale, W//scale]
-            'original_observation': lr_orig.cpu(),  # 用于损失计算的原始观测数据
-        }
-    
-    def _generate_coords(self, H: int, W: int) -> torch.Tensor:
-        """生成归一化坐标网格"""
-        y_coords = torch.linspace(-1, 1, H).view(H, 1).expand(H, W)
-        x_coords = torch.linspace(-1, 1, W).view(1, W).expand(H, W)
-        coords = torch.stack([x_coords, y_coords], dim=0)  # [2, H, W]
-        return coords
+            lr = lr + torch.randn_like(lr) * self.noise_std
+
+        baseline = F.interpolate(lr.unsqueeze(0), size=(h, w), mode="bilinear", align_corners=False).squeeze(0)
+        coords = _make_coords(h, w, device=target.device)
+        mask = torch.ones(1, h, w, device=target.device, dtype=target.dtype)
+
+        out.update(
+            {
+                "baseline": baseline,
+                "coords": coords,
+                "mask": mask,
+                "h_params": dict(self.h_params),
+                "lr_observation": lr,
+            }
+        )
+        return out
 
 
 class PDEBenchCrop(PDEBenchBase):
-    """裁剪观测数据集
-    
-    实现Crop模式的观测生成：窗口裁剪 + 对齐处理
-    """
-    
     def __init__(
         self,
-        data_path: str,
-        keys: List[str],
-        crop_size: Tuple[int, int],
+        data_path: Union[str, Path],
+        keys: Sequence[str],
+        crop_size: Tuple[int, int] = (64, 64),
         patch_align: int = 8,
         center_sampler: str = "mixed",
         boundary: str = "mirror",
-        **kwargs
-    ):
-        """初始化Crop数据集
-        
-        Args:
-            crop_size: 裁剪窗口尺寸 (H, W)
-            patch_align: patch对齐倍数
-            center_sampler: 中心采样策略 "mixed"/"uniform"/"boundary"/"gradient"
-            boundary: 边界处理策略
-        """
-        # 过滤掉不属于基类的参数
-        base_kwargs = {k: v for k, v in kwargs.items() 
-                      if k in ['split', 'splits_dir', 'normalize', 'image_size', 'use_official_format', 'case_ids']}
-        super().__init__(data_path, keys, **base_kwargs)
-        
-        self.crop_size = crop_size
-        self.patch_align = patch_align
-        self.center_sampler = center_sampler
-        self.boundary = boundary
-        
-        # 确保裁剪尺寸对齐
-        self.crop_h = (crop_size[0] // patch_align) * patch_align
-        self.crop_w = (crop_size[1] // patch_align) * patch_align
-        
-        # H算子参数
+        split: str = "train",
+        splits_dir: Optional[Union[str, Path]] = None,
+        normalize: bool = False,
+        image_size: Optional[int] = None,
+    ) -> None:
+        super().__init__(
+            data_path=data_path,
+            keys=keys,
+            split=split,
+            splits_dir=splits_dir,
+            normalize=normalize,
+            image_size=image_size,
+        )
+        self.crop_size = (int(crop_size[0]), int(crop_size[1]))
+        self.patch_align = int(patch_align)
+        self.center_sampler = str(center_sampler)
+        self.boundary = str(boundary)
+        self.crop_h = (self.crop_size[0] // self.patch_align) * self.patch_align
+        self.crop_w = (self.crop_size[1] // self.patch_align) * self.patch_align
         self.h_params = {
-            'task': 'Crop',
-            'crop_size': (self.crop_h, self.crop_w),
-            'patch_align': patch_align,
-            'boundary': boundary,
+            "task": "Crop",
+            "crop_size": (self.crop_h, self.crop_w),
+            "patch_align": self.patch_align,
+            "boundary": self.boundary,
         }
-    
-    def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
-        """获取Crop观测数据"""
-        data = super().__getitem__(idx)
-        target = data['target']  # [C, H, W]
-        
-        # 生成Crop观测
-        obs_data = self._generate_crop_observation(target)
-        
-        # 更新数据字典
-        data.update(obs_data)
-        data['h_params'] = self.h_params
-        data['task_params'] = self.h_params  # 使用h_params作为task_params
-        # 设置observation为baseline
-        data['observation'] = obs_data['baseline']
-        
-        return data
-    
-    def _generate_crop_observation(self, target: torch.Tensor) -> Dict[str, torch.Tensor]:
-        """生成Crop观测数据"""
-        C, H, W = target.shape
-        
-        # 采样裁剪中心
-        center_y, center_x = self._sample_crop_center(H, W)
-        
-        # 计算裁剪边界框
-        y1 = max(0, center_y - self.crop_h // 2)
-        y2 = min(H, y1 + self.crop_h)
-        x1 = max(0, center_x - self.crop_w // 2)
-        x2 = min(W, x1 + self.crop_w)
-        
-        # 调整边界框确保尺寸正确
-        if y2 - y1 < self.crop_h:
-            if y1 == 0:
-                y2 = min(H, self.crop_h)
-            else:
-                y1 = max(0, H - self.crop_h)
-                y2 = H
-        
-        if x2 - x1 < self.crop_w:
-            if x1 == 0:
-                x2 = min(W, self.crop_w)
-            else:
-                x1 = max(0, W - self.crop_w)
-                x2 = W
-        
-        crop_box = (x1, y1, x2, y2)
-        
-        # 使用H算子生成观测
-        target_orig = target.clone()
-        if self.normalize and self.norm_stats is not None:
-            for i, key in enumerate(self.keys):
-                target_orig[i:i+1] = self._denormalize_data(target[i:i+1], key)
-        
-        # 应用H算子：裁剪
-        h_params_with_box = self.h_params.copy()
-        h_params_with_box['crop_box'] = crop_box
-        
-        cropped_orig = apply_degradation_operator(
-            target_orig.unsqueeze(0),
-            h_params_with_box
-        ).squeeze(0)  # [C, crop_h, crop_w]
-        
-        # 创建baseline（零填充到原尺寸）
-        baseline_orig = torch.zeros_like(target_orig)
-        baseline_orig[:, y1:y2, x1:x2] = cropped_orig
-        
-        # 重新归一化
-        baseline = baseline_orig.clone()
-        if self.normalize and self.norm_stats is not None:
-            for i, key in enumerate(self.keys):
-                baseline[i:i+1] = self._normalize_data(baseline_orig[i:i+1], key)
-        
-        # 生成mask
-        mask = torch.zeros(1, H, W)
-        mask[:, y1:y2, x1:x2] = 1.0
-        
-        # 生成坐标
-        coords = self._generate_coords(H, W)
-        
-        return {
-            'baseline': baseline,     # [C, H, W] 零填充的观测
-            'coords': coords,         # [2, H, W] 坐标网格
-            'mask': mask,            # [1, H, W] 观测mask
-            'crop_box': crop_box,    # (x1, y1, x2, y2) 裁剪边界框
-            'cropped_observation': cropped_orig,  # [C, crop_h, crop_w] 原始裁剪观测
-        }
-    
-    def _sample_crop_center(self, H: int, W: int) -> Tuple[int, int]:
-        """采样裁剪中心点"""
-        if self.center_sampler == "uniform":
-            # 均匀采样
-            center_y = np.random.randint(self.crop_h // 2, H - self.crop_h // 2)
-            center_x = np.random.randint(self.crop_w // 2, W - self.crop_w // 2)
-        
-        elif self.center_sampler == "boundary":
-            # 边界优先采样
-            if np.random.random() < 0.5:
-                # 靠近边界
-                if np.random.random() < 0.5:
-                    center_y = np.random.randint(0, self.crop_h)
-                else:
-                    center_y = np.random.randint(H - self.crop_h, H)
-                center_x = np.random.randint(self.crop_w // 2, W - self.crop_w // 2)
-            else:
-                center_y = np.random.randint(self.crop_h // 2, H - self.crop_h // 2)
-                if np.random.random() < 0.5:
-                    center_x = np.random.randint(0, self.crop_w)
-                else:
-                    center_x = np.random.randint(W - self.crop_w, W)
-        
-        elif self.center_sampler == "mixed":
-            # 混合采样：均匀40% + 边界30% + 高梯度30%
-            rand = np.random.random()
-            if rand < 0.4:
-                # 均匀采样
-                center_y = np.random.randint(self.crop_h // 2, H - self.crop_h // 2)
-                center_x = np.random.randint(self.crop_w // 2, W - self.crop_w // 2)
-            elif rand < 0.7:
-                # 边界采样
-                return self._sample_crop_center_boundary(H, W)
-            else:
-                # 高梯度区域采样（简化为随机）
-                center_y = np.random.randint(self.crop_h // 2, H - self.crop_h // 2)
-                center_x = np.random.randint(self.crop_w // 2, W - self.crop_w // 2)
-        
+
+    def _sample_crop_box(self, h: int, w: int) -> Tuple[int, int, int, int]:
+        ch, cw = self.crop_h, self.crop_w
+        if ch <= 0 or cw <= 0:
+            return (0, 0, w, h)
+        if ch >= h and cw >= w:
+            return (0, 0, w, h)
+        if self.center_sampler == "boundary":
+            x1 = 0
+            y1 = 0
+        elif self.center_sampler == "gradient":
+            x1 = max((w - cw) // 2, 0)
+            y1 = max((h - ch) // 2, 0)
         else:
-            # 默认中心采样
-            center_y = H // 2
-            center_x = W // 2
-        
-        return center_y, center_x
-    
-    def _sample_crop_center_boundary(self, H: int, W: int) -> Tuple[int, int]:
-        """边界区域采样"""
-        boundary_width = min(32, min(H, W) // 4)  # 边界带宽度
-        
-        # 选择边界区域
-        regions = []
-        # 上边界
-        if self.crop_h // 2 < boundary_width:
-            regions.append('top')
-        # 下边界  
-        if H - self.crop_h // 2 > H - boundary_width:
-            regions.append('bottom')
-        # 左边界
-        if self.crop_w // 2 < boundary_width:
-            regions.append('left')
-        # 右边界
-        if W - self.crop_w // 2 > W - boundary_width:
-            regions.append('right')
-        
-        if not regions:
-            # 如果没有有效边界区域，使用中心
-            return H // 2, W // 2
-        
-        region = np.random.choice(regions)
-        
-        if region == 'top':
-            center_y = np.random.randint(self.crop_h // 2, min(boundary_width, H - self.crop_h // 2))
-            center_x = np.random.randint(self.crop_w // 2, W - self.crop_w // 2)
-        elif region == 'bottom':
-            center_y = np.random.randint(max(H - boundary_width, self.crop_h // 2), H - self.crop_h // 2)
-            center_x = np.random.randint(self.crop_w // 2, W - self.crop_w // 2)
-        elif region == 'left':
-            center_y = np.random.randint(self.crop_h // 2, H - self.crop_h // 2)
-            center_x = np.random.randint(self.crop_w // 2, min(boundary_width, W - self.crop_w // 2))
-        else:  # right
-            center_y = np.random.randint(self.crop_h // 2, H - self.crop_h // 2)
-            center_x = np.random.randint(max(W - boundary_width, self.crop_w // 2), W - self.crop_w // 2)
-        
-        return center_y, center_x
-    
-    def _generate_coords(self, H: int, W: int) -> torch.Tensor:
-        """生成归一化坐标网格"""
-        y_coords = torch.linspace(-1, 1, H).view(H, 1).expand(H, W)
-        x_coords = torch.linspace(-1, 1, W).view(1, W).expand(H, W)
-        coords = torch.stack([x_coords, y_coords], dim=0)  # [2, H, W]
-        return coords
+            x1 = int(torch.randint(low=0, high=max(w - cw + 1, 1), size=(1,)).item())
+            y1 = int(torch.randint(low=0, high=max(h - ch + 1, 1), size=(1,)).item())
+        x2 = min(x1 + cw, w)
+        y2 = min(y1 + ch, h)
+        return (x1, y1, x2, y2)
+
+    def __getitem__(self, idx: int) -> Dict[str, Any]:
+        out = super().__getitem__(idx)
+        target: torch.Tensor = out["target"]
+        c, h, w = target.shape
+
+        x1, y1, x2, y2 = self._sample_crop_box(h, w)
+        mask = torch.zeros(1, h, w, device=target.device, dtype=target.dtype)
+        mask[:, y1:y2, x1:x2] = 1.0
+
+        baseline = torch.zeros_like(target)
+        baseline[:, y1:y2, x1:x2] = target[:, y1:y2, x1:x2]
+
+        coords = _make_coords(h, w, device=target.device)
+        h_params = dict(self.h_params)
+        h_params["crop_box"] = (x1, y1, x2, y2)
+
+        out.update({"baseline": baseline, "coords": coords, "mask": mask, "h_params": h_params})
+        return out
 
 
 class PDEBenchDataModule:
-    """PDEBench数据模块
-    
-    统一管理训练、验证、测试数据加载器
-    """
-    
-    def __init__(self, config: DictConfig):
-        """初始化数据模块
-        
-        Args:
-            config: 数据配置
-        """
+    def __init__(self, config: Union[DictConfig, Dict[str, Any]]):
         self.config = config
-        
-        # 数据集类选择
-        observation_config = config.get('observation', {})
-        task = observation_config.get('mode', 'SR').lower()
-        
-        if task == "sr":
-            self.dataset_class = PDEBenchSR
-            sr_config = observation_config.get('sr', {})
-            self.dataset_kwargs = {
-                'scale': sr_config.get('scale_factor', 4),
-                'sigma': sr_config.get('blur_sigma', 1.0),
-                'blur_kernel': sr_config.get('blur_kernel_size', 5),
-                'boundary': sr_config.get('boundary_mode', 'mirror'),
-            }
-        elif task == "crop":
-            self.dataset_class = PDEBenchCrop
-            crop_config = observation_config.get('crop', {})
-            self.dataset_kwargs = {
-                'crop_size': crop_config.get('crop_size', (64, 64)),
-                'strategy': crop_config.get('crop_strategy', 'mixed'),
-                'boundary': crop_config.get('boundary_mode', 'mirror'),
-            }
+
+        self.data_path: str
+        if isinstance(config, DictConfig):
+            data_path = str(config.get("data_path"))
+            dataset_name = config.get("dataset_name")
         else:
-            raise ValueError(f"Unknown task: {task}")
-        
-        # 通用参数
-        self.common_kwargs = {
-            'normalize': config.get('normalize', True),
-            'image_size': config.get('image_size', config.get('img_size', 256)),
-        }
-        
-        # 调试信息
-        print(f"DEBUG: common_kwargs image_size = {self.common_kwargs['image_size']}")
-        print(f"DEBUG: config image_size = {config.get('image_size', 'NOT_FOUND')}")
-        print(f"DEBUG: config img_size = {config.get('img_size', 'NOT_FOUND')}")
-    
+            data_path = str(config.get("data_path"))
+            dataset_name = config.get("dataset_name")
+
+        if dataset_name is not None and _as_path(data_path).is_dir():
+            self.data_path = str(_as_path(data_path) / str(dataset_name))
+        else:
+            self.data_path = data_path
+
+        self.train_dataset: Optional[Dataset] = None
+        self.val_dataset: Optional[Dataset] = None
+        self.test_dataset: Optional[Dataset] = None
+
     def setup(self, stage: Optional[str] = None) -> None:
-        """设置数据集"""
-        # 添加调试信息
-        print(f"DEBUG: config = {self.config}")
-        print(f"DEBUG: config type = {type(self.config)}")
-        print(f"DEBUG: config keys = {list(self.config.keys())}")
-        
-        # 检查data_path配置
-        data_path = self.config.get('data_path', None)
-        print(f"DEBUG: data_path from config = {data_path}")
-        print(f"DEBUG: data_path repr: {repr(data_path)}")
-        
-        # 如果配置中有data_path且是h5文件，直接使用
-        if data_path and (data_path.endswith('.h5') or data_path.endswith('.hdf5')):
-            print(f"DEBUG: Using configured data_path: {data_path}")
-            is_h5_file = True
-            print(f"DEBUG: is_h5_file: {is_h5_file}")
-            
-            # 检查文件是否存在
-            if os.path.exists(data_path):
-                print(f"DEBUG: File exists: {data_path}")
-                train_path = data_path
-                val_path = data_path
-                test_path = data_path
-                splits_dir = self.config.get('splits_dir', None)
-            else:
-                print(f"DEBUG: File does not exist: {data_path}")
-                raise FileNotFoundError(f"Data file not found: {data_path}")
+        cfg = self.config
+        keys = list(getattr(cfg, "keys", [])) if isinstance(cfg, DictConfig) else list(cfg.get("keys", []))
+        normalize = bool(getattr(cfg, "normalize", False)) if isinstance(cfg, DictConfig) else bool(cfg.get("normalize", False))
+        image_size = getattr(cfg, "image_size", None) if isinstance(cfg, DictConfig) else cfg.get("image_size", None)
+        splits_dir = getattr(cfg, "splits_dir", None) if isinstance(cfg, DictConfig) else cfg.get("splits_dir", None)
+
+        obs_cfg = _parse_obs_cfg(getattr(cfg, "observation", None) if isinstance(cfg, DictConfig) else cfg.get("observation"))
+        mode = obs_cfg.mode
+
+        if str(mode).lower() == "sr":
+            ds_ctor = lambda split: PDEBenchSR(
+                data_path=self.data_path,
+                keys=keys,
+                split=split,
+                splits_dir=splits_dir,
+                normalize=normalize,
+                image_size=image_size,
+                scale=obs_cfg.scale,
+                sigma=obs_cfg.sigma,
+                blur_kernel=obs_cfg.kernel_size,
+                boundary=obs_cfg.boundary,
+                noise_std=obs_cfg.noise_std,
+            )
+        elif str(mode).lower() == "crop":
+            ds_ctor = lambda split: PDEBenchCrop(
+                data_path=self.data_path,
+                keys=keys,
+                split=split,
+                splits_dir=splits_dir,
+                normalize=normalize,
+                image_size=image_size,
+                crop_size=obs_cfg.crop_size,
+                patch_align=obs_cfg.patch_align,
+                center_sampler=obs_cfg.center_sampler,
+                boundary=obs_cfg.boundary,
+            )
         else:
-            print(f"DEBUG: data_path ends with .h5: {data_path.endswith('.h5') if data_path else False}")
-            print(f"DEBUG: data_path ends with .hdf5: {data_path.endswith('.hdf5') if data_path else False}")
-            is_h5_file = False
-            print(f"DEBUG: is_h5_file: {is_h5_file}")
-            
-            # 使用目录结构
-            data_dir = self.config.get('data_dir', 'data/pdebench')
-            train_path = os.path.join(data_dir, 'DarcyFlow', '2D_DarcyFlow_beta1.0_Train.hdf5')
-            val_path = os.path.join(data_dir, 'DarcyFlow', '2D_DarcyFlow_beta1.0_Valid.hdf5')
-            test_path = os.path.join(data_dir, 'DarcyFlow', '2D_DarcyFlow_beta1.0_Test.hdf5')
-            splits_dir = "splits"  # 多文件模式使用splits目录
-            print(f"DEBUG: Using directory structure: {train_path}")
-        
-        # 获取case_ids配置
-        case_ids = self.config.get('case_ids', None)
-        
-        # 训练集
-        self.train_dataset = self.dataset_class(
-            data_path=train_path,
-            keys=self.config.get('keys', ['tensor']),  # 使用get方法提供默认值
-            split="train",
-            splits_dir=splits_dir,
-            use_official_format=getattr(self.config, 'use_official_format', False),
-            case_ids=case_ids,  # 传递case_ids参数
-            **self.common_kwargs,
-            **self.dataset_kwargs
-        )
-        
-        # 验证集
-        self.val_dataset = self.dataset_class(
-            data_path=val_path,
-            keys=self.config.get('keys', ['tensor']),  # 使用get方法提供默认值
-            split="val",
-            splits_dir=splits_dir,
-            use_official_format=getattr(self.config, 'use_official_format', False),
-            case_ids=case_ids,  # 传递case_ids参数
-            **self.common_kwargs,
-            **self.dataset_kwargs
-        )
-        
-        # 测试集
-        self.test_dataset = self.dataset_class(
-            data_path=test_path,
-            keys=self.config.get('keys', ['tensor']),
-            split="test",
-            splits_dir=splits_dir,
-            use_official_format=getattr(self.config, 'use_official_format', False),
-            case_ids=case_ids,  # 传递case_ids参数
-            **self.common_kwargs,
-            **self.dataset_kwargs
-        )
-    
-    def train_dataloader(self) -> DataLoader:
-        """训练数据加载器"""
-        # 优先使用dataloader配置，如果没有则使用根级别配置
-        dl_cfg = self.config.get('dataloader', {})
-        batch_size = dl_cfg.get('batch_size', self.config.get('batch_size', 4))
-        num_workers = int(dl_cfg.get('num_workers', self.config.get('num_workers', 0)))
-        pin_memory = bool(dl_cfg.get('pin_memory', self.config.get('pin_memory', False)))
-        persistent_workers = bool(dl_cfg.get('persistent_workers', num_workers > 0))
-        prefetch_factor = dl_cfg.get('prefetch_factor', None)
+            ds_ctor = lambda split: PDEBenchBase(
+                data_path=self.data_path,
+                keys=keys,
+                split=split,
+                splits_dir=splits_dir,
+                normalize=normalize,
+                image_size=image_size,
+            )
 
-        kwargs = {
-            'num_workers': max(0, num_workers),
-            'pin_memory': pin_memory,
-            'persistent_workers': (num_workers > 0) and persistent_workers,
-            'drop_last': True,
+        train_split = getattr(cfg, "train_split", "train") if isinstance(cfg, DictConfig) else cfg.get("train_split", "train")
+        val_split = getattr(cfg, "val_split", "val") if isinstance(cfg, DictConfig) else cfg.get("val_split", "val")
+        test_split = getattr(cfg, "test_split", "test") if isinstance(cfg, DictConfig) else cfg.get("test_split", "test")
+
+        self.train_dataset = ds_ctor(str(train_split))
+        self.val_dataset = ds_ctor(str(val_split))
+        self.test_dataset = ds_ctor(str(test_split))
+
+    def _dl_cfg(self) -> Dict[str, Any]:
+        cfg = self.config
+        if isinstance(cfg, DictConfig):
+            dl = cfg.get("dataloader", {})
+            return {
+                "batch_size": int(dl.get("batch_size", 1)),
+                "num_workers": int(dl.get("num_workers", 0)),
+                "pin_memory": bool(dl.get("pin_memory", False)),
+                "persistent_workers": bool(dl.get("persistent_workers", False)),
+            }
+        dl = cfg.get("dataloader", {})
+        return {
+            "batch_size": int(dl.get("batch_size", 1)),
+            "num_workers": int(dl.get("num_workers", 0)),
+            "pin_memory": bool(dl.get("pin_memory", False)),
+            "persistent_workers": bool(dl.get("persistent_workers", False)),
         }
-        if (num_workers > 0) and (prefetch_factor is not None):
-            kwargs['prefetch_factor'] = int(prefetch_factor)
-        # 仅在多进程加载时设置multiprocessing_context
-        if num_workers > 0:
-            try:
-                kwargs['multiprocessing_context'] = 'spawn'
-            except Exception:
-                pass
 
+    def train_dataloader(self) -> DataLoader:
+        if self.train_dataset is None:
+            self.setup()
+        assert self.train_dataset is not None
+        cfg = self._dl_cfg()
         return DataLoader(
             self.train_dataset,
-            batch_size=batch_size,
+            batch_size=cfg["batch_size"],
             shuffle=True,
-            **kwargs,
+            num_workers=cfg["num_workers"],
+            pin_memory=cfg["pin_memory"],
+            persistent_workers=cfg["persistent_workers"],
         )
-    
+
     def val_dataloader(self) -> DataLoader:
-        """验证数据加载器"""
-        dl_cfg = self.config.get('dataloader', {})
-        batch_size = dl_cfg.get('val_batch_size', dl_cfg.get('batch_size', self.config.get('batch_size', 4)))
-        num_workers = int(dl_cfg.get('num_workers', self.config.get('num_workers', 0)))
-        pin_memory = bool(dl_cfg.get('pin_memory', self.config.get('pin_memory', False)))
-        persistent_workers = bool(dl_cfg.get('persistent_workers', num_workers > 0))
-        prefetch_factor = dl_cfg.get('prefetch_factor', None)
-
-        kwargs = {
-            'num_workers': max(0, num_workers),
-            'pin_memory': pin_memory,
-            'persistent_workers': (num_workers > 0) and persistent_workers,
-        }
-        if (num_workers > 0) and (prefetch_factor is not None):
-            kwargs['prefetch_factor'] = int(prefetch_factor)
-        if num_workers > 0:
-            try:
-                kwargs['multiprocessing_context'] = 'spawn'
-            except Exception:
-                pass
-
+        if self.val_dataset is None:
+            self.setup()
+        assert self.val_dataset is not None
+        cfg = self._dl_cfg()
         return DataLoader(
             self.val_dataset,
-            batch_size=batch_size,
+            batch_size=cfg["batch_size"],
             shuffle=False,
-            **kwargs,
+            num_workers=cfg["num_workers"],
+            pin_memory=cfg["pin_memory"],
+            persistent_workers=cfg["persistent_workers"],
         )
-    
+
     def test_dataloader(self) -> DataLoader:
-        """测试数据加载器"""
-        dl_cfg = self.config.get('dataloader', {})
-        num_workers = int(dl_cfg.get('num_workers', self.config.get('num_workers', 0)))
-        pin_memory = bool(dl_cfg.get('pin_memory', self.config.get('pin_memory', False)))
-        persistent_workers = bool(dl_cfg.get('persistent_workers', num_workers > 0))
-
-        kwargs = {
-            'num_workers': max(0, num_workers),
-            'pin_memory': pin_memory,
-            'persistent_workers': (num_workers > 0) and persistent_workers,
-        }
-        if num_workers > 0:
-            try:
-                kwargs['multiprocessing_context'] = 'spawn'
-            except Exception:
-                pass
-
+        if self.test_dataset is None:
+            self.setup()
+        assert self.test_dataset is not None
+        cfg = self._dl_cfg()
         return DataLoader(
             self.test_dataset,
             batch_size=1,
             shuffle=False,
-            **kwargs,
+            num_workers=cfg["num_workers"],
+            pin_memory=cfg["pin_memory"],
+            persistent_workers=cfg["persistent_workers"],
         )
-    
-    def get_norm_stats(self) -> Optional[Dict[str, torch.Tensor]]:
-        """获取归一化统计量"""
-        if hasattr(self, 'train_dataset') and self.train_dataset.norm_stats:
-            # 转换为训练脚本期望的格式
-            norm_stats = self.train_dataset.norm_stats
-            # 假设只有一个变量，取第一个变量的统计量
-            first_key = self.train_dataset.keys[0]
-            return {
-                'mean': norm_stats[f"{first_key}_mean"],
-                'std': norm_stats[f"{first_key}_std"]
-            }
+
+    def get_normalization_stats(self) -> Optional[Dict[str, float]]:
+        if self.train_dataset is None:
+            self.setup()
+        if hasattr(self.train_dataset, "norm_stats"):
+            return getattr(self.train_dataset, "norm_stats")
         return None
+

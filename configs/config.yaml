@@ -16,6 +16,12 @@ experiment:
   use_amp: true  # 启用混合精度训练
   output_dir: "runs/${experiment.name}"
 
+# 模型资源预算（用于训练与评估的统一守卫）
+model_budget:
+  max_params_m: 10
+  max_flops_g: 60
+  max_latency_ms: 50
+
 # 输出路径
 output_dir: "runs/${experiment.name}"
 checkpoint_dir: "${output_dir}/checkpoints"

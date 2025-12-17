@@ -481,8 +481,11 @@ class RealDiffusionReactionDataModule(pl.LightningDataModule):
         self.val_batch_size = dl_cfg.get('val_batch_size', self.val_batch_size)
         self.test_batch_size = dl_cfg.get('test_batch_size', self.test_batch_size)
         self.num_workers = dl_cfg.get('num_workers', self.num_workers)
-        # 强制在CPU设备上禁用pin_memory，避免PyTorch在CPU上启动pin线程
-        self.pin_memory = False
+        try:
+            import torch as _t
+            self.pin_memory = bool(dl_cfg.get('pin_memory', getattr(config.hardware, 'pin_memory', _t.cuda.is_available())))
+        except Exception:
+            self.pin_memory = False
         self.persistent_workers = dl_cfg.get('persistent_workers', self.persistent_workers if self.num_workers > 0 else False)
         self.prefetch_factor = dl_cfg.get('prefetch_factor', 2)
         self.drop_last = dl_cfg.get('drop_last', True)
@@ -500,7 +503,8 @@ class RealDiffusionReactionDataModule(pl.LightningDataModule):
         else:
             self.mp_context = mp_mode
         self.timeout = dl_cfg.get('timeout', 0)
-        # 在CPU模式下不设置pin_memory_device，避免触发pin线程
+        if int(self.num_workers) == 0:
+            self.timeout = 0
         self.pin_memory_device = None
         
         # RAM预加载与缓存开关
@@ -691,13 +695,38 @@ class RealDiffusionReactionDataModule(pl.LightningDataModule):
                 self.test_dataset.mean = self.train_dataset.mean.clone()
                 self.test_dataset.std = self.train_dataset.std.clone()
             else:
+                # 回退：极端情况下使用默认零均值/单位方差
                 self.test_dataset.mean = torch.zeros(getattr(self.train_dataset, 'n_channels', 2), dtype=torch.float32)
                 self.test_dataset.std = torch.ones(getattr(self.train_dataset, 'n_channels', 2), dtype=torch.float32)
-            
+
+            # 若启用整数据 RAM 预加载，共享训练集缓存到测试集（浅拷贝引用）
             if self.preload_entire_dataset:
-                # 共享缓存到测试集（浅拷贝引用，不重复分配）
                 self.test_dataset._preloaded = self.train_dataset._preloaded
                 self.test_dataset._use_ram_preload = True
+
+    def get_normalization_stats(self) -> Optional[Dict[str, torch.Tensor]]:
+        """返回归一化统计，用于损失在原值域的计算"""
+        train_ds = getattr(self, "train_dataset", None)
+        if train_ds is None:
+            return None
+        mean = getattr(train_ds, "mean", None)
+        std = getattr(train_ds, "std", None)
+        if mean is None or std is None:
+            return None
+        try:
+            mean_t = mean.detach().clone()
+        except Exception:
+            mean_t = torch.as_tensor(mean, dtype=torch.float32)
+        try:
+            std_t = std.detach().clone()
+        except Exception:
+            std_t = torch.as_tensor(std, dtype=torch.float32)
+        return {
+            "data_mean": mean_t,
+            "data_std": std_t,
+        }
+
+
 
     def _estimate_batch_bytes(self, batch: Dict[str, torch.Tensor]) -> int:
         total = 0
@@ -766,7 +795,7 @@ class RealDiffusionReactionDataModule(pl.LightningDataModule):
         # 仅在 num_workers > 0 时传递 prefetch_factor，避免 PyTorch 抛错
         _kwargs = dict(
             num_workers=self.num_workers,
-            pin_memory=False,
+            pin_memory=self.pin_memory,
             drop_last=self.drop_last,
             persistent_workers=self.persistent_workers if self.num_workers > 0 else False,
             worker_init_fn=self._worker_init_fn if self.num_workers > 0 else None,
@@ -785,17 +814,18 @@ class RealDiffusionReactionDataModule(pl.LightningDataModule):
     
     def val_dataloader(self) -> DataLoader:
         """验证数据加载器"""
+        # 强制单进程与CPU内存，确保稳定性
         _kwargs = dict(
-            num_workers=self.num_workers,
+            num_workers=0,
             pin_memory=False,
             drop_last=False,
-            persistent_workers=self.persistent_workers if self.num_workers > 0 else False,
-            worker_init_fn=self._worker_init_fn if self.num_workers > 0 else None,
-            multiprocessing_context=self.mp_context,
-            timeout=self.timeout,
+            persistent_workers=False,
+            worker_init_fn=None,
+            multiprocessing_context=None,
+            timeout=0,
         )
-        if self.num_workers > 0 and self.prefetch_factor is not None:
-            _kwargs['prefetch_factor'] = int(self.prefetch_factor)
+        # 移除 prefetch_factor 设置，因为 num_workers=0
+        
         return DataLoader(
             self.val_dataset,
             batch_size=self.val_batch_size,
@@ -806,17 +836,17 @@ class RealDiffusionReactionDataModule(pl.LightningDataModule):
     
     def test_dataloader(self) -> DataLoader:
         """测试数据加载器"""
+        # 强制单进程与CPU内存，确保稳定性
         _kwargs = dict(
-            num_workers=self.num_workers,
+            num_workers=0,
             pin_memory=False,
             drop_last=False,
-            persistent_workers=self.persistent_workers if self.num_workers > 0 else False,
-            worker_init_fn=self._worker_init_fn if self.num_workers > 0 else None,
-            multiprocessing_context=self.mp_context,
-            timeout=self.timeout,
+            persistent_workers=False,
+            worker_init_fn=None,
+            multiprocessing_context=None,
+            timeout=0,
         )
-        if self.num_workers > 0 and self.prefetch_factor is not None:
-            _kwargs['prefetch_factor'] = int(self.prefetch_factor)
+        
         return DataLoader(
             self.test_dataset,
             batch_size=self.test_batch_size,

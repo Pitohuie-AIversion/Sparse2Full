@@ -1,0 +1,164 @@
+# 改进的时序增强训练配置
+# 基于路径A改进：更合理的时序一致性损失 + 动态权重调度
+
+experiment:
+  name: improved_temporal_enhanced_v1
+  description: "改进时序一致性损失：导数一致性 + 能量变化一致性 + 动态权重调度"
+  output_dir: runs/improved_temporal
+  seed: 2025
+
+# 数据配置
+data:
+  dataset_name: PDEBench
+  data_path: ./data/pdebench
+  T_in: 5  # 增加历史信息
+  T_out: 15  # 渐进式增加
+  channels: 2
+  img_size: 128
+  normalize: true
+  batch_size: 4
+  num_workers: 4
+
+# 模型配置
+model:
+  name: SwinTemporalWrapper
+  prediction_mode: hybrid  # 使用混合模式
+  backbone:
+    name: SwinUNet
+    embed_dim: 96
+    depths: [2, 2, 6, 2]
+    num_heads: [3, 6, 12, 24]
+    window_size: 8
+  temporal_encoder:
+    enabled: true
+    type: transformer
+    num_layers: 4
+    num_heads: 8
+    hidden_dim: 256
+  nar_head:
+    enabled: true
+    type: cross_attention
+    num_layers: 3
+
+# 训练配置
+training:
+  epochs: 100
+  learning_rate: 0.0005
+  weight_decay: 0.0001
+  warmup_epochs: 10
+  gradient_clipping: 1.0
+  mixed_precision: true
+  
+  # 改进的时序一致性配置
+  temporal_consistency:
+    enabled: true
+    weight: 0.5  # 基础权重，会被动态调度
+    curriculum_schedule: true  # 启用课程学习权重调度
+    
+  # AR roll-out一致性（可选）
+  ar_rollout_consistency:
+    enabled: true
+    weight: 0.1
+
+# 损失配置
+loss:
+  reconstruction:
+    name: MSELoss
+    weight: 1.0
+  
+  # 改进的时序一致性损失
+  temporal_consistency:
+    name: ImprovedTemporalConsistency
+    weight: 0.5
+    components:
+      derivative_consistency: 0.6      # 主要：变化模式对齐
+      energy_consistency: 0.3        # 辅助：能量演化匹配
+      curvature_consistency: 0.1     # 微调：曲率一致性
+  
+  # 改进的稳定性损失
+  stability:
+    name: ImprovedStability
+    weight: 0.2
+    threshold: 5.0
+    components:
+      divergence_detection: 0.6      # 发散检测
+      oscillation_detection: 0.3     # 震荡检测
+      drift_detection: 0.1          # 长期漂移检测
+  
+  # 频谱损失
+  spectral:
+    name: SpectralLoss
+    weight: 0.3
+    freq_modes: 16
+    freq_weight: low_freq
+  
+  # 数据一致性损失
+  data_consistency:
+    name: DataConsistencyLoss
+    weight: 0.1
+
+# 课程学习配置
+curriculum:
+  enabled: true
+  stages:
+    # 阶段1：建立基础（低时序一致性权重）
+    - epochs: 20
+      T_out: 5
+      mode: nar  # 先用NAR建立基础
+      temporal_consistency_weight: 0.15  # 低权重避免过约束
+      description: "阶段1：建立基础映射，低时序约束"
+      
+    # 阶段2：增加时序约束
+    - epochs: 30
+      T_out: 10
+      mode: hybrid
+      temporal_consistency_weight: 0.35  # 中等权重
+      description: "阶段2：引入时序一致性，混合模式"
+      
+    # 阶段3：强化时序一致性
+    - epochs: 50
+      T_out: 15
+      mode: hybrid
+      temporal_consistency_weight: 0.5  # 高权重
+      description: "阶段3：强化时序一致性，最终目标"
+
+# 验证配置
+validation:
+  enabled: true
+  check_val_every_n_epoch: 5
+  metrics:
+    - mse
+    - mae
+    - rel_l2
+    - psnr
+    - ssim
+    - temporal_mse
+    - long_term_stability
+    - energy_conservation
+
+# 优化器配置
+optimizer:
+  name: AdamW
+  lr: 0.0005
+  weight_decay: 0.0001
+  betas: [0.9, 0.999]
+
+# 学习率调度器
+scheduler:
+  name: CosineAnnealingLR
+  T_max: 100
+  eta_min: 1.0e-06
+  warmup_epochs: 10
+
+# 监控配置
+monitoring:
+  enabled: true
+  log_every_n_steps: 50
+  save_predictions: true
+  save_animations: true
+  animation_fps: 5
+  
+  # 详细损失记录
+  detailed_loss_logging: true
+  log_temporal_components: true
+  log_dynamic_weights: true

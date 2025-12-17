@@ -42,7 +42,7 @@ from .spatial import (
 )
 
 from .temporal import (
-    ARWrapper, SwinTemporal, SwinTemporalNAR, ARNARWrapper,
+    ARWrapper, SwinTemporal, SwinTemporalNAR,
     TemporalEncoder, TemporalBlock, NARPredictionHead,
     SequentialSpatiotemporal, SequentialTrainer, SequentialDCConsistency
 )
@@ -65,7 +65,7 @@ __all__ = [
     "SparseAttentionEncoder", "SparseSwinUNet",
     
     # 时间预测模型
-    "ARWrapper", "SwinTemporal", "SwinTemporalNAR", "ARNARWrapper",
+    "ARWrapper", "SwinTemporal", "SwinTemporalNAR",
     "TemporalEncoder", "TemporalBlock", "NARPredictionHead",
     "SequentialSpatiotemporal", "SequentialTrainer", "SequentialDCConsistency"
 ]
