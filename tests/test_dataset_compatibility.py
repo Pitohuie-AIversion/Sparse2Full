@@ -10,6 +10,15 @@ import h5py
 import torch
 from pathlib import Path
 
+
+if __name__ != "__main__":
+    import pytest
+
+    pytest.skip(
+        "脚本型数据集兼容性检查不作为 pytest 单测执行（依赖本地数据与 auto_generated 配置）。",
+        allow_module_level=True,
+    )
+
 def test_dataset_file(data_path):
     """测试数据集文件的基本信息"""
     print(f"\n=== 测试数据集文件: {data_path} ===")

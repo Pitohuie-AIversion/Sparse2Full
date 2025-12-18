@@ -24,6 +24,15 @@ from train_real_data_ar import RealDataARTrainer
 from utils.logger import setup_logger
 
 
+if __name__ != "__main__":
+    import pytest
+
+    pytest.skip(
+        "脚本型 AR checkpoint 测试不作为 pytest 单测执行（需要本地配置与权重文件）。",
+        allow_module_level=True,
+    )
+
+
 def test_ar_model(config_path: str, checkpoint_path: str, output_dir: str = None):
     """测试AR模型
     

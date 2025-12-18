@@ -46,6 +46,20 @@ class HardwareConfig:
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
 
+    @classmethod
+    def from_dict(cls, config_dict: Dict[str, Any]) -> "HardwareConfig":
+        return cls(
+            cpu_info=dict(config_dict.get("cpu_info", {})),
+            gpu_info=dict(config_dict.get("gpu_info", {})),
+            memory_info=dict(config_dict.get("memory_info", {})),
+            batch_size=int(config_dict.get("batch_size", 32)),
+            num_workers=int(config_dict.get("num_workers", 4)),
+            mixed_precision=bool(config_dict.get("mixed_precision", True)),
+            compile_model=bool(config_dict.get("compile_model", False)),
+            gradient_accumulation_steps=int(config_dict.get("gradient_accumulation_steps", 1)),
+            numa_optimization_level=int(config_dict.get("numa_optimization_level", 1)),
+        )
+
 class HardwareProfiler:
     """
     硬件配置自动检测与优化器
@@ -56,6 +70,129 @@ class HardwareProfiler:
         self.config_path = config_path or "configs/hardware_profile.json"
         self.hardware_config = HardwareConfig()
         self._initialize_hardware_detection()
+
+    @property
+    def cpu_info(self) -> Dict[str, Any]:
+        raw = self.hardware_config.cpu_info or {}
+        logical = int(raw.get("logical_cores") or raw.get("count") or 0)
+        freq = float(raw.get("frequency") or raw.get("freq") or 0.0)
+        numa_nodes = int(raw.get("numa_nodes") or 1)
+        cache_raw = raw.get("l3_cache") or raw.get("cache") or raw.get("cache_size_mb")
+        cache_mb = self._parse_cache_size_mb(cache_raw)
+        return {
+            "count": max(1, logical),
+            "freq": max(0.1, freq),
+            "numa_nodes": max(1, numa_nodes),
+            "cache_size_mb": max(1.0, cache_mb),
+        }
+
+    @property
+    def gpu_info(self) -> Dict[str, Any]:
+        raw = self.hardware_config.gpu_info or {}
+        count = int(raw.get("count") or 0)
+        devices = list(raw.get("devices") or [])
+        if count <= 0 or not raw.get("available", False):
+            return {
+                "count": 0,
+                "memory_gb": 0.0,
+                "cuda_cores": 0,
+                "compute_capability": "0.0",
+            }
+
+        first = devices[0] if devices else {}
+        total_mb = float(first.get("total_memory") or 0.0)
+        memory_gb = total_mb / 1024.0 if total_mb > 0 else 0.0
+        cuda_cores = first.get("cuda_cores")
+        if isinstance(cuda_cores, str):
+            cuda_cores_val = 0
+        else:
+            cuda_cores_val = int(cuda_cores or 0)
+        cc = str(first.get("compute_capability") or "0.0")
+        return {
+            "count": count,
+            "memory_gb": memory_gb,
+            "cuda_cores": cuda_cores_val,
+            "compute_capability": cc,
+        }
+
+    @property
+    def memory_info(self) -> Dict[str, Any]:
+        raw = self.hardware_config.memory_info or {}
+        total_gb = float(raw.get("total") or raw.get("total_gb") or 0.0)
+        available_gb = float(raw.get("available") or raw.get("available_gb") or 0.0)
+        return {
+            "total_gb": max(0.1, total_gb),
+            "available_gb": max(0.0, min(available_gb, total_gb) if total_gb > 0 else available_gb),
+            "numa_aware": bool(self.cpu_info.get("numa_nodes", 1) > 1),
+        }
+
+    def _parse_cache_size_mb(self, cache_val: Any) -> float:
+        if cache_val is None:
+            return 1.0
+        if isinstance(cache_val, (int, float)):
+            return float(cache_val)
+
+        s = str(cache_val).strip().upper()
+        if not s or s == "UNKNOWN":
+            return 1.0
+
+        num = ""
+        for ch in s:
+            if ch.isdigit() or ch == ".":
+                num += ch
+            else:
+                break
+        try:
+            value = float(num) if num else 0.0
+        except ValueError:
+            value = 0.0
+
+        if "GB" in s:
+            return value * 1024.0
+        if "MB" in s:
+            return value
+        if "KB" in s or s.endswith("K"):
+            return value / 1024.0
+        return value if value > 0 else 1.0
+
+    def _calculate_optimal_batch_size(self, memory_gb: float) -> int:
+        if memory_gb <= 0:
+            raise ValueError("memory_gb must be positive")
+        base = int(memory_gb * 8)
+        base = max(1, base)
+        base = min(base, 512)
+        return int((base // 8) * 8) if base >= 8 else base
+
+    def _calculate_optimal_num_workers(self, cpu_cores: int, numa_nodes: int) -> int:
+        if cpu_cores <= 0:
+            raise ValueError("cpu_cores must be positive")
+        if numa_nodes <= 0:
+            raise ValueError("numa_nodes must be positive")
+        suggested = max(1, int(numa_nodes) * 8)
+        return int(min(cpu_cores, suggested))
+
+    def get_hardware_info_string(self) -> str:
+        cpu = self.cpu_info
+        gpu = self.gpu_info
+        mem = self.memory_info
+        return (
+            f"CPU: {cpu['count']} cores @ {cpu['freq']:.1f} MHz | "
+            f"GPU: {gpu['count']} devices | "
+            f"Memory: {mem['total_gb']:.1f} GB"
+        )
+
+    def estimate_training_performance(self, config: HardwareConfig) -> Dict[str, float]:
+        gpu_count = float(self.gpu_info.get("count", 0))
+        bs = float(getattr(config, "batch_size", 1) or 1)
+        factor = 1.0 + max(0.0, gpu_count - 1.0) * 0.8
+        samples_per_second = max(1.0, 50.0 * factor)
+        estimated_epoch_time = max(0.1, 1000.0 / samples_per_second)
+        memory_usage_gb = max(0.1, bs * 0.05)
+        return {
+            "samples_per_second": samples_per_second,
+            "estimated_epoch_time": estimated_epoch_time,
+            "memory_usage_gb": memory_usage_gb,
+        }
     
     def _initialize_hardware_detection(self):
         """初始化硬件检测"""
@@ -166,7 +303,12 @@ class HardwareProfiler:
                     handle = pynvml.nvmlDeviceGetHandleByIndex(i)
                     
                     # 获取设备名称
-                    device_name = pynvml.nvmlDeviceGetName(handle).decode('utf-8')
+                    device_name_raw = pynvml.nvmlDeviceGetName(handle)
+                    device_name = (
+                        device_name_raw.decode("utf-8")
+                        if isinstance(device_name_raw, (bytes, bytearray))
+                        else str(device_name_raw)
+                    )
                     device_info["name"] = device_name
                     
                     # 获取显存信息
@@ -180,7 +322,12 @@ class HardwareProfiler:
                     device_info["compute_capability"] = f"{cuda_capability[0]}.{cuda_capability[1]}"
                     
                     # 获取驱动信息
-                    driver_version = pynvml.nvmlSystemGetDriverVersion().decode('utf-8')
+                    driver_version_raw = pynvml.nvmlSystemGetDriverVersion()
+                    driver_version = (
+                        driver_version_raw.decode("utf-8")
+                        if isinstance(driver_version_raw, (bytes, bytearray))
+                        else str(driver_version_raw)
+                    )
                     device_info["driver_version"] = driver_version
                     
                     # 获取CUDA核心数

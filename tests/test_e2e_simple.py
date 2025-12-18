@@ -22,7 +22,6 @@ from typing import Dict, Any, List
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # 基础导入
-from datasets.darcy_flow_dataset import DarcyFlowDataset
 from models.swin_unet import SwinUNet
 from models.hybrid import HybridModel
 from models.mlp import MLPModel

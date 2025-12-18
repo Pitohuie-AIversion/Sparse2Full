@@ -14,7 +14,6 @@ Date: 2025-01-11
 """
 
 import os
-import sys
 import time
 import socket
 import logging
@@ -39,8 +38,8 @@ def setup_logger(name: str, rank: int = 0) -> logging.Logger:
         if not logger.handlers:
             handler = logging.StreamHandler()
             formatter = logging.Formatter(
-                '[%(asctime)s] [Rank %(rank)d] %(levelname)s: %(message)s',
-                datefmt='%Y-%m-%d %H:%M:%S'
+                f"[%(asctime)s] [Rank {rank}] %(levelname)s: %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S",
             )
             handler.setFormatter(formatter)
             logger.addHandler(handler)
@@ -71,16 +70,34 @@ class DistributedManager:
         self.backend = backend
         self.init_method = init_method
         self.timeout = timeout_minutes * 60
-        
-        # 分布式状态
-        self.is_distributed = False
-        self.rank = 0
-        self.local_rank = 0
-        self.world_size = 1
-        self.device = None
+
+        world_size_env = os.environ.get("WORLD_SIZE")
+        rank_env = os.environ.get("RANK")
+        local_rank_env = os.environ.get("LOCAL_RANK")
+
+        if world_size_env is not None and rank_env is not None:
+            self.world_size = int(world_size_env)
+            self.rank = int(rank_env)
+            self.local_rank = int(local_rank_env) if local_rank_env is not None else 0
+            self.is_distributed = self.world_size > 1
+        else:
+            self.is_distributed = False
+            self.rank = 0
+            self.local_rank = 0
+            self.world_size = 1
+
+        if torch.cuda.is_available():
+            if self.is_distributed:
+                self.device = torch.device(f"cuda:{self.local_rank}")
+            else:
+                self.device = torch.device("cuda:0")
+        else:
+            self.device = torch.device("cpu")
+            if self.is_distributed:
+                self.backend = "gloo"
         
         # 日志记录器
-        self.logger = setup_logger("DistributedManager", 0)  # 初始化时使用rank 0
+        self.logger = setup_logger("DistributedManager", self.rank)
         
         # 性能统计
         self.comm_stats = {
@@ -89,24 +106,23 @@ class DistributedManager:
             'broadcast_time': 0.0,
             'broadcast_count': 0
         }
+
+        self._performance_stats: Dict[str, list[float]] = {}
     
     def setup(self) -> bool:
         """初始化分布式环境"""
         try:
-            # 检查环境变量
-            if 'RANK' in os.environ and 'WORLD_SIZE' in os.environ:
-                self.rank = int(os.environ['RANK'])
-                self.world_size = int(os.environ['WORLD_SIZE'])
-                self.local_rank = int(os.environ.get('LOCAL_RANK', 0))
+            if "RANK" in os.environ and "WORLD_SIZE" in os.environ:
+                self.rank = int(os.environ["RANK"])
+                self.world_size = int(os.environ["WORLD_SIZE"])
+                self.local_rank = int(os.environ.get("LOCAL_RANK", 0))
                 self.is_distributed = self.world_size > 1
             else:
-                print("未检测到分布式环境变量，使用单GPU模式")
                 self.is_distributed = False
                 self.rank = 0
                 self.local_rank = 0
                 self.world_size = 1
-            
-            # 设置设备
+
             if torch.cuda.is_available():
                 if self.is_distributed:
                     torch.cuda.set_device(self.local_rank)
@@ -116,7 +132,7 @@ class DistributedManager:
             else:
                 self.device = torch.device("cpu")
                 if self.is_distributed:
-                    self.backend = "gloo"  # CPU只支持gloo
+                    self.backend = "gloo"
             
             # 更新日志记录器的rank
             self.logger = setup_logger("DistributedManager", self.rank)
@@ -174,6 +190,9 @@ class DistributedManager:
                    find_unused_parameters: bool = False,
                    gradient_as_bucket_view: bool = True) -> nn.Module:
         """包装模型为分布式模型"""
+        if self.device is None:
+            if not self.setup():
+                raise RuntimeError("DistributedManager setup failed")
         model = model.to(self.device)
         
         if self.is_distributed:
@@ -200,6 +219,9 @@ class DistributedManager:
                          drop_last: bool = True,
                          **kwargs) -> Tuple[DataLoader, Optional[DistributedSampler]]:
         """创建分布式数据加载器"""
+        if self.device is None:
+            if not self.setup():
+                raise RuntimeError("DistributedManager setup failed")
         sampler = None
         
         if self.is_distributed:
@@ -394,6 +416,26 @@ class DistributedManager:
         """获取当前排名"""
         return self.rank
 
+    def log_performance(self, key: str, value: float) -> None:
+        values = self._performance_stats.setdefault(key, [])
+        values.append(float(value))
+
+    def get_performance_stats(self) -> Dict[str, Dict[str, float]]:
+        out: Dict[str, Dict[str, float]] = {}
+        for key, values in self._performance_stats.items():
+            if not values:
+                continue
+            count = float(len(values))
+            total = float(sum(values))
+            out[key] = {
+                "count": count,
+                "sum": total,
+                "avg": total / count,
+                "min": float(min(values)),
+                "max": float(max(values)),
+            }
+        return out
+
 
 def get_world_size() -> int:
     """获取世界大小（全局函数）"""
@@ -407,6 +449,47 @@ def get_rank() -> int:
     if dist.is_available() and dist.is_initialized():
         return dist.get_rank()
     return 0
+
+
+def create_distributed_dataloader(
+    dataset: Any,
+    batch_size: int,
+    shuffle: bool = True,
+    num_workers: int = 0,
+    pin_memory: bool = True,
+    drop_last: bool = False,
+    **kwargs: Any,
+) -> DataLoader:
+    world_size = get_world_size()
+    if world_size <= 1:
+        return DataLoader(
+            dataset,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            num_workers=num_workers,
+            pin_memory=pin_memory and torch.cuda.is_available(),
+            drop_last=drop_last,
+            **kwargs,
+        )
+
+    from torch.utils.data.distributed import DistributedSampler as TorchDistributedSampler
+
+    sampler = TorchDistributedSampler(
+        dataset,
+        num_replicas=world_size,
+        rank=get_rank(),
+        shuffle=shuffle,
+    )
+    return DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        sampler=sampler,
+        num_workers=num_workers,
+        pin_memory=pin_memory and torch.cuda.is_available(),
+        drop_last=drop_last,
+        **kwargs,
+    )
 
 
 def find_free_port() -> int:

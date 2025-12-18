@@ -4783,6 +4783,7 @@ class RealDataARTrainer:
                         observation_seq = None
                         pred_obs_seq = None
 
+                    obs_data = None
                     obs_last = None
                     if observation_seq is not None:
                         if observation_seq.dim() == 5:
@@ -4790,7 +4791,6 @@ class RealDataARTrainer:
                         elif observation_seq.dim() == 4:
                             obs_last = observation_seq
 
-                        # Baseline 必须等于 H(gt)
                         baseline_seq = observation_seq
                         baseline_last = obs_last
 
@@ -4805,56 +4805,42 @@ class RealDataARTrainer:
                             'h_params': self.h_params
                         }
 
-                        # 首次batch打印形状 (Test)
-                        if batch_idx == 0:
-                            self.logger.info("🔍 First Batch Shapes (Test):")
-                            self.logger.info(f"  GT (Target): {target_seq.shape}")
-                            if pred_seq is not None:
-                                self.logger.info(f"  Pred: {pred_seq.shape}")
-                            if obs_last is not None:
-                                self.logger.info(f"  Obs (Last): {obs_last.shape}")
+                    if batch_idx == 0:
+                        self.logger.info("🔍 First Batch Shapes (Test):")
+                        self.logger.info(f"  GT (Target): {target_seq.shape}")
+                        if pred_seq is not None:
+                            self.logger.info(f"  Pred: {pred_seq.shape}")
+                        if obs_last is not None:
+                            self.logger.info(f"  Obs (Last): {obs_last.shape}")
+                        else:
+                            self.logger.info("  Obs (Last): None")
+                        if pred_obs_seq is not None:
+                            self.logger.info(f"  Pred Obs: {pred_obs_seq.shape}")
+
+                    try:
+                        image_size = target_seq.shape[-2:]
+                        batch_metrics_dict = compute_all_metrics(
+                            pred_seq, target_seq,
+                            obs_data=obs_data,
+                            norm_stats=self.norm_stats,
+                            image_size=image_size,
+                            include_freq_metrics=True
+                        )
+
+                        batch_metrics = {}
+                        for k, v in batch_metrics_dict.items():
+                            if isinstance(v, torch.Tensor):
+                                batch_metrics[k] = float(v.mean().item())
                             else:
-                                self.logger.info("  Obs (Last): None")
-                            if pred_obs_seq is not None:
-                                self.logger.info(f"  Pred Obs: {pred_obs_seq.shape}")
+                                batch_metrics[k] = float(v)
+                        batch_metrics['rel_l2_domain'] = 'zscore'
 
-                        dr = float((target_seq.max() - target_seq.min()).detach().cpu().item())
-                        if dr <= 0:
-                            dr = 1.0
+                    except Exception as e:
+                        self.logger.error(f"compute_all_metrics failed in test. Pred shape: {pred_seq.shape}, Target shape: {target_seq.shape}")
+                        self.logger.error(f"Error details: {e}")
+                        raise e
 
-                        try:
-                            # Use compute_all_metrics from utils.metrics
-                            # Note: compute_all_metrics signature: (pred, target, obs_data=None, norm_stats=None, image_size=(256, 256), include_freq_metrics=True)
-                            image_size = target_seq.shape[-2:]
-                            batch_metrics_dict = compute_all_metrics(
-                                pred_seq, target_seq,
-                                obs_data=obs_data,
-                                norm_stats=self.norm_stats,
-                                image_size=image_size,
-                                include_freq_metrics=True
-                            )
-
-                            # Convert dict values to float
-                            batch_metrics = {}
-                            for k, v in batch_metrics_dict.items():
-                                if isinstance(v, torch.Tensor):
-                                    batch_metrics[k] = float(v.mean().item())
-                                else:
-                                    batch_metrics[k] = float(v)
-
-                            # Add domain info
-                            if hasattr(self, 'norm_stats') and (self.norm_stats is not None):
-                                batch_metrics['rel_l2_domain'] = 'zscore' # utils.metrics usually works on provided tensors
-                            else:
-                                batch_metrics['rel_l2_domain'] = 'zscore'
-
-                        except Exception as e:
-                            # Fallback if compute_all_metrics fails
-                            self.logger.error(f"compute_all_metrics failed in test. Pred shape: {pred_seq.shape}, Target shape: {target_seq.shape}")
-                            self.logger.error(f"Error details: {e}")
-                            raise e
-
-                        all_metrics.append(batch_metrics)
+                    all_metrics.append(batch_metrics)
                 except Exception as metrics_error:
                     self.logger.error(f"指标计算失败 batch {batch_idx}: {metrics_error}")
                     raise metrics_error

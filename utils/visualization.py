@@ -344,7 +344,10 @@ class PDEBenchVisualizer:
         save_name: str = "field_comparison",
         channel: int = 0,
     ) -> str:
-        """绘制场对比图（GT/Pred/可选Degraded）。"""
+        legacy_save_root = isinstance(degraded, (str, Path)) and save_name == "field_comparison"
+        if legacy_save_root:
+            save_name = str(degraded)
+            degraded = None
         gt_np = self._tensor_to_numpy(gt, channel)
         pred_np = self._tensor_to_numpy(pred, channel)
         vmin = float(min(gt_np.min(), pred_np.min()))
@@ -374,7 +377,8 @@ class PDEBenchVisualizer:
         ax_pred.axis("off")
         plt.colorbar(im2, ax=ax_pred, fraction=0.046, pad=0.04)
 
-        return self._save_fig(fig, self.fields_dir, save_name)
+        target_dir = self.save_dir if legacy_save_root else self.fields_dir
+        return self._save_fig(fig, target_dir, save_name)
 
     def create_quadruplet_visualization(
         self,

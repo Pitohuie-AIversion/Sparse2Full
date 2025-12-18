@@ -1,15 +1,31 @@
-2025-12-17 20:23:12 [   DEBUG] __init__.py:47: Creating converter from 7 to 5
-2025-12-17 20:23:12 [   DEBUG] __init__.py:47: Creating converter from 5 to 7
-2025-12-17 20:23:12 [   DEBUG] __init__.py:47: Creating converter from 7 to 5
-2025-12-17 20:23:12 [   DEBUG] __init__.py:47: Creating converter from 5 to 7
-2025-12-17 20:23:12 [   DEBUG] __init__.py:337: matplotlib data path: /share/fandixiaLab/suguangsheng/anaconda3/lib/python3.12/site-packages/matplotlib/mpl-data
-2025-12-17 20:23:12 [   DEBUG] __init__.py:337: CONFIGDIR=/share/fandixiaLab/suguangsheng/.config/matplotlib
-2025-12-17 20:23:12 [   DEBUG] __init__.py:1498: interactive is False
-2025-12-17 20:23:12 [   DEBUG] __init__.py:1499: platform is linux
-2025-12-17 20:23:12 [   DEBUG] __init__.py:337: CACHEDIR=/share/fandixiaLab/suguangsheng/.cache/matplotlib
-2025-12-17 20:23:12 [   DEBUG] font_manager.py:1574: Using fontManager instance from /share/fandixiaLab/suguangsheng/.cache/matplotlib/fontlist-v330.json
-2025-12-17 20:23:13 [    INFO] utils.py:145: Note: detected 192 virtual cores but NumExpr set to maximum of 64, check "NUMEXPR_MAX_THREADS" environment variable.
-2025-12-17 20:23:13 [    INFO] utils.py:148: Note: NumExpr detected 192 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
-2025-12-17 20:23:13 [    INFO] utils.py:160: NumExpr defaulting to 8 threads.
-2025-12-17 20:23:15 [   DEBUG] cmd.py:977: Popen(['git', 'version'], cwd=/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full, universal_newlines=False, shell=None, istream=None)
-2025-12-17 20:23:15 [   DEBUG] cmd.py:977: Popen(['git', 'version'], cwd=/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full, universal_newlines=False, shell=None, istream=None)
+2025-12-18 08:10:00 [   DEBUG] __init__.py:47: Creating converter from 7 to 5
+2025-12-18 08:10:00 [   DEBUG] __init__.py:47: Creating converter from 5 to 7
+2025-12-18 08:10:00 [   DEBUG] __init__.py:47: Creating converter from 7 to 5
+2025-12-18 08:10:00 [   DEBUG] __init__.py:47: Creating converter from 5 to 7
+2025-12-18 08:10:00 [    INFO] swin_temporal_nar.py:134: PatchEmbedding初始化: img_size=32, patch_size=4, patches=64, embed_dim=64
+2025-12-18 08:10:00 [    INFO] temporal_transformer.py:47: 正弦时间编码初始化完成，维度: 512
+2025-12-18 08:10:00 [    INFO] temporal_transformer.py:308: 时间多头注意力初始化完成，头数: 8, 维度: 512
+2025-12-18 08:10:00 [    INFO] temporal_transformer.py:466: 时间Transformer层初始化完成，维度: 512
+2025-12-18 08:10:00 [    INFO] temporal_transformer.py:47: 正弦时间编码初始化完成，维度: 512
+2025-12-18 08:10:00 [    INFO] temporal_transformer.py:308: 时间多头注意力初始化完成，头数: 8, 维度: 512
+2025-12-18 08:10:00 [    INFO] temporal_transformer.py:466: 时间Transformer层初始化完成，维度: 512
+2025-12-18 08:10:00 [    INFO] temporal_transformer.py:413: 时间编码Transformer编码器初始化完成，层数: 2, 维度: 512
+2025-12-18 08:10:00 [    INFO] temporal_transformer.py:502: 时间编码Transformer包装器初始化完成
+2025-12-18 08:10:00 [    INFO] swin_temporal_nar.py:193: WindowAttention初始化: dim=64, window_size=7, num_heads=4
+2025-12-18 08:10:00 [    INFO] swin_temporal_nar.py:289: SwinTransformerBlock初始化: dim=64, num_heads=4, window_size=7, shift_size=0
+2025-12-18 08:10:00 [    INFO] swin_temporal_nar.py:441: TemporalSwinBlock初始化: dim=64, num_heads=4, window_size=7, temporal_dim=512
+2025-12-18 08:10:00 [    INFO] swin_temporal_nar.py:193: WindowAttention初始化: dim=64, window_size=7, num_heads=4
+2025-12-18 08:10:00 [    INFO] swin_temporal_nar.py:289: SwinTransformerBlock初始化: dim=64, num_heads=4, window_size=7, shift_size=3
+2025-12-18 08:10:00 [    INFO] swin_temporal_nar.py:441: TemporalSwinBlock初始化: dim=64, num_heads=4, window_size=7, temporal_dim=512
+2025-12-18 08:10:00 [    INFO] swin_temporal_nar.py:380: PatchMerging初始化: dim=64
+2025-12-18 08:10:00 [    INFO] swin_temporal_nar.py:505: SwinTemporalStage初始化: dim=64, depth=2, num_heads=4
+2025-12-18 08:10:00 [    INFO] swin_temporal_nar.py:193: WindowAttention初始化: dim=128, window_size=7, num_heads=4
+2025-12-18 08:10:00 [    INFO] swin_temporal_nar.py:289: SwinTransformerBlock初始化: dim=128, num_heads=4, window_size=7, shift_size=0
+2025-12-18 08:10:00 [    INFO] swin_temporal_nar.py:441: TemporalSwinBlock初始化: dim=128, num_heads=4, window_size=7, temporal_dim=512
+2025-12-18 08:10:00 [    INFO] swin_temporal_nar.py:193: WindowAttention初始化: dim=128, window_size=7, num_heads=4
+2025-12-18 08:10:00 [    INFO] swin_temporal_nar.py:289: SwinTransformerBlock初始化: dim=128, num_heads=4, window_size=7, shift_size=3
+2025-12-18 08:10:00 [    INFO] swin_temporal_nar.py:441: TemporalSwinBlock初始化: dim=128, num_heads=4, window_size=7, temporal_dim=512
+2025-12-18 08:10:00 [    INFO] swin_temporal_nar.py:505: SwinTemporalStage初始化: dim=128, depth=2, num_heads=4
+2025-12-18 08:10:00 [    INFO] swin_temporal_nar.py:580: SwinTemporalEncoder初始化完成，阶段数: 2
+2025-12-18 08:10:00 [    INFO] swin_temporal_nar.py:685: TemporalNARHead初始化: 输入维度=128, 预测类型=direct
+2025-12-18 08:10:00 [    INFO] swin_temporal_nar.py:782: SwinTemporalNAR模型初始化完成: img_size=32, embed_dim=64, future_steps=3

@@ -166,62 +166,46 @@ class ARWrapper(nn.Module):
         # 截取前 model_in_ch 个通道作为模型输入
         return x_packed[:, :model_in_ch, :, :]
 
-    def forward(
-        self,
-        x_in: torch.Tensor,
-        T_out: Optional[int] = None,
-        teacher: Optional[torch.Tensor] = None,
-        train_mode: Optional[bool] = None,
-        **kwargs
-    ) -> torch.Tensor:
-        """前向传播 - 兼容统一单帧接口与AR序列接口
+    def __call__(self, x: torch.Tensor, *args: Any, **kwargs: Any):
+        if args:
+            return super().__call__(x, *args, **kwargs)
 
-        支持两种输入：
-        - 单帧空间预测：`x_in[B,C,H,W]` → `y[B,C,H,W]`
-        - 序列自回归预测：`x_in[B,T_in,C,H,W]`, 可选 `teacher[B,T_out,C,H,W]`
+        if any(k in kwargs for k in ("T_out", "teacher", "train_mode")):
+            T_out = kwargs.pop("T_out", None)
+            teacher = kwargs.pop("teacher", None)
+            train_mode = kwargs.pop("train_mode", self.training)
 
-        Args:
-            x_in: 输入张量，4D(单帧)或5D(序列)
-            T_out: 输出时间步数（序列模式下可选）
-            teacher: 教师序列（训练时可选）
-            train_mode: 显式训练/推理标志；缺省根据 `self.training`
-            **kwargs: 兼容额外参数
+            x_seq = x
+            if isinstance(x, torch.Tensor) and x.dim() == 4:
+                x_seq = x.unsqueeze(1)
 
-        Returns:
-            单帧或序列预测张量
-        """
-        # 判别输入维度：4D→单帧，5D→序列
-        if x_in.dim() == 4:
-            # 统一单帧接口
-            model_in_ch = getattr(self.m, 'in_channels', None) or getattr(self.m, 'in_ch', None)
-            if model_in_ch is not None and x_in.size(1) > model_in_ch:
-                x_in = self._unpack_input(x_in)
-            return self.m(x_in)
-        elif x_in.dim() == 5:
-            # 序列模式：确定T_out
             if T_out is None:
-                if teacher is not None and teacher.dim() == 5:
+                if teacher is not None and isinstance(teacher, torch.Tensor) and teacher.dim() == 5:
                     T_out = int(teacher.size(1))
                 elif self.T_out is not None:
                     T_out = int(self.T_out)
-                else:
-                    raise ValueError("ARWrapper.forward requires T_out for sequence input when no teacher is provided")
 
-            # 训练/推理标志
-            if train_mode is None:
-                train_mode = bool(self.training)
+            if T_out is None:
+                raise ValueError("T_out is required for temporal prediction")
 
             return self.autoregressive_predict(
-                x_seq=x_in,
-                T_out=T_out,
+                x_seq=x_seq,
+                T_out=int(T_out),
                 teacher=teacher,
-                train_mode=train_mode,
-                **kwargs
+                train_mode=bool(train_mode),
+                **kwargs,
             )
-        else:
-            raise ValueError(
-                f"Unsupported input rank {x_in.dim()}. Expected 4D [B,C,H,W] or 5D [B,T_in,C,H,W]."
-            )
+
+        return super().__call__(x)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if x.dim() != 4:
+            raise ValueError("Unified interface requires 4D input")
+
+        model_in_ch = getattr(self.m, "in_channels", None) or getattr(self.m, "in_ch", None)
+        if model_in_ch is not None and x.size(1) > model_in_ch:
+            x = self._unpack_input(x)
+        return self.m(x)
 
     def autoregressive_predict(
         self,

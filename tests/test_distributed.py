@@ -27,7 +27,7 @@ from pathlib import Path
 # 添加项目根目录到路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from utils.distributed import DistributedManager
+from utils.distributed import DistributedManager, create_distributed_dataloader
 
 
 class SimpleModel(nn.Module):
@@ -129,7 +129,7 @@ class TestDistributedManager:
         assert manager.rank == 0
         assert manager.local_rank == 0
         assert manager.is_distributed == False
-        assert manager.device is None  # 在setup之前设备为None
+        assert manager.device is not None
         
         # 测试setup
         success = manager.setup()
@@ -228,7 +228,7 @@ def test_distributed_training_simulation():
     model = manager.wrap_model(model)
     
     # 创建数据加载器
-    dataloader = manager.create_dataloader(dataset, batch_size=8, shuffle=True)
+    dataloader, _ = manager.create_dataloader(dataset, batch_size=8, shuffle=True)
     
     # 创建优化器
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)

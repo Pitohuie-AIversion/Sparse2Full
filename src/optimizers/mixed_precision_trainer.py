@@ -28,6 +28,10 @@ class MixedPrecisionConfig:
     enabled: bool = True
     dtype: torch.dtype = torch.float16
     loss_scale: Optional[float] = None
+    init_scale: Optional[float] = None
+    growth_factor: float = 2.0
+    backoff_factor: float = 0.5
+    growth_interval: Optional[int] = None
     loss_scale_window: int = 1000
     min_loss_scale: float = 1.0
     max_loss_scale: float = 2**24
@@ -37,6 +41,10 @@ class MixedPrecisionConfig:
     clip_grad_norm: Optional[float] = None
     optimize_for_tensor_cores: bool = True
     memory_efficient: bool = True
+
+    def __post_init__(self) -> None:
+        if self.growth_interval is not None:
+            self.loss_scale_window = int(self.growth_interval)
     
 class MixedPrecisionTrainer:
     """
@@ -44,9 +52,18 @@ class MixedPrecisionTrainer:
     实现自动混合精度训练，支持Tensor Core优化和动态损失缩放
     """
     
-    def __init__(self, config: MixedPrecisionConfig, 
-                 gpu_optimizer: Optional[GPUOptimizer] = None):
-        self.config = config
+    def __init__(
+        self,
+        model_or_config: Union[nn.Module, MixedPrecisionConfig],
+        config: Optional[MixedPrecisionConfig] = None,
+        gpu_optimizer: Optional[GPUOptimizer] = None,
+    ):
+        if isinstance(model_or_config, MixedPrecisionConfig):
+            self.model = None
+            self.config = model_or_config
+        else:
+            self.model = model_or_config
+            self.config = config or MixedPrecisionConfig()
         self.gpu_optimizer = gpu_optimizer or GPUOptimizer()
         self.scaler = None
         self._initialized = False
@@ -67,10 +84,15 @@ class MixedPrecisionTrainer:
             if self.config.enabled:
                 if self.config.dynamic_loss_scale:
                     # 动态损失缩放
+                    init_scale = self.config.init_scale
+                    if init_scale is None:
+                        init_scale = self.config.loss_scale
+                    if init_scale is None:
+                        init_scale = float(2**16)
                     self.scaler = GradScaler(
-                        init_scale=self.config.loss_scale or 2**16,
-                        growth_factor=2.0,
-                        backoff_factor=0.5,
+                        init_scale=init_scale,
+                        growth_factor=float(self.config.growth_factor),
+                        backoff_factor=float(self.config.backoff_factor),
                         growth_interval=self.config.loss_scale_window,
                         enabled=self.config.enabled
                     )
@@ -109,13 +131,9 @@ class MixedPrecisionTrainer:
         if not self.config.enabled:
             yield
             return
-        
-        try:
-            target_dtype = dtype or self.config.dtype
-            with autocast(dtype=target_dtype):
-                yield
-        except Exception as e:
-            logger.error(f"自动混合精度上下文失败: {e}")
+
+        target_dtype = dtype or self.config.dtype
+        with autocast(dtype=target_dtype):
             yield
     
     def scale_loss(self, loss: torch.Tensor) -> torch.Tensor:

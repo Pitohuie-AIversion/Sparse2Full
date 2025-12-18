@@ -314,20 +314,31 @@ class SwinTransformerBlock(nn.Module):
         else:
             shifted_x = x
         
-        # 窗口分割
+        pad_h = (self.window_size - H % self.window_size) % self.window_size
+        pad_w = (self.window_size - W % self.window_size) % self.window_size
+        if pad_h > 0 or pad_w > 0:
+            shifted_x = shifted_x.permute(0, 3, 1, 2)
+            shifted_x = F.pad(shifted_x, (0, pad_w, 0, pad_h))
+            shifted_x = shifted_x.permute(0, 2, 3, 1)
+
+        Hp = H + pad_h
+        Wp = W + pad_w
+
         x_windows = self._window_partition(shifted_x, self.window_size)
         
         # 窗口注意力
         attention_windows = self.attention(x_windows)
         
-        # 窗口合并
-        shifted_x = self._window_reverse(attention_windows, self.window_size, H, W)
+        shifted_x = self._window_reverse(attention_windows, self.window_size, Hp, Wp, B)
         
         # 循环移位恢复
         if self.shift_size > 0:
             x = torch.roll(shifted_x, shifts=(self.shift_size, self.shift_size), dims=(1, 2))
         else:
             x = shifted_x
+
+        if pad_h > 0 or pad_w > 0:
+            x = x[:, :H, :W, :].contiguous()
         
         x = x.view(B, H * W, C)
         
@@ -346,9 +357,10 @@ class SwinTransformerBlock(nn.Module):
         windows = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, window_size, window_size, C)
         return windows.view(-1, window_size * window_size, C)
     
-    def _window_reverse(self, windows: torch.Tensor, window_size: int, H: int, W: int) -> torch.Tensor:
+    def _window_reverse(
+        self, windows: torch.Tensor, window_size: int, H: int, W: int, B: int
+    ) -> torch.Tensor:
         """窗口合并"""
-        B = int(windows.shape[0] / (H * W / window_size / window_size))
         x = windows.view(B, H // window_size, W // window_size, window_size, window_size, -1)
         x = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(B, H, W, -1)
         return x
@@ -511,7 +523,8 @@ class SwinTemporalStage(nn.Module):
             x = block(x, H, W, temporal_features)
         
         # 下采样
-        x, H, W = self.downsample(x, H, W)
+        if isinstance(self.downsample, PatchMerging):
+            x, H, W = self.downsample(x, H, W)
         
         return x, H, W
 

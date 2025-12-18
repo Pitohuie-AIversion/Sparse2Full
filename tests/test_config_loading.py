@@ -12,6 +12,15 @@ from pathlib import Path
 from omegaconf import DictConfig, OmegaConf
 from typing import Dict, Any
 
+
+if __name__ != "__main__":
+    import pytest
+
+    pytest.skip(
+        "脚本型配置加载检查不作为 pytest 单测执行（需要本地 auto_generated 配置与数据）。",
+        allow_module_level=True,
+    )
+
 # 添加项目根目录到路径
 sys.path.append(str(Path(__file__).parent))
 

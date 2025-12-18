@@ -16,18 +16,23 @@ def _validate_boundary(boundary: str) -> str:
     return boundary
 
 
-def _create_gaussian_kernel(sigma: float, kernel_size: int, device: Optional[torch.device] = None) -> torch.Tensor:
+def _create_gaussian_kernel(
+    sigma: float,
+    kernel_size: int,
+    device: Optional[torch.device] = None,
+    dtype: torch.dtype = torch.float32,
+) -> torch.Tensor:
     """创建二维高斯核，归一化为和为1。
 
     当 sigma <= 0 或 kernel_size <= 1 时，返回单位核。
     """
     if kernel_size <= 1 or sigma <= 0:
-        k = torch.zeros((1, 1, 1, 1), device=device, dtype=torch.float32)
+        k = torch.zeros((1, 1, 1, 1), device=device, dtype=dtype)
         k[..., 0, 0] = 1.0
         return k
 
     half = (kernel_size - 1) / 2.0
-    x = torch.linspace(-half, half, steps=kernel_size, device=device, dtype=torch.float32)
+    x = torch.linspace(-half, half, steps=kernel_size, device=device, dtype=dtype)
     g1 = torch.exp(-(x ** 2) / (2.0 * sigma ** 2))
     g1 = g1 / g1.sum()
     g2 = g1[:, None] * g1[None, :]
@@ -92,7 +97,7 @@ def _gaussian_blur(x: torch.Tensor, sigma: float, kernel_size: int, boundary: st
     x_pad = F.pad(x, (pad, pad, pad, pad), mode=mode)
 
     # 构造核并进行组卷积
-    kernel = _create_gaussian_kernel(sigma, kernel_size, device=x.device)
+    kernel = _create_gaussian_kernel(sigma, kernel_size, device=x.device, dtype=x.dtype)
     weight = kernel.repeat(c, 1, 1, 1)  # [C,1,k,k]
     y = F.conv2d(x_pad, weight, bias=None, stride=1, padding=0, groups=c)
     return y
@@ -118,7 +123,7 @@ def _apply_sr_degradation(x: torch.Tensor, params: Dict) -> torch.Tensor:
                     return float(val)
         return float(val) if isinstance(val, (int, float)) else default
     
-    scale = int(_extract_scalar(params.get("scale"), 1))
+    scale = int(_extract_scalar(params.get("scale", params.get("scale_factor")), 1))
     sigma = float(_extract_scalar(params.get("sigma"), 0.0))
     kernel_size = int(_extract_scalar(params.get("kernel_size"), 1))
     def _extract_boundary(val, default="mirror"):
@@ -138,7 +143,20 @@ def _apply_sr_degradation(x: torch.Tensor, params: Dict) -> torch.Tensor:
     # INTER_AREA 下采样（仅支持下采样）
     target_h = y.shape[-2] // scale
     target_w = y.shape[-1] // scale
-    y_ds = F.interpolate(y, size=(target_h, target_w), mode="area")
+    downsample_mode = str(
+        params.get(
+            "downsample_interpolation",
+            params.get("interpolation", params.get("downsample_mode", "area")),
+        )
+    ).lower()
+    if downsample_mode in {"inter_area", "area"}:
+        y_ds = F.interpolate(y, size=(target_h, target_w), mode="area")
+    elif downsample_mode in {"nearest"}:
+        y_ds = F.interpolate(y, size=(target_h, target_w), mode="nearest")
+    elif downsample_mode in {"bilinear", "bicubic"}:
+        y_ds = F.interpolate(y, size=(target_h, target_w), mode=downsample_mode, align_corners=False)
+    else:
+        y_ds = F.interpolate(y, size=(target_h, target_w), mode="area")
     return y_ds
 
 
@@ -168,13 +186,27 @@ def _apply_crop_degradation(x: torch.Tensor, params: Dict) -> torch.Tensor:
         if isinstance(val, (list, tuple)):
             return str(val[0]) if len(val) > 0 else default
         return str(val)
-    boundary = _validate_boundary(_extract_boundary(params.get("boundary", "mirror")))
+    boundary = _validate_boundary(_extract_boundary(params.get("boundary", params.get("boundary_mode", "mirror"))))
     crop_size = params.get("crop_size")
     if crop_size is None:
-        raise ValueError("Crop task requires 'crop_size' in params")
-    
-    target_h = int(_extract_scalar(crop_size[0], 0))
-    target_w = int(_extract_scalar(crop_size[1], 0))
+        crop_ratio = params.get("crop_ratio")
+        if crop_ratio is not None:
+            ratio = float(_extract_scalar(crop_ratio, 1.0))
+            b, c, h, w = x.shape
+            target_h = max(1, int(h * ratio))
+            target_w = max(1, int(w * ratio))
+        else:
+            crop_h = params.get("crop_h")
+            crop_w = params.get("crop_w")
+            if crop_h is None or crop_w is None:
+                raise ValueError("Crop task requires 'crop_size' or 'crop_ratio' in params")
+            target_h = int(_extract_scalar(crop_h, 0))
+            target_w = int(_extract_scalar(crop_w, 0))
+    else:
+        target_h = int(_extract_scalar(crop_size[0], 0))
+        target_w = int(_extract_scalar(crop_size[1], 0))
+
+    crop_mode = str(params.get("crop_mode", "topleft")).lower()
 
     crop_box = params.get("crop_box")
     if crop_box is not None:
@@ -186,9 +218,18 @@ def _apply_crop_degradation(x: torch.Tensor, params: Dict) -> torch.Tensor:
         sliced = x[:, :, y1:y2, x1:x2]
         return _pad_to_size(sliced, target_h, target_w, boundary)
 
-    # 未指定框：若目标更小，取左上角；若更大，进行对称填充使原图居中
     b, c, h, w = x.shape
     if target_h <= h and target_w <= w:
+        if crop_mode == "center":
+            hs = (h - target_h) // 2
+            ws = (w - target_w) // 2
+            return x[:, :, hs : hs + target_h, ws : ws + target_w]
+        if crop_mode == "random":
+            hs_max = max(h - target_h, 0)
+            ws_max = max(w - target_w, 0)
+            hs = int(torch.randint(0, hs_max + 1, (1,), device=x.device).item()) if hs_max > 0 else 0
+            ws = int(torch.randint(0, ws_max + 1, (1,), device=x.device).item()) if ws_max > 0 else 0
+            return x[:, :, hs : hs + target_h, ws : ws + target_w]
         return x[:, :, :target_h, :target_w]
 
     return _pad_to_size(x, target_h, target_w, boundary)
@@ -200,6 +241,20 @@ def apply_degradation_operator(x: torch.Tensor, params: Dict) -> torch.Tensor:
     eff_params = params
     if "h_params" in params and isinstance(params["h_params"], dict):
         eff_params = params["h_params"]
+
+    eff_params = dict(eff_params)
+    if "scale" not in eff_params and "scale_factor" in eff_params:
+        eff_params["scale"] = eff_params["scale_factor"]
+    if "boundary" not in eff_params and "boundary_mode" in eff_params:
+        eff_params["boundary"] = eff_params["boundary_mode"]
+    if "boundary" in eff_params:
+        b = str(eff_params["boundary"]).lower()
+        if b in {"reflect", "reflection", "mirror"}:
+            eff_params["boundary"] = "mirror"
+        elif b in {"zero", "constant"}:
+            eff_params["boundary"] = "zero"
+        elif b in {"wrap", "circular"}:
+            eff_params["boundary"] = "wrap"
     
     # 2. 获取任务类型
     task = eff_params.get("task", "")

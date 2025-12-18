@@ -1,66 +1,67 @@
 #!/usr/bin/env python3
 """测试数据模块调试脚本"""
 
-import sys
-sys.path.append('.')
+import pytest
+from omegaconf import DictConfig
 
-from datasets.real_dr_dataset import RealDiffusionReactionDataModule
+try:
+    from datasets.real_diffusion_reaction_dataset import RealDiffusionReactionDataModule
+except Exception:
+    RealDiffusionReactionDataModule = None
 
-def test_data_module():
-    """测试数据模块"""
-    print('🧪 测试数据模块...')
-    
-    try:
-        # 导入测试
-        print('✅ 数据模块导入成功')
-        
-        # 初始化测试
-        data_module = RealDiffusionReactionDataModule(
-            data_path='E:/2D/diffusion-reaction/2D_diff-react_NA_NA.h5',
-            T_in=5,
-            T_out=20,
-            batch_size=1,
-            num_workers=0,
-            pin_memory=False,
-            persistent_workers=False
-        )
-        print('✅ 数据模块初始化成功')
-        
-        # Setup测试
-        data_module.setup()
-        print('✅ 数据模块setup成功')
-        
-        # 数据加载器测试
-        train_loader = data_module.train_dataloader()
-        print(f'✅ 训练数据加载器创建成功，批次数: {len(train_loader)}')
-        
-        val_loader = data_module.val_dataloader()
-        print(f'✅ 验证数据加载器创建成功，批次数: {len(val_loader)}')
-        
-        # 批次数据测试
-        batch = next(iter(train_loader))
-        print('✅ 成功获取批次数据')
-        print(f'  - 输入序列形状: {batch["input_sequence"].shape}')
-        print(f'  - 目标序列形状: {batch["target_sequence"].shape}')
-        print(f'  - 样本索引: {batch["sample_idx"]}')
-        print(f'  - 起始时间: {batch["start_time"]}')
-        
-        # 数据统计
-        input_seq = batch["input_sequence"]
-        target_seq = batch["target_sequence"]
-        print(f'  - 输入数据范围: [{input_seq.min():.4f}, {input_seq.max():.4f}]')
-        print(f'  - 目标数据范围: [{target_seq.min():.4f}, {target_seq.max():.4f}]')
-        print(f'  - 输入数据均值: {input_seq.mean():.4f}')
-        print(f'  - 目标数据均值: {target_seq.mean():.4f}')
-        
-        print('🎉 数据模块测试完全成功！')
-        return True
-        
-    except Exception as e:
-        print(f'❌ 数据模块测试失败: {e}')
-        import traceback
-        traceback.print_exc()
-        return False
 
-if __name__ == "__main__":
-    test_data_module()
+def test_data_module(data_path_resolver):
+    preferred_paths = [
+        "2D/diffusion-reaction/2D_diff-react_NA_NA.h5",
+        "diffusion-reaction/2D_diff-react_NA_NA.h5",
+        "DR2D/2D_diff-react_NA_NA.h5",
+    ]
+    data_path = data_path_resolver.resolve(preferred_paths)
+    if not data_path:
+        pytest.skip("缺少 Diffusion-Reaction 数据集（设置 PDEBENCH_DATA_ROOT 或 PDEBENCH_DATA_PATH）")
+
+    if RealDiffusionReactionDataModule is None:
+        pytest.skip("缺少 datasets.real_diffusion_reaction_dataset 模块")
+
+    config = DictConfig(
+        {
+            "data": {
+                "data_path": data_path,
+                "T_in": 1,
+                "T_out": 2,
+                "train_ratio": 0.7,
+                "val_ratio": 0.15,
+                "test_ratio": 0.15,
+                "time_step_start": 0,
+                "time_step_end": 50,
+                "time_step_stride": 1,
+                "normalize": True,
+                "normalize_sample_size": 8,
+                "dataloader": {
+                    "batch_size": 1,
+                    "num_workers": 0,
+                    "pin_memory": False,
+                    "persistent_workers": False,
+                    "shuffle": False,
+                    "drop_last": False,
+                },
+            },
+            "training": {"batch_size": 1},
+            "testing": {"batch_size": 1},
+            "hardware": {"num_workers": 0, "pin_memory": False, "persistent_workers": False},
+            "seed": 2025,
+        }
+    )
+
+    dm = RealDiffusionReactionDataModule(config)
+    dm.setup()
+
+    train_loader = dm.train_dataloader()
+    batch = next(iter(train_loader))
+
+    assert "input_sequence" in batch
+    assert "target_sequence" in batch
+    assert "sample_idx" in batch
+    assert "start_time" in batch
+    assert batch["input_sequence"].ndim == 5
+    assert batch["target_sequence"].ndim == 5

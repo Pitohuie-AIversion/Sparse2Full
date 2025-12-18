@@ -316,11 +316,18 @@ class MetricsCalculator:
         # 1. 维度规范化
         pred = self._normalize_tensor_dims(pred, "pred_dc_error")
 
-        # 2. 获取并验证 target_obs (必须是 obs_data['y'])
+        # 2. 获取并验证 target_obs
         target_obs = obs_data.get('y', None)
         if target_obs is None:
+            target_obs = obs_data.get('observation', None)
+        if target_obs is None:
+            target_obs = obs_data.get('baseline', None)
+        if target_obs is None:
             keys_str = ", ".join(sorted([str(k) for k in obs_data.keys()]))
-            msg = f"obs_data must contain 'y' for DC error. obs_data keys: [{keys_str}]"
+            msg = (
+                "obs_data must contain 'y' (or legacy 'observation'/'baseline') for DC error. "
+                f"obs_data keys: [{keys_str}]"
+            )
             self.logger.error(msg)
             raise ValueError(msg)
 
@@ -414,7 +421,13 @@ class MetricsCalculator:
             metrics['crmse'] = self.compute_center_rmse(pred, target)
 
             if obs_data is not None:
-                metrics['dc_error'] = self.compute_data_consistency_error(pred, obs_data, norm_stats)
+                has_dc_target = (
+                    (obs_data.get('y', None) is not None)
+                    or (obs_data.get('observation', None) is not None)
+                    or (obs_data.get('baseline', None) is not None)
+                )
+                if has_dc_target:
+                    metrics['dc_error'] = self.compute_data_consistency_error(pred, obs_data, norm_stats)
 
         except Exception as e:
             self.logger.error(f"Error in compute_all_metrics internal calc: {e}")
@@ -633,6 +646,136 @@ def center_rmse(pred: torch.Tensor, target: torch.Tensor, boundary_width: int = 
         boundary_width=boundary_width,
     )
     return float(calc.compute_center_rmse(pred, target).mean().item())
+
+
+def compute_conservation_metrics(
+    pred: torch.Tensor,
+    target: torch.Tensor,
+    eps: float = 1e-8,
+) -> dict[str, torch.Tensor]:
+    image_size = (
+        (int(target.shape[-2]), int(target.shape[-1]))
+        if hasattr(target, "shape") and isinstance(target, torch.Tensor) and target.dim() >= 2
+        else (256, 256)
+    )
+    calc = MetricsCalculator(image_size=image_size)
+
+    pred_n = calc._normalize_tensor_dims(pred, "pred_conservation")
+    target_n = calc._normalize_tensor_dims(target, "target_conservation")
+    if pred_n.shape[-2:] != target_n.shape[-2:]:
+        pred_n = F.interpolate(pred_n, size=target_n.shape[-2:], mode="bilinear", align_corners=False)
+
+    b, c, h, w = pred_n.shape
+    y = torch.linspace(-1.0, 1.0, h, device=pred_n.device, dtype=pred_n.dtype)
+    x = torch.linspace(-1.0, 1.0, w, device=pred_n.device, dtype=pred_n.dtype)
+    yy, xx = torch.meshgrid(y, x, indexing="ij")
+    xx = xx.reshape(1, 1, h, w)
+    yy = yy.reshape(1, 1, h, w)
+
+    mass_pred = pred_n.sum(dim=(-2, -1))
+    mass_target = target_n.sum(dim=(-2, -1))
+    mass_err = torch.abs(mass_pred - mass_target) / (torch.abs(mass_target) + eps)
+
+    energy_pred = (pred_n * pred_n).sum(dim=(-2, -1))
+    energy_target = (target_n * target_n).sum(dim=(-2, -1))
+    energy_err = torch.abs(energy_pred - energy_target) / (torch.abs(energy_target) + eps)
+
+    mom_x_pred = (pred_n * xx).sum(dim=(-2, -1))
+    mom_x_target = (target_n * xx).sum(dim=(-2, -1))
+    mom_x_err = torch.abs(mom_x_pred - mom_x_target) / (torch.abs(mom_x_target) + eps)
+
+    mom_y_pred = (pred_n * yy).sum(dim=(-2, -1))
+    mom_y_target = (target_n * yy).sum(dim=(-2, -1))
+    mom_y_err = torch.abs(mom_y_pred - mom_y_target) / (torch.abs(mom_y_target) + eps)
+
+    out: dict[str, torch.Tensor] = {
+        "mass_conservation_error": mass_err,
+        "energy_conservation_error": energy_err,
+        "momentum_y_conservation_error": mom_y_err,
+        "momentum_x_conservation_error": mom_x_err,
+    }
+    if out["mass_conservation_error"].shape != (b, c):
+        raise ValueError(f"Unexpected conservation metric shape: {out['mass_conservation_error'].shape} vs {(b, c)}")
+    return out
+
+
+def compute_spectral_analysis(
+    pred: torch.Tensor,
+    target: torch.Tensor,
+    eps: float = 1e-8,
+) -> dict[str, torch.Tensor]:
+    image_size = (
+        (int(target.shape[-2]), int(target.shape[-1]))
+        if hasattr(target, "shape") and isinstance(target, torch.Tensor) and target.dim() >= 2
+        else (256, 256)
+    )
+    calc = MetricsCalculator(image_size=image_size)
+    pred_n = calc._normalize_tensor_dims(pred, "pred_spectral")
+    target_n = calc._normalize_tensor_dims(target, "target_spectral")
+    if pred_n.shape[-2:] != target_n.shape[-2:]:
+        pred_n = F.interpolate(pred_n, size=target_n.shape[-2:], mode="bilinear", align_corners=False)
+
+    pred_fft = torch.fft.fft2(pred_n, dim=(-2, -1))
+    target_fft = torch.fft.fft2(target_n, dim=(-2, -1))
+
+    pred_mag = torch.abs(pred_fft)
+    target_mag = torch.abs(target_fft)
+    pred_power = pred_mag * pred_mag
+    target_power = target_mag * target_mag
+
+    power_spectrum_mse = torch.mean((pred_power - target_power) ** 2, dim=(-2, -1))
+
+    pred_unit = pred_fft / (pred_mag + eps)
+    target_unit = target_fft / (target_mag + eps)
+    phase_mse = torch.mean(torch.abs(pred_unit - target_unit) ** 2, dim=(-2, -1))
+
+    p = pred_power.reshape(pred_power.shape[0], pred_power.shape[1], -1)
+    t = target_power.reshape(target_power.shape[0], target_power.shape[1], -1)
+    p_mean = p.mean(dim=-1, keepdim=True)
+    t_mean = t.mean(dim=-1, keepdim=True)
+    p0 = p - p_mean
+    t0 = t - t_mean
+    cov = (p0 * t0).mean(dim=-1)
+    p_std = torch.sqrt((p0 * p0).mean(dim=-1) + eps)
+    t_std = torch.sqrt((t0 * t0).mean(dim=-1) + eps)
+    frequency_correlation = cov / (p_std * t_std + eps)
+
+    return {
+        "power_spectrum_mse": power_spectrum_mse,
+        "phase_mse": phase_mse,
+        "frequency_correlation": frequency_correlation,
+    }
+
+
+def aggregate_multi_seed_results(
+    results_list: list[dict[str, Any]],
+) -> dict[str, dict[str, float]]:
+    if len(results_list) == 0:
+        return {}
+
+    metric_names: set[str] = set()
+    for metrics in results_list:
+        metric_names.update(metrics.keys())
+
+    aggregated: dict[str, dict[str, float]] = {}
+    for metric_name in metric_names:
+        values: list[float] = []
+        for metrics in results_list:
+            if metric_name not in metrics:
+                continue
+            v = metrics[metric_name]
+            if isinstance(v, torch.Tensor):
+                values.append(float(v.mean().item()))
+            elif isinstance(v, (int, float)):
+                values.append(float(v))
+        if len(values) == 0:
+            continue
+        aggregated[metric_name] = {
+            "mean": float(np.mean(values)),
+            "std": float(np.std(values, ddof=1)) if len(values) > 1 else 0.0,
+            "count": float(len(values)),
+        }
+    return aggregated
 
 if __name__ == "__main__":
     # 最小自测
