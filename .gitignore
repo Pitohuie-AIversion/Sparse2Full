@@ -91,6 +91,7 @@ outputs/
 logs/
 tensorboard/
 wandb/
+benchmark_models.log
 
 # Data directories
 data/
