@@ -876,16 +876,22 @@ class EnhancedModelLoader:
             except Exception:
                 img_size = None
             
+            # Determine device from model parameters
+            try:
+                device = next(model.parameters()).device
+            except StopIteration:
+                device = torch.device('cpu')
+            
             # Create appropriate input
             if input_shape is not None:
-                test_input = torch.randn(*input_shape)
+                test_input = torch.randn(*input_shape).to(device)
             else:
                 # Prefer configured img_size over default 224
                 if img_size is not None:
                     channels = getattr(model, 'in_channels', 3)
-                    test_input = torch.randn(1, channels, img_size, img_size)
+                    test_input = torch.randn(1, channels, img_size, img_size).to(device)
                 else:
-                    test_input = self._handle_special_input_types(model, model_config)
+                    test_input = self._handle_special_input_types(model, model_config).to(device)
             
             # Test forward pass
             with torch.no_grad():

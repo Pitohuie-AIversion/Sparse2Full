@@ -1,5 +1,5 @@
 experiment:
-  name: AR-DR2D-FNO2d-SRx4-10M-300ep-model_FNO2d-s2025-20251219045659
+  name: AR-ShallowWater-10M-RestormerLite-model_RestormerLite-s2025-20251220
   description: 快速Debug配置 - 5步AR自回归训练
   device: cuda
   seed: 2025
@@ -82,12 +82,10 @@ hardware:
   pin_memory: false
   persistent_workers: false
 model:
-  name: FNO2d
+  name: RestormerLite
   in_channels: 1
   out_channels: 1
-  img_size:
-  - 128
-  - 128
+  img_size: 128
   modes1: 16
   modes2: 16
   width: 48
@@ -97,7 +95,7 @@ model:
 model_budget:
   target_params_m: 10.0
   tolerance_m: 1.0
-  auto_tune: false
+  auto_tune: true
 training:
   epochs: 300
   batch_size: 96
