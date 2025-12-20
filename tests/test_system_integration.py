@@ -280,11 +280,12 @@ class TestSystemIntegration:
             
             # 分布式包装
             model = dist_manager.wrap_model(model)
-            dataloader = dist_manager.create_dataloader(
+            dataloader_result = dist_manager.create_dataloader(
                 dataset, 
                 batch_size=self.config['data']['dataloader']['batch_size'],
                 shuffle=True
             )
+            dataloader = dataloader_result[0] if isinstance(dataloader_result, tuple) else dataloader_result
             
             # 创建可视化器
             vis_dir = self.temp_dir / 'visualizations'
@@ -554,7 +555,8 @@ class TestSystemIntegration:
         try:
             # 2. 数据准备
             dataset = self._create_dummy_data()
-            dataloader = dist_manager.create_dataloader(dataset, batch_size=2)
+            dataloader_result = dist_manager.create_dataloader(dataset, batch_size=2)
+            dataloader = dataloader_result[0] if isinstance(dataloader_result, tuple) else dataloader_result
             
             # 3. 模型初始化
             model = self._create_dummy_model()

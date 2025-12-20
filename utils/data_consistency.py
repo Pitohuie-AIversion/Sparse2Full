@@ -17,7 +17,7 @@ from datetime import datetime
 class DataConsistencyChecker:
     """数据一致性检查器"""
     
-    def __init__(self, config: DictConfig, tolerance: float = 1e-8):
+    def __init__(self, config: Optional[DictConfig] = None, tolerance: float = 1e-8):
         self.config = config
         self.tolerance = tolerance
         self.logger = logging.getLogger(__name__)
@@ -30,9 +30,33 @@ class DataConsistencyChecker:
             'data.degradation.crop_size',
             'data.degradation.crop_strategy'
         ]
+
+    def validate_configuration(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        required = [
+            ("model", "spatial", "in_channels"),
+            ("data", "normalize"),
+        ]
+        missing = []
+        for path in required:
+            cur: Any = config
+            ok = True
+            for key in path:
+                if not isinstance(cur, dict) or key not in cur:
+                    ok = False
+                    break
+                cur = cur[key]
+            if not ok:
+                missing.append(".".join(path))
+
+        return {
+            "valid": len(missing) == 0,
+            "missing_fields": missing,
+        }
         
     def validate_config(self) -> bool:
         """验证配置完整性"""
+        if self.config is None:
+            return False
         for key in self.required_keys:
             if not self._check_nested_key(self.config, key):
                 self.logger.warning(f"Missing configuration key: {key}")
@@ -148,43 +172,68 @@ class DataConsistencyChecker:
         Returns:
             一致性检查结果
         """
-        results = {
+        issues: List[str] = []
+        shape_ok = self._check_shape_consistency(raw_data, processed_data)
+        range_ok = self._check_value_range(processed_data)
+        results: Dict[str, Any] = {
             'consistent': True,
-            'shape_check': self._check_shape_consistency(raw_data, processed_data),
-            'range_check': self._check_value_range(processed_data),
-            'normalization_check': None
+            'issues': issues,
+            'shape_check': shape_ok,
+            'range_check': range_ok,
+            'normalization_check': None,
         }
         
         # 形状一致性检查
         if not results['shape_check']:
             results['consistent'] = False
+            issues.append("shape_inconsistent")
             self.logger.error("Shape inconsistency detected in data pipeline")
         
         # 值域检查
         if not results['range_check']:
             results['consistent'] = False
+            issues.append("value_range_inconsistent")
             self.logger.warning("Value range inconsistency detected")
         
         # 归一化检查
         if check_normalization:
             results['normalization_check'] = self._check_normalization_consistency(processed_data)
             if not results['normalization_check']['is_normalized']:
+                issues.append("normalization_inconsistent")
                 self.logger.warning("Data appears to be not properly normalized")
         
         return results
     
     def _check_shape_consistency(self, raw_data: torch.Tensor, processed_data: torch.Tensor) -> bool:
         """检查形状一致性"""
-        # 检查时间维度是否一致
-        if raw_data.shape[1] != processed_data.shape[1]:
-            self.logger.error(f"Time dimension mismatch: raw={raw_data.shape[1]}, processed={processed_data.shape[1]}")
+        if raw_data.dim() != processed_data.dim():
+            self.logger.error(f"Dim mismatch: raw_dim={raw_data.dim()}, processed_dim={processed_data.dim()}")
             return False
-        
-        # 检查通道数是否一致
-        if raw_data.shape[2] != processed_data.shape[2]:
-            self.logger.error(f"Channel dimension mismatch: raw={raw_data.shape[2]}, processed={processed_data.shape[2]}")
+
+        if raw_data.dim() == 4:
+            if raw_data.shape[0] != processed_data.shape[0]:
+                self.logger.error(f"Batch dimension mismatch: raw={raw_data.shape[0]}, processed={processed_data.shape[0]}")
+                return False
+            if raw_data.shape[1] != processed_data.shape[1]:
+                self.logger.error(f"Channel dimension mismatch: raw={raw_data.shape[1]}, processed={processed_data.shape[1]}")
+                return False
+            if raw_data.shape[2:] != processed_data.shape[2:]:
+                self.logger.error(f"Spatial dimension mismatch: raw={raw_data.shape[2:]}, processed={processed_data.shape[2:]}")
+                return False
+            return True
+
+        if raw_data.dim() == 5:
+            if raw_data.shape[1] != processed_data.shape[1]:
+                self.logger.error(f"Time dimension mismatch: raw={raw_data.shape[1]}, processed={processed_data.shape[1]}")
+                return False
+            if raw_data.shape[2] != processed_data.shape[2]:
+                self.logger.error(f"Channel dimension mismatch: raw={raw_data.shape[2]}, processed={processed_data.shape[2]}")
+                return False
+            return True
+
+        if raw_data.shape != processed_data.shape:
+            self.logger.error(f"Shape mismatch: raw={raw_data.shape}, processed={processed_data.shape}")
             return False
-        
         return True
     
     def _check_value_range(self, data: torch.Tensor, valid_range: Tuple[float, float] = (-10.0, 10.0)) -> bool:
@@ -278,7 +327,7 @@ class DataConsistencyChecker:
         results['temporal_correlation'] = np.mean(correlations) if correlations else 0.0
         
         # 误差增长率
-        errors = torch.norm(pred_sequence - target_sequence, dim=[2, 3, 4])  # [B, T]
+        errors = torch.linalg.vector_norm(pred_sequence - target_sequence, dim=(2, 3, 4))  # [B, T]
         error_growth_rates = []
         
         for b in range(B):
@@ -423,6 +472,9 @@ class DegradationEquivalenceChecker:
             # 更新全局误差
             results['max_mse'] = max(results['max_mse'], mse)
             results['mean_mse'] = (results['mean_mse'] * i + mse) / (i + 1)
+
+        results['mse_error'] = results['mean_mse']
+        results['max_error'] = results['max_mse']
         
         return results
     

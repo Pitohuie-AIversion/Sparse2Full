@@ -440,6 +440,22 @@ class PatchProcessor(nn.Module):
         coords = []
         n_h = (H - self.patch_size) // self.stride + 1
         n_w = (W - self.patch_size) // self.stride + 1
+        if n_h <= 0 or n_w <= 0:
+            patch = x
+            if H != self.patch_size or W != self.patch_size:
+                pad_bottom = max(self.patch_size - H, 0)
+                pad_right = max(self.patch_size - W, 0)
+                patch = F.pad(patch, (0, pad_right, 0, pad_bottom))
+                patch = patch[:, :, : self.patch_size, : self.patch_size]
+            patches = patch.flatten(1).unsqueeze(1)
+            center_y = H / 2
+            center_x = W / 2
+            coords = (
+                torch.tensor([[center_x, center_y]], device=x.device)
+                .unsqueeze(0)
+                .expand(B, -1, -1)
+            )
+            return patches, coords
         for i in range(n_h):
             for j in range(n_w):
                 # 计算patch位置
@@ -489,6 +505,9 @@ class PatchProcessor(nn.Module):
         """
         B, num_patches, _ = patches.shape
         H, W = output_size
+        if H < self.patch_size or W < self.patch_size:
+            patch = patches[:, 0, :].reshape(B, out_channels, self.patch_size, self.patch_size)
+            return patch[:, :, :H, :W]
         output = torch.zeros(B, out_channels, H, W, device=patches.device)
         weight_map = torch.zeros(B, 1, H, W, device=patches.device)
         patches = patches.reshape(B, num_patches, out_channels, self.patch_size, self.patch_size)

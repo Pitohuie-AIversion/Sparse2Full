@@ -9,6 +9,9 @@
 5. 参数检查
 """
 
+import pytest
+pytest.skip("diagnostic script, not a unit test module", allow_module_level=True)
+
 import torch
 import torch.nn as nn
 import numpy as np

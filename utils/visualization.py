@@ -341,9 +341,12 @@ class PDEBenchVisualizer:
         gt: torch.Tensor,
         pred: torch.Tensor,
         degraded: Optional[torch.Tensor] = None,
+        baseline: Optional[torch.Tensor] = None,
         save_name: str = "field_comparison",
         channel: int = 0,
     ) -> str:
+        if degraded is None and baseline is not None:
+            degraded = baseline
         legacy_save_root = isinstance(degraded, (str, Path)) and save_name == "field_comparison"
         if legacy_save_root:
             save_name = str(degraded)
@@ -379,6 +382,28 @@ class PDEBenchVisualizer:
 
         target_dir = self.save_dir if legacy_save_root else self.fields_dir
         return self._save_fig(fig, target_dir, save_name)
+
+    def plot_training_curves(
+        self,
+        train_logs: Dict[str, list[float]],
+        val_logs: Dict[str, list[float]],
+        save_name: str = "training_curves",
+    ) -> str:
+        train_loss = train_logs.get("loss", [])
+        val_loss = val_logs.get("loss", [])
+        epochs = range(1, max(len(train_loss), len(val_loss)) + 1)
+
+        fig, ax = plt.subplots(1, 1, figsize=self.figsize)
+        if train_loss:
+            ax.plot(list(epochs)[: len(train_loss)], train_loss, label="train_loss", linewidth=2)
+        if val_loss:
+            ax.plot(list(epochs)[: len(val_loss)], val_loss, label="val_loss", linewidth=2)
+        ax.set_xlabel("Epoch")
+        ax.set_ylabel("Loss")
+        ax.set_title("Training Curves")
+        ax.grid(True, alpha=0.3)
+        ax.legend()
+        return self._save_fig(fig, self.analysis_dir, save_name)
 
     def create_quadruplet_visualization(
         self,

@@ -44,7 +44,7 @@ data:
   
   # AR特定配置
   T_in: 1      # 输入时间步数
-  T_out: 5     # 5步AR预测
+  T_out: 1     # 1步AR预测
   
   # 数据集分割配置 - Debug模式：大幅减少测试集
   train_ratio: 0.8
@@ -111,7 +111,7 @@ model:
   name: FNO2d
   in_channels: 1
   out_channels: 1
-  img_size: [128, 128]
+  img_size: 128
   modes1: 16
   modes2: 16
   width: 48

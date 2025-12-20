@@ -205,6 +205,47 @@ def test_utils():
 
 
 @pytest.fixture
+def model_configs():
+    return {
+        "swin_unet": {
+            "in_channels": 3,
+            "out_channels": 3,
+            "img_size": 64,
+            "patch_size": 4,
+            "embed_dim": 96,
+            "depths": [2, 2, 2, 2],
+            "num_heads": [3, 6, 12, 24],
+        },
+        "hybrid": {
+            "in_channels": 3,
+            "out_channels": 3,
+            "img_size": 64,
+            "hidden_dim": 128,
+            "num_layers": 4,
+        },
+        "mlp": {
+            "in_channels": 3,
+            "out_channels": 3,
+            "img_size": 64,
+            "hidden_dim": 256,
+            "num_layers": 6,
+        },
+        "unet": {
+            "in_channels": 3,
+            "out_channels": 3,
+            "base_channels": 64,
+        },
+        "fno": {
+            "in_channels": 3,
+            "out_channels": 3,
+            "img_size": 64,
+            "modes": 16,
+            "width": 64,
+        },
+    }
+
+
+@pytest.fixture
 def sample_observation_data(device):
     """生成样本观测数据的fixture"""
     torch.manual_seed(42)

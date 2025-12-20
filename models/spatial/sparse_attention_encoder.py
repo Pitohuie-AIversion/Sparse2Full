@@ -363,6 +363,8 @@ class SparseSwinUNet(nn.Module):
             embed_dim=embed_dim,
             **swin_unet_config
         )
+        self.residual_scale = nn.Parameter(torch.tensor(0.0))
+        self.out_channels = out_channels
     
     def forward(self, x: torch.Tensor, **kwargs) -> torch.Tensor:
         """前向传播
@@ -378,6 +380,18 @@ class SparseSwinUNet(nn.Module):
         sparse_features = self.sparse_encoder(x, **kwargs)
         
         # SwinUNet处理
-        output = self.swin_unet(sparse_features)
-        
-        return output
+        residual = self.swin_unet(sparse_features)
+
+        if x.shape[1] >= self.out_channels:
+            baseline = x[:, :self.out_channels]
+        else:
+            baseline = torch.zeros(
+                x.shape[0],
+                self.out_channels,
+                x.shape[-2],
+                x.shape[-1],
+                device=x.device,
+                dtype=x.dtype,
+            )
+
+        return baseline + self.residual_scale * residual

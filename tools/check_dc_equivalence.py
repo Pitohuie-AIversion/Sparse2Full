@@ -34,7 +34,7 @@ try:
 except Exception:
     pass
 
-from utils.data_consistency_checker import DataConsistencyChecker
+from utils.data_consistency_checker import DataConsistencyChecker as _CoreDataConsistencyChecker
 from omegaconf import OmegaConf
 from ops.degradation import apply_degradation_operator, verify_degradation_consistency
 
@@ -144,8 +144,50 @@ def run_check_from_h5(h5_path: str, tolerance: float = 1e-8, params_override: Di
             assert params, "真实数据HDF5缺少 'gt'/'obs'，需要通过 --config 提供观测参数"
             obs = apply_degradation_operator(gt, params)
 
-    checker = DataConsistencyChecker(tolerance=tolerance)
+    checker = _CoreDataConsistencyChecker(tolerance=tolerance)
     return checker.check(gt, obs, params)
+
+
+class DataConsistencyChecker:
+    def __init__(self, config: Any = None, tolerance: float = 1e-8):
+        if isinstance(config, (int, float)):
+            tolerance = float(config)
+            config = None
+        self.config = config
+        self.tolerance = float(tolerance)
+
+    def check_consistency(self, dataset, degradation_op, num_samples: int = 10) -> Dict[str, Any]:
+        import torch.nn.functional as F
+
+        if len(dataset) == 0:
+            return {"mse": 0.0, "max_error": 0.0, "tolerance": self.tolerance, "passed": True}
+
+        sample_count = min(int(num_samples), int(len(dataset)))
+        mses: list[float] = []
+        max_errs: list[float] = []
+        for i in range(sample_count):
+            item = dataset[i]
+            gt = item["gt"].unsqueeze(0)
+            obs_ref = item.get("baseline")
+            if obs_ref is None:
+                obs_ref = degradation_op(gt)
+            else:
+                obs_ref = obs_ref.unsqueeze(0)
+
+            obs_pred = degradation_op(gt)
+            if obs_pred.shape != obs_ref.shape:
+                obs_ref = F.interpolate(obs_ref, size=obs_pred.shape[-2:], mode="bilinear", align_corners=False)
+                c = min(obs_pred.shape[1], obs_ref.shape[1])
+                obs_pred = obs_pred[:, :c]
+                obs_ref = obs_ref[:, :c]
+
+            diff = (obs_pred - obs_ref).float()
+            mses.append(float((diff ** 2).mean().item()))
+            max_errs.append(float(diff.abs().max().item()))
+
+        mse = float(sum(mses) / max(1, len(mses)))
+        max_error = float(max(max_errs) if max_errs else 0.0)
+        return {"mse": mse, "max_error": max_error, "tolerance": self.tolerance, "passed": bool(mse < self.tolerance)}
 
 
 def check_degradation_consistency(

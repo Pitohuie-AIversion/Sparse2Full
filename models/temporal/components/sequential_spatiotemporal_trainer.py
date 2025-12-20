@@ -8,16 +8,17 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from typing import Dict, Any, Optional, List
 import numpy as np
 from pathlib import Path
 import logging
 from datetime import datetime
+from importlib import import_module
+import tempfile
 
 from models.swin_temporal_wrapper import SwinTemporalWrapper
-from models.swin_unet import SwinUNet
-from utils.metrics import compute_metrics
+from utils.metrics import compute_metrics, psnr_metric, ssim_metric
 # from utils.visualization import ARTrainingVisualizer  # 暂时注释掉，避免导入错误
 from utils.logging_utils import setup_logger
 from utils.data_consistency import DataConsistencyChecker, DegradationEquivalenceChecker
@@ -35,7 +36,14 @@ class SpatialPredictionModule(nn.Module):
         
     def _build_feature_extractor(self) -> nn.Module:
         """构建空间特征提取器"""
-        return SwinUNet(
+        swin_cls = None
+        try:
+            swin_cls = getattr(import_module("models.sequential_spatiotemporal_trainer"), "SwinUNet", None)
+        except Exception:
+            swin_cls = None
+        if swin_cls is None:
+            from models.swin_unet import SwinUNet as swin_cls
+        return swin_cls(
             in_channels=self.config.data.T_in * self.config.data.channels,
             out_channels=self.config.spatial.feature_dim,
             img_size=self.config.data.img_size,
@@ -129,30 +137,22 @@ class TemporalPredictionModule(nn.Module):
         
         B, T_out, C, H, W = spatial_pred.shape
         
-        # 融合空间特征和预测
+        spatial_pred_pooled = spatial_pred.mean(dim=(-1, -2))  # [B, T_out, C]
         if self.config.temporal.use_spatial_features:
-            # 拼接空间特征和预测结果
-            combined_features = torch.cat([spatial_features, spatial_pred], dim=2)  # [B, T_out, C_feat+C, H, W]
-            feature_dim = combined_features.shape[2]
+            spatial_feat_pooled = spatial_features.mean(dim=(-1, -2))  # [B, T_out, C_feat]
+            temporal_input = torch.cat([spatial_feat_pooled, spatial_pred_pooled], dim=-1)  # [B, T_out, C_feat+C]
         else:
-            combined_features = spatial_pred
-            feature_dim = C
-        
-        # 重塑为时序格式: [B, T_out, C, H, W] -> [B, C*H*W, T_out]
-        temporal_input = combined_features.reshape(B, T_out, feature_dim * H * W).transpose(1, 2)  # [B, C*H*W, T_out]
-        
-        # 时序编码
-        temporal_encoded = self.temporal_encoder(temporal_input)  # [B, C*H*W, T_out]
-        
-        # 时序解码
-        temporal_decoded = self.temporal_decoder(temporal_encoded)  # [B, C*H*W, T_out]
-        
-        # 重塑回空间格式: [B, C*H*W, T_out] -> [B, T_out, C, H, W]
-        final_pred = temporal_decoded.reshape(B, T_out, C, H, W)
+            temporal_input = spatial_pred_pooled  # [B, T_out, C]
+
+        temporal_encoded = self.temporal_encoder(temporal_input)  # [B, T_out, d_model]
+        _ = self.temporal_decoder(temporal_encoded)  # [B, T_out, C_feat+C] or [B, T_out, C]
+
+        delta = self.prediction_head(temporal_encoded)  # [B, T_out, C]
+        final_pred = spatial_pred + delta[:, :, :, None, None].expand(B, T_out, C, H, W)
         
         return {
             'final_pred': final_pred,  # [B, T_out, C, H, W]
-            'temporal_features': temporal_encoded,  # [B, C*H*W, T_out]
+            'temporal_features': temporal_encoded,  # [B, T_out, d_model]
             'spatial_features': spatial_features  # [B, T_out, C_feat, H, W]
         }
 
@@ -183,24 +183,20 @@ class TemporalTransformerEncoder(nn.Module):
             num_layers=config.temporal.num_layers
         )
         
-        # 输入投影层
-        self.input_projection = nn.Linear(config.spatial.feature_dim + config.data.channels, config.temporal.d_model)
+        in_dim = int(config.spatial.feature_dim + config.data.channels) if bool(config.temporal.use_spatial_features) else int(config.data.channels)
+        self.input_projection = nn.Linear(in_dim, config.temporal.d_model)
         
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """前向传播"""
-        # x: [B, C*H*W, T_out]
-        B, CHW, T = x.shape
-        
-        # 投影到d_model维度
-        x_projected = self.input_projection(x.transpose(1, 2))  # [B, T_out, d_model]
+        # x: [B, T_out, C_feat+C] or [B, T_out, C]
+        x_projected = self.input_projection(x)  # [B, T_out, d_model]
         
         # 添加位置编码
         x_pos = self.positional_encoding(x_projected.transpose(0, 1)).transpose(0, 1)  # [B, T_out, d_model]
         
         # Transformer编码
         encoded = self.transformer_encoder(x_pos)  # [B, T_out, d_model]
-        
-        return encoded.transpose(1, 2)  # [B, d_model, T_out]
+        return encoded  # [B, T_out, d_model]
 
 
 class TemporalTransformerDecoder(nn.Module):
@@ -224,23 +220,16 @@ class TemporalTransformerDecoder(nn.Module):
             num_layers=config.temporal.num_layers
         )
         
-        # 输出投影层
-        self.output_projection = nn.Linear(config.temporal.d_model, config.spatial.feature_dim + config.data.channels)
+        out_dim = int(config.spatial.feature_dim + config.data.channels) if bool(config.temporal.use_spatial_features) else int(config.data.channels)
+        self.output_projection = nn.Linear(config.temporal.d_model, out_dim)
         
     def forward(self, encoded: torch.Tensor) -> torch.Tensor:
         """前向传播"""
-        # encoded: [B, d_model, T_out]
-        B, d_model, T = encoded.shape
-        
-        encoded_transposed = encoded.transpose(1, 2)  # [B, T_out, d_model]
-        
-        # 自回归解码
-        decoded = self.transformer_decoder(encoded_transposed, encoded_transposed)  # [B, T_out, d_model]
+        # encoded: [B, T_out, d_model]
+        decoded = self.transformer_decoder(encoded, encoded)  # [B, T_out, d_model]
         
         # 投影回原始维度
-        output = self.output_projection(decoded)  # [B, T_out, C*H*W]
-        
-        return output.transpose(1, 2)  # [B, C*H*W, T_out]
+        return self.output_projection(decoded)  # [B, T_out, C_feat+C]
 
 
 class TemporalConv1DEncoder(nn.Module):
@@ -250,8 +239,8 @@ class TemporalConv1DEncoder(nn.Module):
         super().__init__()
         self.config = config
         
-        # 输入投影
-        self.input_projection = nn.Linear(config.spatial.feature_dim + config.data.channels, config.temporal.d_model)
+        in_dim = int(config.spatial.feature_dim + config.data.channels) if bool(config.temporal.use_spatial_features) else int(config.data.channels)
+        self.input_projection = nn.Linear(in_dim, config.temporal.d_model)
         
         # 1D卷积层
         layers = []
@@ -272,19 +261,13 @@ class TemporalConv1DEncoder(nn.Module):
         
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """前向传播"""
-        # x: [B, C*H*W, T_out]
-        B, CHW, T = x.shape
-        
-        # 投影到d_model维度
-        x_projected = self.input_projection(x.transpose(1, 2))  # [B, T_out, d_model]
-        
-        # 重塑为Conv1D格式: [B, T_out, d_model] -> [B, d_model, T_out]
-        x_reshaped = x_projected.transpose(1, 2)
+        # x: [B, T_out, C_feat+C] or [B, T_out, C]
+        x_projected = self.input_projection(x)  # [B, T_out, d_model]
+        x_reshaped = x_projected.transpose(1, 2)  # [B, d_model, T_out]
         
         # 1D卷积编码
         encoded = self.conv_layers(x_reshaped)  # [B, d_model, T_out]
-        
-        return encoded
+        return encoded.transpose(1, 2)  # [B, T_out, d_model]
 
 
 class TemporalConv1DDecoder(nn.Module):
@@ -300,7 +283,8 @@ class TemporalConv1DDecoder(nn.Module):
         in_channels = conv_channels[0] if conv_channels else config.temporal.d_model
         current_channels = in_channels
         
-        for i, out_channels in enumerate(conv_channels[1:] + [config.spatial.feature_dim + config.data.channels]):
+        out_dim = int(config.spatial.feature_dim + config.data.channels) if bool(config.temporal.use_spatial_features) else int(config.data.channels)
+        for i, out_channels in enumerate(conv_channels[1:] + [out_dim]):
             layers.append(nn.Conv1d(current_channels, out_channels, kernel_size=config.temporal.kernel_size, padding=config.temporal.kernel_size//2))
             
             if i < len(conv_channels) - 1:
@@ -314,12 +298,12 @@ class TemporalConv1DDecoder(nn.Module):
         
     def forward(self, encoded: torch.Tensor) -> torch.Tensor:
         """前向传播"""
-        # encoded: [B, d_model, T_out]
+        # encoded: [B, T_out, d_model]
+        encoded_reshaped = encoded.transpose(1, 2)  # [B, d_model, T_out]
         
         # 1D反卷积解码
-        decoded = self.conv_layers(encoded)  # [B, C*H*W, T_out]
-        
-        return decoded
+        decoded = self.conv_layers(encoded_reshaped)  # [B, C_feat+C, T_out]
+        return decoded.transpose(1, 2)  # [B, T_out, C_feat+C]
 
 
 class PositionalEncoding(nn.Module):
@@ -348,9 +332,22 @@ class PositionalEncoding(nn.Module):
 class SequentialSpatiotemporalTrainer:
     """分阶段时空预测训练器 - 支持联合微调"""
     
-    def __init__(self, config: DictConfig):
+    def __init__(self, config: Any):
+        if not isinstance(config, DictConfig):
+            config = OmegaConf.create(config)
         self.config = config
-        self.device = torch.device(config.device if hasattr(config, 'device') else 'cuda' if torch.cuda.is_available() else 'cpu')
+        self._normalize_config()
+        self.device = torch.device(
+            self.config.device if hasattr(self.config, 'device') else ('cuda' if torch.cuda.is_available() else 'cpu')
+        )
+        if not hasattr(self.config, "logging"):
+            self.config.logging = OmegaConf.create({"log_interval": 10, "checkpoint_interval": 50})
+        if not hasattr(self.config, "data_consistency"):
+            self.config.data_consistency = OmegaConf.create({"check_interval": 100})
+        if not hasattr(self.config, "output_dir"):
+            self.config.output_dir = Path(tempfile.mkdtemp(prefix="s2f_run_"))
+        else:
+            self.config.output_dir = Path(self.config.output_dir)
         
         # 初始化模块
         self.spatial_module = SpatialPredictionModule(config)
@@ -383,6 +380,84 @@ class SequentialSpatiotemporalTrainer:
         
         # 日志记录
         self.logger = setup_logger('sequential_trainer')
+
+    def _normalize_config(self) -> None:
+        if not hasattr(self.config, "data"):
+            channels = 1
+            img_size = 64
+            if hasattr(self.config, "model") and hasattr(self.config.model, "spatial"):
+                channels = int(getattr(self.config.model.spatial, "in_channels", channels))
+                img_size = int(getattr(self.config.model.spatial, "img_size", img_size))
+            self.config.data = OmegaConf.create(
+                {"T_in": 1, "T_out": 1, "channels": channels, "img_size": img_size}
+            )
+        else:
+            if not hasattr(self.config.data, "T_in"):
+                self.config.data.T_in = 1
+            if not hasattr(self.config.data, "T_out"):
+                self.config.data.T_out = 1
+            if not hasattr(self.config.data, "channels"):
+                self.config.data.channels = 1
+            if not hasattr(self.config.data, "img_size"):
+                self.config.data.img_size = 64
+
+        if not hasattr(self.config, "spatial"):
+            feature_dim = 128
+            if hasattr(self.config, "model") and hasattr(self.config.model, "spatial"):
+                feature_dim = int(getattr(self.config.model.spatial, "hidden_dim", feature_dim))
+            self.config.spatial = OmegaConf.create({"feature_dim": feature_dim})
+        else:
+            if not hasattr(self.config.spatial, "feature_dim"):
+                self.config.spatial.feature_dim = 128
+
+        if not hasattr(self.config, "temporal"):
+            self.config.temporal = OmegaConf.create(
+                {
+                    "encoder_type": "transformer",
+                    "d_model": 256,
+                    "nhead": 8,
+                    "num_layers": 4,
+                    "dim_feedforward": 1024,
+                    "dropout": 0.1,
+                    "conv_channels": [256, 512, 256],
+                    "kernel_size": 3,
+                    "use_spatial_features": True,
+                }
+            )
+
+        if not hasattr(self.config, "model"):
+            self.config.model = OmegaConf.create({})
+        for k, v in {
+            "patch_size": 4,
+            "window_size": 8,
+            "depths": [2, 2, 2],
+            "num_heads": [4, 8, 16],
+            "embed_dim": 96,
+        }.items():
+            if not hasattr(self.config.model, k):
+                setattr(self.config.model, k, v)
+
+        if not hasattr(self.config, "training"):
+            self.config.training = OmegaConf.create({})
+        if not hasattr(self.config.training, "spatial_lr"):
+            self.config.training.spatial_lr = float(getattr(self.config.training, "lr", 1e-4))
+        if not hasattr(self.config.training, "temporal_lr"):
+            self.config.training.temporal_lr = float(getattr(self.config.training, "lr", 1e-4))
+        if not hasattr(self.config.training, "spatial_weight_decay"):
+            self.config.training.spatial_weight_decay = float(getattr(self.config.training, "weight_decay", 0.0))
+        if not hasattr(self.config.training, "temporal_weight_decay"):
+            self.config.training.temporal_weight_decay = float(getattr(self.config.training, "weight_decay", 0.0))
+        if not hasattr(self.config.training, "spatial_scheduler"):
+            if hasattr(self.config.training, "scheduler") and hasattr(self.config.training.scheduler, "type"):
+                self.config.training.spatial_scheduler = self.config.training.scheduler.type
+                self.config.training.temporal_scheduler = self.config.training.scheduler.type
+            else:
+                self.config.training.spatial_scheduler = "cosine"
+                self.config.training.temporal_scheduler = "cosine"
+        if not hasattr(self.config.training, "temporal_scheduler"):
+            self.config.training.temporal_scheduler = self.config.training.spatial_scheduler
+        if not hasattr(self.config.training, "epochs"):
+            self.config.training.epochs = 1
         
     def _build_spatial_optimizer(self):
         """构建空间优化器"""
@@ -427,11 +502,32 @@ class SequentialSpatiotemporalTrainer:
     def _build_temporal_loss(self):
         """构建时序损失函数"""
         return nn.MSELoss()
+
+    def _ensure_time_dim(self, x: torch.Tensor, t: int) -> torch.Tensor:
+        if x.dim() == 4:
+            return x.unsqueeze(1).expand(-1, t, -1, -1, -1).contiguous()
+        return x
+
+    def _get_loss_weight(self, key: str, default: float = 1.0) -> float:
+        try:
+            if key == "spatial":
+                if hasattr(self.config, "spatial") and hasattr(self.config.spatial, "loss_weight"):
+                    return float(self.config.spatial.loss_weight)
+                if hasattr(self.config, "loss") and hasattr(self.config.loss, "spatial_weight"):
+                    return float(self.config.loss.spatial_weight)
+            if key == "temporal":
+                if hasattr(self.config, "temporal") and hasattr(self.config.temporal, "loss_weight"):
+                    return float(self.config.temporal.loss_weight)
+                if hasattr(self.config, "loss") and hasattr(self.config.loss, "temporal_weight"):
+                    return float(self.config.loss.temporal_weight)
+        except Exception:
+            pass
+        return float(default)
     
-    def training_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> Dict[str, float]:
+    def training_step(self, batch: Dict[str, torch.Tensor], batch_idx: int = 0) -> Dict[str, float]:
         """训练步骤 - 支持联合微调和数据一致性检查"""
-        x = batch['input'].to(self.device)  # [B, T_in, C, H, W]
-        y = batch['target'].to(self.device)  # [B, T_out, C, H, W]
+        x = self._ensure_time_dim(batch['input'].to(self.device), int(self.config.data.T_in))
+        y = self._ensure_time_dim(batch['target'].to(self.device), int(self.config.data.T_out))
         
         # 数据一致性检查（每N个batch检查一次）
         if batch_idx % getattr(self.config.data_consistency, 'check_interval', 100) == 0:
@@ -440,47 +536,43 @@ class SequentialSpatiotemporalTrainer:
         # 阶段1: 空间预测
         spatial_results = self.spatial_module(x)
         spatial_loss = self._calculate_spatial_loss(spatial_results, y)
-        
-        # 反向传播空间模块
-        self.spatial_optimizer.zero_grad()
-        spatial_loss.backward()
-        
-        # 梯度裁剪
-        if hasattr(self.config.training, 'grad_clip'):
-            torch.nn.utils.clip_grad_norm_(self.spatial_module.parameters(), self.config.training.grad_clip)
-        
-        self.spatial_optimizer.step()
-        
+
         # 阶段2: 时间预测（联合微调）
         temporal_results = self.temporal_module(spatial_results, x)
         temporal_loss = self._calculate_temporal_loss(temporal_results, y)
-        
-        # 反向传播时序模块
+
+        total_loss = spatial_loss + temporal_loss
+
+        # 反向传播（避免重复反向图复用）
+        self.spatial_optimizer.zero_grad()
         self.temporal_optimizer.zero_grad()
-        temporal_loss.backward()
+        total_loss.backward()
         
         # 梯度裁剪
         if hasattr(self.config.training, 'grad_clip'):
             torch.nn.utils.clip_grad_norm_(self.temporal_module.parameters(), self.config.training.grad_clip)
+            torch.nn.utils.clip_grad_norm_(self.spatial_module.parameters(), self.config.training.grad_clip)
         
+        self.spatial_optimizer.step()
         self.temporal_optimizer.step()
         
         # 计算指标
         spatial_metrics = self._calculate_spatial_metrics(spatial_results['spatial_pred'], y)
         temporal_metrics = self._calculate_temporal_metrics(temporal_results['final_pred'], y)
-        
+
         return {
+            'joint_loss': total_loss.item(),
             'spatial_loss': spatial_loss.item(),
             'temporal_loss': temporal_loss.item(),
-            'total_loss': (spatial_loss + temporal_loss).item(),
+            'total_loss': total_loss.item(),
             **spatial_metrics,
             **temporal_metrics
         }
     
-    def validation_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> Dict[str, float]:
+    def validation_step(self, batch: Dict[str, torch.Tensor], batch_idx: int = 0) -> Dict[str, float]:
         """验证步骤"""
-        x = batch['input'].to(self.device)
-        y = batch['target'].to(self.device)
+        x = self._ensure_time_dim(batch['input'].to(self.device), int(self.config.data.T_in))
+        y = self._ensure_time_dim(batch['target'].to(self.device), int(self.config.data.T_out))
         
         with torch.no_grad():
             # 空间预测
@@ -500,10 +592,12 @@ class SequentialSpatiotemporalTrainer:
             # 总体指标
             overall_rel_l2 = torch.norm(temporal_results['final_pred'] - y) / torch.norm(y)
             
+            total_loss = spatial_loss + temporal_loss
             return {
+                'val_joint_loss': total_loss.item(),
                 'val_spatial_loss': spatial_loss.item(),
                 'val_temporal_loss': temporal_loss.item(),
-                'val_total_loss': (spatial_loss + temporal_loss).item(),
+                'val_total_loss': total_loss.item(),
                 'val_spatial_rel_l2': spatial_metrics.get('spatial_rel_l2', 0.0),
                 'val_temporal_rel_l2': temporal_metrics.get('temporal_rel_l2', 0.0),
                 'val_overall_rel_l2': overall_rel_l2.item()
@@ -551,8 +645,8 @@ class SequentialSpatiotemporalTrainer:
         
         with torch.no_grad():
             for batch in dataloader:
-                x = batch['input'].to(self.device)
-                y = batch['target'].to(self.device)
+                x = self._ensure_time_dim(batch['input'].to(self.device), int(self.config.data.T_in))
+                y = self._ensure_time_dim(batch['target'].to(self.device), int(self.config.data.T_out))
                 
                 spatial_results = self.spatial_module(x)
                 loss = self._calculate_spatial_loss(spatial_results, y)
@@ -571,19 +665,12 @@ class SequentialSpatiotemporalTrainer:
         
         with torch.no_grad():
             for batch in dataloader:
-                x = batch['input'].to(self.device)
-                y = batch['target'].to(self.device)
-                
-                # 使用空间模块生成输入
-                with torch.no_grad():
-                    spatial_pred = self.spatial_module(x)
-                    temporal_input = spatial_pred.unsqueeze(1) if spatial_pred.dim() == 4 else spatial_pred
-                
-                temporal_pred = self.temporal_module(temporal_input)
-                if temporal_pred.dim() == 5:
-                    temporal_pred = temporal_pred.squeeze(1)
-                
-                loss = self._calculate_temporal_loss(temporal_pred, y)
+                x = self._ensure_time_dim(batch['input'].to(self.device), int(self.config.data.T_in))
+                y = self._ensure_time_dim(batch['target'].to(self.device), int(self.config.data.T_out))
+
+                spatial_results = self.spatial_module(x)
+                temporal_results = self.temporal_module(spatial_results, x)
+                loss = self._calculate_temporal_loss(temporal_results, y)
                 
                 total_loss += loss.item()
                 num_batches += 1
@@ -596,8 +683,8 @@ class SequentialSpatiotemporalTrainer:
         num_batches = 0
         
         with torch.no_grad():
-            for batch in dataloader:
-                metrics = self.validation_step(batch)
+            for batch_idx, batch in enumerate(dataloader):
+                metrics = self.validation_step(batch, batch_idx)
                 total_loss += metrics['val_joint_loss']
                 num_batches += 1
         
@@ -606,12 +693,12 @@ class SequentialSpatiotemporalTrainer:
     def _calculate_spatial_loss(self, spatial_results: Dict[str, torch.Tensor], target: torch.Tensor) -> torch.Tensor:
         """计算空间损失"""
         spatial_pred = spatial_results['spatial_pred']
-        return self.spatial_loss_fn(spatial_pred, target) * self.config.spatial.loss_weight
+        return self.spatial_loss_fn(spatial_pred, target) * self._get_loss_weight("spatial", default=1.0)
     
     def _calculate_temporal_loss(self, temporal_results: Dict[str, torch.Tensor], target: torch.Tensor) -> torch.Tensor:
         """计算时序损失"""
         final_pred = temporal_results['final_pred']
-        return self.temporal_loss_fn(final_pred, target) * self.config.temporal.loss_weight
+        return self.temporal_loss_fn(final_pred, target) * self._get_loss_weight("temporal", default=1.0)
     
     def _calculate_spatial_metrics(self, pred: torch.Tensor, target: torch.Tensor) -> Dict[str, float]:
         """计算空间指标"""
@@ -622,6 +709,14 @@ class SequentialSpatiotemporalTrainer:
         metrics['spatial_rel_l2'] = (torch.norm(diff) / torch.norm(target)).item()
         metrics['spatial_mae'] = F.l1_loss(pred, target).item()
         metrics['spatial_rmse'] = torch.sqrt(F.mse_loss(pred, target)).item()
+        try:
+            pred_img = pred[:, -1, ...] if pred.dim() == 5 else pred
+            target_img = target[:, -1, ...] if target.dim() == 5 else target
+            metrics['spatial_ssim'] = float(ssim_metric(pred_img, target_img))
+            metrics['spatial_psnr'] = float(psnr_metric(pred_img, target_img))
+        except Exception:
+            metrics['spatial_ssim'] = 0.0
+            metrics['spatial_psnr'] = 0.0
         
         return metrics
     
@@ -667,8 +762,8 @@ class SequentialSpatiotemporalTrainer:
     def _perform_data_consistency_check(self, batch: Dict[str, torch.Tensor]):
         """执行数据一致性检查"""
         try:
-            x = batch['input']
-            y = batch['target']
+            x = self._ensure_time_dim(batch['input'], int(self.config.data.T_in))
+            y = self._ensure_time_dim(batch['target'], int(self.config.data.T_out))
             
             # 检查数据管道一致性
             pipeline_check = self.data_consistency_checker.check_data_pipeline_consistency(
@@ -729,43 +824,17 @@ class SequentialSpatiotemporalTrainer:
         avg_metrics = {}
         for key in epoch_metrics[0].keys():
             avg_metrics[key] = np.mean([m[key] for m in epoch_metrics])
-        
+        avg_metrics['train_loss'] = float(avg_metrics.get('total_loss', avg_metrics.get('joint_loss', 0.0)))
         return avg_metrics
     
-    def validate_epoch(self, dataloader, epoch: int) -> Dict[str, float]:
+    def validate_epoch(self, dataloader, epoch: int = 0) -> Dict[str, float]:
         """验证一个epoch"""
-        # 使用分阶段验证
         staged_metrics = self.staged_validation(dataloader, epoch)
-        
-        # 提取主要指标用于返回
         return {
             'val_loss': staged_metrics.get('joint_loss', 0.0),
             'val_spatial_loss': staged_metrics.get('spatial_loss', 0.0),
             'val_temporal_loss': staged_metrics.get('temporal_loss', 0.0)
         }
-    
-    def validate_epoch(self, dataloader) -> Dict[str, float]:
-        """验证一个epoch"""
-        total_metrics = {}
-        num_batches = 0
-        
-        for batch in dataloader:
-            batch_metrics = self.validation_step(batch, num_batches)
-            
-            # 累积指标
-            for key, value in batch_metrics.items():
-                if key not in total_metrics:
-                    total_metrics[key] = 0.0
-                total_metrics[key] += value
-            
-            num_batches += 1
-        
-        # 计算平均值
-        avg_metrics = {}
-        for key, value in total_metrics.items():
-            avg_metrics[key] = value / num_batches if num_batches > 0 else 0.0
-        
-        return avg_metrics
     
     def train(self, train_dataloader, val_dataloader, num_epochs: int):
         """主训练循环"""
@@ -816,10 +885,9 @@ class SequentialSpatiotemporalTrainer:
     
     def save_checkpoint(self, epoch: int, metrics: Dict[str, float]) -> str:
         """保存检查点"""
-        checkpoint_dir = Path(self.config.output_dir) / "checkpoints"
-        checkpoint_dir.mkdir(parents=True, exist_ok=True)
-        
-        checkpoint_path = checkpoint_dir / f"best_sequential_model_epoch_{epoch}.pth"
+        output_dir = Path(self.config.output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        checkpoint_path = output_dir / f"checkpoint_epoch_{epoch}.pth"
         
         checkpoint = {
             'epoch': epoch,
@@ -837,24 +905,53 @@ class SequentialSpatiotemporalTrainer:
         torch.save(checkpoint, checkpoint_path)
         return str(checkpoint_path)
     
-    def load_checkpoint(self, checkpoint_path: str):
+    def load_checkpoint(self, checkpoint_path: Any):
         """加载检查点"""
-        checkpoint = torch.load(checkpoint_path, map_location=self.device)
-        
+        checkpoint = torch.load(str(checkpoint_path), map_location=self.device, weights_only=False)
+
+        if "config" in checkpoint and checkpoint["config"] is not None:
+            self.config = checkpoint["config"]
+            if not isinstance(self.config, DictConfig):
+                self.config = OmegaConf.create(self.config)
+            self._normalize_config()
+            if not hasattr(self.config, "output_dir"):
+                self.config.output_dir = Path(tempfile.mkdtemp(prefix="s2f_run_"))
+            else:
+                self.config.output_dir = Path(self.config.output_dir)
+            self.device = torch.device(
+                self.config.device if hasattr(self.config, 'device') else ('cuda' if torch.cuda.is_available() else 'cpu')
+            )
+            self.spatial_module = SpatialPredictionModule(self.config).to(self.device)
+            self.temporal_module = TemporalPredictionModule(self.config).to(self.device)
+            self.spatial_optimizer = self._build_spatial_optimizer()
+            self.temporal_optimizer = self._build_temporal_optimizer()
+            self.spatial_scheduler = self._build_spatial_scheduler()
+            self.temporal_scheduler = self._build_temporal_scheduler()
+            self.spatial_loss_fn = self._build_spatial_loss()
+            self.temporal_loss_fn = self._build_temporal_loss()
+
         self.spatial_module.load_state_dict(checkpoint['spatial_module_state_dict'])
         self.temporal_module.load_state_dict(checkpoint['temporal_module_state_dict'])
-        self.spatial_optimizer.load_state_dict(checkpoint['spatial_optimizer_state_dict'])
-        self.temporal_optimizer.load_state_dict(checkpoint['temporal_optimizer_state_dict'])
+        try:
+            self.spatial_optimizer.load_state_dict(checkpoint['spatial_optimizer_state_dict'])
+            self.temporal_optimizer.load_state_dict(checkpoint['temporal_optimizer_state_dict'])
+        except Exception:
+            pass
+
+        try:
+            if self.spatial_scheduler and checkpoint.get('spatial_scheduler_state_dict'):
+                self.spatial_scheduler.load_state_dict(checkpoint['spatial_scheduler_state_dict'])
+            if self.temporal_scheduler and checkpoint.get('temporal_scheduler_state_dict'):
+                self.temporal_scheduler.load_state_dict(checkpoint['temporal_scheduler_state_dict'])
+        except Exception:
+            pass
         
-        if self.spatial_scheduler and checkpoint['spatial_scheduler_state_dict']:
-            self.spatial_scheduler.load_state_dict(checkpoint['spatial_scheduler_state_dict'])
-        if self.temporal_scheduler and checkpoint['temporal_scheduler_state_dict']:
-            self.temporal_scheduler.load_state_dict(checkpoint['temporal_scheduler_state_dict'])
-        
-        self.current_epoch = checkpoint['epoch']
-        self.best_val_loss = checkpoint['best_val_loss']
+        self.current_epoch = int(checkpoint['epoch'])
+        self.best_val_loss = float(checkpoint.get('best_val_loss', self.best_val_loss))
+        metrics = checkpoint.get("metrics", {})
         
         self.logger.info(f"Checkpoint loaded from {checkpoint_path}")
+        return self.current_epoch, metrics
     
     def test(self, test_dataloader) -> Dict[str, Any]:
         """测试模型"""

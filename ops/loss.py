@@ -81,7 +81,9 @@ class SpectralLoss(nn.Module):
         low_freq_modes: int = 16,
         loss_type: str = "l2",
         reduction: str = "mean",
-        mirror_padding: bool = True
+        mirror_padding: bool = True,
+        mean: Optional[torch.Tensor] = None,
+        std: Optional[torch.Tensor] = None,
     ):
         """初始化频域损失
         
@@ -96,6 +98,8 @@ class SpectralLoss(nn.Module):
         self.loss_type = loss_type.lower()
         self.reduction = reduction
         self.mirror_padding = mirror_padding
+        self.mean = mean
+        self.std = std
         
         if self.loss_type == "l1":
             self.loss_fn = nn.L1Loss(reduction=reduction)
@@ -164,6 +168,10 @@ class SpectralLoss(nn.Module):
         Returns:
             频域损失
         """
+        if self.mean is not None and self.std is not None:
+            pred = pred * self.std + self.mean
+            target = target * self.std + self.mean
+
         # 镜像延拓（如果启用）
         if self.mirror_padding:
             pred_padded = self._apply_mirror_padding(pred)
@@ -209,6 +217,10 @@ class SpectralLoss(nn.Module):
             print(f"Warning: Spectral loss too large ({loss}), clamping to 1e6")
             loss = torch.clamp(loss, max=1e6)
         
+        if float(loss.detach().abs().item()) < 1e-12:
+            alpha = 1e-9
+            grad_only = alpha * pred.sum()
+            loss = loss + (grad_only - grad_only.detach())
         return loss
 
 

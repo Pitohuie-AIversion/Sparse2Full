@@ -216,15 +216,19 @@ class EnhancedModelLoader:
         if parent_dir not in sys.path:
             sys.path.insert(0, parent_dir)
         
-        for filename in os.listdir(self.models_dir):
-            if filename.endswith('.py') and not filename.startswith('_'):
-                module_name = filename[:-3]
+        for root, _dirs, files in os.walk(self.models_dir):
+            for filename in files:
+                if not filename.endswith('.py') or filename.startswith('_'):
+                    continue
+                file_path = os.path.join(root, filename)
+                rel = os.path.relpath(file_path, self.models_dir)
+                module_name = os.path.splitext(rel)[0].replace(os.sep, ".")
                 try:
-                    self._process_module(module_name)
+                    self._process_module(module_name, file_path=file_path)
                 except Exception as e:
                     logger.warning(f"Failed to process module {module_name}: {e}")
     
-    def _process_module(self, module_name: str):
+    def _process_module(self, module_name: str, file_path: Optional[str] = None):
         """Process a single module and categorize its classes."""
         try:
             # Try different import strategies
@@ -235,7 +239,7 @@ class EnhancedModelLoader:
             try:
                 spec = importlib.util.spec_from_file_location(
                     module_name, 
-                    os.path.join(self.models_dir, f"{module_name}.py")
+                    file_path or os.path.join(self.models_dir, f"{module_name}.py")
                 )
                 if spec and spec.loader:
                     module = importlib.util.module_from_spec(spec)
@@ -673,13 +677,23 @@ class EnhancedModelLoader:
                     import numpy as np
                     total_params = sum(p.numel() for p in model.parameters())
                     params_m = total_params / 1e6
-                    img_size = None
+                    img_size = valid_params.get('img_size') or getattr(model, 'img_size', None) or 224
                     try:
-                        img_size = int(valid_params.get('img_size') or getattr(model, 'img_size', None) or 224)
+                        from omegaconf import ListConfig  # type: ignore
+                        if isinstance(img_size, ListConfig):
+                            img_size = list(img_size)
                     except Exception:
-                        img_size = 224
+                        pass
+                    if isinstance(img_size, (list, tuple)):
+                        if len(img_size) >= 2:
+                            h, w = int(img_size[0]), int(img_size[1])
+                        elif len(img_size) == 1:
+                            h = w = int(img_size[0])
+                        else:
+                            h = w = 224
+                    else:
+                        h = w = int(img_size)
                     in_ch = int(valid_params.get('in_channels') or getattr(model, 'in_channels', 3) or 3)
-                    h = w = img_size
                     name_l = model.__class__.__name__.lower()
                     if 'fno' in name_l:
                         flops_g = total_params * 2 * (h * w) / 1e9
@@ -832,10 +846,33 @@ class EnhancedModelLoader:
             # Resolve input size from config if available
             img_size = None
             try:
+                def _to_hw(v: Any) -> Optional[Tuple[int, int]]:
+                    if v is None:
+                        return None
+                    try:
+                        from omegaconf import ListConfig  # type: ignore
+                        if isinstance(v, ListConfig):
+                            v = list(v)
+                    except Exception:
+                        pass
+                    if isinstance(v, (list, tuple)):
+                        if len(v) >= 2:
+                            return int(v[0]), int(v[1])
+                        if len(v) == 1:
+                            s = int(v[0])
+                            return s, s
+                        return None
+                    s = int(v)
+                    return s, s
+
                 if hasattr(model, 'img_size'):
-                    img_size = int(getattr(model, 'img_size'))
+                    hw = _to_hw(getattr(model, 'img_size'))
                 elif 'img_size' in model_config:
-                    img_size = int(model_config['img_size'])
+                    hw = _to_hw(model_config['img_size'])
+                else:
+                    hw = None
+                if hw is not None:
+                    img_size = hw[0]
             except Exception:
                 img_size = None
             
@@ -1013,13 +1050,34 @@ def test_enhanced_model(model_name: str, config: Optional[Dict[str, Any]] = None
             channels = channels or kwargs.get('in_channels', None)
         except Exception:
             pass
-        if isinstance(img_size, (list, tuple)):
-            img_size = int(img_size[0])
+        try:
+            from omegaconf import ListConfig  # type: ignore
+            if isinstance(img_size, ListConfig):
+                img_size = list(img_size)
+        except Exception:
+            pass
+
         if img_size is None:
             img_size = getattr(model, 'img_size', 224)
+        try:
+            from omegaconf import ListConfig  # type: ignore
+            if isinstance(img_size, ListConfig):
+                img_size = list(img_size)
+        except Exception:
+            pass
+
+        if isinstance(img_size, (list, tuple)):
+            if len(img_size) >= 2:
+                h, w = int(img_size[0]), int(img_size[1])
+            elif len(img_size) == 1:
+                h = w = int(img_size[0])
+            else:
+                h = w = 224
+        else:
+            h = w = int(img_size)
         if channels is None:
             channels = getattr(model, 'in_channels', 3)
-        input_shape = (1, int(channels), int(img_size), int(img_size))
+        input_shape = (1, int(channels), int(h), int(w))
         return _enhanced_loader.test_model_forward(model, input_shape=input_shape)
     except Exception as e:
         logger.error(f"Model test failed for {model_name}: {e}")

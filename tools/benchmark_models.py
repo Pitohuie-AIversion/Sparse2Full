@@ -66,8 +66,8 @@ class ModelBenchmark:
     """
     
     def __init__(self, 
-                 config_dir: str = "configs",
-                 data_dir: str = "data",
+                 config_dir: Any = "configs",
+                 data_dir: Any = "data",
                  device: str = "auto",
                  num_warmup: int = 10,
                  num_benchmark: int = 100):
@@ -80,6 +80,14 @@ class ModelBenchmark:
             num_warmup: 预热次数
             num_benchmark: 基准测试次数
         """
+        if isinstance(config_dir, dict):
+            data_dir = config_dir.get("data_dir", data_dir)
+            config_dir = config_dir.get("config_dir", "configs")
+        if not isinstance(config_dir, (str, os.PathLike)):
+            config_dir = "configs"
+        if not isinstance(data_dir, (str, os.PathLike)):
+            data_dir = "data"
+
         self.config_dir = Path(config_dir)
         self.data_dir = Path(data_dir)
         self.num_warmup = num_warmup
@@ -250,8 +258,10 @@ class ModelBenchmark:
         try:
             # 尝试使用thop库
             from thop import profile
-            input_tensor = torch.randn(input_shape).to(self.device)
-            flops, _ = profile(model, inputs=(input_tensor,), verbose=False)
+            import copy
+            model_for_profile = copy.deepcopy(model).to(self.device)
+            input_tensor = torch.randn(input_shape, device=self.device)
+            flops, _ = profile(model_for_profile, inputs=(input_tensor,), verbose=False)
             return flops / 1e9
         except ImportError:
             # 简单估算：假设每个参数对应2个FLOPs

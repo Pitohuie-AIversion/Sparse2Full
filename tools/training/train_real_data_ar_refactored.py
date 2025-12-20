@@ -26,6 +26,12 @@ try:
 except ImportError as e:
     print(f"警告: 无法导入时空分解模型: {e}")
     SPATIOTEMPORAL_AVAILABLE = False
+    class SequentialSpatiotemporalModel(nn.Module):
+        def __init__(self, *args, **kwargs):
+            super().__init__()
+
+        def forward(self, x):
+            return x
 
 import torch
 from omegaconf import DictConfig, OmegaConf

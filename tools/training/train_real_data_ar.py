@@ -163,7 +163,7 @@ class RealDataARTrainer:
                 return val
         return default
 
-    def __init__(self, config_path: str = None, model_name: str = None, use_liif_decoder: bool = False, output_dir_override: Path = None, skip_optimizer: bool = False, skip_monitoring: bool = False):
+    def __init__(self, config_path: str = None, model_name: str = None, use_liif_decoder: bool = False, output_dir_override: Path = None, skip_optimizer: bool = False, skip_monitoring: bool = False, minimal_init: bool = False):
         """初始化训练器
         
         Args:
@@ -177,6 +177,7 @@ class RealDataARTrainer:
         self.output_dir_override = Path(output_dir_override) if output_dir_override else None
         self._skip_optimizer = bool(skip_optimizer)
         self._skip_monitoring = bool(skip_monitoring)
+        self._minimal_init = bool(minimal_init)
         # 统一初始化，避免后续属性访问报错
         self.data_module = None
         self.setup_config(config_path)
@@ -273,6 +274,9 @@ class RealDataARTrainer:
             'max_time_steps': int(self._cfg_select('logging.visualization.io_debug.max_time_steps', default=4) or 4),
         }
         self.setup_logging()
+        if self._minimal_init:
+            self.device = torch.device("cpu")
+            return
         self.setup_device()
         self.setup_memory_management()
         try:
@@ -562,7 +566,7 @@ class RealDataARTrainer:
             tag = str(raw_tag)
             if '-model_' in base_name:
                 base_name = base_name.split('-model_')[0]
-            date_str = time.strftime('%Y%m%d%H%M%S')
+            date_str = time.strftime('%Y%m%d')
             seed_val = str(getattr(getattr(self.config, 'experiment', DictConfig({})), 'seed', ''))
             name_core = base_name
             if tag and f"-model_{tag}" not in name_core:
@@ -2261,7 +2265,24 @@ class RealDataARTrainer:
             try:
                 from utils.performance import PerformanceProfiler
                 profiler = PerformanceProfiler(device=self.device.type)
-                input_shape = (1, self.config.model.in_channels, self.config.model.img_size, self.config.model.img_size)
+                img_size = getattr(self.config.model, 'img_size', None)
+                try:
+                    from omegaconf import ListConfig  # type: ignore
+                    if isinstance(img_size, ListConfig):
+                        img_size = list(img_size)
+                except Exception:
+                    pass
+                if isinstance(img_size, (list, tuple)):
+                    if len(img_size) >= 2:
+                        h, w = int(img_size[0]), int(img_size[1])
+                    elif len(img_size) == 1:
+                        h = w = int(img_size[0])
+                    else:
+                        h = w = int(getattr(self.config.data, 'img_size', 224))
+                else:
+                    s = int(img_size if img_size is not None else getattr(self.config.data, 'img_size', 224))
+                    h = w = s
+                input_shape = (1, int(self.config.model.in_channels), int(h), int(w))
                 # 移动到设备
                 model_for_perf = self.model
                 if hasattr(model_for_perf, 'module'):
@@ -2281,7 +2302,7 @@ class RealDataARTrainer:
                     'input_shape': input_shape
                 }
                 self.logger.info(
-                    f"📊 资源: FLOPs={resource_info['flops_g']:.3f}G@{input_shape[2]}², "
+                    f"📊 资源: FLOPs={resource_info['flops_g']:.3f}G@{input_shape[2]}x{input_shape[3]}, "
                     f"延迟={resource_info['inference_latency_ms_mean']:.2f}±{resource_info['inference_latency_ms_std']:.2f}ms"
                 )
                 try:

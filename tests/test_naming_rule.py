@@ -11,7 +11,7 @@ def test_experiment_naming_and_output_dir():
     cfg_path = Path("/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/configs/train/minimal_debug.yaml")
     assert cfg_path.exists(), "配置文件不存在"
 
-    trainer = RealDataARTrainer(str(cfg_path), model_name="SwinUNet")
+    trainer = RealDataARTrainer(str(cfg_path), model_name="SwinUNet", minimal_init=True, skip_optimizer=True, skip_monitoring=True)
 
     exp_name = str(trainer.config.experiment.name)
     out_dir = Path(trainer.output_dir)
@@ -24,4 +24,3 @@ def test_experiment_naming_and_output_dir():
 
     assert out_dir.name == exp_name, "输出目录名称必须与实验名完全一致"
     assert "_" not in out_dir.name.split(today)[-1], "不应追加时分秒下划线后缀"
-

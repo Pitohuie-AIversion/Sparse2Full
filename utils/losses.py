@@ -142,6 +142,7 @@ class TotalLoss(nn.Module):
         spec_loss_type: str = 'l2',
         dc_loss_type: str = 'l2',
         low_freq_modes: int = 16,
+        spec_config: Optional[Dict[str, Any]] = None,
         dc_config: Optional[Dict[str, Any]] = None,
         mean: Optional[torch.Tensor] = None,
         std: Optional[torch.Tensor] = None,
@@ -153,7 +154,14 @@ class TotalLoss(nn.Module):
 
         # 复用ops.loss中的具体实现，保持数值稳定性与一致性
         self.rec_loss = ReconstructionLoss(rec_loss_type)
-        self.spec_loss = SpectralLoss(low_freq_modes, spec_loss_type, mirror_padding=False)
+        spec_cfg = spec_config or {}
+        spec_low_freq_modes = int(spec_cfg.get("low_freq_modes", low_freq_modes))
+        spec_mirror_padding = bool(spec_cfg.get("mirror_padding", True))
+        self.spec_loss = SpectralLoss(
+            spec_low_freq_modes,
+            spec_loss_type,
+            mirror_padding=spec_mirror_padding,
+        )
 
         # DC的反归一化函数（若提供mean/std）
         denorm_fn: Optional[callable] = None

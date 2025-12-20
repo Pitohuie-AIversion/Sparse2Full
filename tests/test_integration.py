@@ -31,7 +31,7 @@ class TestIntegrationTrainingFlow(unittest.TestCase):
     def setUp(self):
         """测试前设置"""
         self.temp_dir = tempfile.mkdtemp()
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         
         # 创建测试配置
         self.create_test_config()

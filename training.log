@@ -1725,3 +1725,907 @@
 2025-11-18 08:14:32,761 - spatiotemporal_trainer - INFO - 数据管理器设置完成
 2025-11-18 08:14:32,761 - spatiotemporal_trainer - INFO - 开始时空分解训练
 2025-11-18 08:14:32,761 - spatiotemporal_trainer - ERROR - 时空分解模型不可用，无法执行训练
+2025-12-19 14:41:24,695 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,699 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp14l4pomi/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,728 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,728 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,732 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp_3br08mc/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,732 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp_3br08mc/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,732 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 14:41:24,732 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 14:41:24,739 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,739 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,739 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,743 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp58x1o05q/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,743 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp58x1o05q/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,743 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp58x1o05q/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,748 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,748 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,748 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,748 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,752 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpzgi8ddl4/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,752 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpzgi8ddl4/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,752 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpzgi8ddl4/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,752 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpzgi8ddl4/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,758 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,758 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,758 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,758 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,758 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,762 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpwrlsriso/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,762 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpwrlsriso/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,762 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpwrlsriso/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,762 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpwrlsriso/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,762 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpwrlsriso/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,768 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,768 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,768 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,768 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,768 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,768 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,772 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-0/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,772 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-0/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,772 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-0/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,772 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-0/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,772 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-0/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,772 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-0/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,777 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,777 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,777 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,777 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,777 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,777 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,777 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,782 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,782 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,782 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,782 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,782 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,782 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,782 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,784 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 14:41:24,784 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 14:41:24,784 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 14:41:24,784 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 14:41:24,784 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 14:41:24,784 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 14:41:24,784 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 14:41:24,789 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,789 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,789 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,789 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,789 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,789 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,789 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,789 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:41:24,794 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,794 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,794 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,794 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,794 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,794 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,794 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,794 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 14:41:24,794 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 14:41:24,794 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 14:41:24,794 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 14:41:24,794 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 14:41:24,794 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 14:41:24,794 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 14:41:24,794 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 14:41:24,794 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 14:54:17,407 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 14:54:17,409 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-1/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 14:54:21,960 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 16:21:47,055 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,059 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp2d8as98l/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,067 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,067 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,070 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp0zwxp2ee/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,070 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp0zwxp2ee/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,071 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 16:21:47,071 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 16:21:47,076 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,076 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,076 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,080 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp0yjs3cwq/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,080 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp0yjs3cwq/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,080 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp0yjs3cwq/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,086 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,086 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,086 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,086 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,090 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpmwdrd0w3/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,090 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpmwdrd0w3/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,090 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpmwdrd0w3/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,090 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpmwdrd0w3/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,095 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,095 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,095 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,095 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,095 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,099 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpqs3w1fnz/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,099 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpqs3w1fnz/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,099 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpqs3w1fnz/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,099 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpqs3w1fnz/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,099 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpqs3w1fnz/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,105 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,105 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,105 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,105 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,105 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,105 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,109 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-2/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,109 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-2/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,109 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-2/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,109 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-2/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,109 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-2/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,109 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-2/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,115 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,115 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,115 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,115 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,115 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,115 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,115 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,120 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,120 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,120 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,120 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,120 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,120 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,120 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,122 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 16:21:47,122 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 16:21:47,122 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 16:21:47,122 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 16:21:47,122 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 16:21:47,122 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 16:21:47,122 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 16:21:47,128 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,128 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,128 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,128 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,128 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,128 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,128 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,128 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,132 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,132 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,132 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,132 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,132 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,132 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,132 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,132 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:21:47,132 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 16:21:47,132 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 16:21:47,132 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 16:21:47,132 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 16:21:47,132 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 16:21:47,132 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 16:21:47,132 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 16:21:47,132 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 16:21:47,136 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,136 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,136 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,136 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,136 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,136 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,136 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,136 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,136 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:21:47,137 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-2/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 16:21:47,137 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-2/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 16:21:47,137 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-2/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 16:21:47,137 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-2/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 16:21:47,137 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-2/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 16:21:47,137 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-2/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 16:21:47,137 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-2/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 16:21:47,137 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-2/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 16:21:47,137 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-2/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 16:21:47,141 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 16:21:47,141 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 16:21:47,141 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 16:21:47,141 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 16:21:47,141 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 16:21:47,141 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 16:21:47,141 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 16:21:47,141 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 16:21:47,141 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 16:38:42,158 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,162 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp7yxupnh3/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,169 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,169 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,173 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp8jw1khbu/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,173 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp8jw1khbu/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,174 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 16:38:42,174 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 16:38:42,179 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,179 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,179 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,183 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpd72dety3/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,183 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpd72dety3/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,183 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpd72dety3/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,189 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,189 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,189 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,189 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,193 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmprpym2gzr/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,193 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmprpym2gzr/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,193 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmprpym2gzr/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,193 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmprpym2gzr/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,198 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,198 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,198 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,198 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,198 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,202 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpcy456hts/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,202 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpcy456hts/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,202 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpcy456hts/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,202 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpcy456hts/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,202 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpcy456hts/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,209 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,209 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,209 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,209 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,209 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,209 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,213 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-3/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,213 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-3/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,213 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-3/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,213 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-3/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,213 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-3/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,213 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-3/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,218 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,218 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,218 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,218 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,218 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,218 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,218 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,223 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,223 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,223 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,223 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,223 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,223 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,223 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,225 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 16:38:42,225 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 16:38:42,225 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 16:38:42,225 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 16:38:42,225 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 16:38:42,225 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 16:38:42,225 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 16:38:42,231 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,231 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,231 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,231 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,231 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,231 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,231 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,231 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,236 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,236 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,236 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,236 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,236 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,236 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,236 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,236 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 16:38:42,237 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 16:38:42,237 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 16:38:42,237 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 16:38:42,237 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 16:38:42,237 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 16:38:42,237 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 16:38:42,237 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 16:38:42,237 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 16:38:42,240 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,240 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,240 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,240 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,240 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,240 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,240 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,240 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,240 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 16:38:42,242 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-3/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 16:38:42,242 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-3/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 16:38:42,242 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-3/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 16:38:42,242 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-3/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 16:38:42,242 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-3/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 16:38:42,242 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-3/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 16:38:42,242 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-3/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 16:38:42,242 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-3/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 16:38:42,242 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-3/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 16:38:42,245 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 16:38:42,245 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 16:38:42,245 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 16:38:42,245 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 16:38:42,245 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 16:38:42,245 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 16:38:42,245 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 16:38:42,245 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 16:38:42,245 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 17:19:28,460 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,464 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpr3o4bzm2/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,471 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,471 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,475 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmps5z90br6/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,475 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmps5z90br6/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,476 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 17:19:28,476 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 17:19:28,481 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,481 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,481 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,485 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpozfje_dm/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,485 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpozfje_dm/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,485 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpozfje_dm/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,491 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,491 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,491 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,491 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,495 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpp95tbsr2/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,495 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpp95tbsr2/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,495 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpp95tbsr2/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,495 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpp95tbsr2/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,501 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,501 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,501 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,501 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,501 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,505 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpfur6cb_d/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,505 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpfur6cb_d/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,505 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpfur6cb_d/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,505 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpfur6cb_d/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,505 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpfur6cb_d/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,511 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,511 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,511 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,511 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,511 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,511 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,515 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-4/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,515 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-4/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,515 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-4/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,515 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-4/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,515 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-4/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,515 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-4/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,521 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,521 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,521 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,521 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,521 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,521 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,521 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,526 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,526 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,526 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,526 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,526 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,526 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,526 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,528 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 17:19:28,528 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 17:19:28,528 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 17:19:28,528 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 17:19:28,528 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 17:19:28,528 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 17:19:28,528 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 17:19:28,533 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,533 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,533 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,533 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,533 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,533 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,533 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,533 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,549 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,549 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,549 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,549 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,549 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,549 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,549 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,549 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 17:19:28,549 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 17:19:28,549 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 17:19:28,549 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 17:19:28,549 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 17:19:28,549 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 17:19:28,549 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 17:19:28,549 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 17:19:28,549 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 17:19:28,552 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,552 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,552 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,552 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,552 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,552 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,552 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,552 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,552 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 17:19:28,554 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-4/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 17:19:28,554 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-4/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 17:19:28,554 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-4/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 17:19:28,554 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-4/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 17:19:28,554 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-4/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 17:19:28,554 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-4/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 17:19:28,554 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-4/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 17:19:28,554 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-4/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 17:19:28,554 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-4/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 17:19:28,557 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 17:19:28,557 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 17:19:28,557 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 17:19:28,557 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 17:19:28,557 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 17:19:28,557 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 17:19:28,557 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 17:19:28,557 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 17:19:28,557 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 18:09:16,532 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,536 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp7wddpm4x/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,543 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,543 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,547 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpohba6q5n/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,547 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpohba6q5n/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,548 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 18:09:16,548 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 18:09:16,553 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,553 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,553 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,557 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp9oj7cr6_/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,557 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp9oj7cr6_/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,557 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp9oj7cr6_/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,563 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,563 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,563 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,563 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,566 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpvv22r422/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,566 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpvv22r422/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,566 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpvv22r422/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,566 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpvv22r422/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,573 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,573 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,573 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,573 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,573 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,577 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp99nufxys/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,577 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp99nufxys/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,577 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp99nufxys/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,577 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp99nufxys/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,577 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp99nufxys/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,583 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,583 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,583 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,583 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,583 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,583 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,587 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-5/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,587 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-5/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,587 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-5/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,587 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-5/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,587 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-5/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,587 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-5/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,592 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,592 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,592 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,592 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,592 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,592 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,592 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,597 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,597 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,597 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,597 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,597 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,597 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,597 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,599 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 18:09:16,599 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 18:09:16,599 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 18:09:16,599 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 18:09:16,599 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 18:09:16,599 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 18:09:16,599 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 18:09:16,605 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,605 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,605 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,605 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,605 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,605 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,605 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,605 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,619 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,619 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,619 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,619 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,619 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,619 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,619 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,619 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:09:16,619 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 18:09:16,619 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 18:09:16,619 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 18:09:16,619 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 18:09:16,619 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 18:09:16,619 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 18:09:16,619 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 18:09:16,619 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 18:09:16,623 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,623 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,623 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,623 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,623 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,623 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,623 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,623 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,623 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:09:16,624 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-5/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 18:09:16,624 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-5/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 18:09:16,624 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-5/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 18:09:16,624 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-5/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 18:09:16,624 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-5/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 18:09:16,624 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-5/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 18:09:16,624 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-5/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 18:09:16,624 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-5/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 18:09:16,624 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-5/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 18:09:16,628 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 18:09:16,628 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 18:09:16,628 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 18:09:16,628 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 18:09:16,628 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 18:09:16,628 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 18:09:16,628 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 18:09:16,628 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 18:09:16,628 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 18:57:13,672 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,676 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpkowh_r8m/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,684 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,684 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,687 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpcg2s47h0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,687 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpcg2s47h0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,688 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 18:57:13,688 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 18:57:13,693 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,693 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,693 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,697 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpnoh5mfyo/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,697 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpnoh5mfyo/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,697 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpnoh5mfyo/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,703 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,703 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,703 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,703 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,707 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp_or7mwik/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,707 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp_or7mwik/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,707 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp_or7mwik/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,707 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp_or7mwik/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,713 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,713 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,713 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,713 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,713 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,717 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpg1qbvdui/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,717 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpg1qbvdui/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,717 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpg1qbvdui/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,717 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpg1qbvdui/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,717 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpg1qbvdui/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,723 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,723 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,723 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,723 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,723 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,723 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,727 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-6/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,727 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-6/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,727 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-6/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,727 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-6/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,727 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-6/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,727 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-6/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,732 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,732 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,732 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,732 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,732 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,732 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,732 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,737 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,737 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,737 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,737 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,737 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,737 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,737 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,740 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 18:57:13,740 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 18:57:13,740 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 18:57:13,740 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 18:57:13,740 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 18:57:13,740 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 18:57:13,740 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 18:57:13,745 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,745 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,745 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,745 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,745 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,745 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,745 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,745 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,769 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,769 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,769 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,769 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,769 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,769 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,769 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,769 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 18:57:13,769 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 18:57:13,769 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 18:57:13,769 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 18:57:13,769 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 18:57:13,769 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 18:57:13,769 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 18:57:13,769 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 18:57:13,769 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 18:57:13,772 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,772 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,772 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,772 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,772 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,772 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,772 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,772 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,772 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 18:57:13,774 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-6/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 18:57:13,774 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-6/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 18:57:13,774 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-6/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 18:57:13,774 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-6/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 18:57:13,774 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-6/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 18:57:13,774 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-6/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 18:57:13,774 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-6/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 18:57:13,774 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-6/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 18:57:13,774 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-6/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 18:57:13,777 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 18:57:13,777 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 18:57:13,777 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 18:57:13,777 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 18:57:13,777 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 18:57:13,777 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 18:57:13,777 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 18:57:13,777 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 18:57:13,777 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 19:04:26,693 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,697 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpt5u50fva/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,705 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,705 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,708 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp9yv2hmv4/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,708 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp9yv2hmv4/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,709 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 19:04:26,709 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 19:04:26,715 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,715 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,715 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,719 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpoi1nu1qs/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,719 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpoi1nu1qs/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,719 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpoi1nu1qs/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,725 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,725 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,725 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,725 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,729 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp4ynicg7a/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,729 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp4ynicg7a/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,729 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp4ynicg7a/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,729 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp4ynicg7a/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,735 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,735 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,735 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,735 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,735 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,738 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpei5c8uje/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,738 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpei5c8uje/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,738 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpei5c8uje/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,738 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpei5c8uje/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,738 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpei5c8uje/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,745 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,745 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,745 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,745 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,745 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,745 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,749 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-7/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,749 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-7/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,749 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-7/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,749 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-7/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,749 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-7/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,749 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-7/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,754 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,754 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,754 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,754 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,754 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,754 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,754 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,759 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,759 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,759 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,759 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,759 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,759 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,759 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,761 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 19:04:26,761 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 19:04:26,761 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 19:04:26,761 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 19:04:26,761 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 19:04:26,761 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 19:04:26,761 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 19:04:26,767 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,767 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,767 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,767 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,767 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,767 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,767 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,767 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,771 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,771 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,771 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,771 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,771 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,771 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,771 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,771 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:04:26,771 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 19:04:26,771 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 19:04:26,771 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 19:04:26,771 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 19:04:26,771 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 19:04:26,771 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 19:04:26,771 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 19:04:26,771 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 19:04:26,775 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,775 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,775 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,775 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,775 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,775 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,775 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,775 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,775 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:04:26,776 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-7/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 19:04:26,776 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-7/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 19:04:26,776 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-7/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 19:04:26,776 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-7/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 19:04:26,776 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-7/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 19:04:26,776 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-7/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 19:04:26,776 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-7/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 19:04:26,776 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-7/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 19:04:26,776 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-7/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 19:04:26,780 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 19:04:26,780 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 19:04:26,780 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 19:04:26,780 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 19:04:26,780 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 19:04:26,780 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 19:04:26,780 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 19:04:26,780 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 19:04:26,780 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 19:39:13,220 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,224 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpolhm3rbf/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,231 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,231 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,235 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpyq714o1m/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,235 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpyq714o1m/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,235 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 19:39:13,235 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 19:39:13,241 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,241 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,241 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,245 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpwe5889pi/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,245 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpwe5889pi/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,245 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpwe5889pi/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,251 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,251 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,251 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,251 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,255 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp8fzhoaya/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,255 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp8fzhoaya/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,255 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp8fzhoaya/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,255 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmp8fzhoaya/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,262 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,262 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,262 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,262 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,262 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,265 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpvjpk0s8w/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,265 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpvjpk0s8w/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,265 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpvjpk0s8w/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,265 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpvjpk0s8w/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,265 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/tmpvjpk0s8w/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,272 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,272 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,272 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,272 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,272 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,272 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,275 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-8/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,275 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-8/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,275 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-8/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,275 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-8/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,275 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-8/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,275 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-8/test_end_to_end_training0/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,281 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,281 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,281 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,281 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,281 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,281 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,281 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,286 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,286 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,286 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,286 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,286 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,286 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,286 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,288 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 19:39:13,288 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 19:39:13,288 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 19:39:13,288 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 19:39:13,288 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 19:39:13,288 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 19:39:13,288 - spatiotemporal_trainer - INFO - 检查点已保存到: /tmp/test_output/checkpoint_epoch_10.pt
+2025-12-19 19:39:13,293 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,293 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,293 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,293 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,293 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,293 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,293 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,293 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,298 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,298 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,298 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,298 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,298 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,298 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,298 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,298 - spatiotemporal_trainer - INFO - 配置快照已保存到: runs/spatiotemporal/spatiotemporal_decomposition/config_merged.yaml
+2025-12-19 19:39:13,298 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 19:39:13,298 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 19:39:13,298 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 19:39:13,298 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 19:39:13,298 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 19:39:13,298 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 19:39:13,298 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 19:39:13,298 - spatiotemporal_trainer - INFO - 开始模型测试
+2025-12-19 19:39:13,302 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,302 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,302 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,302 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,302 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,302 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,302 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,302 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,302 - spatiotemporal_trainer - WARNING - 时空分解模型不可用，使用简化版本
+2025-12-19 19:39:13,303 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-8/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 19:39:13,303 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-8/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 19:39:13,303 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-8/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 19:39:13,303 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-8/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 19:39:13,303 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-8/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 19:39:13,303 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-8/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 19:39:13,303 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-8/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 19:39:13,303 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-8/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 19:39:13,303 - spatiotemporal_trainer - INFO - 配置快照已保存到: /tmp/pytest-of-suguangsheng/pytest-8/test_integration_full_pipeline0/integration_test/config_merged.yaml
+2025-12-19 19:39:13,306 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 19:39:13,306 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 19:39:13,306 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 19:39:13,306 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 19:39:13,306 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 19:39:13,306 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 19:39:13,306 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 19:39:13,306 - spatiotemporal_trainer - INFO - 数据管理器设置完成
+2025-12-19 19:39:13,306 - spatiotemporal_trainer - INFO - 数据管理器设置完成

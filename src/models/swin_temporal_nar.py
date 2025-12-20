@@ -24,13 +24,22 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SwinTemporalConfig:
     """SwinTemporalNAR配置"""
+    # 测试兼容字段（tests/test_swin_temporal_nar.py 依赖）
+    input_channels: int = 1
+    hidden_dim: int = 96
+    num_layers: int = 4
+    num_heads: int = 8
+    time_steps: int = 10
+    prediction_steps: int = 5
+    spatial_resolution: Tuple[int, int] = (64, 64)
+
     # 基础配置
-    img_size: int = 224
+    img_size: int = 64
     patch_size: int = 4
-    in_channels: int = 3
+    in_channels: int = 1
     embed_dim: int = 96
-    depths: List[int] = field(default_factory=lambda: [2, 2, 6, 2])
-    num_heads: List[int] = field(default_factory=lambda: [3, 6, 12, 24])
+    depths: List[int] = field(default_factory=lambda: [2, 2, 2, 2])
+    stage_num_heads: List[int] = field(default_factory=lambda: [8, 8, 8, 8])
     window_size: int = 7
     mlp_ratio: float = 4.0
     dropout: float = 0.0
@@ -41,75 +50,51 @@ class SwinTemporalConfig:
     temporal_config: TemporalEncodingConfig = field(default_factory=TemporalEncodingConfig)
     
     # NAR预测配置
-    future_steps: int = 10
+    future_steps: int = 5
     prediction_type: str = "direct"  # "direct", "residual", "hierarchical"
     
     # 输出配置
-    out_channels: int = 3
+    out_channels: int = 1
     output_activation: str = "identity"  # "identity", "tanh", "sigmoid"
     
     # 优化配置
     use_checkpoint: bool = False
     fused_window_process: bool = True
 
-    # 兼容测试的别名参数（不会影响内部实现字段）
-    # 注意：这些别名仅用于配置初始化兼容，实际模型使用规范字段
-    input_channels: Optional[int] = None
-    hidden_dim: Optional[int] = None
-    num_layers: Optional[int] = None
-    heads: Optional[int] = None  # 单值num_heads别名
-    time_steps: Optional[int] = None
-    prediction_steps: Optional[int] = None
-    spatial_resolution: Optional[Tuple[int, int]] = None
-
     def __post_init__(self):
-        """别名参数规范化到内部字段。
-        满足测试约定：SwinTemporalConfig(input_channels, hidden_dim, num_layers, num_heads,
-        time_steps, prediction_steps, spatial_resolution)
-        """
-        # in_channels 映射
-        if self.input_channels is not None:
-            self.in_channels = int(self.input_channels)
+        self.in_channels = int(self.input_channels)
+        self.embed_dim = int(self.hidden_dim)
+        self.future_steps = int(self.prediction_steps)
+        if self.out_channels == 1 and self.in_channels != 1:
+            self.out_channels = int(self.in_channels)
 
-        # embed_dim 映射
-        if self.hidden_dim is not None:
-            self.embed_dim = int(self.hidden_dim)
+        try:
+            h, w = int(self.spatial_resolution[0]), int(self.spatial_resolution[1])
+            self.img_size = min(h, w)
+        except Exception:
+            pass
 
-        # depths 与 num_layers 映射
-        if self.num_layers is not None:
-            layers = int(self.num_layers)
-            self.depths = [2] * layers  # 采用均匀深度的保守默认
-            # 将 num_heads 映射为列表形式
-            if self.heads is not None:
-                self.num_heads = [int(self.heads)] * layers
-            elif isinstance(self.num_heads, int):
-                self.num_heads = [int(self.num_heads)] * layers
-            elif isinstance(self.num_heads, list) and len(self.num_heads) != layers:
-                # 对齐长度
-                self.num_heads = [self.num_heads[0]] * layers
-        else:
-            # 如果未提供 num_layers，但提供了 heads（int），也做广播
-            if self.heads is not None:
-                # 若已有 depths 列表，按其长度广播
-                L = len(self.depths) if isinstance(self.depths, list) else 4
-                self.num_heads = [int(self.heads)] * L
+        layers = int(self.num_layers)
+        if len(self.depths) != layers:
+            self.depths = [2] * layers
+        if len(self.stage_num_heads) != layers:
+            self.stage_num_heads = [int(self.num_heads)] * layers
 
-        # spatial_resolution 映射到 img_size（使用高宽中的高作为基准）
-        if self.spatial_resolution is not None:
-            try:
-                h, w = int(self.spatial_resolution[0]), int(self.spatial_resolution[1])
-                # 使用较小边作为 img_size 基准，以保持窗口与patch对齐
-                self.img_size = min(h, w)
-            except Exception:
-                pass
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "input_channels": int(self.input_channels),
+            "hidden_dim": int(self.hidden_dim),
+            "num_layers": int(self.num_layers),
+            "num_heads": int(self.num_heads),
+            "window_size": int(self.window_size),
+            "time_steps": int(self.time_steps),
+            "prediction_steps": int(self.prediction_steps),
+            "spatial_resolution": tuple(self.spatial_resolution),
+        }
 
-        # prediction_steps 映射到 future_steps
-        if self.prediction_steps is not None:
-            self.future_steps = int(self.prediction_steps)
-
-        # 若未显式设置 out_channels，默认与输入通道一致以满足测试期望
-        if not isinstance(self.out_channels, int) or self.out_channels <= 0:
-            self.out_channels = self.in_channels
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "SwinTemporalConfig":
+        return cls(**d)
 
 class PatchEmbedding(nn.Module):
     """
@@ -139,12 +124,17 @@ class PatchEmbedding(nn.Module):
         前向传播
         
         Args:
-            x: 输入图像 [B, C, H, W]
+            x: 输入图像 [B, C, H, W] 或 [B, T, C, H, W]
             
         Returns:
-            patch嵌入 [B, N, D] 其中N是patch数量，D是嵌入维度
+            patch嵌入 [B, N, D] 或 [B, T, N, D]
         """
-        B, C, H, W = x.shape
+        if x.dim() == 5:
+            B, T, C, H, W = x.shape
+            x = x.reshape(B * T, C, H, W)
+        else:
+            B, C, H, W = x.shape
+            T = None
         
         # 投影到嵌入空间
         x = self.proj(x)  # [B, D, H//patch_size, W//patch_size]
@@ -155,6 +145,9 @@ class PatchEmbedding(nn.Module):
         # 归一化
         x = self.norm(x)
         
+        if T is not None:
+            x = x.reshape(B, T, x.shape[1], x.shape[2])
+
         return x
 
 class WindowAttention(nn.Module):
@@ -163,20 +156,31 @@ class WindowAttention(nn.Module):
     基于窗口的注意力计算，支持时间编码
     """
     
-    def __init__(self, dim: int, window_size: int, num_heads: int, 
-                 qkv_bias: bool = True, attention_dropout: float = 0.0, 
-                 projection_dropout: float = 0.0):
+    def __init__(
+        self,
+        dim: Optional[int] = None,
+        window_size: int = 7,
+        num_heads: int = 8,
+        embed_dim: Optional[int] = None,
+        qkv_bias: bool = True,
+        attention_dropout: float = 0.0,
+        projection_dropout: float = 0.0,
+    ):
         super().__init__()
-        self.dim = dim
+        if embed_dim is not None:
+            dim = int(embed_dim)
+        if dim is None:
+            raise ValueError("Either `dim` or `embed_dim` must be provided")
+        self.dim = int(dim)
         self.window_size = window_size
         self.num_heads = num_heads
-        self.head_dim = dim // num_heads
+        self.head_dim = self.dim // num_heads
         self.scale = self.head_dim ** -0.5
         
         # QKV线性变换
-        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
+        self.qkv = nn.Linear(self.dim, self.dim * 3, bias=qkv_bias)
         self.attention_dropout = nn.Dropout(attention_dropout)
-        self.proj = nn.Linear(dim, dim)
+        self.proj = nn.Linear(self.dim, self.dim)
         self.proj_dropout = nn.Dropout(projection_dropout)
         
         # 相对位置偏置
@@ -190,7 +194,7 @@ class WindowAttention(nn.Module):
         # 初始化
         nn.init.trunc_normal_(self.relative_position_bias_table, std=0.02)
         
-        logger.info(f"WindowAttention初始化: dim={dim}, window_size={window_size}, "
+        logger.info(f"WindowAttention初始化: dim={self.dim}, window_size={window_size}, "
                    f"num_heads={num_heads}")
     
     def _get_relative_position_index(self):
@@ -207,20 +211,33 @@ class WindowAttention(nn.Module):
         relative_position_index = relative_coords.sum(-1)
         return relative_position_index
     
-    def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(
+        self,
+        x: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
+        return_attention: bool = False,
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
         """
         前向传播
         
         Args:
-            x: 输入特征 [B*num_windows, window_size*window_size, C]
+            x: 输入特征 [B*num_windows, window_size*window_size, C] 或 [B, T, N, C]
             mask: 可选的注意力掩码
+            return_attention: 是否返回注意力权重
             
         Returns:
-            注意力输出 [B*num_windows, window_size*window_size, C]
+            注意力输出 [B*num_windows, window_size*window_size, C] 或 [B, T, N, C]
         """
-        B_, N, C = x.shape
+        if x.dim() == 4:
+            B, T, N, C = x.shape
+            x = x.reshape(B * T, N, C)
+        else:
+            B = None
+            T = None
+            B_, N, C = x.shape
         
         # QKV变换
+        B_, N, C = x.shape
         qkv = self.qkv(x).reshape(B_, N, 3, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]
         
@@ -228,11 +245,13 @@ class WindowAttention(nn.Module):
         attention = (q @ k.transpose(-2, -1)) * self.scale
         
         # 添加相对位置偏置
-        relative_position_bias = self.relative_position_bias_table[self.relative_position_index.view(-1)].view(
-            self.window_size * self.window_size, self.window_size * self.window_size, -1
-        )
-        relative_position_bias = relative_position_bias.permute(2, 0, 1).contiguous()
-        attention = attention + relative_position_bias.unsqueeze(0)
+        expected_tokens = self.window_size * self.window_size
+        if N == expected_tokens:
+            relative_position_bias = self.relative_position_bias_table[
+                self.relative_position_index.view(-1)
+            ].view(expected_tokens, expected_tokens, -1)
+            relative_position_bias = relative_position_bias.permute(2, 0, 1).contiguous()
+            attention = attention + relative_position_bias.unsqueeze(0)
         
         # 应用掩码
         if mask is not None:
@@ -247,7 +266,15 @@ class WindowAttention(nn.Module):
         x = (attention @ v).transpose(1, 2).reshape(B_, N, C)
         x = self.proj(x)
         x = self.proj_dropout(x)
-        
+
+        if B is not None and T is not None:
+            x = x.reshape(B, T, x.shape[1], x.shape[2])
+            attention_out = attention.reshape(B, T, attention.shape[1], attention.shape[2], attention.shape[3])
+        else:
+            attention_out = attention
+
+        if return_attention:
+            return x, attention_out
         return x
 
 class SwinTransformerBlock(nn.Module):
@@ -256,11 +283,25 @@ class SwinTransformerBlock(nn.Module):
     包含窗口注意力和前馈网络
     """
     
-    def __init__(self, dim: int, num_heads: int, window_size: int = 7,
-                 shift_size: int = 0, mlp_ratio: float = 4.0,
-                 dropout: float = 0.0, attention_dropout: float = 0.0,
-                 drop_path: float = 0.0, norm_layer: nn.Module = nn.LayerNorm):
+    def __init__(
+        self,
+        dim: Optional[int] = None,
+        num_heads: int = 8,
+        window_size: int = 7,
+        shift_size: int = 0,
+        mlp_ratio: float = 4.0,
+        dropout: float = 0.0,
+        attention_dropout: float = 0.0,
+        drop_path: float = 0.0,
+        norm_layer: nn.Module = nn.LayerNorm,
+        embed_dim: Optional[int] = None,
+    ):
         super().__init__()
+        if embed_dim is not None:
+            dim = int(embed_dim)
+        if dim is None:
+            raise ValueError("Either `dim` or `embed_dim` must be provided")
+        dim = int(dim)
         self.dim = dim
         self.num_heads = num_heads
         self.window_size = window_size
@@ -289,18 +330,29 @@ class SwinTransformerBlock(nn.Module):
         logger.info(f"SwinTransformerBlock初始化: dim={dim}, num_heads={num_heads}, "
                    f"window_size={window_size}, shift_size={shift_size}")
     
-    def forward(self, x: torch.Tensor, H: int, W: int) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, H: Optional[int] = None, W: Optional[int] = None) -> torch.Tensor:
         """
         前向传播
         
         Args:
-            x: 输入特征 [B, H*W, C]
+            x: 输入特征 [B, H*W, C] 或 [B, T, N, C]
             H: 高度
             W: 宽度
             
         Returns:
-            输出特征 [B, H*W, C]
+            输出特征 [B, H*W, C] 或 [B, T, N, C]
         """
+        if x.dim() == 4:
+            shortcut = x
+            x = self.norm1(x)
+            x = self.attention(x)
+            x = shortcut + self.drop_path(x)
+            x = x + self.drop_path(self.mlp(self.norm2(x)))
+            return x
+
+        if H is None or W is None:
+            raise TypeError("`H` and `W` must be provided for 3D input")
+
         B, L, C = x.shape
         
         # 残差连接
@@ -415,16 +467,32 @@ class TemporalSwinBlock(nn.Module):
     集成时间编码的Swin Transformer块
     """
     
-    def __init__(self, dim: int, num_heads: int, window_size: int = 7,
-                 shift_size: int = 0, mlp_ratio: float = 4.0,
-                 dropout: float = 0.0, attention_dropout: float = 0.0,
-                 drop_path: float = 0.0, temporal_dim: int = 64):
+    def __init__(
+        self,
+        dim: Optional[int] = None,
+        num_heads: int = 8,
+        window_size: int = 7,
+        shift_size: int = 0,
+        mlp_ratio: float = 4.0,
+        dropout: float = 0.0,
+        attention_dropout: float = 0.0,
+        drop_path: float = 0.0,
+        temporal_dim: int = 64,
+        embed_dim: Optional[int] = None,
+        temporal_encoding_type: str = "sinusoidal",
+    ):
         super().__init__()
+        if embed_dim is not None:
+            dim = int(embed_dim)
+        if dim is None:
+            raise ValueError("Either `dim` or `embed_dim` must be provided")
+        dim = int(dim)
         self.dim = dim
         self.num_heads = num_heads
         self.window_size = window_size
         self.shift_size = shift_size
         self.temporal_dim = temporal_dim
+        self.temporal_encoding_type = temporal_encoding_type
         
         # 标准Swin块
         self.swin_block = SwinTransformerBlock(
@@ -436,25 +504,36 @@ class TemporalSwinBlock(nn.Module):
         
         # 时间编码融合
         self.temporal_proj = nn.Linear(temporal_dim, dim)
-        self.temporal_gate = nn.Parameter(torch.zeros(1))
+        self.temporal_gate = nn.Parameter(torch.ones(1))
         
         logger.info(f"TemporalSwinBlock初始化: dim={dim}, num_heads={num_heads}, "
                    f"window_size={window_size}, temporal_dim={temporal_dim}")
     
-    def forward(self, x: torch.Tensor, H: int, W: int, 
-                temporal_features: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(
+        self,
+        x: torch.Tensor,
+        H: Optional[int] = None,
+        W: Optional[int] = None,
+        temporal_features: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
         """
         前向传播
         
         Args:
-            x: 空间特征 [B, H*W, C]
+            x: 空间特征 [B, H*W, C] 或 [B, T, N, C]
             H: 高度
             W: 宽度
             temporal_features: 时间特征 [B, C_temporal]
             
         Returns:
-            融合特征 [B, H*W, C]
+            融合特征 [B, H*W, C] 或 [B, T, N, C]
         """
+        if x.dim() == 4:
+            return self.swin_block(x)
+
+        if H is None or W is None:
+            raise TypeError("`H` and `W` must be provided for 3D input")
+
         # 标准Swin块处理
         x = self.swin_block(x, H, W)
         
@@ -478,11 +557,26 @@ class SwinTemporalStage(nn.Module):
     包含多个时间感知的Swin块和patch合并
     """
     
-    def __init__(self, dim: int, depth: int, num_heads: int, window_size: int = 7,
-                 mlp_ratio: float = 4.0, dropout: float = 0.0,
-                 attention_dropout: float = 0.0, drop_path: float = 0.0,
-                 downsample: bool = True, temporal_dim: int = 64):
+    def __init__(
+        self,
+        dim: Optional[int] = None,
+        depth: int = 2,
+        num_heads: int = 8,
+        window_size: int = 7,
+        mlp_ratio: float = 4.0,
+        dropout: float = 0.0,
+        attention_dropout: float = 0.0,
+        drop_path: float = 0.0,
+        downsample: bool = True,
+        temporal_dim: int = 64,
+        embed_dim: Optional[int] = None,
+    ):
         super().__init__()
+        if embed_dim is not None:
+            dim = int(embed_dim)
+        if dim is None:
+            raise ValueError("Either `dim` or `embed_dim` must be provided")
+        dim = int(dim)
         self.dim = dim
         self.depth = depth
         
@@ -504,27 +598,57 @@ class SwinTemporalStage(nn.Module):
         
         logger.info(f"SwinTemporalStage初始化: dim={dim}, depth={depth}, num_heads={num_heads}")
     
-    def forward(self, x: torch.Tensor, H: int, W: int,
-                temporal_features: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, int, int]:
+    def forward(
+        self,
+        x: torch.Tensor,
+        H: Optional[int] = None,
+        W: Optional[int] = None,
+        temporal_features: Optional[torch.Tensor] = None,
+        return_pre_downsample: bool = False,
+    ) -> Union[
+        torch.Tensor,
+        Tuple[torch.Tensor, int, int],
+        Tuple[torch.Tensor, torch.Tensor, int, int],
+    ]:
         """
         前向传播
         
         Args:
-            x: 输入特征 [B, H*W, C]
+            x: 输入特征 [B, H*W, C] 或 [B, T, N, C]
             H: 高度
             W: 宽度
             temporal_features: 时间特征
             
         Returns:
-            输出特征 [B, H'*W', C'], 新高度, 新宽度
+            输出特征 [B, T, N, C] 或 ([B, H'*W', C'], 新高度, 新宽度)
         """
+        if x.dim() == 4:
+            B, T, N, C = x.shape
+            for block in self.blocks:
+                x = block(x)
+            if isinstance(self.downsample, PatchMerging):
+                side = int(math.isqrt(N))
+                if side * side != N:
+                    raise ValueError(f"Cannot infer square grid from N={N}")
+                x_flat = x.reshape(B * T, N, C)
+                x_flat, H2, W2 = self.downsample(x_flat, side, side)
+                x = x_flat.reshape(B, T, H2 * W2, x_flat.shape[-1])
+            return x
+
+        if H is None or W is None:
+            raise TypeError("`H` and `W` must be provided for 3D input")
+
         # 通过所有块
         for block in self.blocks:
             x = block(x, H, W, temporal_features)
         
         # 下采样
+        x_pre = x
         if isinstance(self.downsample, PatchMerging):
             x, H, W = self.downsample(x, H, W)
+
+        if return_pre_downsample:
+            return x_pre, x, H, W
         
         return x, H, W
 
@@ -534,8 +658,41 @@ class SwinTemporalEncoder(nn.Module):
     基于Swin Transformer的时间-空间特征编码器
     """
     
-    def __init__(self, config: SwinTemporalConfig):
+    def __init__(
+        self,
+        config: Optional[SwinTemporalConfig] = None,
+        *,
+        embed_dim: int = 96,
+        num_heads: Union[int, List[int]] = 8,
+        depths: Optional[List[int]] = None,
+        window_size: int = 7,
+        patch_size: int = 4,
+        img_size: int = 64,
+        in_channels: int = 3,
+    ):
         super().__init__()
+        if config is None:
+            if isinstance(num_heads, list):
+                stage_num_heads = [int(v) for v in num_heads]
+            else:
+                stage_num_heads = [int(num_heads)] * (len(depths) if depths is not None else 4)
+            if depths is None:
+                depths = [2] * len(stage_num_heads)
+
+            config = SwinTemporalConfig(
+                input_channels=int(in_channels),
+                hidden_dim=int(embed_dim),
+                num_layers=int(len(depths)),
+                num_heads=int(stage_num_heads[0]),
+                window_size=int(window_size),
+                patch_size=int(patch_size),
+                time_steps=10,
+                prediction_steps=5,
+                spatial_resolution=(int(img_size), int(img_size)),
+            )
+            config.depths = [int(v) for v in depths]
+            config.stage_num_heads = [int(v) for v in stage_num_heads]
+
         self.config = config
         
         # Patch嵌入
@@ -550,14 +707,14 @@ class SwinTemporalEncoder(nn.Module):
         self.pos_dropout = nn.Dropout(config.dropout)
         
         # 时间编码器
-        self.temporal_encoder = create_temporal_encoder(config.temporal_config, num_layers=2)
+        self.temporal_encoder = create_temporal_encoder(config.temporal_config, num_layers=2).get_model()
         
         # 构建阶段
         self.stages = nn.ModuleList()
         dim = config.embed_dim
         H = W = config.img_size // config.patch_size
         
-        for i, (depth, num_heads) in enumerate(zip(config.depths, config.num_heads)):
+        for i, (depth, num_heads) in enumerate(zip(config.depths, config.stage_num_heads)):
             stage = SwinTemporalStage(
                 dim=dim, depth=depth, num_heads=num_heads,
                 window_size=config.window_size, mlp_ratio=config.mlp_ratio,
@@ -592,7 +749,9 @@ class SwinTemporalEncoder(nn.Module):
                 nn.init.constant_(m.bias, 0)
                 nn.init.constant_(m.weight, 1.0)
     
-    def forward(self, x: torch.Tensor, time_steps: Optional[torch.Tensor] = None) -> List[torch.Tensor]:
+    def forward_features(
+        self, x: torch.Tensor, time_steps: Optional[torch.Tensor] = None
+    ) -> List[torch.Tensor]:
         """
         前向传播
         
@@ -606,6 +765,8 @@ class SwinTemporalEncoder(nn.Module):
         # 处理输入维度
         if x.dim() == 5:  # [B, T, C, H, W]
             B, T, C, H, W = x.shape
+            if time_steps is None and T > 1:
+                time_steps = torch.arange(T, device=x.device).unsqueeze(0).repeat(B, 1)
             # 合并时间维度到批次维度
             x = x.reshape(B * T, C, H, W)
             if time_steps is not None:
@@ -624,9 +785,15 @@ class SwinTemporalEncoder(nn.Module):
         # 时间特征编码
         temporal_features = None
         if time_steps is not None:
-            # 创建时间特征
-            time_features = torch.zeros(B * T, self.config.temporal_config.embedding_dim, device=x.device)
-            time_features[:, 0] = time_steps.float()
+            embedding_dim = int(self.config.temporal_config.embedding_dim)
+            t = time_steps.float().unsqueeze(1)
+            div_term = torch.exp(
+                torch.arange(0, embedding_dim, 2, device=x.device, dtype=torch.float32)
+                * (-math.log(10000.0) / embedding_dim)
+            )
+            time_features = torch.zeros(B * T, embedding_dim, device=x.device, dtype=torch.float32)
+            time_features[:, 0::2] = torch.sin(t * div_term)
+            time_features[:, 1::2] = torch.cos(t * div_term)
             temporal_features = self.temporal_encoder(time_features.unsqueeze(1)).squeeze(1)
         
         # 存储多尺度特征
@@ -636,10 +803,31 @@ class SwinTemporalEncoder(nn.Module):
         
         # 通过各个阶段
         for i, stage in enumerate(self.stages):
-            x, H_patches, W_patches = stage(x, H_patches, W_patches, temporal_features)
-            features.append(x)
+            if i < len(self.stages) - 1:
+                x_pre, x, H_patches, W_patches = stage(
+                    x,
+                    H_patches,
+                    W_patches,
+                    temporal_features,
+                    return_pre_downsample=True,
+                )
+                features.append(x_pre)
+            else:
+                x, H_patches, W_patches = stage(x, H_patches, W_patches, temporal_features)
+                features.append(x)
         
         return features
+
+    def forward(self, x: torch.Tensor, time_steps: Optional[torch.Tensor] = None) -> torch.Tensor:
+        features = self.forward_features(x, time_steps)
+        deepest = features[-1]
+        pooled = deepest.mean(dim=1)
+        if x.dim() == 5:
+            B, T, _C, _H, _W = x.shape
+            pooled = pooled.reshape(B, T, pooled.shape[-1])
+        else:
+            pooled = pooled.reshape(x.shape[0], 1, pooled.shape[-1])
+        return pooled
 
 class TemporalNARHead(nn.Module):
     """
@@ -647,8 +835,31 @@ class TemporalNARHead(nn.Module):
     集成时间信息的预测头
     """
     
-    def __init__(self, config: SwinTemporalConfig):
+    def __init__(
+        self,
+        config: Optional[SwinTemporalConfig] = None,
+        *,
+        embed_dim: Optional[int] = None,
+        prediction_steps: int = 5,
+        output_channels: int = 1,
+        patch_size: int = 4,
+        spatial_resolution: Tuple[int, int] = (64, 64),
+    ):
         super().__init__()
+        if config is None:
+            if embed_dim is None:
+                raise ValueError("`embed_dim` must be provided when `config` is None")
+            config = SwinTemporalConfig(
+                input_channels=int(output_channels),
+                hidden_dim=int(embed_dim),
+                num_layers=1,
+                num_heads=8,
+                patch_size=int(patch_size),
+                prediction_steps=int(prediction_steps),
+                spatial_resolution=(int(spatial_resolution[0]), int(spatial_resolution[1])),
+                out_channels=int(output_channels),
+            )
+
         self.config = config
 
         # 计算输入特征维度
@@ -738,6 +949,8 @@ class TemporalNARHead(nn.Module):
         Returns:
             预测结果 [B, future_steps, out_channels]
         """
+        if features.dim() == 4:
+            features = features[:, -1, :, :]
         B, N, C = features.shape
         
         # 全局平均池化
@@ -796,32 +1009,47 @@ class SwinTemporalNAR(nn.Module):
         Returns:
             预测结果 [B, future_steps, out_channels, H, W]
         """
-        # 编码多尺度特征
-        features = self.encoder(x, time_steps)
+        is_sequence = x.dim() == 5
+        if is_sequence:
+            B, T, _C, _H, _W = x.shape
+            if time_steps is None and T > 1:
+                time_steps = torch.arange(T, device=x.device).unsqueeze(0).repeat(B, 1)
+        else:
+            B, T = x.shape[0], 1
+            if time_steps is None:
+                time_steps = torch.zeros(B, device=x.device)
+
+        features = self.encoder.forward_features(x, time_steps)
         
-        # 使用最深层的特征进行预测
         deepest_features = features[-1]
-        
-        # 预测未来时间步
-        predictions = []
-        for i in range(self.config.future_steps):
-            if target_times is not None:
-                target_time = target_times[:, i]
+        if is_sequence and T > 1:
+            deepest_features = deepest_features.reshape(B, T, deepest_features.shape[1], deepest_features.shape[2])
+            deepest_features = deepest_features[:, -1, :, :]
+
+        temporal_features = None
+
+        if time_steps is not None:
+            embedding_dim = int(self.config.temporal_config.embedding_dim)
+            if time_steps.dim() == 2:
+                t = time_steps.float()
             else:
-                # 如果没有提供目标时间，使用相对时间
-                if time_steps is not None:
-                    target_time = time_steps[:, -1] + i + 1
-                else:
-                    target_time = None
-            
-            # 单次预测
-            pred = self.predictor(deepest_features, target_time=target_time)
-            predictions.append(pred)
-        
-        # 合并所有时间步的预测
-        predictions = torch.stack(predictions, dim=1)  # [B, future_steps, out_channels, H, W]
-        
-        return predictions
+                t = time_steps.float().unsqueeze(1)
+
+            div_term = torch.exp(
+                torch.arange(0, embedding_dim, 2, device=x.device, dtype=torch.float32)
+                * (-math.log(10000.0) / embedding_dim)
+            )
+            time_features = torch.zeros(
+                t.shape[0], t.shape[1], embedding_dim, device=x.device, dtype=torch.float32
+            )
+            time_features[:, :, 0::2] = torch.sin(t.unsqueeze(-1) * div_term)
+            time_features[:, :, 1::2] = torch.cos(t.unsqueeze(-1) * div_term)
+            temporal_features_seq = self.encoder.temporal_encoder(
+                time_features, time_steps=t.long()
+            )
+            temporal_features = temporal_features_seq[:, -1, :]
+
+        return self.predictor(deepest_features, temporal_features=temporal_features, target_time=None)
     
     def get_model_info(self) -> Dict[str, Any]:
         """获取模型信息"""
@@ -857,7 +1085,7 @@ class SwinTemporalNAR(nn.Module):
     def load_model(self, filepath: Union[str, Path], map_location: Optional[str] = None):
         """加载模型"""
         try:
-            checkpoint = torch.load(filepath, map_location=map_location)
+            checkpoint = torch.load(filepath, map_location=map_location, weights_only=False)
             self.load_state_dict(checkpoint['model_state_dict'])
             logger.info(f"SwinTemporalNAR模型已从 {filepath} 加载")
         except Exception as e:
