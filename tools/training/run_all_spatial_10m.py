@@ -2,12 +2,16 @@
 """
 Script to run training for classified spatial models with ~10M parameters on Shallow Water dataset.
 Uses 2 GPUs via DDP.
+Supports RESUMING from interrupted runs.
+Uses dynamic ports to avoid collisions.
 """
 
 import sys
 import os
 import subprocess
 import time
+import glob
+import socket
 from pathlib import Path
 from omegaconf import OmegaConf
 
@@ -49,6 +53,69 @@ MODEL_CATEGORIES = {
     ]
 }
 
+def get_free_port():
+    """Finds a free port on localhost."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("", 0))
+        return s.getsockname()[1]
+
+def find_existing_run(model_name):
+    """
+    Finds the latest run directory for a given model.
+    Returns (status, path)
+    status: 'completed', 'interrupted', 'not_found'
+    path: path to directory (if found) or checkpoint (if interrupted)
+    """
+    runs_dir = project_root / "runs"
+    # Search for directories matching the pattern
+    # Pattern: AR-ShallowWater-10M-{model_name}*
+    # Note: We need to be careful not to match partial names (e.g. UNet vs UNetFormer)
+    # So we look for AR-ShallowWater-10M-{model_name}-* 
+    # But wait, the experiment name is AR-ShallowWater-10M-{model_name}
+    # The trainer appends -s{seed}-{date} or similar.
+    # So we search for folders starting with AR-ShallowWater-10M-{model_name}-
+    
+    candidates = []
+    if runs_dir.exists():
+        for d in runs_dir.iterdir():
+            if not d.is_dir():
+                continue
+            # Check if it matches the specific model
+            # We need to ensure we don't match UNetFormer when looking for UNet
+            prefix = f"AR-ShallowWater-10M-{model_name}-"
+            if d.name.startswith(prefix):
+                 candidates.append(d)
+    
+    if not candidates:
+        return 'not_found', None
+    
+    # Sort by modification time (newest first)
+    candidates.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+    
+    latest_run = candidates[0]
+    
+    # Check for completion
+    # test_results.json indicates full completion (including testing)
+    if (latest_run / "test_results.json").exists():
+        return 'completed', latest_run
+    
+    # Check for checkpoint to resume
+    # Check in root first (common behavior)
+    ckpt_path = latest_run / "last.ckpt"
+    if ckpt_path.exists():
+        return 'interrupted', ckpt_path
+        
+    # Check in checkpoints/ subdir (alternative behavior)
+    ckpt_path = latest_run / "checkpoints" / "last.ckpt"
+    if ckpt_path.exists():
+        return 'interrupted', ckpt_path
+        
+    # If no checkpoint, we might have just started and crashed, or no checkpoints saved yet.
+    # In this case, we treat it as 'not_found' (restart) to be safe, 
+    # or 'failed' if we want to debug. 
+    # We'll treat it as 'not_found' (restart)
+    return 'not_found', None
+
 def main():
     print(f"Project Root: {project_root}")
     print(f"Configuring batch run for {sum(len(v) for v in MODEL_CATEGORIES.values())} models across {len(MODEL_CATEGORIES)} categories.")
@@ -83,7 +150,21 @@ def main():
         
         for model_name in models:
             current_idx += 1
-            print(f"\n[{current_idx}/{total_models}] Starting training for model: {model_name} ({category})")
+            print(f"\n[{current_idx}/{total_models}] Checking model: {model_name} ({category})")
+            
+            status, path = find_existing_run(model_name)
+            
+            resume_arg = None
+            
+            if status == 'completed':
+                print(f"✅ Model {model_name} already completed. Skipping.")
+                continue
+            elif status == 'interrupted':
+                print(f"⚠️ Model {model_name} interrupted. Resuming from {path}")
+                resume_arg = str(path)
+            else:
+                print(f"🆕 Model {model_name} starting from scratch.")
+            
             print(f"{'-'*60}")
             
             # Prepare overrides
@@ -110,16 +191,22 @@ def main():
             
             print(f"Generated temp config: {tmp_cfg_path}")
 
+            # Get free port
+            master_port = get_free_port()
+
             # Construct command
             # using torchrun for DDP
             cmd = [
                 "torchrun",
                 "--nproc_per_node=2",
-                "--master_port=29500",  # Default port
+                f"--master_port={master_port}", 
                 str(project_root / "tools/training/train_real_data_ar.py"),
                 "--config",
                 str(tmp_cfg_path)
             ]
+            
+            if resume_arg:
+                cmd.extend(["--resume", resume_arg])
             
             print(f"Command: {' '.join(cmd)}")
             

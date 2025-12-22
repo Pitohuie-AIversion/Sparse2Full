@@ -80,17 +80,17 @@ from ops.degradation import apply_degradation_operator
 from ops.losses import compute_ar_total_loss
 
 # 分阶段预测架构模块
-# from models.temporal.components.sequential_spatiotemporal import (
-#     SequentialSpatiotemporalModel,
-#     SpatialPredictionModule,
-#     TemporalPredictionModule
-# )
-# from models.temporal.components.sequential_dc_consistency import SequentialConsistencyChecker
-# from models.temporal.components.sequential_trainer import (
-#     SequentialSpatiotemporalTrainer,
-#     SpatialTrainer,
-#     TemporalTrainer
-# )
+from models.temporal.components.sequential_spatiotemporal import (
+    SequentialSpatiotemporalModel,
+    SpatialPredictionModule,
+    TemporalPredictionModule
+)
+from models.temporal.components.sequential_dc_consistency import SequentialConsistencyChecker
+from models.temporal.components.sequential_trainer import (
+    SequentialSpatiotemporalTrainer,
+    SpatialTrainer,
+    TemporalTrainer
+)
 # 模型加载器
 from tools.training.model_loader import (
     create_model_with_loader,
@@ -163,7 +163,7 @@ class RealDataARTrainer:
                 return val
         return default
 
-    def __init__(self, config_path: str = None, model_name: str = None, use_liif_decoder: bool = False, output_dir_override: Path = None, skip_optimizer: bool = False, skip_monitoring: bool = False, minimal_init: bool = False):
+    def __init__(self, config_path: str = None, model_name: str = None, use_liif_decoder: bool = False, output_dir_override: Path = None, skip_optimizer: bool = False, skip_monitoring: bool = False, minimal_init: bool = False, overrides: list = None):
         """初始化训练器
         
         Args:
@@ -171,12 +171,14 @@ class RealDataARTrainer:
             model_name: 模型架构名称（可选，会覆盖配置文件中的模型设置）
             use_liif_decoder: 是否使用LIIF解码器（覆盖配置）
             output_dir_override: 强制指定输出目录（若提供，则不再自动创建带时间戳的新目录）
+            overrides: 命令行配置覆盖列表 (list of "key=value")
         """
         self.model_name = model_name  # 保存模型名称参数
         self.use_liif_decoder = use_liif_decoder # 保存LIIF解码器配置
         self.output_dir_override = Path(output_dir_override) if output_dir_override else None
         self._skip_optimizer = bool(skip_optimizer)
         self._skip_monitoring = bool(skip_monitoring)
+        self.overrides = overrides
         self._minimal_init = bool(minimal_init)
         # 统一初始化，避免后续属性访问报错
         self.data_module = None
@@ -475,6 +477,16 @@ class RealDataARTrainer:
         if config_path and os.path.exists(config_path):
             self.config = OmegaConf.load(config_path)
             print(f"✅ 成功加载配置文件: {config_path}")
+            
+            # 应用命令行Overrides
+            if hasattr(self, 'overrides') and self.overrides:
+                try:
+                    print(f"🔧 应用命令行覆盖配置: {self.overrides}")
+                    override_conf = OmegaConf.from_dotlist(self.overrides)
+                    self.config = OmegaConf.merge(self.config, override_conf)
+                except Exception as e:
+                    print(f"⚠️ 应用命令行覆盖配置失败: {e}")
+            
             # 打印关键配置项进行验证
             print(f"📊 配置验证 - T_in: {getattr(self.config.data, 'T_in', '未设置')}")
             print(f"📊 配置验证 - T_out: {getattr(self.config.data, 'T_out', '未设置')}")
@@ -1005,6 +1017,24 @@ class RealDataARTrainer:
         self.val_batch_size = int(self._cfg_select('data.dataloader.val_batch_size', default=self.batch_size))
         self.test_batch_size = int(self._cfg_select('data.dataloader.test_batch_size', 'testing.batch_size', default=1))
 
+        # Task A: 硬性一致性校验
+        T_in = int(self._cfg_select('data.T_in', default=1))
+        T_out = int(self._cfg_select('data.T_out', default=1))
+        time_step_start = int(self._cfg_select('data.time_step_start', default=0))
+        time_step_end = int(self._cfg_select('data.time_step_end', default=100))
+        time_step_stride = int(self._cfg_select('data.time_step_stride', default=1))
+        
+        # 计算可用时间点数
+        N_timesteps = (time_step_end - time_step_start) // time_step_stride + 1
+        
+        if N_timesteps < T_in + T_out:
+            raise ValueError(
+                f"❌ 时间步配置不自洽！可用时间点数 N_timesteps ({N_timesteps}) 小于 T_in ({T_in}) + T_out ({T_out})。\n"
+                f"当前配置: start={time_step_start}, end={time_step_end}, stride={time_step_stride} -> N={(time_step_end-time_step_start)}//{time_step_stride}+1 = {N_timesteps}。\n"
+                f"建议修复: 减小 stride (例如设为1) 或 增大 end (至少需要 {time_step_start + (T_in + T_out - 1) * time_step_stride})。"
+            )
+        self.logger.info(f"✅ 时间步一致性校验通过: N_timesteps={N_timesteps} >= T_in({T_in}) + T_out({T_out})")
+
         # 记录使用的批次大小
         self.logger.info(f"使用训练批次大小: {self.batch_size}")
         self.logger.info(f"使用验证批次大小: {self.val_batch_size}")
@@ -1181,6 +1211,9 @@ class RealDataARTrainer:
                 self.observation_op = lambda x: apply_degradation_operator(x, {
                     'task': 'Crop', 'crop_size': crop_size, 'crop_box': crop_box, 'boundary': boundary
                 })
+            elif mode == 'identity':
+                self.h_params = {'task': 'Identity', 'boundary': boundary}
+                self.observation_op = nn.Identity()
             else:
                 self.logger.warning(f"未知的观测模式: {mode}，跳过观测算子初始化")
 
@@ -2695,6 +2728,40 @@ class RealDataARTrainer:
             self.logger.info(f"空间配置: {spatial_config}")
             self.logger.info(f"时序配置: {temporal_config}")
 
+            # 智能检测：如果空间损失权重为0且启用了时序模型，且空间配置不是Identity，则强制转为Identity
+            # 这通常发生在"仅时序预测"的控制变量实验中，此时需要直接使用GT或观测作为时序输入，
+            # 而不是使用未训练（随机初始化）的空间模型输出的噪声
+            try:
+                spatial_loss_w = float(self._cfg_select('model.sequential.training.spatial_loss_weight', 'training.loss_weights.reconstruction', default=1.0))
+                temporal_loss_w = float(self._cfg_select('model.sequential.training.temporal_loss_weight', 'training.loss_weights.r2.weight', default=1.0))
+                
+                # 检查是否为 FNO/UNet 等需要训练的骨干
+                bk_type = str(spatial_config.get('backbone_type', '')).lower()
+                is_trainable_backbone = bk_type not in ['identity', 'none', '']
+                
+                if is_trainable_backbone and spatial_loss_w <= 1e-6 and temporal_loss_w > 0:
+                    self.logger.warning("⚠️ 检测到仅时序训练模式（空间损失≈0），但空间骨干为可训练模型。")
+                    self.logger.warning(f"   原骨干类型: {bk_type} -> 强制转换为: identity")
+                    self.logger.warning("   这样做是为了确保时序模块接收有效输入（如上一帧），而不是未训练模型的随机噪声。")
+                    
+                    # 强制修改配置
+                    if isinstance(spatial_config, (dict, list)): # Dict or ListConfig
+                        spatial_config['backbone_type'] = 'identity'
+                        spatial_config['spatial_feature_dim'] = 0 # 标记为无特征(但实际placeholder输出1通道)
+                    else: # OmegaConf object
+                        spatial_config.backbone_type = 'identity'
+                        spatial_config.spatial_feature_dim = 0
+                    
+                    # 同时更新时序配置，使其匹配Identity模式下的输出维度
+                    # Identity模式下，SequentialSpatiotemporalModel产生1通道的占位符特征
+                    if isinstance(temporal_config, (dict, list)):
+                        temporal_config['spatial_feature_dim'] = 1
+                    else:
+                        temporal_config.spatial_feature_dim = 1
+                        
+            except Exception as _chk_err:
+                self.logger.warning(f"智能模式检测失败: {_chk_err}")
+
         except Exception as e:
             self.logger.error(f"配置解析失败: {e}")
             raise
@@ -2771,6 +2838,12 @@ class RealDataARTrainer:
         temporal_config = self._cfg_select('model.sequential.temporal', 'sequential.temporal', default={})
         sequential_config = self._cfg_select('model.sequential', 'sequential', default={})
 
+        # 获取核心模型（解包DDP）
+        if isinstance(self.sequential_model, torch.nn.parallel.DistributedDataParallel):
+            model_core = self.sequential_model.module
+        else:
+            model_core = self.sequential_model
+
         # 空间预测训练器（如禁用空间，则跳过创建）
         spatial_disabled = False
         try:
@@ -2785,13 +2858,13 @@ class RealDataARTrainer:
             self.spatial_trainer = None
         else:
             self.spatial_trainer = SpatialTrainer(
-                model=self.sequential_model.spatial_module,
+                model=model_core.spatial_module,
                 config=spatial_config
             )
 
         # 时序预测训练器
         self.temporal_trainer = TemporalTrainer(
-            model=self.sequential_model.temporal_module,
+            model=model_core.temporal_module,
             config=temporal_config
         )
 
@@ -2799,7 +2872,7 @@ class RealDataARTrainer:
         self.sequential_trainer = SequentialSpatiotemporalTrainer(
             config=sequential_config
         )
-        # 覆盖模型为已创建的实例
+        # 覆盖模型为已创建的实例（保留DDP包装，用于联合训练）
         self.sequential_trainer.model = self.sequential_model
 
     def setup_monitoring(self):
@@ -3871,6 +3944,11 @@ class RealDataARTrainer:
         self.optimizer.zero_grad()
         # 记录本epoch内发生的优化步次数，用于确保调度器步进顺序正确
         self._epoch_opt_steps = 0
+        
+        # Task C: 初始化Batch跳过统计
+        self._epoch_skip_count = 0
+        self._epoch_total_batches = 0
+        
         # 当使用SequentialSpatiotemporalModel时，按epoch设置teacher forcing概率
         try:
             m = self.get_model()
@@ -3897,7 +3975,11 @@ class RealDataARTrainer:
         for batch_idx, batch in enumerate(progress_bar):
             # 跳过None批次（安全collate过滤可能导致None返回）
             if batch is None:
+                self._epoch_skip_count += 1
+                self._epoch_total_batches += 1
                 continue
+            
+            self._epoch_total_batches += 1
 
             # 初始化关键变量，防止UnboundLocalError
             pred_seq = None
@@ -4091,6 +4173,7 @@ class RealDataARTrainer:
                                 if not hasattr(self, '_has_warned_metric_failure'):
                                     self.logger.warning(f"⚠️ 训练阶段 (Single) Loss/Metrics 计算失败 (batch {batch_idx})，将跳过此Batch。错误详情: {e}")
                                     self._has_warned_metric_failure = True
+                                self._epoch_skip_count += 1
                                 continue
 
                             # 显式赋值pred_seq，防止后续UnboundLocalError
@@ -4213,7 +4296,14 @@ class RealDataARTrainer:
                             # 初始化pred_seq用于后续序列损失计算（空间-only模式）
                             pred_seq = y_single.unsqueeze(1)
                         else:
-                            out = model(input_seq, current_T_out, target_seq)
+                            # 尝试自适应调用 forward
+                            try:
+                                # 尝试带有 T_out 的调用 (针对 ARWrapper 等)
+                                out = model(input_seq, current_T_out, target_seq)
+                            except TypeError:
+                                # 回退到标准调用 (针对 SequentialSpatiotemporalModel 等)
+                                out = model(input_seq, target_seq)
+                                
                             if isinstance(out, dict) and 'final_pred' in out:
                                 pred_seq = out['final_pred']
                             elif torch.is_tensor(out):
@@ -4300,6 +4390,7 @@ class RealDataARTrainer:
                         if not hasattr(self, '_has_warned_metric_failure_ar'):
                             self.logger.warning(f"⚠️ 训练阶段 (AR) Loss/Metrics 计算失败 (batch {batch_idx})，将跳过此Batch。错误详情: {e}")
                             self._has_warned_metric_failure_ar = True
+                        self._epoch_skip_count += 1
                         continue
                     try:
                         recon_nar = losses.get('reconstruction_loss', None)
@@ -4434,6 +4525,7 @@ class RealDataARTrainer:
                     else:
                         # 如果无法处理CUDA错误，跳过这个batch
                         self.logger.warning("无法处理CUDA错误，跳过当前batch")
+                        self._epoch_skip_count += 1
                         continue
                 else:
                     raise e
@@ -4462,6 +4554,20 @@ class RealDataARTrainer:
 
         avg_loss = total_loss / max(1, num_batches)
         avg_loss_unscaled = total_loss_unscaled / max(1, num_batches)
+        
+        # Task C: 检查跳过比例
+        skip_ratio = self._epoch_skip_count / max(1, self._epoch_total_batches)
+        self.logger.info(f"Batch Skip Ratio: {skip_ratio:.2%} ({self._epoch_skip_count}/{self._epoch_total_batches})")
+        
+        skip_threshold = float(self._cfg_select('training.max_skip_ratio', default=0.05))
+        if skip_ratio > skip_threshold:
+            raise RuntimeError(
+                f"❌ 训练异常终止：Batch跳过比例 ({skip_ratio:.2%}) 超过阈值 ({skip_threshold:.2%})。\n"
+                f"总Batch数: {self._epoch_total_batches}, 跳过数: {self._epoch_skip_count}。\n"
+                f"常见原因：数据加载失败(None)、NaN/Inf导致Loss计算失败、CUDA OOM。\n"
+                f"请检查日志中之前的警告信息以定位具体原因。"
+            )
+
         avg_train_nar = train_nar_sum / max(1, train_nar_count)
         avg_train_tf = train_tf_sum / max(1, train_tf_count)
         try:
@@ -4510,10 +4616,26 @@ class RealDataARTrainer:
         model_to_validate.eval()
         total_loss = 0.0
         all_metrics = []
-        num_batches = len(self.val_loader)
+        
+        # 获取验证加载器
+        val_loader = self.val_loader
+        if val_loader is None:
+            return 0.0, {}, None
 
         current_T_out = self.get_current_T_out(epoch)
         sample_batch = None  # 保存一个样本用于可视化
+
+        # DEBUG: Overfit One Batch
+        overfit_one_batch = self._cfg_select('debug.overfit_one_batch', default=False)
+        if overfit_one_batch and hasattr(self, '_cached_overfit_batch'):
+             # 在验证时也只验证这个Batch
+             val_loader = [self._cached_overfit_batch]
+             num_batches = 1
+        else:
+             num_batches = len(val_loader)
+        
+        # 获取是否打印详细统计量的配置
+        log_stats = self._cfg_select('debug.log_stats_every_val', default=False)
 
         with torch.no_grad():
             try:
@@ -4521,7 +4643,7 @@ class RealDataARTrainer:
                 is_primary = (not dist.is_available()) or (not dist.is_initialized()) or (dist.get_rank() == 0)
             except Exception:
                 is_primary = True
-            for batch_idx, batch in enumerate(tqdm(self.val_loader, desc="Validation", leave=False) if is_primary else self.val_loader):
+            for batch_idx, batch in enumerate(tqdm(val_loader, desc="Validation", leave=False) if is_primary else val_loader):
                 try:
                     input_seq = batch['input_sequence'].to(self.device)
                     target_seq = batch['target_sequence'].to(self.device)
@@ -4541,6 +4663,60 @@ class RealDataARTrainer:
                         else:
                             # 传统模型模式
                             pred_seq = model(input_seq, current_T_out)
+                        
+                        # --- Baseline & Statistics Logging (Task 1, 2, 4) ---
+                        if batch_idx == 0 and (log_stats or overfit_one_batch):
+                            self.ensure_norm_stats()
+                            m = self.norm_stats.get('mean', self.norm_stats.get('data_mean', torch.tensor(0.0))).to(self.device)
+                            s = self.norm_stats.get('std', self.norm_stats.get('data_std', torch.tensor(1.0))).to(self.device)
+                            
+                            # 1. 统计量 (Normalized)
+                            p_mean, p_std = pred_seq.mean(), pred_seq.std()
+                            t_mean, t_std = target_seq.mean(), target_seq.std()
+                            
+                            # 2. 统计量 (Denormalized)
+                            pred_denorm = pred_seq * s + m
+                            target_denorm = target_seq * s + m
+                            pd_mean, pd_std = pred_denorm.mean(), pred_denorm.std()
+                            td_mean, td_std = target_denorm.mean(), target_denorm.std()
+                            
+                            self.logger.info(f"📊 [Val Batch 0] Stats:")
+                            self.logger.info(f"   Normalized - Pred: u={p_mean:.4f}, s={p_std:.4f} | GT: u={t_mean:.4f}, s={t_std:.4f}")
+                            self.logger.info(f"   Denorm     - Pred: u={pd_mean:.4f}, s={pd_std:.4f} | GT: u={td_mean:.4f}, s={td_std:.4f}")
+                            
+                            # 3. 尺度一致性校验 (Task 4)
+                            # 如果 GT 的 std 是 Pred 的 10 倍以上（或反之），且数值绝对值大于 1e-3（避免全0情况），则告警
+                            if (t_std > 1e-3 and p_std > 1e-3):
+                                ratio = t_std / p_std
+                                if ratio > 10.0 or ratio < 0.1:
+                                    self.logger.error(f"❌ [Scale Mismatch] Pred与GT尺度严重不一致 (Ratio={ratio:.2f})！模型可能发生了坍缩或未正确归一化。")
+                            
+                            # 4. Baseline 计算 (Task 1)
+                            # Baseline-Zero: 全0
+                            pred_zero = torch.zeros_like(target_seq)
+                            
+                            # Baseline-Persistence: 最后一帧 (注意 shape)
+                            # input_seq: [B, T_in, C, H, W]
+                            last_frame = input_seq[:, -1:] # [B, 1, C, H, W]
+                            pred_persist = last_frame.expand_as(target_seq)
+                            
+                            # 计算 Baseline Loss (使用相同的 compute_total_loss)
+                            from ops.losses import compute_total_loss
+                            
+                            # Zero Loss
+                            try:
+                                l_zero = compute_total_loss(pred_zero, target_seq, None, self.norm_stats, self.config)['total_loss'].item()
+                            except Exception:
+                                l_zero = -1.0
+                            
+                            # Persistence Loss
+                            try:
+                                l_persist = compute_total_loss(pred_persist, target_seq, None, self.norm_stats, self.config)['total_loss'].item()
+                            except Exception:
+                                l_persist = -1.0
+                            
+                            self.logger.info(f"📉 [Baseline Comparison] Zero={l_zero:.6f} | Persistence={l_persist:.6f}")
+
                         # 统一损失装配
                         from ops.losses import compute_ar_total_loss
                         observation_seq = None
@@ -4600,6 +4776,19 @@ class RealDataARTrainer:
                             config=self.config
                         )
                         loss = losses['total_loss']
+                        
+                        # Task B: 确保返回total_loss用于验证监控
+                        # 在_validate_epoch_legacy中，这个loss会被累加到total_loss
+                        
+                        # 记录分量
+                        metrics = {}
+                        metrics['val_total_loss'] = loss.item()
+                        if 'reconstruction_loss' in losses:
+                            metrics['val_recon_loss'] = losses['reconstruction_loss'].item() if torch.is_tensor(losses['reconstruction_loss']) else losses['reconstruction_loss']
+                        if 'r2_loss' in losses:
+                            metrics['val_r2_loss'] = losses['r2_loss'].item() if torch.is_tensor(losses['r2_loss']) else losses['r2_loss']
+                        
+                        all_metrics.append(metrics)
 
                     total_loss += loss.item()
 
@@ -4675,11 +4864,49 @@ class RealDataARTrainer:
 
         avg_loss = total_loss / max(1, num_batches)
 
+        # Task D: DDP 下聚合验证指标 (改进版: Sum/Count)
+        try:
+            import torch.distributed as dist
+            if dist.is_available() and dist.is_initialized():
+                # 聚合 avg_loss (val_total_loss)
+                # 使用 total_loss 和 num_batches 进行全局平均
+                t_loss_sum = torch.tensor(total_loss, device=self.device)
+                t_count = torch.tensor(num_batches, device=self.device)
+                
+                dist.all_reduce(t_loss_sum, op=dist.ReduceOp.SUM)
+                dist.all_reduce(t_count, op=dist.ReduceOp.SUM)
+                
+                global_count = max(1, t_count.item())
+                avg_loss = t_loss_sum.item() / global_count
+                
+                # 注意：all_metrics 是本地的 list of dict，聚合比较复杂
+                # 简化处理：我们只聚合最后计算出的 avg_metrics 中的标量值
+        except Exception as ddp_err:
+            self.logger.warning(f"DDP metrics aggregation failed: {ddp_err}")
+
         # 计算平均指标
         avg_metrics = {}
         if all_metrics:
             for key in all_metrics[0].keys():
                 avg_metrics[key] = np.mean([m[key] for m in all_metrics])
+        
+        # Task D (续): DDP 下聚合 avg_metrics
+        try:
+            import torch.distributed as dist
+            if dist.is_available() and dist.is_initialized():
+                world_size = dist.get_world_size()
+                for key in list(avg_metrics.keys()):
+                    val = avg_metrics[key]
+                    if isinstance(val, (int, float)):
+                        t_val = torch.tensor(float(val), device=self.device)
+                        dist.all_reduce(t_val, op=dist.ReduceOp.SUM)
+                        avg_metrics[key] = t_val.item() / world_size
+        except Exception:
+            pass
+
+        # Task B: 确保返回的 avg_loss 是 total_loss，并记录到 metrics
+        avg_metrics['val_loss'] = avg_loss # 覆盖为聚合后的 total_loss
+        avg_metrics['val_total_loss'] = avg_loss
 
         return avg_loss, avg_metrics, sample_batch
 
@@ -6829,7 +7056,18 @@ def main():
     parser.add_argument("--mode", type=str, default="train", choices=["train", "test"], help="运行模式: train 或 test (默认 train)")
     parser.add_argument("--ckpt", type=str, default="best", help="测试模式下加载的检查点: best/last/PATH (默认 best)")
 
-    args = parser.parse_args()
+    # 使用 parse_known_args 允许接收 Hydra 风格的 overrides (key=value)
+    args, unknown = parser.parse_known_args()
+    
+    # 收集 overrides
+    overrides = []
+    for arg in unknown:
+        if arg.startswith("--"):
+            print(f"Warning: Unknown flag {arg} ignored.")
+        elif "=" in arg:
+            overrides.append(arg)
+        else:
+            print(f"Warning: Unknown argument {arg} ignored.")
 
     # 如果请求列出模型，显示后退出
     if args.list_models:
@@ -6929,6 +7167,16 @@ def main():
                     tmp_trainer = RealDataARTrainer(None)
                     base_cfg = tmp_trainer.config
                 cfg = OmegaConf.create(OmegaConf.to_container(base_cfg, resolve=True))
+                
+                # Apply overrides to cfg before writing
+                if overrides:
+                    try:
+                        print(f"🔧 [Seed {s}] 应用命令行覆盖配置: {overrides}")
+                        override_conf = OmegaConf.from_dotlist(overrides)
+                        cfg = OmegaConf.merge(cfg, override_conf)
+                    except Exception as e:
+                        print(f"⚠️ [Seed {s}] 应用命令行覆盖配置失败: {e}")
+
                 # 更新种子与实验名
                 try:
                     old_name = str(cfg.experiment.name)
@@ -7041,6 +7289,7 @@ def main():
                 output_dir_override=output_dir_override if is_test_mode else None,
                 skip_optimizer=is_test_mode,
                 skip_monitoring=is_test_mode,
+                overrides=overrides,
             )
 
             # 3. 执行测试或训练

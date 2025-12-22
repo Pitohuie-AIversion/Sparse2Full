@@ -397,7 +397,7 @@ class TemporalMetricsCalculator:
             
             return {
                 'temporal_rel_l2': rel_l2.item(),
-                'temporal_stability': stability.item(),
+                'temporal_stability': stability.item() if isinstance(stability, torch.Tensor) else stability,
                 'long_term_error': long_term_error.item()
             }
 
