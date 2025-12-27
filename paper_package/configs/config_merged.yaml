@@ -1,5 +1,5 @@
 experiment:
-  name: AR-ShallowWater-10M-RestormerLite-model_RestormerLite-s2025-20251220
+  name: AR-DR2D-FNO2d-SRx4-10M-300ep-model_SwinUNet-s2025-20251227
   description: 快速Debug配置 - 5步AR自回归训练
   device: cuda
   seed: 2025
@@ -7,7 +7,7 @@ experiment:
   - 2025
   - 2026
   - 2027
-  output_dir: runs
+  output_dir: runs_drd
   log_every_n_steps: 10
   precision: bf16-mixed
 device:
@@ -22,8 +22,8 @@ ar:
 sequential:
   enabled: false
 data:
-  data_path: data/2D/shallow-water/2D_rdb_NA_NA.h5
-  dataset_name: ShallowWater
+  data_path: /share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/data/DR2D/2D_diff-react_NA_NA.h5
+  dataset_name: RealDiffusionReaction
   img_size: 128
   keys:
   - data
@@ -34,7 +34,7 @@ data:
   input_channels: 1
   sample_limit: null
   T_in: 1
-  T_out: 5
+  T_out: 1
   train_ratio: 0.8
   val_ratio: 0.1
   test_ratio: 0.1
@@ -82,20 +82,16 @@ hardware:
   pin_memory: false
   persistent_workers: false
 model:
-  name: RestormerLite
+  name: SwinUNet
   in_channels: 1
   out_channels: 1
   img_size: 128
-  modes1: 16
-  modes2: 16
-  width: 48
-  n_layers: 4
-  activation: gelu
-  padding: 8
+  embed_dim: 96
+  window_size: 4
 model_budget:
   target_params_m: 10.0
   tolerance_m: 1.0
-  auto_tune: true
+  auto_tune: false
 training:
   epochs: 300
   batch_size: 96

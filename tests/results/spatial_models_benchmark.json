@@ -1,32 +1,152 @@
 [
   {
-    "model_name": "MLPModel",
+    "model_name": "UNet",
     "input_shape": [
       1,
       3,
       128,
       128
     ],
-    "inference_time_ms": 11.841344833374023,
-    "memory_usage_mb": 21.40478515625,
-    "throughput_fps": 84.44986731418953,
-    "flops_g": 0.0645984,
-    "params_m": 0.645984,
-    "efficiency_score": 0.721723863527042
+    "inference_time_ms": 1.0597944259643555,
+    "memory_usage_mb": 50.27880859375,
+    "throughput_fps": 943.5792220647454,
+    "flops_g": 0.4814531,
+    "params_m": 4.814531,
+    "efficiency_score": 0.80008454743685
   },
   {
-    "model_name": "MLPModel",
+    "model_name": "UNet",
     "input_shape": [
       2,
       3,
       128,
       128
     ],
-    "inference_time_ms": 11.373162269592285,
-    "memory_usage_mb": 23.09228515625,
-    "throughput_fps": 175.85258634243488,
-    "flops_g": 0.0645984,
-    "params_m": 0.645984,
-    "efficiency_score": 0.7994127288603912
+    "inference_time_ms": 1.061081886291504,
+    "memory_usage_mb": 65.27880859375,
+    "throughput_fps": 1884.868666441973,
+    "flops_g": 0.4814531,
+    "params_m": 4.814531,
+    "efficiency_score": 0.7995352310306
+  },
+  {
+    "model_name": "SwinUNet",
+    "input_shape": [
+      1,
+      3,
+      128,
+      128
+    ],
+    "inference_time_ms": 10.928797721862793,
+    "memory_usage_mb": 206.55517578125,
+    "throughput_fps": 91.50137329374525,
+    "flops_g": 4.1608311,
+    "params_m": 41.608311,
+    "efficiency_score": 0.7665859144118934
+  },
+  {
+    "model_name": "SwinUNet",
+    "input_shape": [
+      2,
+      3,
+      128,
+      128
+    ],
+    "inference_time_ms": 10.910630226135254,
+    "memory_usage_mb": 231.99267578125,
+    "throughput_fps": 183.307467904944,
+    "flops_g": 4.1608311,
+    "params_m": 41.608311,
+    "efficiency_score": 0.8081474988709015
+  },
+  {
+    "model_name": "HybridModel",
+    "input_shape": [
+      1,
+      3,
+      128,
+      128
+    ],
+    "inference_time_ms": 14.336895942687988,
+    "memory_usage_mb": 428.39697265625,
+    "throughput_fps": 69.75010518298514,
+    "flops_g": 3.9104067,
+    "params_m": 39.104067,
+    "efficiency_score": 0.648703787017065
+  },
+  {
+    "model_name": "HybridModel",
+    "input_shape": [
+      2,
+      3,
+      128,
+      128
+    ],
+    "inference_time_ms": 30.567169189453125,
+    "memory_usage_mb": 636.58447265625,
+    "throughput_fps": 65.42967677524024,
+    "flops_g": 3.9104067,
+    "params_m": 39.104067,
+    "efficiency_score": 0.6194775910232624
+  },
+  {
+    "model_name": "UNetFormer",
+    "input_shape": [
+      1,
+      3,
+      128,
+      128
+    ],
+    "inference_time_ms": 457.6714277267456,
+    "memory_usage_mb": 2074.8388671875,
+    "throughput_fps": 2.1849736282795735,
+    "flops_g": 12.0113475,
+    "params_m": 120.113475,
+    "efficiency_score": 0.28298738946998064
+  },
+  {
+    "model_name": "UNetFormer",
+    "input_shape": [
+      2,
+      3,
+      128,
+      128
+    ],
+    "inference_time_ms": 907.1883678436279,
+    "memory_usage_mb": 3671.5263671875,
+    "throughput_fps": 2.2046138055693634,
+    "flops_g": 12.0113475,
+    "params_m": 120.113475,
+    "efficiency_score": 0.22461314772947644
+  },
+  {
+    "model_name": "VisionTransformer",
+    "input_shape": [
+      1,
+      3,
+      128,
+      128
+    ],
+    "inference_time_ms": 5.194973945617676,
+    "memory_usage_mb": 567.91064453125,
+    "throughput_fps": 192.49374693083303,
+    "flops_g": 14.3336448,
+    "params_m": 143.336448,
+    "efficiency_score": 0.8365370702449981
+  },
+  {
+    "model_name": "VisionTransformer",
+    "input_shape": [
+      2,
+      3,
+      128,
+      128
+    ],
+    "inference_time_ms": 5.390620231628418,
+    "memory_usage_mb": 570.34765625,
+    "throughput_fps": 371.0148209412691,
+    "flops_g": 14.3336448,
+    "params_m": 143.336448,
+    "efficiency_score": 0.8364478242103759
   }
 ]

@@ -13,8 +13,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import List, Optional, Tuple
 import math
-
 from ..base import BaseModel
+from ..registry import register_model
 
 
 class PatchEmbed(nn.Module):
@@ -128,6 +128,7 @@ class TransformerBlock(nn.Module):
         return x
 
 
+@register_model(name="SegFormer", aliases=["segformer"])
 class SegFormer(BaseModel):
     """SegFormer模型
     

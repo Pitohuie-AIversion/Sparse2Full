@@ -133,8 +133,8 @@ data:
     
   # 数据加载器
   dataloader:
-    batch_size: 640
-    val_batch_size: 640
+    batch_size:512
+    val_batch_size: 512
     test_batch_size: 320
     num_workers: 160
     pin_memory: false
@@ -159,7 +159,7 @@ hardware:
 # 训练配置
 training:
   epochs: 100  # 设置为100epoch
-  batch_size: 640
+  batch_size: 512
   gradient_accumulation_steps: 1
   
   torch_compile: false
@@ -169,7 +169,7 @@ training:
   
   # 专用时序模型训练配置
   dataloader:
-    batch_size: 640
+    batch_size: 512
   rollout_training: true
 
   loss_weights:

@@ -173,14 +173,14 @@
 - Kovachki, N. B., Li, Z., Liu, B., Azizzadenesheli, K., Bhattacharya, K., Stuart, A. M., & Anandkumar, A. (2023). Neural operator: Learning maps between function spaces with applications to PDEs. Journal of Machine Learning Research, 24, 1–97. https://www.jmlr.org/papers/volume24/21-1524/21-1524.pdf
 - Wang, S., Yu, X., & Perdikaris, P. (2022). When and why PINNs fail to train: A neural tangent kernel perspective. Journal of Computational Physics, 449, 110768. https://doi.org/10.1016/j.jcp.2022.110768
 - Bartolucci, F., de Bézenac, E., Raonić, B., Molinaro, R., Mishra, S., & Alaifari, R. (2023). Representation equivalent neural operators: A framework for alias-free operator learning. Advances in Neural Information Processing Systems (NeurIPS). https://arxiv.org/abs/2305.19913
-- Franco, N. R., & Brugiapaglia, S. (2024). Operator learning using random features: A tool for scientific computing. SIAM Journal on Scientific Computing. https://doi.org/10.1137/24M1648703
+- Nelsen, N. H., & Stuart, A. M. (2024). Operator learning using random features: a tool for scientific computing. SIAM Review, 66(3). https://doi.org/10.1137/24M1648703
 - Takamoto, M., Praditia, T., Leiteritz, R., MacKinlay, D., Alesiani, F., Pflüger, D., & Niepert, M. (2022). PDEBench: An extensive benchmark for scientific machine learning. NeurIPS Datasets and Benchmarks. https://arxiv.org/abs/2210.07182
 - Rao, C., Ren, P., Wang, Q., Buyukozturk, O., Sun, H., & Liu, Y. (2022). Encoding physics to learn reaction–diffusion processes. Computer Methods in Applied Mechanics and Engineering, 389, 114399. https://doi.org/10.1016/j.cma.2022.114399
 - Wang, S., Sankaran, S., & Perdikaris, P. (2021). Respecting causality is all you need for training physics-informed neural networks. arXiv:2203.07404
 - Diminishing spectral bias in physics-informed neural networks using adaptive Fourier encoding policy（2024）. Neural Networks. https://www.sciencedirect.com/science/article/abs/pii/S0893608024008153
 - On spectral bias reduction of multi-scale neural networks for highly oscillatory PDE solutions（2025）. Neural Networks. https://www.sciencedirect.com/science/article/abs/pii/S0893608025000589
 - OpenCV Anti-aliasing Guidance: Gaussian prefilter and INTER_AREA downsampling. https://answers.opencv.org/question/222322/how-to-choose-sigmakernel-size-when-downsampling-image/
-
+- De Ryck, T., & Mishra, S. (2024). Numerical analysis of physics-informed neural networks and related models in physics-informed machine learning. Acta Numerica, 33, 633–713. https://doi.org/10.1017/S0962492923000089
 ---
 
 *最后更新：2025年*

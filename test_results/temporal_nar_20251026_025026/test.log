@@ -1,6 +1,0 @@
-2025-10-26 02:50:26,647 - TemporalNARTester - INFO - 数据模块初始化成功: diff-reaction
-2025-10-26 02:50:26,648 - TemporalNARTester - INFO - 开始运行所有测试...
-2025-10-26 02:50:26,648 - TemporalNARTester - INFO - 开始测试TimeQueryHead性能...
-2025-10-26 02:50:26,648 - TemporalNARTester - ERROR - 测试过程中发生错误: Missing key temporal
-    full_key: temporal
-    object_type=dict

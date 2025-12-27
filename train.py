@@ -10,6 +10,7 @@ import sys
 import time
 import logging
 from pathlib import Path
+from datetime import datetime
 from typing import Dict, Any, Optional, Tuple
 import warnings
 warnings.filterwarnings('ignore')
@@ -47,7 +48,7 @@ import wandb
 sys.path.append(str(Path(__file__).parent))
 
 from datasets import PDEBenchDataModule
-from models.base import create_model
+from models import create_model
 from ops.losses import compute_total_loss, compute_loss_weights_schedule
 from ops.degradation import verify_degradation_consistency
 from utils.metrics import compute_all_metrics
@@ -166,6 +167,7 @@ class Trainer:
         self._init_curriculum()
         self._init_logging()
         self._init_checkpoint_manager()
+        self._save_env_fingerprint()
         
         # 训练状态
         self.current_epoch = 0
@@ -317,10 +319,7 @@ class Trainer:
             if isinstance(value, ListConfig):
                 model_params[key] = list(value)
         
-        self.model = create_model(
-            model_name=self.config.model.name,
-            **model_params
-        )
+        self.model = create_model(self.config.model.name, **model_params)
         self.model = self.model.to(self.device)
         
         # 模型信息
@@ -534,6 +533,50 @@ class Trainer:
             self.use_wandb = True
         else:
             self.use_wandb = False
+            
+    def _save_env_fingerprint(self) -> None:
+        """保存环境指纹（Methodology 3.6 可审计证据）"""
+        import platform
+        import subprocess
+        
+        fingerprint = {
+            'timestamp': datetime.now().isoformat(),
+            'platform': platform.platform(),
+            'python_version': sys.version,
+            'torch_version': torch.__version__,
+            'cuda_version': torch.version.cuda if torch.cuda.is_available() else None,
+            'gpu_count': torch.cuda.device_count(),
+            'gpu_name': torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
+            'cwd': os.getcwd(),
+            'seed': self.config.experiment.seed
+        }
+        
+        # 获取Git commit
+        try:
+            commit_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('utf-8').strip()
+            fingerprint['git_commit'] = commit_hash
+            
+            # 检查是否有未提交的更改
+            status = subprocess.check_output(['git', 'status', '--porcelain']).decode('utf-8').strip()
+            fingerprint['git_dirty'] = bool(status)
+        except Exception:
+            fingerprint['git_commit'] = None
+            fingerprint['git_dirty'] = None
+            
+        # 获取pip freeze
+        try:
+            pip_freeze = subprocess.check_output([sys.executable, '-m', 'pip', 'freeze']).decode('utf-8')
+            fingerprint['pip_packages'] = pip_freeze.splitlines()
+        except Exception:
+            fingerprint['pip_packages'] = None
+            
+        try:
+            import json
+            with open(self.output_dir / 'env_fingerprint.json', 'w') as f:
+                json.dump(fingerprint, f, indent=2)
+            self.logger.info(f"Environment fingerprint saved to {self.output_dir / 'env_fingerprint.json'}")
+        except Exception as e:
+            self.logger.warning(f"Failed to save env_fingerprint.json: {e}")
     
     def _init_checkpoint_manager(self) -> None:
         """初始化检查点管理器"""
@@ -592,7 +635,7 @@ class Trainer:
                 # 对于时序数据，暂时跳过严格的一致性检查
                 self.logger.warning("Skipping strict consistency check for temporal data")
 
-            # 记录到 dc_equivalence_check.json（用于CI与验收）
+            # 记录到 consistency_report.json（用于CI与验收）
             try:
                 import json
                 report = {
@@ -601,10 +644,10 @@ class Trainer:
                     'passed': bool(consistency_error < tolerance),
                     'timestamp': time.time()
                 }
-                with open(self.output_dir / 'dc_equivalence_check.json', 'w') as f:
+                with open(self.output_dir / 'consistency_report.json', 'w') as f:
                     json.dump(report, f, indent=2)
             except Exception as e:
-                self.logger.warning(f"Failed to write dc_equivalence_check.json: {e}")
+                self.logger.warning(f"Failed to write consistency_report.json: {e}")
         
         except Exception as e:
             self.logger.error(f"Data consistency verification failed: {e}")
@@ -621,10 +664,10 @@ class Trainer:
                     'error': str(e),
                     'timestamp': time.time()
                 }
-                with open(self.output_dir / 'dc_equivalence_check.json', 'w') as f:
+                with open(self.output_dir / 'consistency_report.json', 'w') as f:
                     json.dump(report, f, indent=2)
             except Exception as e2:
-                self.logger.warning(f"Failed to write dc_equivalence_check.json placeholder: {e2}")
+                self.logger.warning(f"Failed to write consistency_report.json placeholder: {e2}")
 
     def _build_model_input(self, batch: Dict[str, torch.Tensor]) -> torch.Tensor:
         """统一构建模型输入：[baseline, coords?, mask?]
@@ -1330,11 +1373,11 @@ class Trainer:
             # 复制运行期生成的指标与一致性报告（如存在）到paper_package
             try:
                 metrics_jsonl = self.output_dir / 'metrics.jsonl'
-                dc_report = self.output_dir / 'dc_equivalence_check.json'
+                dc_report = self.output_dir / 'consistency_report.json'
                 if metrics_jsonl.exists():
                     copyfile(metrics_jsonl, paper_dir / 'metrics' / 'metrics.jsonl')
                 if dc_report.exists():
-                    copyfile(dc_report, paper_dir / 'metrics' / 'dc_equivalence_check.json')
+                    copyfile(dc_report, paper_dir / 'metrics' / 'consistency_report.json')
             except Exception as e:
                 self.logger.warning(f"Failed to copy metrics or DC report to paper_package: {e}")
             # 简易复现脚本占位

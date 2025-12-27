@@ -13,6 +13,7 @@ import torch.nn.functional as F
 from einops import rearrange, repeat
 
 from ..base import BaseModel
+from ..registry import register_model
 
 
 class PositionalEncoding(nn.Module):
@@ -247,6 +248,7 @@ class PatchReconstruction(nn.Module):
         return x
 
 
+@register_model(name="transformer", aliases=["Transformer", "TransformerModel"])
 class Transformer(BaseModel):
     """经典Transformer模型
     

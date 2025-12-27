@@ -15,6 +15,11 @@ try:
 except Exception:
     PDEBenchDataModule = None  # type: ignore
 
+try:
+    from .temporal_pdebench import TemporalPDEBenchDataModule  # type: ignore
+except Exception:
+    TemporalPDEBenchDataModule = None  # type: ignore
+
 # 安全导入：Darcy数据集
 try:
     from .darcy_flow_dataset import DarcyFlowDataset  # type: ignore
@@ -42,6 +47,7 @@ __all__ = [
         'PDEBenchDataset',
         'create_dataloader',
         'PDEBenchDataModule',
+        'TemporalPDEBenchDataModule',
         'DarcyFlowDataset',
         'get_dataset',
     ) if globals().get(name) is not None

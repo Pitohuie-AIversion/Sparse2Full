@@ -10,6 +10,7 @@ forward(x[B,C,H,W]) -> y[B,C,H,W]
 - MLP模型：MLP-Mixer, LIIF-Head, MLPModel
 - 混合模型：SwinUNet, HybridModel
 - 基础模型：VisionTransformer, SwinTransformer, Transformer
+- 轻量级/SR模型: ConvUNetLite, ResNetLite, CNNAttnLite, ConvGateLite
 
 使用示例：
     from models.spatial import UNet, SwinUNet
@@ -30,7 +31,10 @@ from .unetformer import UNetFormer
 from .segformer_unetformer import SegFormerUNetFormer
 
 # MLP模型
-from .mlp import MLPModel
+try:
+    from .mlp import MLPModel
+except ImportError:
+    MLPModel = None
 from .mlp_mixer import MLPMixer
 from .liif import LIIFModel
 
@@ -51,6 +55,11 @@ except ImportError:
     SwinT = None
 
 try:
+    from .swin_t_with_encoder import SwinTWithEncoder
+except ImportError:
+    SwinTWithEncoder = None
+
+try:
     from .transformer import Transformer
 except ImportError:
     Transformer = None
@@ -66,6 +75,27 @@ except ImportError:
     SparseAttentionEncoder = None
     SparseSwinUNet = None
 
+# 轻量级/SR模型
+try:
+    from .conv_unet_lite import ConvUNetLite
+except ImportError:
+    ConvUNetLite = None
+
+try:
+    from .resnet_lite import ResNetLite
+except ImportError:
+    ResNetLite = None
+
+try:
+    from .cnn_attn_lite import CNNAttnLite
+except ImportError:
+    CNNAttnLite = None
+
+try:
+    from .conv_gate_lite import ConvGateLite
+except ImportError:
+    ConvGateLite = None
+
 __all__ = [
     # CNN模型
     "UNet",
@@ -79,7 +109,6 @@ __all__ = [
     "SegFormerUNetFormer",
     
     # MLP模型
-    "MLPModel",
     "MLPMixer",
     "LIIFModel",
     
@@ -92,12 +121,24 @@ if VisionTransformer is not None:
     __all__.extend(["VisionTransformer", "ViT"])
 if SwinTransformerTiny is not None:
     __all__.extend(["SwinTransformerTiny", "SwinT"])
+if SwinTWithEncoder is not None:
+    __all__.append("SwinTWithEncoder")
 if Transformer is not None:
     __all__.append("Transformer")
 if SwinUNet is not None:
     __all__.append("SwinUNet")
 if SparseAttentionEncoder is not None:
-        __all__.extend(["SparseAttentionEncoder", "SparseSwinUNet"])
+    __all__.extend(["SparseAttentionEncoder", "SparseSwinUNet"])
+if ConvUNetLite is not None:
+    __all__.append("ConvUNetLite")
+if ResNetLite is not None:
+    __all__.append("ResNetLite")
+if CNNAttnLite is not None:
+    __all__.append("CNNAttnLite")
+if ConvGateLite is not None:
+    __all__.append("ConvGateLite")
+if MLPModel is not None:
+    __all__.append("MLPModel")
 
 # 导入工厂函数
 from .factory import create_model

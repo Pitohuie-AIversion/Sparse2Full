@@ -24,32 +24,32 @@ catalog:
         description: 密集跳连与多尺度融合，提升细节重建
         params_target: 10000000
         epochs: 300
-      - name: NAFNetLite
-        class: NAFNetLite
-        path: models/spatial/nafnet_lite.py
-        code_ref: models/spatial/nafnet_lite.py:22
-        description: 轻量化非注意力网络，移动端友好
+      - name: ConvGateLite
+        class: ConvGateLite
+        path: models/spatial/conv_gate_lite.py
+        code_ref: models/spatial/conv_gate_lite.py:22
+        description: 轻量化卷积门控网络 (原 NAFNetLite)
         params_target: 10000000
         epochs: 300
-      - name: UformerLite
-        class: UformerLite
-        path: models/spatial/uformer_lite.py
-        code_ref: models/spatial/uformer_lite.py:33
-        description: 轻量Transformer风格的UNet变体
+      - name: ConvUNetLite
+        class: ConvUNetLite
+        path: models/spatial/conv_unet_lite.py
+        code_ref: models/spatial/conv_unet_lite.py:33
+        description: 轻量化卷积UNet (原 UformerLite)
         params_target: 10000000
         epochs: 300
-      - name: RestormerLite
-        class: RestormerLite
-        path: models/spatial/restormer_lite.py
-        code_ref: models/spatial/restormer_lite.py:60
-        description: 轻量Restormer块与DW-PW卷积，稳健细节恢复
+      - name: CNNAttnLite
+        class: CNNAttnLite
+        path: models/spatial/cnn_attn_lite.py
+        code_ref: models/spatial/cnn_attn_lite.py:60
+        description: 轻量化通道注意力CNN (原 RestormerLite)
         params_target: 10000000
         epochs: 300
-      - name: SwinIRLite
-        class: SwinIRLite
-        path: models/spatial/swinir_lite.py
-        code_ref: models/spatial/swinir_lite.py:20
-        description: 精简SwinIR残差块堆叠，高效重建
+      - name: ResNetLite
+        class: ResNetLite
+        path: models/spatial/resnet_lite.py
+        code_ref: models/spatial/resnet_lite.py:20
+        description: 轻量化残差网络 (原 SwinIRLite)
         params_target: 10000000
         epochs: 300
 

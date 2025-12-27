@@ -162,18 +162,27 @@ class ModelLoader:
         if self._external_model_factory:
             try:
                 logger.info(f"使用外部工厂函数创建模型: {model_name}")
-                # 构建配置对象
-                if config is None:
-                    config_dict = {"name": model_name}
-                    config_dict.update(kwargs)
-                    config = OmegaConf.create(config_dict)
-                elif isinstance(config, dict):
-                    config["name"] = model_name
-                    config = OmegaConf.create(config)
-                elif isinstance(config, DictConfig):
-                    config = OmegaConf.merge(config, {"name": model_name})
                 
-                model = self._external_model_factory(config)
+                # 准备参数: 优先使用kwargs，其次从config提取
+                factory_kwargs = {}
+                
+                # 1. 从config提取参数
+                if config is not None:
+                    if isinstance(config, DictConfig):
+                        config_dict = OmegaConf.to_container(config, resolve=True)
+                    else:
+                        config_dict = dict(config)
+                    
+                    # 尝试提取model部分或顶层参数
+                    if "model" in config_dict:
+                        factory_kwargs.update(config_dict["model"])
+                    factory_kwargs.update({k: v for k, v in config_dict.items() if k in ["in_channels", "out_channels", "img_size", "embed_dim"]})
+                
+                # 2. 合并kwargs (最高优先级)
+                factory_kwargs.update(kwargs)
+                
+                # 3. 调用工厂函数 (使用 name + kwargs 方式，避免config对象解析歧义)
+                model = self._external_model_factory(model_name, **factory_kwargs)
                 logger.info(f"外部工厂成功创建模型: {type(model).__name__}")
                 return model
                 

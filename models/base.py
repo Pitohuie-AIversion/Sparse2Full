@@ -1,53 +1,53 @@
-"""基础模型接口
+"""
+基础模型接口（BaseModel）
 
 定义统一的模型接口，确保所有模型都遵循相同的签名：
 forward(x[B,C_in,H,W]) → y[B,C_out,H,W]
+
+重要约定：
+- 所有模型应继承 BaseModel
+- 推荐使用 registry.py 的注册机制创建模型
+- 这里提供一个向后兼容的 create_model（委托 registry.create_model）
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, Union
+
 import torch
 import torch.nn as nn
-from omegaconf import DictConfig
 
 
 class BaseModel(nn.Module, ABC):
     """统一模型接口基类
-    
-    所有模型必须继承此类并实现forward方法，确保接口一致性。
-    
-    **接口规范**：
+
+    所有模型必须继承此类并实现 forward 方法，确保接口一致性。
+
+    接口规范：
     - __init__(in_channels, out_channels, img_size, **kwargs)
     - forward(x[B,C_in,H,W]) → y[B,C_out,H,W]
-    - 支持可选的坐标编码、掩码等输入
+    - 允许通过 **kwargs 接收可选输入（coords, mask, fourier_pe 等），但不强制使用
     """
-    
+
     def __init__(
-        self, 
-        in_channels: int, 
-        out_channels: int, 
-        img_size: int, 
+        self,
+        in_channels: int,
+        out_channels: int,
+        img_size: int,
         **kwargs
     ):
-        """初始化基础模型
-        
-        Args:
-            in_channels: 输入通道数
-            out_channels: 输出通道数  
-            img_size: 图像尺寸（假设正方形）
-            **kwargs: 其他模型特定参数
-        """
         super().__init__()
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.img_size = img_size
-        
-        # 模型配置
-        self.config = kwargs
-        
-        # 性能统计
-        self._param_count = None
-        self._flops = None
+        self.in_channels = int(in_channels)
+        self.out_channels = int(out_channels)
+        self.img_size = int(img_size)
+
+        # 存储模型配置（不做强约束）
+        self.config: Dict[str, Any] = dict(kwargs)
+
+        # 性能统计缓存
+        self._param_count: Optional[int] = None
+        self._flops: Optional[int] = None
 
     @property
     def in_ch(self) -> int:
@@ -56,290 +56,299 @@ class BaseModel(nn.Module, ABC):
     @property
     def out_ch(self) -> int:
         return self.out_channels
-    
+
     @abstractmethod
     def forward(self, x: torch.Tensor, **kwargs) -> torch.Tensor:
         """前向传播
-        
+
         Args:
             x: 输入张量 [B, C_in, H, W]
-            **kwargs: 可选输入（coords, mask, fourier_pe等）
-            
+            **kwargs: 可选输入（coords, mask, fourier_pe 等）
+
         Returns:
             输出张量 [B, C_out, H, W]
         """
-        pass
-    
+        raise NotImplementedError
+
     def get_model_info(self) -> Dict[str, Any]:
-        """获取模型信息
-        
-        Returns:
-            包含参数量、FLOPs等信息的字典
-        """
+        """获取模型信息（参数量、FLOPs等）"""
         if self._param_count is None:
             self._param_count = sum(p.numel() for p in self.parameters())
-        
-        info = {
-            'name': self.__class__.__name__,
-            'in_channels': self.in_channels,
-            'out_channels': self.out_channels,
-            'img_size': self.img_size,
-            'parameters': self._param_count,
-            'parameters_M': self._param_count / 1e6,
+
+        info: Dict[str, Any] = {
+            "name": self.__class__.__name__,
+            "in_channels": self.in_channels,
+            "out_channels": self.out_channels,
+            "img_size": self.img_size,
+            "parameters": self._param_count,
+            "parameters_M": self._param_count / 1e6,
         }
-        
+
         if self._flops is not None:
-            info['flops'] = self._flops
-            info['flops_G'] = self._flops / 1e9
-        
+            info["flops"] = self._flops
+            info["flops_G"] = self._flops / 1e9
+
         return info
-    
-    def compute_flops(self, input_shape: Tuple[int, ...] = None) -> int:
-        """计算FLOPs
-        
-        Args:
-            input_shape: 输入形状，默认为(1, in_channels, img_size, img_size)
-            
-        Returns:
-            FLOPs数量
-        """
+
+    def compute_flops(self, input_shape: Tuple[int, ...] | None = None) -> int:
+        """计算 FLOPs（默认粗估；子类可重写以提供更精确实现）"""
         if input_shape is None:
             input_shape = (1, self.in_channels, self.img_size, self.img_size)
-        
-        # 确保参数计数已初始化
+
         if self._param_count is None:
             self._param_count = sum(p.numel() for p in self.parameters())
-        
-        # 简化的FLOPs计算，子类可以重写
-        # 这里使用参数量的粗略估计
-        self._flops = self._param_count * input_shape[0] * input_shape[2] * input_shape[3]
-        
+
+        # 粗估：参数量 * batch * H * W
+        b = int(input_shape[0])
+        h = int(input_shape[2])
+        w = int(input_shape[3])
+        self._flops = int(self._param_count * b * h * w)
         return self._flops
-    
+
     def get_memory_usage(self, batch_size: int = 1) -> Dict[str, float]:
-        """估算显存使用量
-        
-        Args:
-            batch_size: 批次大小
-            
-        Returns:
-            显存使用量信息（MB）
-        """
+        """估算显存使用量（MB，粗略）"""
         # 参数显存
         param_memory = sum(p.numel() * p.element_size() for p in self.parameters()) / 1024**2
-        
-        # 激活显存（粗略估计）
-        activation_memory = batch_size * self.in_channels * self.img_size**2 * 4 / 1024**2  # float32
-        
-        # 梯度显存
-        grad_memory = param_memory  # 与参数相同
-        
+        # 激活显存（粗略估计：输入激活）
+        activation_memory = batch_size * self.in_channels * (self.img_size**2) * 4 / 1024**2  # float32
+        # 梯度显存（近似等于参数显存）
+        grad_memory = param_memory
         total_memory = param_memory + activation_memory + grad_memory
-        
+
         return {
-            'parameters_MB': param_memory,
-            'activations_MB': activation_memory,
-            'gradients_MB': grad_memory,
-            'total_MB': total_memory
+            "parameters_MB": float(param_memory),
+            "activations_MB": float(activation_memory),
+            "gradients_MB": float(grad_memory),
+            "total_MB": float(total_memory),
         }
-    
+
     def load_pretrained(self, checkpoint_path: str, strict: bool = True) -> None:
-        """加载预训练权重
-        
-        Args:
-            checkpoint_path: 检查点路径
-            strict: 是否严格匹配键名
-        """
-        checkpoint = torch.load(checkpoint_path, map_location='cpu')
-        
-        if 'model_state_dict' in checkpoint:
-            state_dict = checkpoint['model_state_dict']
-        elif 'state_dict' in checkpoint:
-            state_dict = checkpoint['state_dict']
+        """加载预训练权重"""
+        checkpoint = torch.load(checkpoint_path, map_location="cpu")
+
+        if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
+            state_dict = checkpoint["model_state_dict"]
+        elif isinstance(checkpoint, dict) and "state_dict" in checkpoint:
+            state_dict = checkpoint["state_dict"]
         else:
             state_dict = checkpoint
-        
-        # 移除不匹配的键
+
         if not strict:
             model_keys = set(self.state_dict().keys())
-            checkpoint_keys = set(state_dict.keys())
-            
-            # 移除多余的键
-            extra_keys = checkpoint_keys - model_keys
-            for key in extra_keys:
-                del state_dict[key]
-            
-            # 报告缺失的键
-            missing_keys = model_keys - checkpoint_keys
+            ckpt_keys = set(state_dict.keys())
+
+            extra_keys = ckpt_keys - model_keys
+            for k in extra_keys:
+                state_dict.pop(k, None)
+
+            missing_keys = model_keys - ckpt_keys
             if missing_keys:
-                print(f"Missing keys in checkpoint: {missing_keys}")
-        
+                print(f"[load_pretrained] Missing keys in checkpoint: {sorted(list(missing_keys))[:20]} ...")
+
         self.load_state_dict(state_dict, strict=strict)
-        print(f"Loaded pretrained weights from {checkpoint_path}")
-    
+        print(f"[load_pretrained] Loaded pretrained weights from: {checkpoint_path}")
+
     def freeze_encoder(self) -> None:
-        """冻结编码器参数（如果适用）"""
-        # 子类可以重写此方法
-        pass
-    
+        """冻结编码器参数（如适用，子类可重写）"""
+        return
+
     def unfreeze_all(self) -> None:
         """解冻所有参数"""
-        for param in self.parameters():
-            param.requires_grad = True
+        for p in self.parameters():
+            p.requires_grad = True
 
 
-def create_model(model_name: str, **kwargs) -> BaseModel:
-    """模型工厂函数
-    
-    根据模型名称和参数创建相应的模型实例
-    
-    Args:
-        model_name: 模型名称
-        **kwargs: 模型参数
-        
-    Returns:
-        模型实例
-    """
-    # 动态导入模型类
-    model_name_lower = model_name.lower()
-    
-    # 检查是否为AR模式
-    is_ar_model = model_name_lower.endswith('_ar') or model_name_lower.startswith('ar_')
-    
-    if is_ar_model:
-        # 提取基础模型名称
-        if model_name_lower.endswith('_ar'):
-            base_model_name = model_name_lower[:-3]  # 移除 '_ar' 后缀
-        else:  # startswith('ar_')
-            base_model_name = model_name_lower[3:]   # 移除 'ar_' 前缀
-        
-        # 创建基础模型
-        base_model = create_model(base_model_name, **kwargs)
-        
-        # 用AR包装器包装
-        from .ar import ARWrapper
-        
-        # 从kwargs中提取AR相关参数
-        ar_kwargs = {}
-        
-        # 提取AR包装器支持的参数
-        if 'scheduled_sampling' in kwargs:
-            ar_kwargs['scheduled_sampling'] = kwargs.pop('scheduled_sampling')
-        if 'sampling_schedule' in kwargs:
-            ar_kwargs['sampling_schedule'] = kwargs.pop('sampling_schedule')
-        if 'detach_rollout' in kwargs:
-            ar_kwargs['detach_rollout'] = kwargs.pop('detach_rollout')
-        
-        # 移除其他AR相关参数，避免传递给基础模型
-        kwargs.pop('T_out', None)
-        kwargs.pop('teacher_forcing_ratio', None)
-        # 避免错误传参到基础模型
-        for k in ['use_ar', 'use_nar', 'nar_cfg', 'ar_cfg']:
-            kwargs.pop(k, None)
-        
-        model = ARWrapper(single_frame_model=base_model, **ar_kwargs)
-        return model
-    
-    # 基线模型
-    if model_name_lower in ['liif']:
-        from .liif import LIIFModel
-        model_class = LIIFModel
-    elif model_name_lower in ['unet']:
-        from .unet import UNet
-        model_class = UNet
-    elif model_name_lower in ['unet_plus_plus', 'unetplusplus', 'unet++']:
-        from .unet_plus_plus import UNetPlusPlus
-        model_class = UNetPlusPlus
-    elif model_name_lower in ['fno2d']:
-        from .spatial.fno2d import FNO2d
-        model_class = FNO2d
-    elif model_name_lower in ['ufno_unet', 'ufnounet', 'ufno-unet']:
-        from .ufno_unet_bottleneck import UFNOUNet
-        model_class = UFNOUNet
-    
-    # Transformer模型
-    elif model_name_lower in ['swin_unet', 'swinunet']:
-        from .swin_unet import SwinUNet
-        model_class = SwinUNet
-    elif model_name_lower in ['segformer_unetformer', 'segformerunetformer']:
-        from .segformer_unetformer import SegFormerUNetFormer
-        model_class = SegFormerUNetFormer
-    elif model_name_lower in ['unetformer']:
-        from .unetformer import UNetFormer
-        model_class = UNetFormer
-    elif model_name_lower in ['segformer']:
-        from .segformer import SegFormer
-        model_class = SegFormer
-    
-    # MLP模型
-    elif model_name_lower in ['mlp', 'mlpmodel']:
-        from .mlp import MLPModel
-        model_class = MLPModel
-    elif model_name_lower in ['mlp_mixer', 'mlpmixer', 'mlp-mixer']:
-        from .mlp_mixer import MLPMixer
-        model_class = MLPMixer
-    elif model_name_lower in ['liif', 'liifmodel']:
-        from .liif import LIIFModel
-        model_class = LIIFModel
-    
-    # 混合模型
-    elif model_name_lower in ['hybrid', 'hybridmodel']:
-        from .hybrid import HybridModel
-        model_class = HybridModel
-    
-    # 新增Transformer模型
-    elif model_name_lower in ['vit', 'visiontransformer']:
-        from .vit import VisionTransformer
-        model_class = VisionTransformer
-    elif model_name_lower in ['swint', 'swintransformertiny']:
-        from .swin_t import SwinTransformerTiny
-        model_class = SwinTransformerTiny
-    elif model_name_lower in ['transformer']:
-        from .transformer import Transformer
-        model_class = Transformer
-    
+# -------------------------
+# Backward-compatible factory
+# -------------------------
+def create_model(model_name_or_config: Union[str, Any], **kwargs) -> nn.Module:
+    if isinstance(model_name_or_config, str):
+        model_name = model_name_or_config
+        model_params: Dict[str, Any] = dict(kwargs)
     else:
-        raise ValueError(f"Unknown model: {model_name}")
-    
-    # 创建模型
-    model = model_class(**kwargs)
-    
-    return model
+        config = model_name_or_config
+        model_name = str(getattr(config, "name", "")).strip()
+        if not model_name:
+            raise ValueError("config.name is empty")
+
+        model_params = {}
+        if hasattr(config, "params"):
+            model_params.update(dict(config.params))
+        else:
+            try:
+                model_params.update({k: v for k, v in config.items() if k != "name"})
+            except Exception:
+                model_params.update(dict(config))
+
+        if "kwargs" in model_params and isinstance(model_params["kwargs"], (dict,)):
+            extra = dict(model_params["kwargs"])
+            model_params.pop("kwargs", None)
+            extra.update(model_params)
+            model_params = extra
+
+        if kwargs:
+            model_params.update(kwargs)
+
+    name = str(model_name).strip()
+    if not name:
+        raise ValueError("model_name is empty")
+
+    from importlib import import_module
+
+    import_module("models.spatial")
+    import_module("models.temporal")
+
+    lower = name.lower()
+
+    if lower in {"arwrapper", "ar_wrapper"}:
+        from .temporal.factory import create_model as temporal_create_model
+        wrapper_keys = {
+            "single_frame_model",
+            "model",
+            "model_name",
+            "base_kwargs",
+            "detach_rollout",
+            "scheduled_sampling",
+            "sampling_schedule",
+            "teacher_forcing_ratio",
+            "T_in",
+            "T_out",
+            "t_in",
+            "t_out",
+            "t_out_steps",
+        }
+
+        ar_config = model_params.pop("ar_config", None)
+        if isinstance(ar_config, dict):
+            for k, v in ar_config.items():
+                model_params.setdefault(k, v)
+
+        base_model = model_params.pop("base_model", None)
+        if isinstance(base_model, str):
+            model_params.setdefault("model_name", base_model)
+        elif isinstance(base_model, dict):
+            base_name = base_model.get("name", None)
+            if base_name is not None:
+                model_params.setdefault("model_name", base_name)
+            merged_base_kwargs = dict(base_model)
+            merged_base_kwargs.pop("name", None)
+            existing_base_kwargs = model_params.pop("base_kwargs", None)
+            if isinstance(existing_base_kwargs, dict):
+                merged_base_kwargs.update(existing_base_kwargs)
+            model_params["base_kwargs"] = merged_base_kwargs
+
+        wrapper_kwargs: Dict[str, Any] = {}
+        base_kwargs: Dict[str, Any] = {}
+        for k, v in model_params.items():
+            if k in wrapper_keys:
+                wrapper_kwargs[k] = v
+            else:
+                base_kwargs[k] = v
+
+        if "model_name" not in wrapper_kwargs:
+            wrapper_kwargs["model_name"] = "SwinUNet"
+
+        merged_base_kwargs = {}
+        if isinstance(wrapper_kwargs.get("base_kwargs"), dict):
+            merged_base_kwargs.update(wrapper_kwargs["base_kwargs"])
+        merged_base_kwargs.update(base_kwargs)
+        wrapper_kwargs["base_kwargs"] = merged_base_kwargs
+
+        return temporal_create_model("ARWrapper", **wrapper_kwargs)
+
+    temporal_names = {
+        "swintemporal",
+        "swin_temporal",
+        "swintemporalnar",
+        "swin_temporal_nar",
+        "arnarwrapper",
+        "ar_nar_wrapper",
+        "physicstransformer",
+        "physics_transformer",
+        "temporalencoder",
+        "temporalblock",
+        "narpredictionhead",
+        "sequentialspatiotemporal",
+        "sequentialtrainer",
+        "sequentialdcconsistency",
+    }
+    if lower in temporal_names:
+        from .temporal.factory import create_model as temporal_create_model
+        return temporal_create_model(name, **model_params)
+
+    is_ar = lower.endswith("_ar") or lower.startswith("ar_")
+    if is_ar:
+        base_name = lower[:-3] if lower.endswith("_ar") else lower[3:]
+        ar_keys = {
+            "scheduled_sampling",
+            "sampling_schedule",
+            "detach_rollout",
+            "teacher_forcing_ratio",
+            "T_in",
+            "T_out",
+            "t_in",
+            "t_out",
+            "t_out_steps",
+        }
+        drop_keys = {
+            "use_ar",
+            "use_nar",
+            "nar_cfg",
+            "ar_cfg",
+        }
+
+        ar_kwargs: Dict[str, Any] = {}
+        ar_config = model_params.pop("ar_config", None)
+        if isinstance(ar_config, dict):
+            for k, v in ar_config.items():
+                if k in ar_keys and k not in ar_kwargs and k not in model_params:
+                    ar_kwargs[k] = v
+
+        for k in list(model_params.keys()):
+            if k in ar_keys:
+                ar_kwargs[k] = model_params.pop(k)
+
+        for k in drop_keys:
+            model_params.pop(k, None)
+
+        from .registry import create_model as registry_create_model
+
+        base_model = registry_create_model(base_name, **model_params)
+        from .ar.wrapper import ARWrapper
+
+        if "t_out" in ar_kwargs and "T_out" not in ar_kwargs:
+            ar_kwargs["T_out"] = ar_kwargs.pop("t_out")
+        if "t_in" in ar_kwargs and "T_in" not in ar_kwargs:
+            ar_kwargs["T_in"] = ar_kwargs.pop("t_in")
+        if "t_out_steps" in ar_kwargs and "T_out" not in ar_kwargs:
+            ar_kwargs["T_out"] = ar_kwargs.pop("t_out_steps")
+
+        return ARWrapper(single_frame_model=base_model, **ar_kwargs)
+
+    from .registry import create_model as registry_create_model
+
+    return registry_create_model(name, **model_params)
 
 
+# -------------------------
+# Utility functions (optional)
+# -------------------------
 def count_parameters(model: nn.Module) -> Tuple[int, int]:
-    """统计模型参数
-    
-    Args:
-        model: PyTorch模型
-        
-    Returns:
-        (总参数量, 可训练参数量)
-    """
+    """统计模型参数（总参数量, 可训练参数量）"""
     total_params = sum(p.numel() for p in model.parameters())
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    
-    return total_params, trainable_params
+    return int(total_params), int(trainable_params)
 
 
 def get_model_size(model: nn.Module) -> float:
-    """获取模型大小（MB）
-    
-    Args:
-        model: PyTorch模型
-        
-    Returns:
-        模型大小（MB）
-    """
+    """获取模型大小（MB）"""
     param_size = 0
     buffer_size = 0
-    
-    for param in model.parameters():
-        param_size += param.numel() * param.element_size()
-    
-    for buffer in model.buffers():
-        buffer_size += buffer.numel() * buffer.element_size()
-    
-    size_mb = (param_size + buffer_size) / 1024**2
-    
-    return size_mb
+
+    for p in model.parameters():
+        param_size += p.numel() * p.element_size()
+
+    for b in model.buffers():
+        buffer_size += b.numel() * b.element_size()
+
+    return float((param_size + buffer_size) / 1024**2)

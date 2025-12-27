@@ -15,6 +15,7 @@ from typing import List, Optional, Tuple
 import math
 
 from ..base import BaseModel
+from ..registry import register_model
 
 
 class MultiHeadAttention(nn.Module):
@@ -217,6 +218,7 @@ class TransformerConvBlock(nn.Module):
         return conv_out + trans_out
 
 
+@register_model(name="UNetFormer", aliases=["unetformer"])
 class UNetFormer(BaseModel):
     """UNetFormer模型
     

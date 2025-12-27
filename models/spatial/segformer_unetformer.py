@@ -17,6 +17,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from ..base import BaseModel
+from ..registry import register_model
 
 
 class PatchEmbed(nn.Module):
@@ -364,6 +365,7 @@ class MLPDecoder(nn.Module):
         return x
 
 
+@register_model(name="SegFormerUNetFormer", aliases=["segformer_unetformer"])
 class SegFormerUNetFormer(BaseModel):
     """SegFormer/UNetFormer模型
     

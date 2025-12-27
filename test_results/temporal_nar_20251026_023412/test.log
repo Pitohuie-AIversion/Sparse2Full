@@ -1,3 +1,0 @@
-2025-10-26 02:34:12,915 - TemporalNARTester - ERROR - 数据模块初始化失败: Missing key name
-    full_key: data.name
-    object_type=dict

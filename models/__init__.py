@@ -72,73 +72,9 @@ __all__ = [
 
 # 工厂函数 - 保持向后兼容
 def create_model(model_name_or_config, **kwargs):
-    """
-    根据配置创建模型实例（向后兼容）
-    
-    Args:
-        model_name_or_config: 模型名称字符串或配置对象
-        **kwargs: 模型参数（当第一个参数是字符串时使用）
-        
-    Returns:
-        torch.nn.Module: 模型实例
-        
-    Raises:
-        ValueError: 当模型名称不支持时
-    """
-    if isinstance(model_name_or_config, str):
-        # 直接传入模型名称和参数
-        model_name = model_name_or_config
-        model_params = kwargs
-    else:
-        # 传入配置对象
-        config = model_name_or_config
-        model_name = config.name
-        
-        # 处理参数结构
-        if 'params' in config:
-            # 如果有params字段，使用params中的参数
-            model_params = dict(config.params)
-            # 如果params中有kwargs，将其合并到主参数中
-            if 'kwargs' in model_params:
-                kwargs_dict = dict(model_params['kwargs'])
-                del model_params['kwargs']
-                model_params.update(kwargs_dict)
-        else:
-            # 过滤掉name字段，其余作为参数
-            model_params = {k: v for k, v in config.items() if k != 'name'}
-    
-    # 空间预测模型
-    spatial_models = {
-        "UNet", "unet", "UNetPlusPlus", "unet_plus_plus", 
-        "FNO2D", "fno2d", "UFNOUNet", "ufno_unet",
-        "SegFormer", "segformer", "UNetFormer", "unetformer", 
-        "SegFormerUNetFormer", "segformer_unetformer",
-        "MLPMixer", "mlp_mixer", "LIIF", "liif",
-        "SwinUNet", "swin_unet", "Hybrid", "hybrid", "MLP", "mlp",
-        "ViT", "VisionTransformer", "SwinT", "SwinTransformerTiny", "Transformer",
-        "SparseSwinUNet", "sparse_swin_unet", "SparseAttentionEncoder", "sparse_attention_encoder"
-    }
-    
-    # 时间预测模型
-    temporal_models = {
-        "ARWrapper", "ar_wrapper", "SwinTemporal", "swin_temporal",
-        "SwinTemporalNAR", "swin_temporal_nar", "ARNARWrapper", "ar_nar_wrapper"
-    }
-    
-    if model_name in spatial_models:
-        return spatial.create_model(model_name, **model_params)
-    elif model_name in temporal_models:
-        return temporal.create_model(model_name, **model_params)
-    else:
-        # 尝试在空间模型中查找
-        try:
-            return spatial.create_model(model_name, **model_params)
-        except ValueError:
-            # 尝试在时间模型中查找
-            try:
-                return temporal.create_model(model_name, **model_params)
-            except ValueError:
-                raise ValueError(f"Unknown model: {model_name}. Available models: {list(spatial_models | temporal_models)}")
+    from .base import create_model as base_create_model
+
+    return base_create_model(model_name_or_config, **kwargs)
 
 
 # 别名函数，保持向后兼容

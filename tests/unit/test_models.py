@@ -368,6 +368,54 @@ class TestCreateModel:
         assert y.shape == (1, 3, 32, 32)
         assert torch.all(torch.isfinite(y))
 
+    def test_create_arwrapper_with_base_model_config(self):
+        from models.ar.wrapper import ARWrapper
+
+        model = create_model(
+            "ARWrapper",
+            base_model={"name": "UNet", "features": [8, 16]},
+            in_channels=1,
+            out_channels=1,
+            img_size=32,
+            detach_rollout=True,
+        )
+        assert isinstance(model, ARWrapper)
+
+        x = torch.randn(2, 1, 32, 32)
+        y_single = model(x)
+        assert y_single.shape == (2, 1, 32, 32)
+
+        y_seq = model(x, T_out=2)
+        assert y_seq.shape == (2, 2, 1, 32, 32)
+
+    def test_create_arwrapper_with_string_base_model(self):
+        from models.ar.wrapper import ARWrapper
+
+        model = create_model(
+            "ARWrapper",
+            base_model="UNet",
+            in_channels=1,
+            out_channels=1,
+            img_size=32,
+        )
+        assert isinstance(model, ARWrapper)
+
+        x = torch.randn(1, 1, 32, 32)
+        y = model(x)
+        assert y.shape == (1, 1, 32, 32)
+
+    def test_create_arwrapper_alias(self):
+        from models.ar.wrapper import ARWrapper
+
+        model = create_model(
+            "ar_wrapper",
+            base_model="UNet",
+            in_channels=1,
+            out_channels=1,
+            img_size=32,
+        )
+        assert isinstance(model, ARWrapper)
+
 
 class TestModelEdgeCases:
     """模型边界情况测试"""

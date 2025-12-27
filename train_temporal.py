@@ -33,7 +33,7 @@ sys.path.append(str(Path(__file__).parent))
 from datasets.temporal_pdebench import TemporalPDEBenchDataModule
 from models.base import create_model
 from ops.losses import ARLoss, SpectralLoss, DCLoss
-from utils.metrics import compute_metrics
+from utils.metrics import compute_metrics, MetricsCalculator
 from utils.visualization import TemporalVisualizer
 from utils.logger import setup_logger
 
@@ -104,72 +104,14 @@ class TemporalTrainer:
         """初始化模型"""
         self.logger.info("Initializing model...")
         
-        # 创建AR模型
         model_config = self.config.model.copy()
         model_config.ar_config = self.config.temporal.ar
-        
-        # 检查是否为AR模型
-        if model_config.name == "ARWrapper" or model_config.name == "ar_wrapper":
-            # 对于AR模型，需要先创建基础模型，然后用ARWrapper包装
-            from models.ar.wrapper import ARWrapper
-            
-            # 从配置中获取基础模型信息
-            base_model_config = model_config.get('base_model', {})
-            if isinstance(base_model_config, str):
-                # 如果base_model是字符串，直接使用
-                base_model_name = base_model_config
-                base_model_config = {}
-            else:
-                # 如果base_model是字典，从中获取name
-                base_model_name = base_model_config.get('name', 'SwinUNet')
-            
-            # 创建基础模型的参数
-            base_model_kwargs = {
-                'in_channels': model_config.get('in_channels', 3),
-                'out_channels': model_config.get('out_channels', 1),
-                'img_size': model_config.get('img_size', 256)
-            }
-            
-            # 添加基础模型的其他参数
-            for key, value in base_model_config.items():
-                if key != 'name':
-                    base_model_kwargs[key] = value
-            
-            # 使用models.__init__.py中的create_model函数创建基础模型
-            from models import create_model as create_model_init
-            base_model = create_model_init(base_model_name, **base_model_kwargs)
-            
-            # 创建AR包装器的参数
-            ar_kwargs = {}
-            if 'detach_rollout' in model_config:
-                ar_kwargs['detach_rollout'] = model_config['detach_rollout']
-            if 'scheduled_sampling' in model_config:
-                ar_kwargs['scheduled_sampling'] = model_config['scheduled_sampling']
-            if 'sampling_schedule' in model_config:
-                ar_kwargs['sampling_schedule'] = model_config['sampling_schedule']
-            
-            # 创建AR包装器
-            self.model = ARWrapper(single_frame_model=base_model, **ar_kwargs)
-        else:
-            # 对于非AR模型，使用原来的逻辑
-            # 手动构建参数字典，避免重复传递name
-            model_kwargs = {
-                'in_channels': model_config.in_channels,
-                'out_channels': model_config.out_channels,
-                'img_size': model_config.img_size,
-            }
-            
-            # 添加其他配置参数（除了name）
-            for key, value in model_config.items():
-                if key not in ['name', 'in_channels', 'out_channels', 'img_size']:
-                    model_kwargs[key] = value
-            
-            # 使用models.__init__.py中的create_model函数
-            from models import create_model as create_model_init
-            self.model = create_model_init(
-                model_config.name,
-                **model_kwargs
-            )
+
+        img_size = model_config.get("img_size", None)
+        if isinstance(img_size, (list, tuple)):
+            model_config.img_size = img_size[0]
+
+        self.model = create_model(model_config)
         
         self.model = self.model.to(self.device)
         
@@ -263,6 +205,8 @@ class TemporalTrainer:
             'val_mae': [],
             'learning_rate': []
         }
+        # 训练阶段用轻量指标，避免 compute_metrics(SSIM/FFT) 过慢
+        self.metric_calc = MetricsCalculator(image_size=(256, 256))
     
     def _init_visualizer(self):
         """初始化可视化器"""
@@ -318,6 +262,43 @@ class TemporalTrainer:
                 self.logger.info(f"Switched to curriculum stage {self.curriculum_stage + 1}: "
                                f"T_out={new_stage.T_out}, TF_ratio={new_stage.teacher_forcing_ratio}")
     
+    def _forward_model(self, input_seq: torch.Tensor) -> Any:
+        """
+        优先尝试 5D 输入（AR/时序模型），失败则回退 4D（单帧模型）。
+        input_seq: [B,T,C,H,W] 或 [B,C,H,W]
+        """
+        if input_seq.ndim == 5:
+            try:
+                return self.model(input_seq)
+            except Exception:
+                return self.model(input_seq[:, -1])
+        return self.model(input_seq)
+
+    def _compute_light_metrics(
+        self, pred: torch.Tensor, target: torch.Tensor
+    ) -> Tuple[float, float]:
+        """
+        训练阶段轻量指标：rel_l2 / mae
+        - 自动把 5D -> 取最后一帧
+        - 自动把 pred 插值到 target 空间尺寸
+        - 返回 float（全 batch & 全通道平均）
+        """
+        if pred.ndim == 5:
+            pred = pred[:, -1]
+        if target.ndim == 5:
+            target = target[:, -1]
+
+        # 对齐空间分辨率（只插值 pred）
+        if pred.shape[-2:] != target.shape[-2:]:
+            pred = F.interpolate(pred, size=target.shape[-2:], mode="bilinear", align_corners=False)
+
+        rel_l2_bc = self.metric_calc.compute_rel_l2(pred, target)  # [B,C]
+        mae_bc = self.metric_calc.compute_mae(pred, target)        # [B,C]
+
+        rel_l2 = float(rel_l2_bc.mean().item())
+        mae = float(mae_bc.mean().item())
+        return rel_l2, mae
+
     def train_epoch(self) -> Dict[str, float]:
         """训练一个epoch"""
         self.model.train()
@@ -340,15 +321,7 @@ class TemporalTrainer:
             # 前向传播
             if self.use_amp:
                 with autocast():
-                    # 处理时序数据：将时间维度展平或选择最后一帧
-                    if len(input_seq.shape) == 5:  # [B, T, C, H, W]
-                        B, T, C, H, W = input_seq.shape
-                        # 使用最后一帧作为输入
-                        model_input = input_seq[:, -1]  # [B, C, H, W]
-                    else:
-                        model_input = input_seq
-                    
-                    outputs = self.model(model_input)
+                    outputs = self._forward_model(input_seq)
                     
                     # 如果输出是字典，提取预测结果
                     if isinstance(outputs, dict):
@@ -372,15 +345,7 @@ class TemporalTrainer:
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
             else:
-                # 处理时序数据：将时间维度展平或选择最后一帧
-                if len(input_seq.shape) == 5:  # [B, T, C, H, W]
-                    B, T, C, H, W = input_seq.shape
-                    # 使用最后一帧作为输入
-                    model_input = input_seq[:, -1]  # [B, C, H, W]
-                else:
-                    model_input = input_seq
-                
-                outputs = self.model(model_input)
+                outputs = self._forward_model(input_seq)
                 
                 # 如果输出是字典，提取预测结果
                 if isinstance(outputs, dict):
@@ -402,46 +367,24 @@ class TemporalTrainer:
             
             # 计算指标
             with torch.no_grad():
-                # 确保predictions和target_seq的尺寸匹配
                 pred_for_metrics = predictions['predictions']
                 target_for_metrics = target_seq
                 
-                # 如果predictions是4D而target_seq是5D，需要调整
-                if len(pred_for_metrics.shape) == 4 and len(target_for_metrics.shape) == 5:
-                    # 上采样predictions到目标分辨率
-                    B, C, H, W = pred_for_metrics.shape
-                    B_t, T_out, C_t, H_t, W_t = target_for_metrics.shape
-                    
-                    if H != H_t or W != W_t:
-                        pred_for_metrics = F.interpolate(pred_for_metrics, size=(H_t, W_t), mode='bilinear', align_corners=False)
-                    
-                    # 扩展时间维度
-                    pred_for_metrics = pred_for_metrics.unsqueeze(1).repeat(1, T_out, 1, 1, 1)
-                
-                elif len(pred_for_metrics.shape) == 5 and len(target_for_metrics.shape) == 5:
-                    # 都是5D，检查空间分辨率
-                    B, T, C, H, W = pred_for_metrics.shape
-                    B_t, T_t, C_t, H_t, W_t = target_for_metrics.shape
-                    if H != H_t or W != W_t:
-                        # 对每个时间步进行上采样
-                        predictions_list = []
-                        for t in range(T):
-                            pred_t = F.interpolate(pred_for_metrics[:, t], size=(H_t, W_t), mode='bilinear', align_corners=False)
-                            predictions_list.append(pred_t)
-                        pred_for_metrics = torch.stack(predictions_list, dim=1)
-                
-                metrics = compute_metrics(pred_for_metrics, target_for_metrics)
-                epoch_metrics['rel_l2'].append(metrics['rel_l2'].mean().item())
-                epoch_metrics['mae'].append(metrics['mae'].mean().item())
+                rel_l2, mae = self._compute_light_metrics(pred_for_metrics, target_for_metrics)
+                epoch_metrics["rel_l2"].append(rel_l2)
+                epoch_metrics["mae"].append(mae)
+
+                # 统一一个 metrics dict 供后续日志/进度条使用（float）
+                metrics = {"rel_l2": rel_l2, "mae": mae}
             
             epoch_losses.append(loss.item())
             self.global_step += 1
             
             # 更新进度条
             pbar.set_postfix({
-                'loss': f"{loss.item():.4f}",
-                'rel_l2': f"{metrics['rel_l2'].mean().item():.4f}",
-                'lr': f"{self.optimizer.param_groups[0]['lr']:.2e}"
+                "loss": f"{loss.item():.4f}",
+                "rel_l2": f"{metrics['rel_l2']:.4f}",
+                "lr": f"{self.optimizer.param_groups[0]['lr']:.2e}",
             })
             
             # 保存预测可视化
@@ -492,7 +435,7 @@ class TemporalTrainer:
             if self.global_step % self.config.experiment.log_every_n_steps == 0:
                 self.logger.info(
                     f"Step {self.global_step}: loss={loss.item():.4f}, "
-                    f"rel_l2={metrics['rel_l2'].mean().item():.4f}, "
+                    f"rel_l2={metrics['rel_l2']:.4f}, "
                     f"lr={self.optimizer.param_groups[0]['lr']:.2e}"
                 )
         
@@ -507,140 +450,81 @@ class TemporalTrainer:
             'mae': avg_mae
         }
     
+    def evaluate(self, loader: DataLoader, desc: str = "Evaluating") -> Dict[str, float]:
+        self.model.eval()
+        losses = []
+        metrics_acc = {"rel_l2": [], "mae": [], "psnr": [], "ssim": []}
+
+        with torch.no_grad():
+            for batch in tqdm(loader, desc=desc):
+                input_seq = batch["input_sequence"].to(self.device)
+                target_seq = batch["target_sequence"].to(self.device)
+                if "observation_sequence" in batch:
+                    input_seq = batch["observation_sequence"].to(self.device)
+
+                outputs = self._forward_model(input_seq)
+                predictions = outputs if isinstance(outputs, dict) else {"predictions": outputs}
+
+                loss = self._compute_loss(predictions, target_seq, batch)
+                losses.append(loss.item())
+
+                pred_for_metrics = predictions["predictions"]
+                if pred_for_metrics.ndim == 4 and target_seq.ndim == 5:
+                    target_for_metrics = target_seq[:, -1]
+                else:
+                    target_for_metrics = target_seq
+
+                m = compute_metrics(pred_for_metrics, target_for_metrics)
+                for k in metrics_acc:
+                    if k in m:
+                        v = m[k]
+                        if isinstance(v, torch.Tensor):
+                            v = v.mean().detach().cpu().item() if v.numel() > 1 else v.detach().cpu().item()
+                        metrics_acc[k].append(v)
+
+        out = {"loss": float(np.mean(losses))}
+        for k, vals in metrics_acc.items():
+            if vals:
+                out[k] = float(np.mean(vals))
+        return out
+
     def validate(self) -> Dict[str, float]:
         """验证"""
-        self.model.eval()
-        val_losses = []
-        val_metrics = {'rel_l2': [], 'mae': [], 'psnr': [], 'ssim': []}
-        
-        with torch.no_grad():
-            for batch in tqdm(self.val_loader, desc="Validating"):
-                input_seq = batch['input_sequence'].to(self.device)
-                target_seq = batch['target_sequence'].to(self.device)
-                
-                if 'observation_sequence' in batch:
-                    input_seq = batch['observation_sequence'].to(self.device)
-                
-                # 前向传播
-                # 处理时序数据：将时间维度展平或选择最后一帧
-                if len(input_seq.shape) == 5:  # [B, T, C, H, W]
-                    B, T, C, H, W = input_seq.shape
-                    # 使用最后一帧作为输入
-                    model_input = input_seq[:, -1]  # [B, C, H, W]
-                else:
-                    model_input = input_seq
-                
-                outputs = self.model(model_input)
-                
-                # 如果输出是字典，提取预测结果
-                if isinstance(outputs, dict):
-                    predictions = outputs
-                else:
-                    predictions = {'predictions': outputs}
-                
-                loss = self._compute_loss(predictions, target_seq, batch)
-                
-                # 计算指标 - 处理尺寸不匹配
-                pred_for_metrics = predictions['predictions']
-                target_for_metrics = target_seq
-                
-                # 调试信息
-                print(f"验证阶段 - pred shape: {pred_for_metrics.shape}, target shape: {target_for_metrics.shape}")
-                
-                # 第一步：处理维度不匹配
-                if len(pred_for_metrics.shape) == 4 and len(target_for_metrics.shape) == 5:
-                    # pred: [B, C, H, W], target: [B, T, C, H, W]
-                    print(f"情况1: pred 4D, target 5D")
-                    target_for_metrics = target_for_metrics[:, -1]  # 取最后一个时间步
-                elif len(pred_for_metrics.shape) == 5 and len(target_for_metrics.shape) == 4:
-                    # pred: [B, T, C, H, W], target: [B, C, H, W]
-                    print(f"情况2: pred 5D, target 4D")
-                    pred_for_metrics = pred_for_metrics[:, -1]  # 取最后一个时间步
-                
-                # 第二步：处理空间尺寸不匹配
-                if pred_for_metrics.shape[-2:] != target_for_metrics.shape[-2:]:
-                    print(f"空间尺寸不匹配: pred {pred_for_metrics.shape[-2:]} vs target {target_for_metrics.shape[-2:]}")
-                    target_size = target_for_metrics.shape[-2:]
-                    
-                    if len(pred_for_metrics.shape) == 5:
-                        # 5D张量 [B, T, C, H, W]
-                        B, T, C = pred_for_metrics.shape[:3]
-                        pred_reshaped = pred_for_metrics.view(B*T, C, *pred_for_metrics.shape[-2:])
-                        pred_resized = F.interpolate(pred_reshaped, size=target_size, mode='bilinear', align_corners=False)
-                        pred_for_metrics = pred_resized.view(B, T, C, *target_size)
-                    else:
-                        # 4D张量 [B, C, H, W]
-                        pred_for_metrics = F.interpolate(pred_for_metrics, size=target_size, mode='bilinear', align_corners=False)
-                    
-                    print(f"空间尺寸调整后 - pred shape: {pred_for_metrics.shape}")
-                
-                print(f"最终 - pred shape: {pred_for_metrics.shape}, target shape: {target_for_metrics.shape}")
-                
-                metrics = compute_metrics(pred_for_metrics, target_for_metrics)
-                
-                val_losses.append(loss.item())
-                for key in val_metrics:
-                    if key in metrics:
-                        # 确保转换为CPU上的标量值
-                        metric_value = metrics[key]
-                        if isinstance(metric_value, torch.Tensor):
-                            if metric_value.numel() > 1:
-                                metric_value = metric_value.mean().cpu().item()
-                            else:
-                                metric_value = metric_value.cpu().item()
-                        val_metrics[key].append(metric_value)
-        
-        # 计算平均值
-        avg_metrics = {
-            'loss': np.mean(val_losses),
-            **{key: np.mean(values) for key, values in val_metrics.items() if values}
-        }
-        
-        return avg_metrics
+        return self.evaluate(self.val_loader, desc="Validating")
     
     def _compute_loss(self, outputs: Dict[str, torch.Tensor], 
                      target_seq: torch.Tensor, batch: Dict) -> torch.Tensor:
         """计算损失"""
         predictions = outputs['predictions']  # [B, C, H, W] 或 [B, T_out, C, H, W]
         
-        # 确保predictions和target_seq有相同的维度
-        if len(predictions.shape) == 4 and len(target_seq.shape) == 5:
-            # 如果predictions是4D [B, C, H, W]，target_seq是5D [B, T_out, C, H, W]
-            # 需要将predictions上采样到目标分辨率，然后扩展时间维度
-            B, C, H, W = predictions.shape
-            B_t, T_out, C_t, H_t, W_t = target_seq.shape
-            
-            # 上采样predictions到目标分辨率
-            if H != H_t or W != W_t:
-                predictions = F.interpolate(predictions, size=(H_t, W_t), mode='bilinear', align_corners=False)
-            
-            # 扩展时间维度：复制预测结果到所有时间步
-            predictions = predictions.unsqueeze(1).repeat(1, T_out, 1, 1, 1)  # [B, T_out, C, H, W]
-            
-        elif len(predictions.shape) == 4 and len(target_seq.shape) == 4:
-            # 都是4D，检查空间分辨率
-            B, C, H, W = predictions.shape
-            B_t, C_t, H_t, W_t = target_seq.shape
-            if H != H_t or W != W_t:
-                predictions = F.interpolate(predictions, size=(H_t, W_t), mode='bilinear', align_corners=False)
-                
-        elif len(predictions.shape) == 5 and len(target_seq.shape) == 5:
-            # 都是5D，检查空间分辨率
-            B, T, C, H, W = predictions.shape
-            B_t, T_t, C_t, H_t, W_t = target_seq.shape
-            if H != H_t or W != W_t:
-                # 对每个时间步进行上采样
-                predictions_list = []
-                for t in range(T):
-                    pred_t = F.interpolate(predictions[:, t], size=(H_t, W_t), mode='bilinear', align_corners=False)
-                    predictions_list.append(pred_t)
-                predictions = torch.stack(predictions_list, dim=1)
+        # ---- 统一成 5D: [B,T,C,H,W]，并与 target 对齐 ----
+        if predictions.ndim == 4:
+            # 单帧模型：只监督 target 最后一帧，严禁 repeat 成 T_out
+            predictions = predictions.unsqueeze(1)  # [B,1,C,H,W]
+            if target_seq.ndim == 5:
+                target_seq = target_seq[:, -1:].contiguous()  # [B,1,C,H,W]
+            else:
+                target_seq = target_seq.unsqueeze(1)
+        
+        elif predictions.ndim == 5:
+            if target_seq.ndim == 4:
+                target_seq = target_seq.unsqueeze(1)  # [B,1,C,H,W]
+        
+            # 时序长度不一致：截断到最小 T
+            if predictions.shape[1] != target_seq.shape[1]:
+                T = min(predictions.shape[1], target_seq.shape[1])
+                predictions = predictions[:, :T]
+                target_seq = target_seq[:, :T]
         else:
-            # 其他情况，尝试添加时间维度
-            if len(predictions.shape) == 4:
-                predictions = predictions.unsqueeze(1)  # [B, 1, C, H, W]
-            if len(target_seq.shape) == 4:
-                target_seq = target_seq.unsqueeze(1)  # [B, 1, C, H, W]
+            raise ValueError(f"Unsupported predictions.ndim={predictions.ndim}")
+        
+        # ---- 对齐空间分辨率 ----
+        if predictions.shape[-2:] != target_seq.shape[-2:]:
+            target_size = target_seq.shape[-2:]
+            B, T, C = predictions.shape[:3]
+            pred_bt = predictions.reshape(B * T, C, *predictions.shape[-2:])
+            pred_bt = F.interpolate(pred_bt, size=target_size, mode="bilinear", align_corners=False)
+            predictions = pred_bt.reshape(B, T, C, *target_size)
         
         # AR时序损失
         ar_loss_result = self.ar_loss(predictions, target_seq)
@@ -658,21 +542,10 @@ class TemporalTrainer:
         
         # DC一致性损失
         dc_loss = torch.tensor(0.0, device=self.device)
-        if 'h_params' in batch:
-            # 对于DC损失，我们需要使用4D张量
-            if len(predictions.shape) == 5:
-                # 如果是5D [B, T_out, C, H, W]，取最后一个时间步
-                pred_for_dc = predictions[:, -1]  # [B, C, H, W]
-            else:
-                pred_for_dc = predictions  # 已经是4D
-            
-            if len(target_seq.shape) == 5:
-                # 如果是5D [B, T_out, C, H, W]，取最后一个时间步
-                target_for_dc = target_seq[:, -1]  # [B, C, H, W]
-            else:
-                target_for_dc = target_seq  # 已经是4D
-                
-            dc_loss = self.dc_loss(pred_for_dc, target_for_dc, batch['h_params'])
+        if "h_params" in batch:
+            pred_for_dc = predictions[:, -1]
+            target_for_dc = target_seq[:, -1]
+            dc_loss = self.dc_loss(pred_for_dc, target_for_dc, batch["h_params"])
         
         # 总损失
         total_loss = ar_loss + spectral_loss + dc_loss
@@ -802,7 +675,7 @@ class TemporalTrainer:
             self.load_checkpoint(str(self.output_dir / "best.ckpt"))
         
         # 测试集评估
-        test_metrics = self.validate()  # 使用验证函数评估测试集
+        test_metrics = self.evaluate(self.test_loader, desc="Testing")
         
         # 保存最终结果
         results = {

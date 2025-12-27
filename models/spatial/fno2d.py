@@ -13,6 +13,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from ..base import BaseModel
+from ..registry import register_model
 
 
 class SpectralConv2d(nn.Module):
@@ -99,6 +100,7 @@ class SpectralConv2d(nn.Module):
         return x
 
 
+@register_model(name="FNO2D", aliases=["fno2d"])
 class FNO2d(BaseModel):
     """Fourier Neural Operator 2D模型
     

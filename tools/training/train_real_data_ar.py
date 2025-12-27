@@ -981,13 +981,18 @@ class RealDataARTrainer:
 
     def check_memory_usage(self) -> float:
         """检查GPU内存使用率"""
-        if self.device.type == 'cuda':
-            allocated = torch.cuda.memory_allocated() / 1024**3  # GB
-            cached = torch.cuda.memory_reserved() / 1024**3     # GB
-            total = torch.cuda.get_device_properties(0).total_memory / 1024**3  # GB
-            usage_ratio = allocated / total
-
-            return usage_ratio
+        try:
+            if torch.cuda.is_available() and self.device.type == 'cuda':
+                # Fix B: Use current device instead of hardcoded 0
+                device_idx = torch.cuda.current_device()
+                if self.device.index is not None:
+                    device_idx = self.device.index
+                
+                allocated = torch.cuda.memory_allocated(device_idx) / 1024**3  # GB
+                total = torch.cuda.get_device_properties(device_idx).total_memory / 1024**3  # GB
+                return allocated / total
+        except Exception as e:
+            self.logger.warning(f"显存监控读取失败: {e}")
         return 0.0
 
     def cleanup_memory(self):
@@ -1007,7 +1012,7 @@ class RealDataARTrainer:
             self._setup_observation_operator()
             self._setup_norm_stats()
         except Exception as e:
-            self.logger.error(f"❌ 数据模块设置失败/数据设置失败: {e}")
+            self.logger.exception(f"❌ 数据模块设置失败/数据设置失败: {e}")
             raise
 
     def _setup_data_module(self):
@@ -1092,8 +1097,25 @@ class RealDataARTrainer:
 
             self.logger.info(f"✅ 合成数据集创建完成: train={len(self.train_dataset)}, val={len(self.val_dataset)}, test={len(self.test_dataset)}")
 
+        self.test_loader = None
+        self.using_dm = False
+
+        # Fix 3: One-time flag for DDP logging
+        self._ddp_loadercheck_logged = set()
+
+        # 尝试获取DataModule
+        try:
+            self._setup_data_module()
+            # 移除合成数据回退，强制使用真实数据
+            # self._setup_synthetic_data()
+            self._setup_dataloaders()
+            self._setup_observation_operator()
+            self._setup_norm_stats()
+        except Exception as e:
+            self.logger.exception(f"❌ 数据模块设置失败/数据设置失败: {e}")
+            raise
+
     def _setup_dataloaders(self):
-        """内部函数：设置数据加载器"""
         # 统一保护：num_workers==0 时禁用 prefetch_factor 并关闭 persistent_workers
         try:
             num_workers = int(self._cfg_select('data.dataloader.num_workers', 'hardware.num_workers', default=32) or 32)
@@ -1115,43 +1137,40 @@ class RealDataARTrainer:
                     fast_collate_fn if ('fast_collate_fn' in globals() and fast_collate_fn is not None)
                     else (safe_collate_fn if ('safe_collate_fn' in globals() and safe_collate_fn is not None) else None)
                 )
-                self.train_loader = _DL(self.train_dataset, batch_size=self.batch_size, shuffle=True, collate_fn=_collate, num_workers=0, pin_memory=False, persistent_workers=False)
-                self.val_loader = _DL(self.val_dataset, batch_size=self.val_batch_size, shuffle=False, collate_fn=_collate, num_workers=0, pin_memory=False, persistent_workers=False)
-                self.test_loader = _DL(self.test_dataset, batch_size=self.test_batch_size, shuffle=False, collate_fn=_collate, num_workers=0, pin_memory=False, persistent_workers=False)
+                # Fix D: Use sanitize helper for construction
+                base_kwargs = dict(num_workers=0, pin_memory=False, persistent_workers=False)
+                dl_kwargs = self._get_compatible_loader_kwargs(base_kwargs)
+                self.train_loader = _DL(self.train_dataset, batch_size=self.batch_size, shuffle=True, collate_fn=_collate, **dl_kwargs)
+                self.val_loader = _DL(self.val_dataset, batch_size=self.val_batch_size, shuffle=False, collate_fn=_collate, **dl_kwargs)
+                self.test_loader = _DL(self.test_dataset, batch_size=self.test_batch_size, shuffle=False, collate_fn=_collate, **dl_kwargs)
             except Exception:
-                self.train_loader = None
-                self.val_loader = None
-                self.test_loader = None
+                self.logger.exception("❌ Failed to create DataLoaders from synthetic datasets")
+                raise
         elif self.using_dm:
             self.train_loader = self.data_module.train_dataloader()
             self.val_loader = self.data_module.val_dataloader()
             self.test_loader = self.data_module.test_dataloader()
+            
+            # Fix D: Rebuild DataModule loaders if they have dangerous pin_memory_device=None
+            for name in ['train_loader', 'val_loader', 'test_loader']:
+                loader = getattr(self, name, None)
+                if loader and hasattr(loader, 'pin_memory_device') and loader.pin_memory_device is None:
+                    try:
+                        # Rebuild using robust helper
+                        new_loader = self._rebuild_loader_from_existing(
+                            loader, 
+                            shuffle=(name == 'train_loader'), 
+                            sampler=loader.sampler  # Will be overridden if DDP
+                        )
+                        setattr(self, name, new_loader)
+                        self.logger.info(f"Rebuilt {name} to fix pin_memory_device=None")
+                    except Exception as e:
+                        self.logger.warning(f"Failed to rebuild {name}, keeping original: {e}")
 
         # DDP处理与兜底
         self._ensure_dataloader()
 
         # 修复pin_memory_device
-        def _fix_pmd(loader):
-            try:
-                if loader is None: return
-                if hasattr(loader, 'pin_memory_device'):
-                    pmd = getattr(loader, 'pin_memory_device', None)
-                    if pmd is None or (isinstance(pmd, str) and len(pmd) == 0):
-                        if torch.cuda.is_available():
-                            dev_index = 0
-                            if isinstance(self.device, torch.device) and self.device.type == 'cuda':
-                                dev_index = 0 if (self.device.index is None) else int(self.device.index)
-                            elif getattr(self, 'distributed', False):
-                                dev_index = int(getattr(self, 'local_rank', 0))
-                            loader.pin_memory_device = f"cuda:{dev_index}"
-                        else:
-                            loader.pin_memory_device = 'cpu'
-            except Exception:
-                pass
-
-        _fix_pmd(self.train_loader)
-        _fix_pmd(self.val_loader)
-        _fix_pmd(self.test_loader)
 
         # 记录批次数
         tl = len(self.train_loader) if self.train_loader else 0
@@ -1374,11 +1393,92 @@ class RealDataARTrainer:
         except Exception:
             return False
 
+    def _get_compatible_loader_kwargs(self, base_kwargs: dict) -> dict:
+        """Fix D: Helper to sanitize DataLoader kwargs for compatibility"""
+        kwargs = base_kwargs.copy()
+        
+        # If pin_memory is False, device is irrelevant
+        if not kwargs.get('pin_memory', False):
+            kwargs.pop('pin_memory_device', None)
+            return kwargs
+            
+        # Check if current PyTorch supports pin_memory_device
+        from torch.utils.data import DataLoader
+        import inspect
+        sig = inspect.signature(DataLoader)
+        if 'pin_memory_device' not in sig.parameters:
+            kwargs.pop('pin_memory_device', None)
+            return kwargs
+            
+        # Supported: Sanitize the value
+        pmd = kwargs.get('pin_memory_device')
+        if not pmd: # None or empty string
+            if torch.cuda.is_available():
+                dev_idx = torch.cuda.current_device()
+                if hasattr(self, 'device') and self.device.index is not None:
+                    dev_idx = self.device.index
+                kwargs['pin_memory_device'] = f"cuda:{dev_idx}"
+            else:
+                kwargs['pin_memory_device'] = "cpu"
+        return kwargs
+
+    def _rebuild_loader_from_existing(self, loader, *, shuffle: bool, sampler=None, batch_size=None):
+        """Fix 3: Robust loader reconstruction preserving attributes"""
+        from torch.utils.data import DataLoader as _DL
+        
+        dataset = loader.dataset
+        collate_fn = loader.collate_fn
+        bs = batch_size if batch_size is not None else loader.batch_size
+        
+        # Inherit worker settings but sanitize pin_memory
+        base_kwargs = {
+            'num_workers': loader.num_workers,
+            'pin_memory': loader.pin_memory,
+            'persistent_workers': getattr(loader, 'persistent_workers', False)
+        }
+        # Fix 4: num_workers compatibility
+        if loader.num_workers > 0 and hasattr(loader, 'prefetch_factor'):
+            base_kwargs['prefetch_factor'] = loader.prefetch_factor
+        elif loader.num_workers == 0:
+            base_kwargs['persistent_workers'] = False
+            
+        dl_kwargs = self._get_compatible_loader_kwargs(base_kwargs)
+        
+        # Handle DDP sampler injection if needed
+        import torch.distributed as dist
+        if dist.is_available() and dist.is_initialized():
+            from torch.utils.data.distributed import DistributedSampler
+            # Ensure we create a fresh DistributedSampler
+            sampler = DistributedSampler(dataset, shuffle=shuffle)
+        
+        return _DL(
+            dataset, 
+            batch_size=bs, 
+            shuffle=(shuffle and sampler is None), 
+            sampler=sampler, 
+            collate_fn=collate_fn, 
+            **dl_kwargs
+        )
+
+    def _log_ddp_setup(self, name, loader):
+        """Fix 1: Log DDP loader setup details on rank 0"""
+        import torch.distributed as dist
+        if dist.is_available() and dist.is_initialized() and dist.get_rank() == 0 and name not in self._ddp_loadercheck_logged:
+            sampler = loader.sampler
+            s_type = type(sampler).__name__
+            replicas = getattr(sampler, 'num_replicas', 'N/A')
+            rank = getattr(sampler, 'rank', 'N/A')
+            shuffle = getattr(sampler, 'shuffle', 'N/A')
+            bs = loader.batch_size
+            self.logger.info(f"DDP LoaderCheck {name}: sampler={s_type} replicas={replicas} rank={rank} shuffle={shuffle} bs={bs}")
+            self._ddp_loadercheck_logged.add(name)
+
     def _ensure_dataloader(self):
         """确保DataLoader已正确初始化（原setup_optimizer中的逻辑提取）"""
         try:
             batch_size = int(self._cfg_select('data.dataloader.batch_size', 'training.batch_size', default=(getattr(self, 'current_batch_size', None) or getattr(self, 'original_batch_size', 1) or 1)))
         except Exception:
+            self.logger.warning("⚠️ 无法获取batch_size配置，默认为1", exc_info=True)
             batch_size = 1
         # 首先确保DataLoader属性存在，如果不存在则初始化为None
         if not hasattr(self, 'train_loader'):
@@ -1419,11 +1519,17 @@ class RealDataARTrainer:
                         if dm_test is not None and test_ds_fb is None:
                             test_ds_fb = getattr(dm_test, 'dataset', None)
                     except Exception:
-                        pass
+                        self.logger.warning("⚠️ 从现有DataLoader提取dataset失败", exc_info=True)
                 from torch.utils.data import DataLoader as _DL2
                 minimal_kwargs = dict(num_workers=0, pin_memory=False, persistent_workers=False)
-                # DDP下强制使用DistributedSampler
-                use_ddp = getattr(self, 'distributed', False) and torch.cuda.device_count() > 1
+                
+                # Fix A: Robust DDP detection
+                import torch.distributed as dist
+                use_ddp = dist.is_available() and dist.is_initialized()
+                
+                # Fix D: Use sanitized kwargs
+                dl_kwargs = self._get_compatible_loader_kwargs(minimal_kwargs)
+                
                 dl_collate_fb = (
                     fast_collate_fn if ('fast_collate_fn' in globals() and fast_collate_fn is not None)
                     else (safe_collate_fn if ('safe_collate_fn' in globals() and safe_collate_fn is not None) else None)
@@ -1433,53 +1539,36 @@ class RealDataARTrainer:
                     if use_ddp:
                         from torch.utils.data.distributed import DistributedSampler
                         sampler = DistributedSampler(train_ds_fb, shuffle=True)
-                    self.train_loader = _DL2(train_ds_fb, batch_size=batch_size, shuffle=(sampler is None), sampler=sampler, collate_fn=dl_collate_fb, **minimal_kwargs)
+                    self.train_loader = _DL2(train_ds_fb, batch_size=batch_size, shuffle=(sampler is None), sampler=sampler, collate_fn=dl_collate_fb, **dl_kwargs)
+                    if use_ddp: self._log_ddp_setup("train", self.train_loader)
+
                 if self.val_loader is None and val_ds_fb is not None:
                     sampler_v = None
                     if use_ddp:
                         from torch.utils.data.distributed import DistributedSampler
                         sampler_v = DistributedSampler(val_ds_fb, shuffle=False)
-                    self.val_loader = _DL2(val_ds_fb, batch_size=int(self._cfg_select('data.dataloader.val_batch_size', default=batch_size)), shuffle=False, sampler=sampler_v, collate_fn=dl_collate_fb, **minimal_kwargs)
+                    self.val_loader = _DL2(val_ds_fb, batch_size=int(self._cfg_select('data.dataloader.val_batch_size', default=batch_size)), shuffle=False, sampler=sampler_v, collate_fn=dl_collate_fb, **dl_kwargs)
+                    if use_ddp: self._log_ddp_setup("val", self.val_loader)
+
                 if self.test_loader is None and test_ds_fb is not None:
                     sampler_t = None
                     if use_ddp:
                         from torch.utils.data.distributed import DistributedSampler
                         sampler_t = DistributedSampler(test_ds_fb, shuffle=False)
-                    self.test_loader = _DL2(test_ds_fb, batch_size=int(self._cfg_select('data.dataloader.test_batch_size', 'testing.batch_size', default=1)), shuffle=False, sampler=sampler_t, collate_fn=dl_collate_fb, **minimal_kwargs)
+                    self.test_loader = _DL2(test_ds_fb, batch_size=int(self._cfg_select('data.dataloader.test_batch_size', 'testing.batch_size', default=1)), shuffle=False, sampler=sampler_t, collate_fn=dl_collate_fb, **dl_kwargs)
+                    if use_ddp: self._log_ddp_setup("test", self.test_loader)
+
                 if any(dl is None for dl in (self.train_loader, self.val_loader, self.test_loader)):
                     raise RuntimeError("最终兜底重建失败：仍有DataLoader为None")
             except Exception as e:
-                self.logger.error(f"❌ 兜底重建DataLoader失败: {e}")
+                self.logger.exception(f"❌ 兜底重建DataLoader失败: {e}")
                 raise
 
         # 存储原始批次大小用于动态调整
         self.original_batch_size = batch_size
         self.current_batch_size = batch_size
 
-        # 统一修复：确保所有DataLoader的pin_memory_device为有效字符串，避免len(None)错误
-        def _fix_pmd(loader):
-            try:
-                if loader is None:
-                    return
-                if hasattr(loader, 'pin_memory_device'):
-                    pmd = getattr(loader, 'pin_memory_device', None)
-                    if pmd is None or (isinstance(pmd, str) and len(pmd) == 0):
-                        if torch.cuda.is_available():
-                            if isinstance(self.device, torch.device) and self.device.type == 'cuda':
-                                dev_index = 0 if (self.device.index is None) else int(self.device.index)
-                            elif getattr(self, 'distributed', False):
-                                dev_index = int(getattr(self, 'local_rank', 0))
-                            else:
-                                dev_index = 0
-                            loader.pin_memory_device = f"cuda:{dev_index}"
-                        else:
-                            loader.pin_memory_device = 'cpu'
-            except Exception:
-                pass
-
-        _fix_pmd(self.train_loader)
-        _fix_pmd(self.val_loader)
-        _fix_pmd(self.test_loader)
+        # Fix E: Runtime monkey patching removed.
 
         try:
             tl = len(self.train_loader) if self.train_loader is not None else 0
@@ -2092,53 +2181,40 @@ class RealDataARTrainer:
             model_creation_errors = []
             creation_method = None
 
-            # 第一层：使用最终增强模型加载器（最高兼容性）
+            # -----------------------------------------------------------
+            # 简化且健壮的模型创建逻辑 (Robust Model Creation)
+            # -----------------------------------------------------------
+            
+            # 优先级 1: 标准注册表 (Standard Registry) - 最可靠
+            # 支持 aliases (如 UformerLite -> ConvUNetLite)
             try:
-                base_model = create_enhanced_model(model_name, self.config, **model_config)
-                creation_method = "enhanced_loader"
-                self.logger.info(f"✅ 成功使用增强加载器创建基础模型: {type(base_model).__name__}")
-
-                # 测试模型前向传播
+                from models import create_model as registry_create_model
+                # 注意: registry_create_model 接受 (name, **kwargs)
+                base_model = registry_create_model(model_name, **model_config)
+                creation_method = "standard_registry"
+                self.logger.info(f"✅ 使用标准注册表成功创建模型: {type(base_model).__name__} (Request: {model_name})")
+            except Exception as e_reg:
+                self.logger.warning(f"⚠️ 标准注册表创建失败 ({model_name}): {e_reg}")
+                
+                # 优先级 2: 原始模型加载器 (Original ModelLoader) - 支持扫描和兼容性
                 try:
-                    test_success = test_enhanced_model(model_name, self.config, **model_config)
-                    if test_success:
-                        self.logger.info("✅ 模型前向传播测试通过")
-                    else:
-                        self.logger.warning("⚠️ 模型前向传播测试失败，但仍可使用")
-                except Exception as test_error:
-                    self.logger.warning(f"⚠️ 模型测试失败: {test_error}")
-
-            except Exception as enhanced_error:
-                model_creation_errors.append(f"增强加载器: {enhanced_error}")
-                self.logger.warning(f"⚠️ 增强模型加载器失败: {enhanced_error}")
-
-                # 第二层：回退到改进模型加载器
-                try:
-                    base_model = create_improved_model(model_name, self.config, **model_config)
-                    creation_method = "improved_loader"
-                    self.logger.info(f"✅ 成功使用改进加载器创建基础模型: {type(base_model).__name__}")
-                except Exception as improved_error:
-                    model_creation_errors.append(f"改进加载器: {improved_error}")
-                    self.logger.warning(f"⚠️ 改进模型加载器失败: {improved_error}")
-
-                    # 第三层：回退到原始模型加载器
+                    from tools.training.model_loader import create_model_with_loader
+                    base_model = create_model_with_loader(model_name, self.config, **model_config)
+                    creation_method = "original_loader"
+                    self.logger.info(f"✅ 使用 ModelLoader 成功创建模型: {type(base_model).__name__}")
+                except Exception as e_loader:
+                    self.logger.error(f"❌ ModelLoader 创建失败: {e_loader}")
+                    
+                    # 优先级 3: 增强/改进加载器 (Enhanced/Improved) - 仅作为最后手段
+                    # 之前导致了 alias 解析问题，现在仅作为备用
                     try:
-                        base_model = create_model_with_loader(model_name, self.config, **model_config)
-                        creation_method = "original_loader"
-                        self.logger.info(f"✅ 成功使用原始加载器创建基础模型: {type(base_model).__name__}")
-                    except Exception as original_error:
-                        model_creation_errors.append(f"原始加载器: {original_error}")
-                        self.logger.error(f"❌ 原始模型加载器也失败: {original_error}")
-
-                        # 第四层：最终回退到默认SwinUNet实现
-                        self.logger.info("回退到默认SwinUNet实现")
-                        try:
-                            base_model = SwinUNet(**model_config)
-                            creation_method = "fallback_swinunet"
-                            self.logger.info("✅ 成功回退到默认SwinUNet")
-                        except Exception as swin_error:
-                            self.logger.error(f"❌ 所有模型创建方式都失败: {model_creation_errors}")
-                            raise RuntimeError(f"无法创建模型 {model_name}: {model_creation_errors}") from swin_error
+                        from tools.training.model_loader_enhanced import create_enhanced_model
+                        base_model = create_enhanced_model(model_name, self.config, **model_config)
+                        creation_method = "enhanced_loader"
+                        self.logger.info(f"✅ 使用增强加载器成功创建模型: {type(base_model).__name__}")
+                    except Exception as e_enhanced:
+                        self.logger.error(f"❌ 增强加载器也失败: {e_enhanced}")
+                        raise RuntimeError(f"无法创建模型 {model_name}. \nRegistry Error: {e_reg}\nLoader Error: {e_loader}\nEnhanced Error: {e_enhanced}")
 
             # 根据配置禁用时间预测，仅空间预测时直接使用基础模型
             try:
@@ -2410,19 +2486,33 @@ class RealDataARTrainer:
             low, high = 0.5, 4.0
             best = model_config.copy()
             best_err = float('inf')
+            
             def build(cfg: dict[str, Any]) -> int:
                 try:
+                    # 对于MLP模型，需要将embed_dim映射为hidden_dims
+                    if 'mlp' in str(model_name).lower() and 'mixer' not in str(model_name).lower() and 'embed_dim' in cfg:
+                        width = cfg['embed_dim']
+                        # 默认4层结构
+                        cfg['hidden_dims'] = [width // 2, width, width, width // 2]
+                    
+                    # 对于LIIF模型，需要将width映射为hidden_list
+                    if 'liif' in str(model_name).lower() and 'width' in cfg:
+                        width = cfg['width']
+                        cfg['hidden_list'] = [width, width, width, width]
+                        
                     m = create_enhanced_model(model_name, self.config, **cfg)
                     pc = sum(p.numel() for p in m.parameters())
                     return int(pc)
                 except Exception:
                     return 0
+
             target = target_params_m * 1e6
             name_l = str(model_name).lower()
-            if 'unet' in name_l:
+
+            if 'unet' in name_l and 'former' not in name_l and 'swin' not in name_l and 'ufno' not in name_l:
                 base = [64, 128, 256, 512]
                 high = 2.0
-                max_feat = 1024
+                max_feat = 2048
                 for _ in range(12):
                     mid = (low + high) * 0.5
                     fs = [max(8, min(max_feat, int(int(f * mid) // 8 * 8))) for f in base]
@@ -2444,14 +2534,16 @@ class RealDataARTrainer:
                 # 超预算兜底收缩
                 try:
                     final_pc = build(best)
-                    if final_pc > int(target * 1.2):
-                        scale = (target / final_pc) ** 0.5
+                    if final_pc > int(target * 1.2) or final_pc < int(target * 0.8):
+                        scale = (target / max(1, final_pc)) ** 0.5
                         fs = [max(16, min(max_feat, int(int(f * scale) // 8 * 8))) for f in best.get('features', base)]
                         best = {**best, 'features': fs}
                 except Exception:
                     pass
-            elif 'swin' in name_l or 'former' in name_l or 'vit' in name_l or 'visiontransformer' in name_l or 'transformer' in name_l:
+            elif 'swin' in name_l or 'former' in name_l or 'vit' in name_l or 'visiontransformer' in name_l or 'transformer' in name_l or 'ufno' in name_l:
                 base = int(model_config.get('embed_dim', 96))
+                if 'ufno' in name_l:
+                    base = int(model_config.get('width', 64))
                 heads = model_config.get('num_heads', 12)
                 if isinstance(heads, (list, tuple)):
                     head_list = [int(max(1, h)) for h in heads]
@@ -2469,12 +2561,21 @@ class RealDataARTrainer:
                 for h in head_list + dhead_list:
                     l = math.lcm(l, h)
                 l = max(1, l)
-                lo, hi = max(l, (base // l) * l), min(192, base * 2)
-                for _ in range(12):
+                
+                # Allow scaling down significantly and up
+                lo, hi = max(l, 16), max(192, base * 8)
+                
+                for _ in range(15):
                     raw = (lo + hi) // 2
                     mid = max(l, (raw // l) * l)
-                    cfg = {**model_config, 'embed_dim': int(mid)}
+                    if 'ufno' in name_l:
+                        cfg = {**model_config, 'width': int(mid)}
+                    else:
+                        cfg = {**model_config, 'embed_dim': int(mid)}
                     pc = build(cfg)
+                    if pc == 0:
+                         pc = 1e9 # treat as too big/fail
+                    
                     err = abs(pc - target)
                     if err < best_err:
                         best, best_err = cfg, err
@@ -2482,36 +2583,44 @@ class RealDataARTrainer:
                         lo = mid + l
                     else:
                         hi = mid - l
+                
                 # 兜底：确保 Swin 的 window_size 与 patch/grid 对齐
                 try:
-                    ps = int(best.get('patch_size', model_config.get('patch_size', 4)))
-                    img_sz = int(best.get('img_size', model_config.get('img_size', 128)))
-                    win = int(best.get('window_size', model_config.get('window_size', 7)))
-                    grid = img_sz // ps
-                    if grid % win != 0:
-                        from math import gcd
-                        safe_win = gcd(grid, win)
-                        if safe_win <= 1:
-                            candidates = [w for w in [4, 5, 6, 7, 8, 10, 12] if grid % w == 0]
-                            if candidates:
-                                safe_win = candidates[0]
-                            else:
-                                safe_win = max(1, win)
-                        best['window_size'] = int(safe_win)
+                    if 'swin' in name_l:
+                        ps = int(best.get('patch_size', model_config.get('patch_size', 4)))
+                        img_sz = int(best.get('img_size', model_config.get('img_size', 128)))
+                        win = int(best.get('window_size', model_config.get('window_size', 7)))
+                        grid = img_sz // ps
+                        if grid % win != 0:
+                            from math import gcd
+                            safe_win = gcd(grid, win)
+                            if safe_win <= 1:
+                                candidates = [w for w in [4, 5, 6, 7, 8, 10, 12] if grid % w == 0]
+                                if candidates:
+                                    safe_win = candidates[0]
+                                else:
+                                    safe_win = max(1, win)
+                            best['window_size'] = int(safe_win)
                 except Exception:
                     pass
+
                 try:
                     final_pc = build(best)
-                    if final_pc > int(target * 1.2):
+                    if final_pc > 0 and (final_pc > int(target * 1.2) or final_pc < int(target * 0.8)):
                         scale = (target / final_pc) ** 0.5
-                        ed = int(best.get('embed_dim', base))
-                        ed2 = max(l, min(192, (int(ed * scale) // l) * l))
-                        best = {**best, 'embed_dim': ed2}
+                        if 'ufno' in name_l:
+                             ed = int(best.get('width', base))
+                             ed2 = max(16, min(512, (int(ed * scale) // 8) * 8))
+                             best = {**best, 'width': ed2}
+                        else:
+                            ed = int(best.get('embed_dim', base))
+                            ed2 = max(l, min(1024, (int(ed * scale) // l) * l))
+                            best = {**best, 'embed_dim': ed2}
                 except Exception:
                     pass
-            elif 'fno' in name_l:
+            elif 'fno' in name_l and 'ufno' not in name_l:
                 base_w = int(model_config.get('width', 64))
-                lo, hi = max(16, base_w // 2), min(192, base_w * 2)
+                lo, hi = max(16, base_w // 4), min(1024, base_w * 4)
                 depth = int(model_config.get('n_layers', 4))
                 for _ in range(12):
                     mid = int(((lo + hi) // 2) // 8 * 8)
@@ -2529,14 +2638,14 @@ class RealDataARTrainer:
                     if final_pc > int(target * 1.2):
                         scale = (target / final_pc) ** 0.5
                         wd = int(best.get('width', base_w))
-                        wd2 = max(16, min(192, int(wd * scale) // 8 * 8))
+                        wd2 = max(16, min(1024, int(wd * scale) // 8 * 8))
                         best = {**best, 'width': wd2, 'n_layers': depth}
                 except Exception:
                     pass
-            elif 'mlp' in name_l:
+            elif 'mlp' in name_l and 'mixer' not in name_l:
                 base = int(model_config.get('embed_dim', 512))
-                lo, hi = max(64, base // 2), min(1024, base * 2)
-                for _ in range(12):
+                lo, hi = max(64, base // 4), max(4096, base * 4)
+                for _ in range(15):
                     mid = int(((lo + hi) // 2) // 16 * 16)
                     cfg = {**model_config, 'embed_dim': mid}
                     pc = build(cfg)
@@ -2549,12 +2658,101 @@ class RealDataARTrainer:
                         hi = mid - 16
                 try:
                     final_pc = build(best)
-                    if final_pc > int(target * 1.2):
+                    if final_pc > 0:
                         scale = (target / final_pc) ** 0.5
                         ed = int(best.get('embed_dim', base))
-                        ed2 = max(64, min(1024, int(ed * scale) // 16 * 16))
+                        ed2 = max(64, int(ed * scale) // 16 * 16)
+                        best = {**best, 'embed_dim': ed2}
+                        width = best['embed_dim']
+                        best['hidden_dims'] = [width // 2, width, width, width // 2]
+                except Exception:
+                    pass
+            elif 'mixer' in name_l:
+                # MLPMixer tuning
+                base = int(model_config.get('embed_dim', 512))
+                lo, hi = 64, 4096
+                for _ in range(15):
+                    mid = int(((lo + hi) // 2) // 16 * 16)
+                    cfg = {**model_config, 'embed_dim': mid}
+                    pc = build(cfg)
+                    err = abs(pc - target)
+                    if err < best_err:
+                        best, best_err = cfg, err
+                    if pc < target:
+                        lo = mid + 16
+                    else:
+                        hi = mid - 16
+                try:
+                    final_pc = build(best)
+                    if final_pc > 0 and (final_pc > int(target * 1.2) or final_pc < int(target * 0.8)):
+                        scale = (target / final_pc) ** 0.5
+                        ed = int(best.get('embed_dim', base))
+                        ed2 = max(64, int(ed * scale) // 16 * 16)
                         best = {**best, 'embed_dim': ed2}
                 except Exception:
+                    pass
+            elif 'hybrid' in name_l:
+                 # Hybrid model tuning - mainly scale attention and fno width
+                 base_attn = int(model_config.get('attn_embed_dim', 256))
+                 base_fno = int(model_config.get('fno_width', 64))
+                 base_unet = int(model_config.get('unet_base_channels', 64))
+                 
+                 lo, hi = 0.25, 4.0
+                 for _ in range(15):
+                    scale = (lo + hi) / 2
+                    cfg = {
+                        **model_config, 
+                        'attn_embed_dim': max(32, int(base_attn * scale) // 8 * 8),
+                        'fno_width': max(16, int(base_fno * scale) // 8 * 8),
+                        'unet_base_channels': max(16, int(base_unet * scale) // 8 * 8)
+                    }
+                    pc = build(cfg)
+                    err = abs(pc - target)
+                    if err < best_err:
+                        best, best_err = cfg, err
+                    if pc < target:
+                        lo = scale
+                    else:
+                        hi = scale
+            elif 'liif' in name_l:
+                lo, hi = 64, 4096
+                for _ in range(15):
+                    mid = int(((lo + hi) // 2) // 16 * 16)
+                    cfg = {**model_config, 'width': mid}
+                    pc = build(cfg)
+                    err = abs(pc - target)
+                    if err < best_err:
+                        best, best_err = cfg, err
+                    if pc < target:
+                        lo = mid + 16
+                    else:
+                        hi = mid - 16
+                if 'width' in best:
+                    w = best['width']
+                    best['hidden_list'] = [w, w, w, w]
+                    del best['width']
+            elif 'lite' in name_l or 'restormer' in name_l or 'nafnet' in name_l:
+                 base = int(model_config.get('embed_dim', 48))
+                 lo, hi = 16, 2048 
+                 for _ in range(15):
+                    mid = int(((lo + hi) // 2) // 8 * 8)
+                    cfg = {**model_config, 'embed_dim': mid}
+                    pc = build(cfg)
+                    err = abs(pc - target)
+                    if err < best_err:
+                        best, best_err = cfg, err
+                    if pc < target:
+                        lo = mid + 8
+                    else:
+                        hi = mid - 8
+                 try:
+                    final_pc = build(best)
+                    if final_pc > 0 and abs(final_pc - target) > target * 0.1:
+                        scale = (target / final_pc) ** 0.5
+                        ed = int(best.get('embed_dim', base))
+                        ed2 = max(16, int(ed * scale) // 8 * 8)
+                        best = {**best, 'embed_dim': ed2}
+                 except Exception:
                     pass
             else:
                 pc = build(model_config)
@@ -4609,307 +4807,6 @@ class RealDataARTrainer:
             pass
         return avg_loss
 
-    def _validate_epoch_legacy(self, epoch: int) -> tuple[float, dict[str, float], dict | None]:
-        """验证一个epoch"""
-        # 获取当前模型（兼容ARWrapper和SequentialSpatiotemporalModel）
-        model_to_validate = self.get_model()
-        model_to_validate.eval()
-        total_loss = 0.0
-        all_metrics = []
-        
-        # 获取验证加载器
-        val_loader = self.val_loader
-        if val_loader is None:
-            return 0.0, {}, None
-
-        current_T_out = self.get_current_T_out(epoch)
-        sample_batch = None  # 保存一个样本用于可视化
-
-        # DEBUG: Overfit One Batch
-        overfit_one_batch = self._cfg_select('debug.overfit_one_batch', default=False)
-        if overfit_one_batch and hasattr(self, '_cached_overfit_batch'):
-             # 在验证时也只验证这个Batch
-             val_loader = [self._cached_overfit_batch]
-             num_batches = 1
-        else:
-             num_batches = len(val_loader)
-        
-        # 获取是否打印详细统计量的配置
-        log_stats = self._cfg_select('debug.log_stats_every_val', default=False)
-
-        with torch.no_grad():
-            try:
-                import torch.distributed as dist
-                is_primary = (not dist.is_available()) or (not dist.is_initialized()) or (dist.get_rank() == 0)
-            except Exception:
-                is_primary = True
-            for batch_idx, batch in enumerate(tqdm(val_loader, desc="Validation", leave=False) if is_primary else val_loader):
-                try:
-                    input_seq = batch['input_sequence'].to(self.device)
-                    target_seq = batch['target_sequence'].to(self.device)
-
-                    # 根据课程学习调整目标序列长度
-                    if target_seq.shape[1] > current_T_out:
-                        target_seq = target_seq[:, :current_T_out]
-
-                    use_amp = bool(getattr(getattr(self, 'config', None), 'training', None) and getattr(self.config.training.amp, 'enabled', False)) and (self.device.type == 'cuda')
-                    with autocast(device_type='cuda', dtype=getattr(self, 'autocast_dtype', torch.bfloat16), enabled=use_amp):
-                        # 使用专用时序模型或传统模型进行验证预测
-                        model = self.get_model()
-                        if hasattr(model, 'forward') and hasattr(model, 'spatial_forward'):
-                            # SequentialSpatiotemporalModel模式 - 需要完整的时序输入和目标
-                            model_output = model(input_seq, target_seq)
-                            pred_seq = model_output['final_pred']
-                        else:
-                            # 传统模型模式
-                            pred_seq = model(input_seq, current_T_out)
-                        
-                        # --- Baseline & Statistics Logging (Task 1, 2, 4) ---
-                        if batch_idx == 0 and (log_stats or overfit_one_batch):
-                            self.ensure_norm_stats()
-                            m = self.norm_stats.get('mean', self.norm_stats.get('data_mean', torch.tensor(0.0))).to(self.device)
-                            s = self.norm_stats.get('std', self.norm_stats.get('data_std', torch.tensor(1.0))).to(self.device)
-                            
-                            # 1. 统计量 (Normalized)
-                            p_mean, p_std = pred_seq.mean(), pred_seq.std()
-                            t_mean, t_std = target_seq.mean(), target_seq.std()
-                            
-                            # 2. 统计量 (Denormalized)
-                            pred_denorm = pred_seq * s + m
-                            target_denorm = target_seq * s + m
-                            pd_mean, pd_std = pred_denorm.mean(), pred_denorm.std()
-                            td_mean, td_std = target_denorm.mean(), target_denorm.std()
-                            
-                            self.logger.info(f"📊 [Val Batch 0] Stats:")
-                            self.logger.info(f"   Normalized - Pred: u={p_mean:.4f}, s={p_std:.4f} | GT: u={t_mean:.4f}, s={t_std:.4f}")
-                            self.logger.info(f"   Denorm     - Pred: u={pd_mean:.4f}, s={pd_std:.4f} | GT: u={td_mean:.4f}, s={td_std:.4f}")
-                            
-                            # 3. 尺度一致性校验 (Task 4)
-                            # 如果 GT 的 std 是 Pred 的 10 倍以上（或反之），且数值绝对值大于 1e-3（避免全0情况），则告警
-                            if (t_std > 1e-3 and p_std > 1e-3):
-                                ratio = t_std / p_std
-                                if ratio > 10.0 or ratio < 0.1:
-                                    self.logger.error(f"❌ [Scale Mismatch] Pred与GT尺度严重不一致 (Ratio={ratio:.2f})！模型可能发生了坍缩或未正确归一化。")
-                            
-                            # 4. Baseline 计算 (Task 1)
-                            # Baseline-Zero: 全0
-                            pred_zero = torch.zeros_like(target_seq)
-                            
-                            # Baseline-Persistence: 最后一帧 (注意 shape)
-                            # input_seq: [B, T_in, C, H, W]
-                            last_frame = input_seq[:, -1:] # [B, 1, C, H, W]
-                            pred_persist = last_frame.expand_as(target_seq)
-                            
-                            # 计算 Baseline Loss (使用相同的 compute_total_loss)
-                            from ops.losses import compute_total_loss
-                            
-                            # Zero Loss
-                            try:
-                                l_zero = compute_total_loss(pred_zero, target_seq, None, self.norm_stats, self.config)['total_loss'].item()
-                            except Exception:
-                                l_zero = -1.0
-                            
-                            # Persistence Loss
-                            try:
-                                l_persist = compute_total_loss(pred_persist, target_seq, None, self.norm_stats, self.config)['total_loss'].item()
-                            except Exception:
-                                l_persist = -1.0
-                            
-                            self.logger.info(f"📉 [Baseline Comparison] Zero={l_zero:.6f} | Persistence={l_persist:.6f}")
-
-                        # 统一损失装配
-                        from ops.losses import compute_ar_total_loss
-                        observation_seq = None
-                        pred_obs_seq = None
-                        if hasattr(self, 'observation_op') and self.observation_op is not None and getattr(self, 'norm_stats', None) is not None:
-                            try:
-                                B, T, C, H, W = target_seq.shape
-                                m = self.norm_stats.get('mean', self.norm_stats.get('data_mean', self.norm_stats.get('u_mean', torch.tensor(0.0))))
-                                s = self.norm_stats.get('std', self.norm_stats.get('data_std', self.norm_stats.get('u_std', torch.tensor(1.0))))
-                                m_t = torch.as_tensor(m, device=self.device).reshape(-1)
-                                s_t = torch.as_tensor(s, device=self.device).reshape(-1)
-                                if m_t.numel() == 1 and C > 1:
-                                    m_t = m_t.repeat(C)
-                                if s_t.numel() == 1 and C > 1:
-                                    s_t = s_t.repeat(C)
-                                mean_t = m_t.reshape(1, 1, C, 1, 1)
-                                std_t = s_t.reshape(1, 1, C, 1, 1)
-
-                                gt_orig = target_seq * std_t + mean_t
-                                gt_flat = gt_orig.reshape(B * T, C, H, W)
-                                obs_flat = self.observation_op(gt_flat)
-                                obs_h, obs_w = obs_flat.shape[-2:]
-                                observation_seq = obs_flat.reshape(B, T, C, obs_h, obs_w)
-
-                                if pred_seq.dim() == 5:
-                                    pred_orig = pred_seq * std_t + mean_t
-                                    pred_flat = pred_orig.reshape(B * T, C, H, W)
-                                    pred_obs_flat = self.observation_op(pred_flat)
-                                    pred_obs_seq = pred_obs_flat.reshape(B, T, C, obs_h, obs_w)
-                            except Exception as obs_err:
-                                self.logger.warning(f"观测序列生成失败，跳过DC: {obs_err}")
-                                observation_seq = None
-                                pred_obs_seq = None
-
-                        # 构造完整的 obs_data，区分真实观测与基线
-                        obs_last = None
-                        if observation_seq is not None:
-                            # observation_seq is [B, T, C, h, w]
-                            obs_last = observation_seq[:, -1]
-
-                        obs_data = {
-                            'y': obs_last,
-                            'observation_seq': observation_seq,
-                            'observation': obs_last,
-                            'pred_obs': pred_obs_seq,
-                            'baseline_seq': observation_seq,
-                            'baseline': obs_last,
-                            'baseline_type': 'H_gt',
-                            'h_params': self.h_params,
-                        }
-
-                        losses = compute_ar_total_loss(
-                            pred_seq=pred_seq,
-                            gt_seq=target_seq,
-                            obs_data=obs_data,
-                            norm_stats=self.norm_stats,
-                            config=self.config
-                        )
-                        loss = losses['total_loss']
-                        
-                        # Task B: 确保返回total_loss用于验证监控
-                        # 在_validate_epoch_legacy中，这个loss会被累加到total_loss
-                        
-                        # 记录分量
-                        metrics = {}
-                        metrics['val_total_loss'] = loss.item()
-                        if 'reconstruction_loss' in losses:
-                            metrics['val_recon_loss'] = losses['reconstruction_loss'].item() if torch.is_tensor(losses['reconstruction_loss']) else losses['reconstruction_loss']
-                        if 'r2_loss' in losses:
-                            metrics['val_r2_loss'] = losses['r2_loss'].item() if torch.is_tensor(losses['r2_loss']) else losses['r2_loss']
-                        
-                        all_metrics.append(metrics)
-
-                    total_loss += loss.item()
-
-                    # 计算详细指标
-                    # 指标：统一使用最后一个时间步 - GPU优化版本
-
-                    if pred_seq.dim() == 5:  # [B, T, C, H, W]
-                        pred_last = pred_seq[:, -1]  # [B, C, H, W]
-                    elif pred_seq.dim() == 4:  # [B, C, H, W] or [B, T, H, W]
-                        if pred_seq.shape[1] == 1:  # [B, 1, H, W] - assume this is [B, T, H, W]
-                            pred_last = pred_seq.squeeze(1)  # [B, H, W]
-                            pred_last = pred_last.unsqueeze(1)  # [B, 1, H, W] - add channel dim
-                        else:
-                            pred_last = pred_seq  # [B, C, H, W]
-                    else:
-                        self.logger.warning(f"Unexpected pred_seq dimensions: {pred_seq.dim()}")
-                        continue
-
-                    if target_seq.dim() == 5:  # [B, T, C, H, W]
-                        target_last = target_seq[:, -1]  # [B, C, H, W]
-                    elif target_seq.dim() == 4:  # [B, C, H, W] or [B, T, H, W]
-                        if target_seq.shape[1] == 1:  # [B, 1, H, W] - assume this is [B, T, H, W]
-                            target_last = target_seq.squeeze(1)  # [B, H, W]
-                            target_last = target_last.unsqueeze(1)  # [B, 1, H, W] - add channel dim
-                        else:
-                            target_last = target_seq  # [B, C, H, W]
-                    else:
-                        self.logger.warning(f"Unexpected target_seq dimensions: {target_seq.dim()}")
-                        continue
-
-                    try:
-                        from utils.metrics import compute_all_metrics
-                        image_size = target_last.shape[-2:]
-                        batch_metrics_dict = compute_all_metrics(
-                            pred_last,
-                            target_last,
-                            obs_data=obs_data,
-                            norm_stats=self.norm_stats,
-                            image_size=image_size,
-                            include_freq_metrics=True,
-                        )
-                        batch_metrics = {}
-                        for k, v in batch_metrics_dict.items():
-                            if isinstance(v, torch.Tensor):
-                                batch_metrics[k] = float(v.mean().item())
-                            else:
-                                batch_metrics[k] = float(v)
-                        all_metrics.append(batch_metrics)
-                    except Exception as metrics_error:
-                        self.logger.warning(f"指标计算失败 batch {batch_idx}: {metrics_error}")
-                        # 跳过这个batch的指标计算，但继续验证
-                        continue
-
-                    # 保存第一个batch用于可视化
-                    if batch_idx == 0:
-                        sample_batch = {
-                            'input_sequence': batch['input_sequence'],
-                            'target_sequence': batch['target_sequence']
-                        }
-
-                except RuntimeError as e:
-                    if "cuda" in str(e).lower() or "out of memory" in str(e).lower():
-                        # 使用改进的CUDA错误处理
-                        if self.handle_cuda_error(e, "validation"):
-                            self.logger.info("验证时CUDA错误已处理，继续下一个batch")
-                            continue
-                        else:
-                            self.logger.warning("无法处理验证时CUDA错误，跳过当前batch")
-                            continue
-                    else:
-                        self.logger.error(f"验证时发生错误 batch {batch_idx}: {e}")
-                        continue
-
-        avg_loss = total_loss / max(1, num_batches)
-
-        # Task D: DDP 下聚合验证指标 (改进版: Sum/Count)
-        try:
-            import torch.distributed as dist
-            if dist.is_available() and dist.is_initialized():
-                # 聚合 avg_loss (val_total_loss)
-                # 使用 total_loss 和 num_batches 进行全局平均
-                t_loss_sum = torch.tensor(total_loss, device=self.device)
-                t_count = torch.tensor(num_batches, device=self.device)
-                
-                dist.all_reduce(t_loss_sum, op=dist.ReduceOp.SUM)
-                dist.all_reduce(t_count, op=dist.ReduceOp.SUM)
-                
-                global_count = max(1, t_count.item())
-                avg_loss = t_loss_sum.item() / global_count
-                
-                # 注意：all_metrics 是本地的 list of dict，聚合比较复杂
-                # 简化处理：我们只聚合最后计算出的 avg_metrics 中的标量值
-        except Exception as ddp_err:
-            self.logger.warning(f"DDP metrics aggregation failed: {ddp_err}")
-
-        # 计算平均指标
-        avg_metrics = {}
-        if all_metrics:
-            for key in all_metrics[0].keys():
-                avg_metrics[key] = np.mean([m[key] for m in all_metrics])
-        
-        # Task D (续): DDP 下聚合 avg_metrics
-        try:
-            import torch.distributed as dist
-            if dist.is_available() and dist.is_initialized():
-                world_size = dist.get_world_size()
-                for key in list(avg_metrics.keys()):
-                    val = avg_metrics[key]
-                    if isinstance(val, (int, float)):
-                        t_val = torch.tensor(float(val), device=self.device)
-                        dist.all_reduce(t_val, op=dist.ReduceOp.SUM)
-                        avg_metrics[key] = t_val.item() / world_size
-        except Exception:
-            pass
-
-        # Task B: 确保返回的 avg_loss 是 total_loss，并记录到 metrics
-        avg_metrics['val_loss'] = avg_loss # 覆盖为聚合后的 total_loss
-        avg_metrics['val_total_loss'] = avg_loss
-
-        return avg_loss, avg_metrics, sample_batch
-
     def test_epoch(self) -> dict[str, float]:
         """测试集评估"""
         self.logger.info("🧪 开始测试集评估...")
@@ -5179,13 +5076,9 @@ class RealDataARTrainer:
 
         # 若无有效val_loader，直接返回训练损失的占位与空指标
         if num_batches == 0:
-            self.logger.warning("验证加载器不可用（None或空），跳过验证阶段")
-            try:
-                # 若训练历史存在最近一次训练损失，作为占位
-                last_train_loss = self.training_history['train_losses'][-1] if 'train_losses' in self.training_history and len(self.training_history['train_losses']) > 0 else float('nan')
-            except Exception:
-                last_train_loss = float('nan')
-            return last_train_loss, {}, None
+            self.logger.warning("验证加载器不可用（None或空），跳过验证阶段，不更新最佳checkpoint")
+            # Fix C: Return nan to indicate no valid validation occurred
+            return float('nan'), {}, None
 
         with torch.no_grad():
             try:
@@ -6688,8 +6581,14 @@ class RealDataARTrainer:
                 epoch_start_time = time.time()
                 try:
                     self._update_phase(epoch)
-                except Exception:
-                    pass
+                except Exception as e:
+                    # Fix 2: Curriculum update failure is critical unless ignored
+                    ignore_error = self._cfg_select('debug.ignore_phase_update_error', default=False)
+                    if ignore_error:
+                        self.logger.warning(f"⚠️ 课程学习阶段更新失败 (已忽略): {e}", exc_info=True)
+                    else:
+                        self.logger.exception(f"❌ 课程学习阶段更新失败: {e}")
+                        raise
 
                 # 训练
                 train_loss = self.train_epoch(epoch)
@@ -6720,10 +6619,21 @@ class RealDataARTrainer:
                         min_delta = float(getattr(es_cfg, 'min_delta', 0.0) or 0.0)
                 except Exception:
                     min_delta = 0.0
-                is_best = val_loss < (self.best_val_loss - min_delta)
+                
+                # Fix B: Validate val_loss before updating best
+                import math
+                is_valid = (val_loss is not None) and math.isfinite(val_loss)
+                is_best = is_valid and (val_loss < (self.best_val_loss - min_delta))
+                
                 if is_best:
                     self.best_val_loss = val_loss
                     self.patience_counter = 0
+                elif not is_valid:
+                    if dist.is_available() and dist.is_initialized():
+                        if dist.get_rank() == 0:
+                            self.logger.warning(f"⚠️ Invalid val_loss ({val_loss}), skipping best update and patience count")
+                    else:
+                         self.logger.warning(f"⚠️ Invalid val_loss ({val_loss}), skipping best update and patience count")
                 else:
                     self.patience_counter += 1
 

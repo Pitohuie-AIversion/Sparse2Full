@@ -1,4 +1,4 @@
-name: "UNetPlusPlus"
+name: "unet_plus_plus"
 params:
   in_channels: 1
   out_channels: 1

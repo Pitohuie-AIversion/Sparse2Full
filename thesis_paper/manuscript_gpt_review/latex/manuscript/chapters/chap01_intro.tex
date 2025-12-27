@@ -1,0 +1,214 @@
+\section{研究背景}\label{sec:intro_background}
+
+\subsection{稀疏观测下的时空场重建需求}\label{subsec:intro_sparse_need}
+
+在计算物理、环境监测与工程诊断等任务中，目标对象通常是定义在空间域
+\(\Omega\subset\mathbb{R}^2\)（可扩展至 \(\mathbb{R}^3\)）与时间区间 \([0,T]\)
+上的连续物理场 \(u(\mathbf{x},t)\)，例如速度场、压力场、温湿度场或浓度场。
+受限于传感器布设密度、采样带宽、测点维护与安全成本，真实系统往往只能获得有限测点、
+有限时间步且噪声与缺失并存的观测序列，从而形成“稀疏—噪声—不齐”的典型数据形态。
+
+在该条件下，上游观测不足会直接影响下游的预测、控制与诊断：预测依赖完整状态估计，
+控制依赖一致且可复用的观测口径，诊断依赖对异常结构（边界层、涡结构、锋面、热斑等）
+的稳定识别。由此产生的核心技术问题可以概括为：在观测极稀疏且存在噪声与缺失的情况下，
+如何在连续时空域内恢复高分辨率、可解释且与真实观测口径一致的物理场。
+
+\subsection{科学机器学习与算子学习的推动作用}\label{subsec:intro_sciML_operator}
+
+近年来，面向偏微分方程（PDE）体系的学习方法快速发展。物理约束学习以 PINN 为代表，
+将 PDE 残差与初边界条件并入训练目标，使数据不足时仍可维持物理一致性框架
+\parencite{Raissi2019PINN}。算子学习以 FNO、DeepONet 等为代表，学习“函数到函数”的映射，
+支持跨初值/参数族的快速推断，并在若干任务中展现跨分辨率或零样本超分辨潜力
+\parencite{Li2021FNO,Lu2021DeepONet}。更一般的神经算子综述工作进一步系统化了函数空间观点与应用边界
+\parencite{Kovachki2023NeuralOperator}。
+
+上述方法为稀疏观测重建提供了可行建模工具，但工程落地常遭遇一个更基础的问题：
+训练阶段使用的退化/采样过程与评测阶段的真实观测口径不一致，导致“训练指标改善但评测口径误差不降”的断裂现象。
+该断裂降低可复现性，也削弱模型在真实系统中的可部署性。
+
+\section{研究动机与应用场景}\label{sec:intro_motivation}
+
+稀疏观测并非少数场景的例外，而是多数工程系统的常态。例如：
+
+\begin{enumerate}
+  \item 城市微气候与污染监测：传感器多部署在交通枢纽、关键建筑与少量基站，空间覆盖不足且维护频率不一致；
+  \item 海洋与大气观测：遥感与浮标观测分辨率差异显著，时间戳不齐且信噪比受环境强影响；
+  \item 工业过程与管网系统：复杂几何与高温高压环境限制传感器密度与可靠性，长期数据含漂移与间断；
+  \item 生物医学与材料过程成像：采样成本与安全性约束导致观测稀疏，噪声与缺失难以避免。
+\end{enumerate}
+
+上述应用共同指向两个需求：一是下游任务需要近似连续的高分辨率场；二是评测与部署依赖真实观测过程，
+训练阶段若未严格复用该口径，实验对比难以审计，工程效果难以预测。
+
+基于此，本文研究动机定义为：以“评测口径一致性优先”为原则，构建可复用、可审计、可复现的稀疏观测时空场重建框架，
+使数学意义的重建误差与观测意义的口径误差协同优化，并在统一资源约束下开展规范化对比。
+
+\section{研究问题定义与数学形式化}\label{sec:intro_problem}
+
+\subsection{观测模型与重建目标}\label{subsec:intro_obs_model}
+
+设真实高分辨率物理场为 \(u(\mathbf{x},t)\)。观测由观测算子 \(H\) 与噪声项 \(n\) 生成：
+\begin{equation}
+  y = H(u) + n .
+  \label{eq:intro_obs}
+\end{equation}
+其中 \(H\) 表示数据侧采样/退化口径，覆盖下采样、裁剪、插值、边界处理与对齐策略等实现细节。
+重建模型 \(f_{\theta}\) 在给定观测 \(y\)（及可选的显式坐标编码、掩码等）后输出预测场 \(\hat{u}\)：
+\begin{equation}
+  \hat{u} = f_{\theta}(y;\theta) .
+  \label{eq:intro_recon}
+\end{equation}
+
+本文关注的目标不是单一指标最小化，而是在统一口径约束下同时降低：
+(1) 重建误差（数学意义逼近真值）；(2) 口径一致性误差（预测经 \(H\) 作用后与观测 \(y\) 的一致性）。
+
+\subsection{任务口径：超分辨与裁剪（示例）}\label{subsec:intro_task_protocol}
+
+为覆盖典型稀疏观测形态，本文将两类常见口径纳入统一形式：
+
+\begin{itemize}
+  \item 超分辨（SR）口径：下采样前引入低通预滤抑制混叠，再采用面积插值进行降采样。缩小图像时，
+  OpenCV 文档建议 \texttt{INTER\_AREA} 往往获得更优缩小效果 \parencite{OpenCVInterp}。
+  \item 裁剪（Crop）口径：在中心对齐窗口内观测，窗口大小满足网络 patch 对齐要求的倍数，并显式声明边界策略（mirror/zero/wrap）。
+\end{itemize}
+
+当观测生成依赖实现细节（预滤、插值、对齐、边界）时，训练与评测若不共享同一实现，结论难以复核。
+
+\section{稀疏观测重建的关键挑战}\label{sec:intro_challenges}
+
+\subsection{混叠与频谱失真}\label{subsec:intro_aliasing}
+
+下采样会将高频能量折叠到低频，造成不可逆信息损失。工程流程通常采用“先低通、再缩小”的抗混叠策略，
+例如 \texttt{GaussianBlur} 作为预滤步骤。OpenCV 文档对高斯滤波核大小与 \(\sigma\) 参数语义提供了可复用依据
+\parencite{OpenCVGaussian}。在科学机器学习中，离散网格与表示差异导致的别名问题同样会影响跨网格泛化，
+并催生“表示等价、别名无关”的设计框架 \parencite{Bartolucci2023RENO}。
+
+\subsection{训练口径与评测口径断裂}\label{subsec:intro_protocol_gap}
+
+训练阶段退化过程与评测阶段真实观测口径不一致时，可能出现重建误差指标下降但口径一致性误差不降甚至恶化。
+该现象造成横向对比不公，也降低工程可部署性。解决路径要求：
+数据侧观测算子 \(H\) 成为唯一口径定义入口；训练端退化算子 \(\DC\) 必须与 \(H\) 同实现、同参数、同边界与同对齐策略。
+
+\subsection{非周期边界与局部伪影扩散}\label{subsec:intro_boundary}
+
+非周期边界、复杂几何与掩码缺失会诱发边界伪影、振铃与局部能量偏差，误差可能沿时间维传播，
+形成“局部失真—全局退化”的链式效应。该问题影响像素级误差，也会影响谱域结构与下游诊断稳定性。
+
+\subsection{可复现性与可审计性}\label{subsec:intro_reproducibility}
+
+训练过程受随机种子、算子实现细节、库版本与硬件差异影响。科学结论需要在统一配置与多随机种子统计下保持稳定，
+并提供可审计的配置快照与环境指纹，否则难以满足“可复核、可追溯”的基本要求。
+
+\section{相关工作综述与定位（聚焦可落地引用）}\label{sec:intro_related}
+
+\subsection{物理约束学习：PINN}\label{subsec:intro_pinn}
+
+PINN 将 PDE 残差与初边界条件嵌入损失函数，在数据不足时利用物理结构作为强先验
+\parencite{Raissi2019PINN}。同时也有研究专门讨论 PINN 的训练策略与稳定性问题，例如通过因果训练等方法改善训练病态
+\parencite{Wang2022CausalityPINN}。对本文而言，关键启示是：约束项本身也必须与真实观测口径保持一致，否则可能引入新的偏差。
+
+\subsection{算子学习：FNO 与 DeepONet}\label{subsec:intro_fno_deeponet}
+
+FNO 通过 Fourier 空间的谱核参数化学习 PDE 解算子近似 \parencite{Li2021FNO}；
+DeepONet 通过 branch/trunk 网络学习算子映射，并从算子通用逼近角度进行论证 \parencite{Lu2021DeepONet}。
+跨分辨率或跨网格设置下，离散表示差异与混叠会显著影响泛化，统一口径与别名无关设计成为提升跨网格鲁棒性的关键方向
+\parencite{Bartolucci2023RENO}。
+
+\subsection{物理信息与算子学习的结合：Physics-informed DeepONet}\label{subsec:intro_pi_deeponet}
+
+在缺乏成对监督时，引入 PDE 约束可作为有效正则。Physics-informed DeepONet 展示了无配对数据情况下学习参数化 PDE 解算子的路径
+\parencite{Wang2021PIDeepONet}。该方向对本文的意义在于：一致性约束不仅可来自 PDE 残差，也可来自观测口径一致性，后者直接对应工程测量过程。
+
+\subsection{本文定位}\label{subsec:intro_positioning}
+
+本文贡献不限定为某一网络结构微调，而面向工程可复现与可部署需求，提出并系统化“评测口径一致性优先”的研究框架：
+以 \(H\) 作为观测口径唯一入口；以 \(\DC\) 对 \(H\) 镜像复用确保训练/评测一致；在统一统计协议下进行显著性检验与资源约束对比；
+形成可审计材料产出链路，服务论文审查与后续复现。
+
+\section{研究内容与技术路线}\label{sec:intro_pipeline}
+
+\subsection{总体路线}\label{subsec:intro_route}
+
+技术路线围绕“口径统一—算法构建—严格评测—材料产出”展开：
+\begin{enumerate}
+  \item 口径统一：以 \(H\) 固化观测生成流程（预滤、插值、对齐、边界），训练端 \(\DC\) 与之完全复用；
+  \item 算法构建：在统一模型接口下实现若干基线与改进方法，并保持输入打包（mask/coords/baseline）一致；
+  \item 严格评测：多随机种子统计、显著性检验、资源四项透明报告；
+  \item 材料产出：配置快照、环境指纹、指标表、代表图与失败案例归档，使结论可复核、可追溯。
+\end{enumerate}
+
+\subsection{指标体系与一致性目标}\label{subsec:intro_metrics}
+
+本文采用两类核心误差：
+\begin{equation}
+\mathrm{Rel\text{-}L2}=\frac{\lVert \hat{u}-u\rVert_2}{\lVert u\rVert_2},
+\label{eq:intro_rell2}
+\end{equation}
+\begin{equation}
+\Herr=\lVert H(\hat{u})-y\rVert_2.
+\label{eq:intro_herr}
+\end{equation}
+二者同步下降意味着：预测在数学意义上逼近真值，并在观测意义上与真实测量口径一致。
+
+\subsection{损失设计（示意）}\label{subsec:intro_loss}
+
+训练阶段采用三件套目标函数：
+\begin{equation}
+\mathcal{L}=\mathcal{L}_{\mathrm{rec}}+\lambda_{\mathrm{spec}}\mathcal{L}_{\mathrm{spec}}+\lambda_{\mathrm{dc}}\mathcal{L}_{\mathrm{dc}},
+\label{eq:intro_loss}
+\end{equation}
+其中 \(\mathcal{L}_{\mathrm{rec}}\) 表示重建损失，
+\(\mathcal{L}_{\mathrm{spec}}\) 表示低频谱一致性损失，
+\(\mathcal{L}_{\mathrm{dc}}=\lVert H(\hat{u})-y\rVert_2^2\) 表示以真实观测口径约束训练的一致性项。
+
+\section{创新点与主要贡献}\label{sec:intro_contrib}
+
+\begin{enumerate}
+  \item 提出“评测口径一致性优先”的方法论框架：以 \(H\) 作为观测口径唯一入口，训练端 \(\DC\) 镜像复用 \(H\) 的实现与参数，从机制上消除训练/评测断裂；
+  \item 构建兼顾重建与口径一致性的目标函数：通过显式口径一致性项推动 \(\Herr\) 与 \(\mathrm{Rel\text{-}L2}\) 协同改善；
+  \item 形成可复现、可审计的评测协议：多随机种子统计与显著性检验，同步报告资源四项（参数量、计算量、显存峰值、推断延迟），提升工程可信度；
+  \item 配套材料产出与失败案例归档：输出指标主表、显著性报告、代表案例与失败类型分析，为实验复核与讨论提供可追溯证据链。
+\end{enumerate}
+
+\section{论文结构安排}\label{sec:intro_outline}
+
+\begin{itemize}
+  \item 第2章：相关工作综述与问题定位；
+  \item 第3章：观测口径统一的数学形式化、模型接口与损失设计；
+  \item 第4章：一致性与鲁棒性分析（含混叠与边界因素讨论）；
+  \item 第5章：算法实现与关键工程细节（观测算子实现、训练流程、统计脚本）；
+  \item 第6章：实验设置、主结果、消融与显著性检验、资源成本报告；
+  \item 第7章：理论与现象对应验证（跨分辨率、跨网格敏感性等）；
+  \item 第8章：讨论与局限；
+  \item 第9章：结论与展望。
+\end{itemize}
+
+\section{研究伦理与合规}\label{sec:intro_ethics}
+
+本文遵循学术规范与工程合规要求：数据与代码遵循可公开许可或授权范围；结果汇报遵循可复核原则（配置快照、环境指纹、统计协议）；
+失败案例采用类型化归档并给出可操作改进建议。
+
+\section{本章小结}\label{sec:intro_summary}
+
+本章从稀疏观测的工程现实出发，说明时空流场重建在多类应用中的共性需求与关键困难，
+梳理了 PINN 与算子学习（FNO、DeepONet）等代表性方法的核心思想，并指出训练口径与评测口径不一致引发的可复现性与可部署性风险。
+围绕该风险，本文提出“评测口径一致性优先”的研究路线，并给出统一指标体系、损失设计思路与可审计的评测/材料产出框架。
+
+\section*{关键术语表（本章口径）}\label{sec:intro_terms}
+\addcontentsline{toc}{section}{关键术语表（本章口径）}
+
+\begin{table}[h!]
+  \centering
+  \begin{tabularx}{\textwidth}{@{}lX@{}}
+    \toprule
+    术语 & 定义 \\
+    \midrule
+    观测算子 \(H\) & 数据侧采样/退化口径（预滤、插值、对齐、边界等实现细节的集合） \\
+    训练退化 \(\DC\) & 训练端复用的观测算子实例，与 \(H\) 同实现同参数 \\
+    \(\Herr\) & \(\lVert H(\hat{u})-y\rVert_2\)，评测口径一致性误差 \\
+    Rel-L2 & \(\lVert \hat{u}-u\rVert_2/\lVert u\rVert_2\)，重建相对误差 \\
+    抗混叠 & 下采样前低通预滤降低混叠风险；缩小时常用 \texttt{INTER\_AREA} \parencite{OpenCVInterp} \\
+    低频谱一致性 & 仅比较低频 Fourier 模态以约束大尺度结构一致性 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}

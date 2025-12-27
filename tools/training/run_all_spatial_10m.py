@@ -121,7 +121,7 @@ def main():
     print(f"Configuring batch run for {sum(len(v) for v in MODEL_CATEGORIES.values())} models across {len(MODEL_CATEGORIES)} categories.")
     
     # Configuration
-    config_path = "thesis_paper/configs/ar_paper_aligned_sr4_shallow_water.yaml"
+    config_path = "thesis_paper/configs/ar_paper_aligned_sr4_2D_diff_react_NA_NA.yaml"
     abs_config_path = project_root / config_path
     
     if not abs_config_path.exists():
@@ -152,7 +152,30 @@ def main():
             current_idx += 1
             print(f"\n[{current_idx}/{total_models}] Checking model: {model_name} ({category})")
             
-            status, path = find_existing_run(model_name)
+            # Update prefix for experiment check
+            exp_prefix = f"AR-DR2D-10M-{model_name}"
+            
+            # Helper to find existing run with new prefix
+            def find_run_custom(name_prefix):
+                runs_dir = project_root / "runs"
+                candidates = []
+                if runs_dir.exists():
+                    for d in runs_dir.iterdir():
+                        if not d.is_dir(): continue
+                        # Match AR-DR2D-10M-{model_name}-*
+                        if d.name.startswith(f"{name_prefix}-"):
+                            candidates.append(d)
+                if not candidates: return 'not_found', None
+                candidates.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+                latest = candidates[0]
+                if (latest / "test_results.json").exists(): return 'completed', latest
+                ckpt = latest / "last.ckpt"
+                if ckpt.exists(): return 'interrupted', ckpt
+                ckpt = latest / "checkpoints" / "last.ckpt"
+                if ckpt.exists(): return 'interrupted', ckpt
+                return 'not_found', None
+
+            status, path = find_run_custom(exp_prefix)
             
             resume_arg = None
             
@@ -175,7 +198,7 @@ def main():
                     "auto_tune": True
                 },
                 "experiment": {
-                    "name": f"AR-ShallowWater-10M-{model_name}"
+                    "name": exp_prefix
                 },
                 "ar": {"enabled": False},
                 "training": {"torch_compile": False}

@@ -13,6 +13,7 @@ from einops import rearrange
 import numpy as np
 
 from ..base import BaseModel
+from ..registry import register_model
 
 
 def window_partition(x: torch.Tensor, window_size: int) -> torch.Tensor:
@@ -42,7 +43,7 @@ def window_reverse(windows: torch.Tensor, window_size: int, H: int, W: int) -> t
     """
     B = int(windows.shape[0] / (H * W / window_size / window_size))
     x = windows.view(B, H // window_size, W // window_size, window_size, window_size, -1)
-    x = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(B, H, W, -1)
+    x = x.permute(0, 1, 3, 2, 4, 5).contiguous().reshape(B, H, W, -1)
     return x
 
 
@@ -163,6 +164,10 @@ class SwinTransformerBlock(nn.Module):
             self.shift_size = 0
             self.window_size = min(self.input_resolution)
         assert 0 <= self.shift_size < self.window_size, "shift_size must in 0-window_size"
+
+        H, W = self.input_resolution
+        self.H_pad = (H + self.window_size - 1) // self.window_size * self.window_size
+        self.W_pad = (W + self.window_size - 1) // self.window_size * self.window_size
         
         if isinstance(norm_layer, str):
             if norm_layer == "LayerNorm":
@@ -185,8 +190,8 @@ class SwinTransformerBlock(nn.Module):
         
         if self.shift_size > 0:
             # 计算注意力掩码
-            H, W = self.input_resolution
-            img_mask = torch.zeros((1, H, W, 1))  # [1, H, W, 1]
+            # Use padded resolution for mask
+            img_mask = torch.zeros((1, self.H_pad, self.W_pad, 1))  # [1, H_pad, W_pad, 1]
             h_slices = (slice(0, -self.window_size),
                        slice(-self.window_size, -self.shift_size),
                        slice(-self.shift_size, None))
@@ -217,6 +222,12 @@ class SwinTransformerBlock(nn.Module):
         x = self.norm1(x)
         x = x.view(B, H, W, C)
         
+        # Pad to multiple of window_size
+        pad_b = self.H_pad - H
+        pad_r = self.W_pad - W
+        if pad_b > 0 or pad_r > 0:
+            x = F.pad(x, (0, 0, 0, pad_r, 0, pad_b))
+        
         # 循环移位
         if self.shift_size > 0:
             shifted_x = torch.roll(x, shifts=(-self.shift_size, -self.shift_size), dims=(1, 2))
@@ -232,14 +243,19 @@ class SwinTransformerBlock(nn.Module):
         
         # 合并窗口
         attn_windows = attn_windows.view(-1, self.window_size, self.window_size, C)
-        shifted_x = window_reverse(attn_windows, self.window_size, H, W)  # [B, H', W', C]
+        shifted_x = window_reverse(attn_windows, self.window_size, self.H_pad, self.W_pad)  # [B, H', W', C]
         
         # 反向循环移位
         if self.shift_size > 0:
             x = torch.roll(shifted_x, shifts=(self.shift_size, self.shift_size), dims=(1, 2))
         else:
             x = shifted_x
-        x = x.view(B, H * W, C)
+            
+        # Crop back
+        if pad_b > 0 or pad_r > 0:
+            x = x[:, :H, :W, :]
+            
+        x = x.reshape(B, H * W, C)
         
         # FFN
         x = shortcut + self.drop_path(x)
@@ -466,14 +482,15 @@ class PatchEmbed(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         B, C, H, W = x.shape
         # FIXME look at relaxing size constraints
-        assert H == self.img_size[0] and W == self.img_size[1], \
-            f"Input image size ({H}*{W}) doesn't match model ({self.img_size[0]}*{self.img_size[1]})."
+        # assert H == self.img_size[0] and W == self.img_size[1], \
+        #     f"Input image size ({H}*{W}) doesn't match model ({self.img_size[0]}*{self.img_size[1]})."
         x = self.proj(x).flatten(2).transpose(1, 2)  # [B, Ph*Pw, C]
         if self.norm is not None:
             x = self.norm(x)
         return x
 
 
+@register_model(name="swin_t", aliases=["SwinT", "SwinTransformerTiny"])
 class SwinTransformerTiny(BaseModel):
     """Swin Transformer Tiny模型
     

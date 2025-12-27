@@ -1,333 +1,326 @@
-"""经典U-Net基线模型
+"""
+经典U-Net基线模型（稳定可训练版本）
 
 实现标准的U-Net架构，用作基线对比模型。
 遵循统一接口：forward(x[B,C_in,H,W]) -> y[B,C_out,H,W]
 """
 
-from typing import List, Optional, Tuple
+from __future__ import annotations
+
+from typing import List, Optional, Tuple, Dict
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 from ..base import BaseModel
+from ..registry import register_model
 
 
-class DoubleConv(nn.Module):
-    """双卷积块：Conv2d -> BatchNorm -> ReLU -> Conv2d -> BatchNorm -> ReLU"""
-    
-    def __init__(self, in_channels: int, out_channels: int, mid_channels: Optional[int] = None):
-        super().__init__()
-        if not mid_channels:
-            mid_channels = out_channels
-        
-        self.double_conv = nn.Sequential(
-            nn.Conv2d(in_channels, mid_channels, kernel_size=3, padding=1, bias=False),
-            nn.BatchNorm2d(mid_channels),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(mid_channels, out_channels, kernel_size=3, padding=1, bias=False),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True)
+# =========================================================
+# Utils
+# =========================================================
+def _align_like(src: torch.Tensor, ref: torch.Tensor) -> torch.Tensor:
+    """
+    Align src spatial size to ref by symmetric pad (if smaller) or center-crop (if larger).
+    This makes the model robust to odd H/W and multi-stage pooling/upsampling size drift.
+
+    src: [B,C,Hs,Ws], ref: [B,C,Hr,Wr]
+    """
+    hs, ws = src.shape[-2], src.shape[-1]
+    hr, wr = ref.shape[-2], ref.shape[-1]
+
+    # pad if needed
+    pad_y = hr - hs
+    pad_x = wr - ws
+    if pad_y > 0 or pad_x > 0:
+        src = F.pad(
+            src,
+            [max(pad_x // 2, 0), max(pad_x - pad_x // 2, 0),
+             max(pad_y // 2, 0), max(pad_y - pad_y // 2, 0)],
         )
-    
+
+    # crop if needed
+    hs, ws = src.shape[-2], src.shape[-1]
+    if hs > hr:
+        y0 = (hs - hr) // 2
+        src = src[:, :, y0:y0 + hr, :]
+    if ws > wr:
+        x0 = (ws - wr) // 2
+        src = src[:, :, :, x0:x0 + wr]
+
+    return src
+
+
+# =========================================================
+# Blocks
+# =========================================================
+class DoubleConv(nn.Module):
+    """(Conv3x3 -> BN -> ReLU) * 2，含可选 Dropout"""
+
+    def __init__(self, in_channels: int, out_channels: int, dropout: float = 0.0):
+        super().__init__()
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        self.relu = nn.ReLU(inplace=True)
+        self.drop = nn.Dropout2d(dropout) if dropout and dropout > 0 else nn.Identity()
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.double_conv(x)
+        x = self.relu(self.bn1(self.conv1(x)))
+        x = self.drop(x)
+        x = self.relu(self.bn2(self.conv2(x)))
+        return x
 
 
 class Down(nn.Module):
-    """下采样块：MaxPool2d -> DoubleConv"""
-    
-    def __init__(self, in_channels: int, out_channels: int):
+    """下采样：MaxPool2d -> DoubleConv"""
+
+    def __init__(self, in_channels: int, out_channels: int, dropout: float = 0.0):
         super().__init__()
-        self.maxpool_conv = nn.Sequential(
-            nn.MaxPool2d(2),
-            DoubleConv(in_channels, out_channels)
-        )
-    
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.conv = DoubleConv(in_channels, out_channels, dropout=dropout)
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.maxpool_conv(x)
+        return self.conv(self.pool(x))
 
 
 class Up(nn.Module):
-    """上采样块：Upsample -> Conv -> Concat -> DoubleConv"""
-    
-    def __init__(self, in_channels: int, out_channels: int, bilinear: bool = True):
+    """
+    上采样模块：
+    - bilinear=True : Upsample -> 1x1 reduce -> concat(skip) -> DoubleConv
+    - bilinear=False: ConvTranspose2d -> concat(skip) -> DoubleConv
+    """
+
+    def __init__(self, in_ch: int, skip_ch: int, out_ch: int, bilinear: bool = True, dropout: float = 0.0):
         super().__init__()
-        
-        # 使用双线性插值或转置卷积进行上采样
         self.bilinear = bilinear
+
         if bilinear:
-            self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+            self.up = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
+            self.reduce = nn.Conv2d(in_ch, out_ch, kernel_size=1, bias=False)
         else:
-            self.up = nn.ConvTranspose2d(in_channels, in_channels // 2, kernel_size=2, stride=2)
-        self.dynamic_conv = None
-        self.out_channels = out_channels
-    
-    def forward(self, x1: torch.Tensor, x2: torch.Tensor) -> torch.Tensor:
-        x1 = self.up(x1)
-        
-        # 处理尺寸不匹配的情况
-        diffY = x2.size()[2] - x1.size()[2]
-        diffX = x2.size()[3] - x1.size()[3]
-        
-        if diffY != 0 or diffX != 0:
-            x1 = F.pad(x1, [diffX // 2, diffX - diffX // 2,
-                            diffY // 2, diffY - diffY // 2])
-        
-        # 拼接特征
-        x = torch.cat([x2, x1], dim=1)
-        
-        # 动态构建卷积块以匹配通道数
-        if self.dynamic_conv is None or getattr(self.dynamic_conv, 'in_channels', None) != x.shape[1]:
-            mid_ch = max(x.shape[1] // 2, 1)
-            self.dynamic_conv = DoubleConv(x.shape[1], self.out_channels, mid_ch).to(x.device)
-        return self.dynamic_conv(x)
+            self.up = nn.ConvTranspose2d(in_ch, out_ch, kernel_size=2, stride=2)
+            self.reduce = nn.Identity()
+
+        self.conv = DoubleConv(out_ch + skip_ch, out_ch, dropout=dropout)
+
+    def forward(self, x: torch.Tensor, skip: torch.Tensor) -> torch.Tensor:
+        x = self.up(x)
+        x = self.reduce(x)
+
+        # 对齐空间尺寸，避免奇数尺寸导致的 1 像素误差
+        x = _align_like(x, skip)
+
+        x = torch.cat([skip, x], dim=1)
+        return self.conv(x)
 
 
 class OutConv(nn.Module):
-    """输出卷积层"""
-    
+    """输出 1x1 卷积"""
+
     def __init__(self, in_channels: int, out_channels: int):
         super().__init__()
         self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=1)
-    
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.conv(x)
 
 
+# =========================================================
+# Model
+# =========================================================
+@register_model(name="unet", aliases=["UNet", "unet_baseline"])
 class UNet(BaseModel):
-    """经典U-Net模型
-    
-    标准的U-Net架构，包含编码器-解码器结构和跳跃连接。
-    适用于图像到图像的转换任务，如超分辨率和图像修复。
-    
-    Args:
-        in_channels: 输入通道数
-        out_channels: 输出通道数
-        img_size: 图像尺寸（正方形）
-        features: 特征通道数列表，默认[64, 128, 256, 512]
-        bilinear: 是否使用双线性插值上采样，默认True
-        dropout: Dropout概率，默认0.0
-        **kwargs: 其他参数
-    
-    Examples:
-        >>> model = UNet(in_channels=3, out_channels=1, img_size=256)
-        >>> x = torch.randn(1, 3, 256, 256)
-        >>> y = model(x)
-        >>> print(y.shape)  # torch.Size([1, 1, 256, 256])
     """
-    
+    经典 U-Net Baseline（可扩展深度）
+
+    features: 每个 encoder stage 的通道数，例如 [64,128,256,512]
+    结构：
+        inc -> down1 -> down2 -> ... -> down(L-1) -> bottleneck(down) -> up(L) -> out
+
+    注意：
+    - 默认会额外加一个 bottleneck Down（再池化一次），这与经典 U-Net 的 /16 bottleneck 更一致
+    - 如果你希望 bottleneck 不再额外池化，可把 self.bottleneck 改为 DoubleConv 即可
+    """
+
     def __init__(
         self,
-        in_channels: int | None = None,
-        out_channels: int | None = None,
-        img_size: int | None = None,
-        features: List[int] = None,
+        in_channels: Optional[int] = None,
+        out_channels: Optional[int] = None,
+        img_size: Optional[int] = None,
+        features: Optional[List[int]] = None,
         bilinear: bool = True,
         dropout: float = 0.0,
-        **kwargs
+        final_activation: Optional[str] = None,  # None | "tanh" | "sigmoid"
+        **kwargs,
     ):
+        # 兼容 Hydra/旧字段
         if in_channels is None:
-            in_channels = kwargs.pop('in_ch', kwargs.pop('in_chans', 1))
+            in_channels = kwargs.pop("in_ch", kwargs.pop("in_chans", 1))
         if out_channels is None:
-            out_channels = kwargs.pop('out_ch', kwargs.pop('num_classes', 1))
+            out_channels = kwargs.pop("out_ch", kwargs.pop("num_classes", 1))
         if img_size is None:
-            img_size = kwargs.get('img_size', 128)
+            img_size = kwargs.get("img_size", 128)
+
         super().__init__(in_channels, out_channels, img_size, **kwargs)
-        
+
         if features is None:
             features = [64, 128, 256, 512]
-        
-        self.features = features
-        self.bilinear = bilinear
-        self.dropout = dropout
-        
-        # 输入卷积
-        self.inc = DoubleConv(in_channels, features[0])
-        
-        # 编码器（下采样路径）
-        # 根据features长度自适应构建编码器
+        if len(features) < 2:
+            raise ValueError("features length must be >= 2, e.g. [64,128,256,512].")
+
+        self.features = [int(v) for v in features]
+        self.bilinear = bool(bilinear)
+        self.dropout = float(dropout)
+
+        # Encoder
+        self.inc = DoubleConv(self.in_channels, self.features[0], dropout=self.dropout)
+
         self.down_blocks = nn.ModuleList()
-        for i in range(1, len(features)):
-            self.down_blocks.append(Down(features[i-1], features[i]))
-        
-        # 瓶颈层
-        factor = 2 if bilinear else 1
-        # 瓶颈层（当层数>=4），否则用最后一层作为瓶颈
-        if len(features) >= 4:
-            self.down_bottleneck = Down(features[3], features[3] * 2 // factor)
-            bottleneck_out = features[3] * 2 // factor
-        else:
-            self.down_bottleneck = None
-            bottleneck_out = features[-1]
-        
-        # 解码器（上采样路径）
-        # 动态解码器路径
+        for i in range(1, len(self.features)):
+            self.down_blocks.append(Down(self.features[i - 1], self.features[i], dropout=self.dropout))
+
+        # Bottleneck: 再下采样一次（经典 U-Net 的 bottleneck 更常见）
+        # bilinear 版本为了节省显存，常用 factor=2 缩减 bottleneck 通道
+        factor = 2 if self.bilinear else 1
+        self.bottleneck_channels = (self.features[-1] * 2) // factor
+        self.bottleneck = Down(self.features[-1], self.bottleneck_channels, dropout=self.dropout)
+
+        # Decoder: 对应 features 反向逐级上采样（总共 len(features) 次 up）
         self.up_blocks = nn.ModuleList()
-        up_in = bottleneck_out if self.down_bottleneck is not None else features[-1]
-        for i in range(len(features)-1, 0, -1):
-            out_ch = features[i-1]
-            self.up_blocks.append(Up(up_in, out_ch, bilinear))
-            up_in = out_ch
-        
-        # 输出卷积
-        self.outc = OutConv(features[0], out_channels)
-        
-        # Dropout层（可选）
-        if dropout > 0:
-            self.dropout_layer = nn.Dropout2d(dropout)
+        in_ch = self.bottleneck_channels
+
+        # skip 从 encoder 最深层开始：features[-1], features[-2], ..., features[0]
+        for skip_ch in reversed(self.features):
+            out_ch = skip_ch
+            self.up_blocks.append(Up(in_ch=in_ch, skip_ch=skip_ch, out_ch=out_ch,
+                                     bilinear=self.bilinear, dropout=self.dropout))
+            in_ch = out_ch
+
+        self.outc = OutConv(self.features[0], self.out_channels)
+
+        if final_activation == "tanh":
+            self.final_activation = nn.Tanh()
+        elif final_activation == "sigmoid":
+            self.final_activation = nn.Sigmoid()
         else:
-            self.dropout_layer = None
-        
-        # 初始化权重
-        self._initialize_weights()
-    
-    def _initialize_weights(self):
-        """初始化模型权重 - 使用更保守的初始化策略"""
+            self.final_activation = nn.Identity()
+
+        self._init_weights()
+
+    def _init_weights(self) -> None:
+        # 稳健初始化：conv 用 kaiming，BN 用 1/0
         for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                # 使用Xavier初始化替代Kaiming初始化，减少初始权重幅度
-                nn.init.xavier_uniform_(m.weight, gain=0.5)
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0)
+            if isinstance(m, (nn.Conv2d, nn.ConvTranspose2d)):
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
+                if getattr(m, "bias", None) is not None:
+                    nn.init.zeros_(m.bias)
             elif isinstance(m, nn.BatchNorm2d):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
-    
+                nn.init.ones_(m.weight)
+                nn.init.zeros_(m.bias)
+
     def forward(self, x: torch.Tensor, **kwargs) -> torch.Tensor:
-        """前向传播
-        
-        Args:
-            x: 输入张量 [B, C_in, H, W]
-            **kwargs: 可选输入（忽略，保持接口一致性）
-            
-        Returns:
-            输出张量 [B, C_out, H, W]
         """
-        # 编码器路径
-        x1 = self.inc(x)
-        downs = []
-        prev = x1
-        for down in self.down_blocks:
-            prev = down(prev)
-            downs.append(prev)
-        if self.down_bottleneck is not None:
-            x_bottleneck = self.down_bottleneck(prev)
-        else:
-            x_bottleneck = prev
-        
-        # 应用Dropout（如果启用）
-        if self.dropout_layer is not None:
-            x_bottleneck = self.dropout_layer(x_bottleneck)
-        
-        # 解码器路径
-        up_input = x_bottleneck
-        # 对齐跳跃连接从最后一层开始
-        skip_list = [x1] + downs[:-1]
-        for i, up in enumerate(self.up_blocks):
-            skip = skip_list[-(i+1)] if i < len(skip_list) else None
-            up_input = up(up_input, skip if skip is not None else up_input)
-        x = up_input
-        
-        # 输出
-        logits = self.outc(x)
-        
-        return logits
-    
-    def compute_flops(self, input_shape: Tuple[int, ...] = None) -> int:
-        """计算FLOPs（更精确的估算）
-        
         Args:
-            input_shape: 输入形状，默认为(1, in_channels, img_size, img_size)
-            
+            x: [B, C_in, H, W]
         Returns:
-            FLOPs数量
+            y: [B, C_out, H, W]
+        """
+        # Encoder feature maps for skip connections
+        skips: List[torch.Tensor] = []
+
+        x0 = self.inc(x)          # level 0
+        skips.append(x0)
+
+        xi = x0
+        for down in self.down_blocks:
+            xi = down(xi)
+            skips.append(xi)      # levels 1..L-1
+
+        # Bottleneck (extra down)
+        xb = self.bottleneck(xi)
+
+        # Decoder: use skips from deepest to shallowest
+        xd = xb
+        # skips currently: [x0, x1, ..., x_{L-1}] ; we consume reversed(skips)
+        for up, skip in zip(self.up_blocks, reversed(skips)):
+            xd = up(xd, skip)
+
+        y = self.outc(xd)
+        y = self.final_activation(y)
+        return y
+
+    def get_feature_maps(self, x: torch.Tensor) -> List[torch.Tensor]:
+        """返回 encoder 侧各层特征（用于可视化/调试）"""
+        self.eval()
+        with torch.no_grad():
+            feats: List[torch.Tensor] = []
+            x0 = self.inc(x)
+            feats.append(x0)
+            xi = x0
+            for down in self.down_blocks:
+                xi = down(xi)
+                feats.append(xi)
+            return feats
+
+    def freeze_encoder(self) -> None:
+        """冻结 encoder + bottleneck（如果你只想冻结 encoder，不冻结 bottleneck，可自行拆开）"""
+        for p in self.inc.parameters():
+            p.requires_grad = False
+        for blk in self.down_blocks:
+            for p in blk.parameters():
+                p.requires_grad = False
+        for p in self.bottleneck.parameters():
+            p.requires_grad = False
+
+    def compute_flops(self, input_shape: Tuple[int, ...] = None) -> int:
+        """
+        简化 FLOPs 估算（用于相对对比，不用于精确论文统计）
         """
         if input_shape is None:
             input_shape = (1, self.in_channels, self.img_size, self.img_size)
-        
-        batch_size, _, height, width = input_shape
-        
-        # 粗略估算：每个卷积层的FLOPs
+
+        B, Cin, H, W = input_shape
         flops = 0
-        
-        # 编码器路径
-        h, w = height, width
-        for i, feat in enumerate(self.features):
-            if i == 0:
-                # 输入卷积：2个3x3卷积
-                flops += 2 * (self.in_channels * feat * 3 * 3 * h * w)
-            else:
-                # 下采样：MaxPool + 2个3x3卷积
-                h, w = h // 2, w // 2
-                prev_feat = self.features[i-1]
-                flops += 2 * (prev_feat * feat * 3 * 3 * h * w)
-        
-        # 瓶颈层
-        h, w = h // 2, w // 2
-        bottleneck_feat = self.features[-1] * 2 if not self.bilinear else self.features[-1]
-        flops += 2 * (self.features[-1] * bottleneck_feat * 3 * 3 * h * w)
-        
-        # 解码器路径（对称）
-        for i in range(len(self.features)):
-            h, w = h * 2, w * 2
-            # 上采样 + 卷积
-            if i == 0:
-                in_feat = bottleneck_feat + self.features[-(i+1)]
-                out_feat = self.features[-(i+1)]
-            else:
-                in_feat = self.features[-(i)] + self.features[-(i+1)]
-                out_feat = self.features[-(i+1)]
-            
-            flops += 2 * (in_feat * out_feat * 3 * 3 * h * w)
-        
-        # 输出卷积
-        flops += self.features[0] * self.out_channels * 1 * 1 * height * width
-        
-        self._flops = flops * batch_size
+
+        # inc: two 3x3 conv
+        c0 = self.features[0]
+        flops += (Cin * c0 * 9 + c0 * c0 * 9) * H * W * 2
+
+        # down blocks
+        h, w = H, W
+        prev = c0
+        for ch in self.features[1:]:
+            h //= 2
+            w //= 2
+            flops += (prev * ch * 9 + ch * ch * 9) * h * w * 2
+            prev = ch
+
+        # bottleneck down
+        h //= 2
+        w //= 2
+        bott = self.bottleneck_channels
+        flops += (prev * bott * 9 + bott * bott * 9) * h * w * 2
+
+        # decoder (rough): symmetric conv cost (upsample cost ignored)
+        # 每个 up 后做一次 DoubleConv(out+skip -> out)
+        # 这里用近似：两次 3x3 conv
+        for skip_ch in reversed(self.features):
+            h *= 2
+            w *= 2
+            out_ch = skip_ch
+            in_cat = out_ch + skip_ch
+            flops += (in_cat * out_ch * 9 + out_ch * out_ch * 9) * h * w * 2
+
+        # out 1x1
+        flops += self.features[0] * self.out_channels * H * W
+
+        self._flops = int(flops * B)
         return self._flops
-    
-    def freeze_encoder(self) -> None:
-        """冻结编码器参数"""
-        # 冻结编码器部分
-        for param in self.inc.parameters():
-            param.requires_grad = False
-        for param in self.down1.parameters():
-            param.requires_grad = False
-        for param in self.down2.parameters():
-            param.requires_grad = False
-        for param in self.down3.parameters():
-            param.requires_grad = False
-        for param in self.down4.parameters():
-            param.requires_grad = False
-    
-    def get_feature_maps(self, x: torch.Tensor) -> List[torch.Tensor]:
-        """获取中间特征图（用于可视化和分析）
-        
-        Args:
-            x: 输入张量 [B, C_in, H, W]
-            
-        Returns:
-            特征图列表
-        """
-        features = []
-        
-        # 编码器路径
-        x1 = self.inc(x)
-        features.append(x1)
-        
-        x2 = self.down1(x1)
-        features.append(x2)
-        
-        x3 = self.down2(x2)
-        features.append(x3)
-        
-        x4 = self.down3(x3)
-        features.append(x4)
-        
-        x5 = self.down4(x4)
-        features.append(x5)
-        
-        return features
 
 
-# 别名，保持向后兼容
-UNetModel = UNet
+def create_unet(**kwargs) -> UNet:
+    """工厂函数（可选）"""
+    return UNet(**kwargs)
