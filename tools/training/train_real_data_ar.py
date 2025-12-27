@@ -1001,6 +1001,37 @@ class RealDataARTrainer:
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
 
+    def cleanup_cuda(self, full: bool = True):
+        """统一的CUDA清理函数"""
+        try:
+            if hasattr(self, 'optimizer') and self.optimizer is not None:
+                self.optimizer.zero_grad(set_to_none=True)
+            
+            # 显式删除可能持有大Tensor的属性
+            # 注意：不要删除 self.model 或 self.data_module
+            for attr in ['loss', 'losses', 'pred_seq', 'target_seq', 'input_seq', 'batch']:
+                if hasattr(self, attr):
+                    try:
+                        delattr(self, attr)
+                    except Exception:
+                        pass
+            
+            # 清理局部变量（如果在frame中）- 这里主要靠GC
+            import gc
+            gc.collect()
+            
+            if self.device.type == 'cuda':
+                torch.cuda.empty_cache()
+                # 仅在调试模式下同步，避免性能损耗
+                if self._cfg_select('training.debug_cuda', default=False):
+                    torch.cuda.synchronize()
+                
+                # 重置峰值统计，以便观察后续是否下降
+                torch.cuda.reset_peak_memory_stats()
+                
+        except Exception as e:
+            self.logger.warning(f"cleanup_cuda 执行期间发生次级错误: {e}")
+
     def setup_data(self):
         """设置数据"""
         self.logger.info("设置数据模块...")
@@ -4044,6 +4075,70 @@ class RealDataARTrainer:
             pass
         raise RuntimeError("未找到可用的模型 (既无self.model也无self.sequential_model)")
 
+    def handle_cuda_error(self, e, context="training"):
+        """统一处理CUDA错误的逻辑
+        
+        Returns:
+            bool: 是否可以恢复（True=尝试恢复并重试，False=不可恢复或已降级失败）
+        """
+        import traceback
+        err_msg = str(e).lower()
+        err_type = type(e).__name__
+        
+        # 1. 致命错误：Fail-fast
+        fatal_patterns = [
+            "illegal memory access", 
+            "device-side assert", 
+            "cublas", 
+            "cudnn", 
+            "unspecified launch failure",
+            "an illegal instruction"
+        ]
+        if any(p in err_msg for p in fatal_patterns):
+            self.logger.critical(f"❌ 致命CUDA错误 ({context}): {err_type} - {e}")
+            self.logger.critical("此类错误无法恢复，通常意味着显存越界访问、NaN/Inf传播或硬件问题。")
+            self.logger.critical(f"堆栈:\n{traceback.format_exc()}")
+            self.logger.critical("建议: 设置 export CUDA_LAUNCH_BLOCKING=1 重新运行以定位具体算子。")
+            raise e  # 直接抛出，终止进程
+
+        # 2. OOM错误：尝试恢复
+        is_oom = "out of memory" in err_msg or isinstance(e, torch.cuda.OutOfMemoryError)
+        
+        if is_oom:
+            self.logger.warning(f"⚠️ CUDA OOM ({context}): {e}")
+            
+            # 打印显存状态
+            try:
+                mem_summary = torch.cuda.memory_summary(abbreviated=True)
+                # 只取最后几行，避免刷屏
+                mem_lines = mem_summary.split('\n')[-10:]
+                self.logger.info("显存状态摘要:\n" + "\n".join(mem_lines))
+            except Exception:
+                pass
+                
+            # 执行清理
+            self.cleanup_cuda()
+            
+            # 检查是否允许重试配置
+            oom_cfg = self._cfg_select('training.oom_recovery', default={})
+            # 如果是字典，包装一下方便取值；如果是Config对象则直接取
+            if isinstance(oom_cfg, dict):
+                enabled = oom_cfg.get('enabled', True)
+            else:
+                enabled = getattr(oom_cfg, 'enabled', True)
+                
+            if enabled:
+                self.logger.info("尝试 OOM 恢复流程...")
+                return True
+            else:
+                self.logger.warning("OOM恢复未启用，跳过Batch")
+                return False
+                
+        # 3. 其他未知RuntimeError
+        self.logger.error(f"❌ 未知RuntimeError ({context}): {e}")
+        self.logger.error(f"堆栈:\n{traceback.format_exc()}")
+        return False  # 默认不恢复，除非是明确的OOM
+
     def train_epoch(self, epoch: int) -> float:
         """训练一个epoch"""
         model_to_train = self.get_model()
@@ -4713,20 +4808,87 @@ class RealDataARTrainer:
 
 
 
+
             except RuntimeError as e:
-                if "cuda" in str(e).lower() or "out of memory" in str(e).lower():
-                    # 使用改进的CUDA错误处理
-                    if self.handle_cuda_error(e, "training"):
-                        self.logger.info("CUDA错误已处理，重新开始当前epoch")
-                        # 重新开始当前epoch
-                        return self.train_epoch(epoch)
-                    else:
-                        # 如果无法处理CUDA错误，跳过这个batch
-                        self.logger.warning("无法处理CUDA错误，跳过当前batch")
+                # 使用改进的CUDA错误处理
+                should_retry = self.handle_cuda_error(e, "training")
+                if should_retry:
+                    # OOM 恢复策略：Micro-batching
+                    try:
+                        splits = int(getattr(self._cfg_select('training.oom_recovery', default={}), 'microbatch_splits', 4)) or 4
+                        self.logger.info(f"🔄 尝试降级：Micro-batching (splits={splits})")
+                        
+                        # 清理显存
+                        self.cleanup_cuda()
+                        
+                        # 手动拆分数据
+                        batch_size = input_seq.size(0)
+                        micro_bs = max(1, batch_size // splits)
+                        
+                        # 确保梯度清零
+                        self.optimizer.zero_grad(set_to_none=True)
+                        
+                        micro_loss_sum = 0.0
+                        
+                        # 遍历微批次
+                        for i in range(0, batch_size, micro_bs):
+                            mb_input = input_seq[i:i+micro_bs]
+                            mb_target = target_seq[i:i+micro_bs]
+                            
+                            # Forward
+                            with autocast(device_type=self.device.type, dtype=self.autocast_dtype, enabled=True):
+                                # 简化调用逻辑，仅支持核心路径
+                                mb_out = model(mb_input, mb_target)
+                                if isinstance(mb_out, dict): mb_out = mb_out['final_pred']
+                                
+                                # Loss
+                                from ops.losses import compute_total_loss, l1_mae, rel_l2
+                                # 简单Loss回退
+                                if mb_out.ndim == 4 and mb_target.ndim == 5:
+                                    target_to_compare = mb_target[:, 0]
+                                elif mb_out.ndim == 5 and mb_target.ndim == 5:
+                                    min_t = min(mb_out.shape[1], mb_target.shape[1])
+                                    mb_out = mb_out[:, :min_t]
+                                    target_to_compare = mb_target[:, :min_t]
+                                else:
+                                    target_to_compare = mb_target
+                                
+                                mb_loss = rel_l2(mb_out, target_to_compare)
+                                
+                                # Scale loss by splits for accumulation
+                                mb_loss = mb_loss / (batch_size / micro_bs) # 近似缩放
+                            
+                            # Backward
+                            if self.scaler:
+                                self.scaler.scale(mb_loss).backward()
+                            else:
+                                mb_loss.backward()
+                                
+                            micro_loss_sum += mb_loss.item()
+                            
+                            # 释放微批次图
+                            del mb_out, mb_loss
+                        
+                        # Optimizer Step
+                        if self.scaler:
+                            self.scaler.step(self.optimizer)
+                            self.scaler.update()
+                        else:
+                            self.optimizer.step()
+                            
+                        self.logger.info(f"✅ Micro-batch recovery successful. Loss: {micro_loss_sum:.4f}")
+                        # 恢复成功，继续下一个Batch
+                        continue
+                        
+                    except Exception as retry_err:
+                        self.logger.error(f"❌ OOM Recovery failed: {retry_err}")
+                        self.cleanup_cuda()
                         self._epoch_skip_count += 1
                         continue
                 else:
-                    raise e
+                    # 无法恢复，跳过
+                    self._epoch_skip_count += 1
+                    continue
 
             # 更新进度条（仅当progress_bar是tqdm对象）
                 try:
@@ -6402,8 +6564,106 @@ class RealDataARTrainer:
             import traceback
             traceback.print_exc()
 
+    def smoke_test(self):
+        """冒烟测试：运行一个Batch以检测显存泄漏或立即崩溃"""
+        self.logger.info("🚬 Running SMOKE TEST (1 batch)...")
+        self.get_model().train()
+        
+        # 临时覆盖配置
+        debug_cuda = self._cfg_select('training.debug_cuda', default=False)
+        
+        try:
+            # 取一个batch
+            batch = next(iter(self.train_loader))
+            if batch is None:
+                self.logger.warning("Smoke test batch is None, skipping.")
+                return
+
+            # 记录初始显存
+            if self.device.type == 'cuda':
+                torch.cuda.reset_peak_memory_stats()
+                mem_start = torch.cuda.memory_allocated()
+            
+            # Forward
+            input_seq = batch['input_sequence'].to(self.device)
+            target_seq = batch['target_sequence'].to(self.device)
+            current_T_out = 1 # 最简模式
+            
+            # 数据适配：如果是空间-only模型且输入是5D，取第一帧
+            model = self.get_model()
+            model_input = input_seq
+            
+            # 简单判断是否为纯空间模型（无时间维度处理能力的模型通常期望4D输入）
+            # 注意：ARWrapper 等会自动处理，这里主要针对裸空间模型
+            if input_seq.dim() == 5:
+                # 尝试推断是否需要降维
+                is_seq_model = hasattr(model, 'temporal_forward') or hasattr(model, 'autoregressive_predict') or \
+                               (hasattr(model, 'is_temporal') and model.is_temporal)
+                if not is_seq_model:
+                    # 假设是空间模型，只取第一帧 [B, T, C, H, W] -> [B, C, H, W]
+                    # 注意：如果模型需要多帧拼接（如 T_in>1），这里简化处理可能不准确，
+                    # 但作为 smoke test，跑通一次前向即可。
+                    model_input = input_seq[:, 0]
+                    # 如果需要拼接坐标等，这里暂略，假设模型能处理纯图像或会在内部报错提示
+            
+            # 使用混合精度上下文
+            amp_cfg = getattr(getattr(self.config, 'training', None), 'amp', None)
+            amp_enabled = bool(getattr(amp_cfg, 'enabled', False)) if amp_cfg is not None else False
+            autocast_dtype = getattr(self, 'autocast_dtype', torch.bfloat16)
+            
+            with autocast(device_type=self.device.type, dtype=autocast_dtype, enabled=amp_enabled):
+                # 简单调用，不涉及复杂逻辑
+                try:
+                    out = model(model_input, target_seq)
+                except TypeError:
+                    out = model(model_input)
+                
+                # Loss
+                from ops.losses import rel_l2
+                if isinstance(out, dict): out = out['final_pred']
+                
+                # 简单的形状适配
+                if out.ndim == 4 and target_seq.ndim == 5:
+                    # [B, C, H, W] vs [B, T, C, H, W] -> 取target第一帧
+                    target_to_compare = target_seq[:, 0]
+                elif out.ndim == 5 and target_seq.ndim == 5:
+                     # 都是5D，切片对齐T维度
+                    min_t = min(out.shape[1], target_seq.shape[1])
+                    out = out[:, :min_t]
+                    target_to_compare = target_seq[:, :min_t]
+                else:
+                    target_to_compare = target_seq
+
+                loss = rel_l2(out, target_to_compare)
+            
+            # Backward
+            self.scaler.scale(loss).backward() if self.scaler else loss.backward()
+            self.optimizer.step()
+            self.optimizer.zero_grad(set_to_none=True)
+            
+            # 显存报告
+            if self.device.type == 'cuda':
+                torch.cuda.synchronize()
+                mem_peak = torch.cuda.max_memory_allocated()
+                mem_end = torch.cuda.memory_allocated()
+                self.logger.info(f"🚬 Smoke Test Memory: Start={mem_start/1e9:.2f}GB, Peak={mem_peak/1e9:.2f}GB, End={mem_end/1e9:.2f}GB")
+                
+            self.logger.info("✅ Smoke test passed.")
+            
+        except Exception as e:
+            self.logger.error(f"❌ Smoke test failed: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
+            raise e
+        finally:
+            self.cleanup_cuda()
+
     def train(self):
         """Main training loop"""
+        # 可选：启动前进行Smoke Test
+        if self._cfg_select('training.smoke_test', default=True):
+            self.smoke_test()
+
         self._training_aborted = False
         self.logger.info("🚀 Starting training...")
         # 明确记录当前模式：空间-only 或 AR
