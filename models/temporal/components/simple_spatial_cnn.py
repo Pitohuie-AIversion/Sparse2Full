@@ -228,4 +228,4 @@ if __name__ == "__main__":
         output_temporal = model_temporal(x_temporal)
     print(f"Input shape: {x_temporal.shape}, Output shape: {output_temporal.shape}")
     
-    print("All
+    print("All tests passed!")

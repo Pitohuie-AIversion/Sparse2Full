@@ -32,9 +32,14 @@ from .segformer_unetformer import SegFormerUNetFormer
 
 # MLP模型
 try:
-    from .mlp import MLPModel
+    from .mlp import MLPModel, MLP
 except ImportError:
     MLPModel = None
+    MLP = None
+try:
+    from .coordinate_encoder import CoordinateEncoder
+except ImportError:
+    CoordinateEncoder = None
 from .mlp_mixer import MLPMixer
 from .liif import LIIFModel
 

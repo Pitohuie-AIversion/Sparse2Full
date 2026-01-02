@@ -603,7 +603,15 @@ class RealDataARTrainer:
                 self.output_dir.mkdir(parents=True, exist_ok=True)
             self.logger_name_suffix = "_test" # 区分日志名
         else:
-            self.output_dir = Path(self.config.experiment.output_dir) / f"{self.config.experiment.name}"
+            # 严格使用配置中的 output_dir，不自动拼接实验名
+            # 如果配置中没有 output_dir，则回退到 runs/{experiment.name}
+            base_out = Path(self.config.experiment.output_dir)
+            if base_out.name == 'runs': # 默认值情况，保持原有行为以兼容旧脚本
+                 self.output_dir = base_out / f"{self.config.experiment.name}"
+            else:
+                 # 用户显式指定了非默认目录 (如 run_sw_4x)，则直接使用该目录，不拼接子目录
+                 self.output_dir = base_out
+            
             # 目录创建允许并发；由所有rank执行无害
             self.output_dir.mkdir(parents=True, exist_ok=True)
             self.logger_name_suffix = ""
@@ -2203,7 +2211,54 @@ class RealDataARTrainer:
                     tol_m = float(getattr(mb, 'tolerance_m', 0.5))
                     auto_tune = bool(getattr(mb, 'auto_tune', False))
                 if auto_tune and target_m is not None:
-                    model_config = self._auto_tune_model_params(model_name, model_config, target_m, tol_m)
+                    # 增强的自动调优逻辑
+                    try:
+                        # 针对特定架构的调优策略
+                        base_model_cls = model_name.lower()
+                        
+                        # 1. UNO (通常层数过多，参数量巨大)
+                        if 'uno' in base_model_cls:
+                            # UNO 默认配置往往很大，大幅削减宽度和深度
+                            current_width = int(model_config.get('width', 64))
+                            model_config['width'] = min(current_width, 32)  # 限制宽度
+                            if 'in_channels' not in model_config:
+                                model_config['in_channels'] = 1
+                            if 'out_channels' not in model_config:
+                                model_config['out_channels'] = 1
+                            
+                        # 2. NAFNet / Restormer (通常通道数和块数过多)
+                        elif 'nafnet' in base_model_cls or 'restormer' in base_model_cls:
+                            current_width = int(model_config.get('width', 32))
+                            if current_width > 16:
+                                model_config['width'] = 16  # 激进压缩宽度
+                            
+                            # 减少块数
+                            if 'enc_blk_nums' in model_config:
+                                model_config['enc_blk_nums'] = [1, 1, 1, 1]
+                            if 'dec_blk_nums' in model_config:
+                                model_config['dec_blk_nums'] = [1, 1, 1, 1]
+                            if 'middle_blk_num' in model_config:
+                                model_config['middle_blk_num'] = 1
+                                
+                        # 3. RCAN / RDN / EDSR (基于残差块，容易过大或过小)
+                        elif any(x in base_model_cls for x in ['rcan', 'rdn', 'edsr']):
+                            # 先尝试默认调优，如果太小则增加，太大则减少
+                            pass # 让后续通用逻辑处理，或者在这里特化
+                            
+                        # 4. PerceiverIO (通常太小)
+                        elif 'perceiver' in base_model_cls:
+                            # 增加 latent 维度或数量
+                            if 'num_latents' in model_config:
+                                model_config['num_latents'] = max(int(model_config['num_latents']), 256)
+                            if 'latent_dim' in model_config:
+                                model_config['latent_dim'] = max(int(model_config['latent_dim']), 256)
+
+                        # 执行通用自动调优
+                        model_config = self._auto_tune_model_params(model_name, model_config, target_m, tol_m)
+                        
+                    except Exception as e_tune_enhance:
+                        self.logger.warning(f"增强自动调优失败，回退到标准调优: {e_tune_enhance}")
+                        model_config = self._auto_tune_model_params(model_name, model_config, target_m, tol_m)
             except Exception:
                 pass
 
@@ -2376,6 +2431,40 @@ class RealDataARTrainer:
 
             self.logger.info(f"✅ 模型参数量: {total_params:,} (可训练: {trainable_params:,})")
 
+            # -----------------------------------------------------------
+            # 严格参数限制检查 (Strict Parameter Budget Check)
+            # -----------------------------------------------------------
+            try:
+                mb = getattr(self.config, 'model_budget', None)
+                if mb is not None:
+                    target_m = float(getattr(mb, 'target_params_m', 0))
+                    # 默认关闭严格模式，允许参数量不达标的模型继续运行
+                    strict_mode = bool(getattr(mb, 'strict_mode', False)) 
+                    
+                    if target_m > 0:
+                        current_m = total_params / 1e6
+                        tolerance = float(getattr(mb, 'tolerance_m', 0.5))
+                        
+                        diff = abs(current_m - target_m)
+                        if diff > tolerance:
+                            msg = (f"❌ 模型参数量 ({current_m:.2f}M) 超出预算目标 "
+                                   f"({target_m:.2f}M ± {tolerance:.2f}M). "
+                                   f"差异: {diff:.2f}M")
+                            
+                            if strict_mode:
+                                self.logger.error(msg)
+                                self.logger.error("已启用严格模式 (strict_mode=True)，终止训练。")
+                                self.logger.error("建议: 调整模型配置或增大 model_budget.tolerance_m")
+                                raise RuntimeError(msg)
+                            else:
+                                self.logger.warning(f"⚠️ {msg} (strict_mode=False, 继续训练)")
+                        else:
+                            self.logger.info(f"✅ 模型参数量 ({current_m:.2f}M) 符合预算目标 ({target_m}M ± {tolerance}M)")
+            except Exception as e_budget:
+                if isinstance(e_budget, RuntimeError):
+                    raise e_budget
+                self.logger.warning(f"⚠️ 参数预算检查执行失败: {e_budget}")
+
             # 写入模型信息（健壮的 try/except 包裹，避免解析期错误）
             try:
                 import json as _json
@@ -2540,7 +2629,49 @@ class RealDataARTrainer:
             target = target_params_m * 1e6
             name_l = str(model_name).lower()
 
-            if 'unet' in name_l and 'former' not in name_l and 'swin' not in name_l and 'ufno' not in name_l:
+            if 'deeponet' in name_l:
+                # DeepONet tuning
+                base_latent = int(model_config.get('latent_dim', 128))
+                base_hidden = int(model_config.get('trunk_hidden', [128, 128, 128])[0]) if isinstance(model_config.get('trunk_hidden'), list) else 128
+                
+                lo, hi = 0.1, 10.0
+                for _ in range(15):
+                    scale = (lo + hi) / 2
+                    latent = max(16, int(base_latent * scale) // 16 * 16)
+                    hidden_dim = max(32, int(base_hidden * scale) // 16 * 16)
+                    
+                    cfg = {
+                        **model_config,
+                        'latent_dim': latent,
+                        'trunk_hidden': [hidden_dim] * 3,
+                        'branch_channels': [hidden_dim // 2, hidden_dim, hidden_dim * 2]
+                    }
+                    pc = build(cfg)
+                    err = abs(pc - target)
+                    if err < best_err:
+                        best, best_err = cfg, err
+                    if pc < target:
+                        lo = scale
+                    else:
+                        hi = scale
+
+            elif 'convunetlite' in name_l or 'uformerlite' in name_l:
+                 # Lite models using embed_dim
+                 base_dim = int(model_config.get('embed_dim', 64))
+                 lo, hi = 16, 1024
+                 for _ in range(15):
+                    mid = int((lo + hi) // 2) // 8 * 8
+                    cfg = {**model_config, 'embed_dim': mid}
+                    pc = build(cfg)
+                    err = abs(pc - target)
+                    if err < best_err:
+                        best, best_err = cfg, err
+                    if pc < target:
+                        lo = mid + 8
+                    else:
+                        hi = mid - 8
+
+            elif 'unet' in name_l and 'former' not in name_l and 'swin' not in name_l and 'ufno' not in name_l:
                 base = [64, 128, 256, 512]
                 high = 2.0
                 max_feat = 2048
@@ -2594,15 +2725,35 @@ class RealDataARTrainer:
                 l = max(1, l)
                 
                 # Allow scaling down significantly and up
-                lo, hi = max(l, 16), max(192, base * 8)
+                # Reduced hi to 512 to avoid OOM for large Transformers
+                lo, hi = max(l, 16), max(192, 512) 
                 
                 for _ in range(15):
-                    raw = (lo + hi) // 2
-                    mid = max(l, (raw // l) * l)
+                    mid = int(((lo + hi) // 2) // l * l)
+                    mid = max(l, mid)
+                    
                     if 'ufno' in name_l:
-                        cfg = {**model_config, 'width': int(mid)}
+                         # UFNOUNet tuning: Scale features list
+                         # Default features: [64, 128, 256, 512] -> huge (1100M)
+                         # Need ~10M. Scale factor ~0.1 -> features ~ [6, 12, 25, 50]
+                         if _ == 0: lo, hi = 4, 32 # Override search range for UFNO features scale
+                         mid_scale = max(4, int(((lo + hi) // 2) // 4 * 4))
+                         
+                         scale_f = mid_scale / 64.0 # normalized scale
+                         fs = [max(8, int(f * scale_f) // 4 * 4) for f in [64, 128, 256, 512]]
+                         cfg = {**model_config, 'features': fs}
+                         
+                         # Also reduce FNO complexity
+                         cfg['fno_modes1'] = max(4, min(12, int(mid_scale/4)))
+                         cfg['fno_modes2'] = max(4, min(12, int(mid_scale/4)))
+                         cfg['fno_layers'] = 1
+                         
+                         # Update loop bounds based on mid_scale
+                         if _ > 0: # Skip first iteration check for bounds update
+                             mid = mid_scale # Logic consistency
                     else:
                         cfg = {**model_config, 'embed_dim': int(mid)}
+                        
                     pc = build(cfg)
                     if pc == 0:
                          pc = 1e9 # treat as too big/fail
@@ -2634,6 +2785,7 @@ class RealDataARTrainer:
                             best['window_size'] = int(safe_win)
                 except Exception:
                     pass
+
 
                 try:
                     final_pc = build(best)
@@ -2764,10 +2916,25 @@ class RealDataARTrainer:
                     del best['width']
             elif 'lite' in name_l or 'restormer' in name_l or 'nafnet' in name_l:
                  base = int(model_config.get('embed_dim', 48))
-                 lo, hi = 16, 2048 
+                 orig_enc_blk = list(model_config.get('enc_num', [2, 2, 4, 8])) if 'enc_num' in model_config else None
+                 orig_dec_blk = list(model_config.get('dec_num', [2, 2, 2, 2])) if 'dec_num' in model_config else None
+
+                 lo, hi = 8, 2048 
                  for _ in range(15):
                     mid = int(((lo + hi) // 2) // 8 * 8)
                     cfg = {**model_config, 'embed_dim': mid}
+                    
+                    if mid < 24 and orig_enc_blk:
+                         cfg['enc_num'] = [1, 1, 1, 1]
+                         cfg['dec_num'] = [1, 1, 1, 1]
+                    elif mid < 32 and orig_enc_blk:
+                         cfg['enc_num'] = [max(1, x//2) for x in orig_enc_blk]
+                         cfg['dec_num'] = [max(1, x//2) for x in orig_dec_blk]
+                    
+                    if 'restormer' in name_l and mid < 24 and 'num_heads' in model_config:
+                         base_heads = list(model_config.get('num_heads', [1, 2, 4, 8]))
+                         cfg['num_heads'] = [max(1, h//2) for h in base_heads]
+
                     pc = build(cfg)
                     err = abs(pc - target)
                     if err < best_err:
@@ -2779,12 +2946,29 @@ class RealDataARTrainer:
                  try:
                     final_pc = build(best)
                     if final_pc > 0 and abs(final_pc - target) > target * 0.1:
-                        scale = (target / final_pc) ** 0.5
-                        ed = int(best.get('embed_dim', base))
-                        ed2 = max(16, int(ed * scale) // 8 * 8)
-                        best = {**best, 'embed_dim': ed2}
+                         # Fallback generic scale
+                         pass
                  except Exception:
                     pass
+            elif 'segformer' in name_l:
+                 # SegFormer tuning: Scale embed_dims list
+                 if 'embed_dims' not in model_config:
+                     model_config['embed_dims'] = [32, 64, 160, 256]
+                 base = 32
+                 lo, hi = 4, 128
+                 for _ in range(15):
+                    mid = int(((lo + hi) // 2) // 4 * 4)
+                    ratio = mid / base
+                    new_dims = [max(16, int(d * ratio) // 8 * 8) for d in [32, 64, 160, 256]]
+                    cfg = {**model_config, 'embed_dims': new_dims}
+                    pc = build(cfg)
+                    err = abs(pc - target)
+                    if err < best_err:
+                        best, best_err = cfg, err
+                    if pc < target:
+                        lo = mid + 4
+                    else:
+                        hi = mid - 4
             else:
                 pc = build(model_config)
                 if pc == 0:
@@ -7266,35 +7450,48 @@ def main():
                 to_run.append(m)
         results = []
         for m in to_run:
-            cfg = OmegaConf.create(OmegaConf.to_container(base_cfg, resolve=True))
             try:
-                cfg.model.name = m
-            except Exception:
-                pass
-            if args.target_params_m is not None:
-                cfg.model_budget = {
-                    'target_params_m': float(args.target_params_m),
-                    'tolerance_m': float(args.tolerance_m),
-                    'auto_tune': True
-                }
-            try:
-                old = str(getattr(cfg.experiment, 'name', 'AR-DR2D-Smoke'))
-            except Exception:
-                old = 'AR-DR2D-Smoke'
-            new_name = f"{old}-smoke-{m}"
-            cfg.experiment.name = new_name
-            tmp_dir = Path('runs') / 'tmp_configs'
-            tmp_dir.mkdir(parents=True, exist_ok=True)
-            tmp_cfg_path = tmp_dir / f"{new_name}.yaml"
-            with open(tmp_cfg_path, 'w') as f:
-                f.write(OmegaConf.to_yaml(cfg))
-            trainer = RealDataARTrainer(str(tmp_cfg_path), model_name=m)
-            trainer.run_quick_benchmark(num_batches=3, outfile=f"benchmark_{m}.json")
-            model_for_params = trainer.get_model()
-            if hasattr(model_for_params, 'module'):
-                model_for_params = model_for_params.module
-            pc = sum(p.numel() for p in model_for_params.parameters())
-            results.append({'model': m, 'params_m': pc/1e6})
+                cfg = OmegaConf.create(OmegaConf.to_container(base_cfg, resolve=True))
+                # Apply overrides to cfg
+                if overrides:
+                    try:
+                        override_conf = OmegaConf.from_dotlist(overrides)
+                        cfg = OmegaConf.merge(cfg, override_conf)
+                    except Exception:
+                        pass
+
+                try:
+                    cfg.model.name = m
+                except Exception:
+                    pass
+                if args.target_params_m is not None:
+                    cfg.model_budget = {
+                        'target_params_m': float(args.target_params_m),
+                        'tolerance_m': float(args.tolerance_m),
+                        'auto_tune': True
+                    }
+                try:
+                    old = str(getattr(cfg.experiment, 'name', 'AR-DR2D-Smoke'))
+                except Exception:
+                    old = 'AR-DR2D-Smoke'
+                new_name = f"{old}-smoke-{m}"
+                cfg.experiment.name = new_name
+                tmp_dir = Path('runs') / 'tmp_configs'
+                tmp_dir.mkdir(parents=True, exist_ok=True)
+                tmp_cfg_path = tmp_dir / f"{new_name}.yaml"
+                with open(tmp_cfg_path, 'w') as f:
+                    f.write(OmegaConf.to_yaml(cfg))
+                trainer = RealDataARTrainer(str(tmp_cfg_path), model_name=m)
+                trainer.run_quick_benchmark(num_batches=3, outfile=f"benchmark_{m}.json")
+                model_for_params = trainer.get_model()
+                if hasattr(model_for_params, 'module'):
+                    model_for_params = model_for_params.module
+                pc = sum(p.numel() for p in model_for_params.parameters())
+                results.append({'model': m, 'params_m': pc/1e6, 'status': 'success'})
+                print(f"✅ Smoke test passed for {m}: {pc/1e6:.2f}M")
+            except Exception as e:
+                print(f"❌ Smoke test failed for {m}: {e}")
+                results.append({'model': m, 'status': 'failed', 'error': str(e)})
         out_path = Path('runs') / 'smoke_all_results.json'
         with open(out_path, 'w') as f:
             json.dump(results, f, indent=2)

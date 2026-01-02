@@ -2,6 +2,15 @@
 
 基于Swin Transformer Tiny架构，适配PDEBench稀疏观测重建任务。
 严格遵循统一接口：forward(x[B,C_in,H,W]) → y[B,C_out,H,W]
+
+References (出处):
+    - Swin Transformer: Hierarchical Vision Transformer using Shifted Windows
+      https://arxiv.org/abs/2103.14030
+    - Swin Transformer V2 (相对位置偏置/窗口注意力等实现细节的后续版本参考；若你借鉴了V2实现细节可并列引用)
+      https://arxiv.org/abs/2111.09883
+    - 官方/开源实现参考（若你的实现改写自这些代码，请在仓库中保留对应LICENSE并在此注明）：
+        * Microsoft Research Swin Transformer (GitHub): https://github.com/microsoft/Swin-Transformer
+        * timm (部分模块/初始化/DropPath等在社区中常用): https://github.com/huggingface/pytorch-image-models
 """
 
 import math
@@ -18,12 +27,12 @@ from ..registry import register_model
 
 def window_partition(x: torch.Tensor, window_size: int) -> torch.Tensor:
     """将特征图分割为窗口
-    
-    Args:
-        x: [B, H, W, C]
-        window_size: 窗口大小
-    Returns:
-        windows: [B*num_windows, window_size, window_size, C]
+
+    Reference (出处):
+        - Swin Transformer: Hierarchical Vision Transformer using Shifted Windows
+          https://arxiv.org/abs/2103.14030
+        - 参考实现：microsoft/Swin-Transformer (window_partition)
+          https://github.com/microsoft/Swin-Transformer
     """
     B, H, W, C = x.shape
     x = x.view(B, H // window_size, window_size, W // window_size, window_size, C)
@@ -33,13 +42,12 @@ def window_partition(x: torch.Tensor, window_size: int) -> torch.Tensor:
 
 def window_reverse(windows: torch.Tensor, window_size: int, H: int, W: int) -> torch.Tensor:
     """将窗口合并回特征图
-    
-    Args:
-        windows: [B*num_windows, window_size, window_size, C]
-        window_size: 窗口大小
-        H, W: 特征图高度和宽度
-    Returns:
-        x: [B, H, W, C]
+
+    Reference (出处):
+        - Swin Transformer: Hierarchical Vision Transformer using Shifted Windows
+          https://arxiv.org/abs/2103.14030
+        - 参考实现：microsoft/Swin-Transformer (window_reverse)
+          https://github.com/microsoft/Swin-Transformer
     """
     B = int(windows.shape[0] / (H * W / window_size / window_size))
     x = windows.view(B, H // window_size, W // window_size, window_size, window_size, -1)
@@ -48,8 +56,17 @@ def window_reverse(windows: torch.Tensor, window_size: int, H: int, W: int) -> t
 
 
 class WindowAttention(nn.Module):
-    """基于窗口的多头自注意力机制"""
-    
+    """基于窗口的多头自注意力机制
+
+    Reference (出处):
+        - Swin Transformer: Hierarchical Vision Transformer using Shifted Windows
+          https://arxiv.org/abs/2103.14030
+        - 相对位置偏置（relative position bias）细节亦可参考 Swin V2：
+          https://arxiv.org/abs/2111.09883
+        - 参考实现：microsoft/Swin-Transformer (WindowAttention)
+          https://github.com/microsoft/Swin-Transformer
+    """
+
     def __init__(
         self,
         dim: int,
@@ -66,12 +83,15 @@ class WindowAttention(nn.Module):
         self.num_heads = num_heads
         head_dim = dim // num_heads
         self.scale = qk_scale or head_dim ** -0.5
-        
+
         # 相对位置偏置表
+        # Reference (出处):
+        # - Swin Transformer (relative_position_bias_table / relative_position_index)
+        #   https://arxiv.org/abs/2103.14030
         self.relative_position_bias_table = nn.Parameter(
             torch.zeros((2 * window_size[0] - 1) * (2 * window_size[1] - 1), num_heads)
         )
-        
+
         # 获取每个token对的相对位置索引
         coords_h = torch.arange(self.window_size[0])
         coords_w = torch.arange(self.window_size[1])
@@ -79,53 +99,61 @@ class WindowAttention(nn.Module):
         coords_flatten = torch.flatten(coords, 1)  # [2, Wh*Ww]
         relative_coords = coords_flatten[:, :, None] - coords_flatten[:, None, :]  # [2, Wh*Ww, Wh*Ww]
         relative_coords = relative_coords.permute(1, 2, 0).contiguous()  # [Wh*Ww, Wh*Ww, 2]
-        relative_coords[:, :, 0] += self.window_size[0] - 1  # 偏移到正数
+        relative_coords[:, :, 0] += self.window_size[0] - 1
         relative_coords[:, :, 1] += self.window_size[1] - 1
         relative_coords[:, :, 0] *= 2 * self.window_size[1] - 1
         relative_position_index = relative_coords.sum(-1)  # [Wh*Ww, Wh*Ww]
         self.register_buffer("relative_position_index", relative_position_index)
-        
+
         self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
         self.attn_drop = nn.Dropout(attn_drop)
         self.proj = nn.Linear(dim, dim)
         self.proj_drop = nn.Dropout(proj_drop)
-        
+
         # 初始化相对位置偏置表
+        # Reference (出处):
+        # - Swin Transformer官方实现中使用trunc_normal_初始化
+        #   https://github.com/microsoft/Swin-Transformer
         nn.init.trunc_normal_(self.relative_position_bias_table, std=0.02)
         self.softmax = nn.Softmax(dim=-1)
-        
+
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
         Args:
             x: [B*num_windows, N, C] where N = window_size * window_size
             mask: [num_windows, N, N] or None
-        Returns:
-            out: [B*num_windows, N, C]
+
+        Reference (出处):
+            - Swin Transformer窗口注意力（W-MSA / SW-MSA）
+              https://arxiv.org/abs/2103.14030
         """
         B_, N, C = x.shape
         qkv = self.qkv(x).reshape(B_, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
-        q, k, v = qkv[0], qkv[1], qkv[2]  # [B_, num_heads, N, C//num_heads]
-        
+        q, k, v = qkv[0], qkv[1], qkv[2]
+
         q = q * self.scale
         attn = (q @ k.transpose(-2, -1))
-        
+
         # 添加相对位置偏置
         relative_position_bias = self.relative_position_bias_table[
             self.relative_position_index.view(-1)
         ].view(self.window_size[0] * self.window_size[1], self.window_size[0] * self.window_size[1], -1)
-        relative_position_bias = relative_position_bias.permute(2, 0, 1).contiguous()  # [num_heads, N, N]
+        relative_position_bias = relative_position_bias.permute(2, 0, 1).contiguous()
         attn = attn + relative_position_bias.unsqueeze(0)
-        
+
         if mask is not None:
+            # Reference (出处):
+            # - Shifted window attention mask 机制
+            #   https://arxiv.org/abs/2103.14030
             nW = mask.shape[0]
             attn = attn.view(B_ // nW, nW, self.num_heads, N, N) + mask.unsqueeze(1).unsqueeze(0)
             attn = attn.view(-1, self.num_heads, N, N)
             attn = self.softmax(attn)
         else:
             attn = self.softmax(attn)
-            
+
         attn = self.attn_drop(attn)
-        
+
         x = (attn @ v).transpose(1, 2).reshape(B_, N, C)
         x = self.proj(x)
         x = self.proj_drop(x)
@@ -133,8 +161,17 @@ class WindowAttention(nn.Module):
 
 
 class SwinTransformerBlock(nn.Module):
-    """Swin Transformer块"""
-    
+    """Swin Transformer块
+
+    Reference (出处):
+        - Swin Transformer: Hierarchical Vision Transformer using Shifted Windows
+          https://arxiv.org/abs/2103.14030
+        - 参考实现：microsoft/Swin-Transformer (SwinTransformerBlock)
+          https://github.com/microsoft/Swin-Transformer
+        - DropPath / Stochastic Depth 常用实现可参考 timm：
+          https://github.com/huggingface/pytorch-image-models
+    """
+
     def __init__(
         self,
         dim: int,
@@ -158,9 +195,8 @@ class SwinTransformerBlock(nn.Module):
         self.window_size = window_size
         self.shift_size = shift_size
         self.mlp_ratio = mlp_ratio
-        
+
         if min(self.input_resolution) <= self.window_size:
-            # 如果窗口大小大于输入分辨率，不进行窗口分割
             self.shift_size = 0
             self.window_size = min(self.input_resolution)
         assert 0 <= self.shift_size < self.window_size, "shift_size must in 0-window_size"
@@ -168,7 +204,7 @@ class SwinTransformerBlock(nn.Module):
         H, W = self.input_resolution
         self.H_pad = (H + self.window_size - 1) // self.window_size * self.window_size
         self.W_pad = (W + self.window_size - 1) // self.window_size * self.window_size
-        
+
         if isinstance(norm_layer, str):
             if norm_layer == "LayerNorm":
                 self.norm1 = nn.LayerNorm(dim)
@@ -178,95 +214,105 @@ class SwinTransformerBlock(nn.Module):
         else:
             self.norm1 = norm_layer(dim)
             self.norm2 = norm_layer(dim)
-            
+
         self.attn = WindowAttention(
             dim, window_size=(self.window_size, self.window_size), num_heads=num_heads,
             qkv_bias=qkv_bias, qk_scale=qk_scale, attn_drop=attn_drop, proj_drop=drop
         )
-        
+
+        # Reference (出处):
+        # - Stochastic Depth / DropPath (亦称“随机深度”)
+        #   原始思想：Deep Networks with Stochastic Depth (Huang et al., 2016)
+        #   https://arxiv.org/abs/1603.09382
+        # - Swin中常用timm实现风格
         self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+
         mlp_hidden_dim = int(dim * mlp_ratio)
         self.mlp = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer, drop=drop)
-        
+
         if self.shift_size > 0:
-            # 计算注意力掩码
-            # Use padded resolution for mask
-            img_mask = torch.zeros((1, self.H_pad, self.W_pad, 1))  # [1, H_pad, W_pad, 1]
+            # 计算注意力掩码（shifted window mask）
+            # Reference (出处):
+            # - Swin Transformer shifted window attention mask
+            #   https://arxiv.org/abs/2103.14030
+            img_mask = torch.zeros((1, self.H_pad, self.W_pad, 1))
             h_slices = (slice(0, -self.window_size),
-                       slice(-self.window_size, -self.shift_size),
-                       slice(-self.shift_size, None))
+                        slice(-self.window_size, -self.shift_size),
+                        slice(-self.shift_size, None))
             w_slices = (slice(0, -self.window_size),
-                       slice(-self.window_size, -self.shift_size),
-                       slice(-self.shift_size, None))
+                        slice(-self.window_size, -self.shift_size),
+                        slice(-self.shift_size, None))
             cnt = 0
             for h in h_slices:
                 for w in w_slices:
                     img_mask[:, h, w, :] = cnt
                     cnt += 1
-                    
-            mask_windows = window_partition(img_mask, self.window_size)  # [nW, window_size, window_size, 1]
+
+            mask_windows = window_partition(img_mask, self.window_size)
             mask_windows = mask_windows.view(-1, self.window_size * self.window_size)
             attn_mask = mask_windows.unsqueeze(1) - mask_windows.unsqueeze(2)
             attn_mask = attn_mask.masked_fill(attn_mask != 0, float(-100.0)).masked_fill(attn_mask == 0, float(0.0))
         else:
             attn_mask = None
-            
+
         self.register_buffer("attn_mask", attn_mask)
-        
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # Reference (出处):
+        # - Swin Transformer Block forward (W-MSA / SW-MSA + MLP)
+        #   https://arxiv.org/abs/2103.14030
         H, W = self.input_resolution
         B, L, C = x.shape
         assert L == H * W, "input feature has wrong size"
-        
+
         shortcut = x
         x = self.norm1(x)
         x = x.view(B, H, W, C)
-        
-        # Pad to multiple of window_size
+
         pad_b = self.H_pad - H
         pad_r = self.W_pad - W
         if pad_b > 0 or pad_r > 0:
             x = F.pad(x, (0, 0, 0, pad_r, 0, pad_b))
-        
-        # 循环移位
+
         if self.shift_size > 0:
             shifted_x = torch.roll(x, shifts=(-self.shift_size, -self.shift_size), dims=(1, 2))
         else:
             shifted_x = x
-            
-        # 分割窗口
-        x_windows = window_partition(shifted_x, self.window_size)  # [nW*B, window_size, window_size, C]
-        x_windows = x_windows.view(-1, self.window_size * self.window_size, C)  # [nW*B, window_size*window_size, C]
-        
-        # W-MSA/SW-MSA
-        attn_windows = self.attn(x_windows, mask=self.attn_mask)  # [nW*B, window_size*window_size, C]
-        
-        # 合并窗口
+
+        x_windows = window_partition(shifted_x, self.window_size)
+        x_windows = x_windows.view(-1, self.window_size * self.window_size, C)
+
+        attn_windows = self.attn(x_windows, mask=self.attn_mask)
+
         attn_windows = attn_windows.view(-1, self.window_size, self.window_size, C)
-        shifted_x = window_reverse(attn_windows, self.window_size, self.H_pad, self.W_pad)  # [B, H', W', C]
-        
-        # 反向循环移位
+        shifted_x = window_reverse(attn_windows, self.window_size, self.H_pad, self.W_pad)
+
         if self.shift_size > 0:
             x = torch.roll(shifted_x, shifts=(self.shift_size, self.shift_size), dims=(1, 2))
         else:
             x = shifted_x
-            
-        # Crop back
+
         if pad_b > 0 or pad_r > 0:
             x = x[:, :H, :W, :]
-            
+
         x = x.reshape(B, H * W, C)
-        
-        # FFN
+
         x = shortcut + self.drop_path(x)
         x = x + self.drop_path(self.mlp(self.norm2(x)))
-        
+
         return x
 
 
 class PatchMerging(nn.Module):
-    """Patch合并层"""
-    
+    """Patch合并层
+
+    Reference (出处):
+        - Swin Transformer (Patch Merging)
+          https://arxiv.org/abs/2103.14030
+        - 参考实现：microsoft/Swin-Transformer (PatchMerging)
+          https://github.com/microsoft/Swin-Transformer
+    """
+
     def __init__(self, input_resolution: Tuple[int, int], dim: int, norm_layer: nn.Module = nn.LayerNorm):
         super().__init__()
         self.input_resolution = input_resolution
@@ -279,42 +325,43 @@ class PatchMerging(nn.Module):
                 raise ValueError(f"Unknown norm_layer: {norm_layer}")
         else:
             self.norm = norm_layer(4 * dim)
-        
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Args:
-            x: [B, H*W, C]
-        Returns:
-            x: [B, (H//2)*(W//2), 2*C]
-        """
         H, W = self.input_resolution
         B, L, C = x.shape
         assert L == H * W, "input feature has wrong size"
         assert H % 2 == 0 and W % 2 == 0, f"x size ({H}*{W}) are not even."
-        
+
         x = x.view(B, H, W, C)
-        
-        x0 = x[:, 0::2, 0::2, :]  # [B, H/2, W/2, C]
-        x1 = x[:, 1::2, 0::2, :]  # [B, H/2, W/2, C]
-        x2 = x[:, 0::2, 1::2, :]  # [B, H/2, W/2, C]
-        x3 = x[:, 1::2, 1::2, :]  # [B, H/2, W/2, C]
-        x = torch.cat([x0, x1, x2, x3], -1)  # [B, H/2, W/2, 4*C]
-        x = x.view(B, -1, 4 * C)  # [B, H/2*W/2, 4*C]
-        
+
+        x0 = x[:, 0::2, 0::2, :]
+        x1 = x[:, 1::2, 0::2, :]
+        x2 = x[:, 0::2, 1::2, :]
+        x3 = x[:, 1::2, 1::2, :]
+        x = torch.cat([x0, x1, x2, x3], -1)
+        x = x.view(B, -1, 4 * C)
+
         x = self.norm(x)
         x = self.reduction(x)
-        
+
         return x
 
 
 class PatchExpand(nn.Module):
-    """Patch扩展层（上采样）"""
-    
+    """Patch扩展层（上采样）
+
+    Reference (出处):
+        - Swin-UNet 的 patch expanding / upsampling 结构（若你的decoder来自Swin-UNet思路）
+          Swin-Unet: Unet-like Pure Transformer for Medical Image Segmentation
+          https://arxiv.org/abs/2105.05537
+        - 同类实现常见于开源 Swin-UNet 代码（注意保留LICENSE并注明来源）
+    """
+
     def __init__(self, input_resolution: Tuple[int, int], dim: int, dim_scale: int = 2, norm_layer: nn.Module = nn.LayerNorm):
         super().__init__()
         self.input_resolution = input_resolution
         self.dim = dim
-        self.expand = nn.Linear(dim, 2*dim, bias=False) if dim_scale == 2 else nn.Identity()
+        self.expand = nn.Linear(dim, 2 * dim, bias=False) if dim_scale == 2 else nn.Identity()
         if isinstance(norm_layer, str):
             if norm_layer == "LayerNorm":
                 self.norm = nn.LayerNorm(dim // dim_scale)
@@ -322,30 +369,31 @@ class PatchExpand(nn.Module):
                 raise ValueError(f"Unknown norm_layer: {norm_layer}")
         else:
             self.norm = norm_layer(dim // dim_scale)
-        
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Args:
-            x: [B, H*W, C]
-        Returns:
-            x: [B, (2*H)*(2*W), C//2]
-        """
         H, W = self.input_resolution
         x = self.expand(x)
         B, L, C = x.shape
         assert L == H * W, "input feature has wrong size"
-        
+
         x = x.view(B, H, W, C)
-        x = rearrange(x, 'b h w (p1 p2 c)-> b (h p1) (w p2) c', p1=2, p2=2, c=C//4)
-        x = x.view(B, -1, C//4)
+        x = rearrange(x, 'b h w (p1 p2 c)-> b (h p1) (w p2) c', p1=2, p2=2, c=C // 4)
+        x = x.view(B, -1, C // 4)
         x = self.norm(x)
-        
+
         return x
 
 
 class Mlp(nn.Module):
-    """MLP层"""
-    
+    """MLP层
+
+    Reference (出处):
+        - Transformer FFN / MLP block (Vaswani et al., 2017)
+          https://arxiv.org/abs/1706.03762
+        - Swin Transformer中同构的MLP实现
+          https://arxiv.org/abs/2103.14030
+    """
+
     def __init__(
         self,
         in_features: int,
@@ -361,7 +409,7 @@ class Mlp(nn.Module):
         self.act = act_layer()
         self.fc2 = nn.Linear(hidden_features, out_features)
         self.drop = nn.Dropout(drop)
-        
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.fc1(x)
         x = self.act(x)
@@ -372,12 +420,19 @@ class Mlp(nn.Module):
 
 
 class DropPath(nn.Module):
-    """随机深度（Stochastic Depth）"""
-    
+    """随机深度（Stochastic Depth）
+
+    Reference (出处):
+        - Deep Networks with Stochastic Depth (Huang et al., 2016)
+          https://arxiv.org/abs/1603.09382
+        - timm中常用DropPath实现风格（工程参考）
+          https://github.com/huggingface/pytorch-image-models
+    """
+
     def __init__(self, drop_prob: float = 0.0):
         super().__init__()
         self.drop_prob = drop_prob
-        
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if self.drop_prob == 0.0 or not self.training:
             return x
@@ -390,8 +445,15 @@ class DropPath(nn.Module):
 
 
 class BasicLayer(nn.Module):
-    """基础Swin Transformer层"""
-    
+    """基础Swin Transformer层
+
+    Reference (出处):
+        - Swin Transformer hierarchical stages (BasicLayer)
+          https://arxiv.org/abs/2103.14030
+        - 参考实现：microsoft/Swin-Transformer (BasicLayer)
+          https://github.com/microsoft/Swin-Transformer
+    """
+
     def __init__(
         self,
         dim: int,
@@ -414,8 +476,7 @@ class BasicLayer(nn.Module):
         self.input_resolution = input_resolution
         self.depth = depth
         self.use_checkpoint = use_checkpoint
-        
-        # 构建blocks
+
         self.blocks = nn.ModuleList([
             SwinTransformerBlock(
                 dim=dim, input_resolution=input_resolution,
@@ -429,13 +490,12 @@ class BasicLayer(nn.Module):
             )
             for i in range(depth)
         ])
-        
-        # patch merging层
+
         if downsample is not None:
             self.downsample = downsample(input_resolution, dim=dim, norm_layer=norm_layer)
         else:
             self.downsample = None
-            
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         for blk in self.blocks:
             x = blk(x)
@@ -445,8 +505,17 @@ class BasicLayer(nn.Module):
 
 
 class PatchEmbed(nn.Module):
-    """图像到Patch嵌入"""
-    
+    """图像到Patch嵌入
+
+    Reference (出处):
+        - Vision Transformer patch embedding via Conv2d (ViT)
+          https://arxiv.org/abs/2010.11929
+        - Swin Transformer PatchEmbed (Conv stem for non-overlapping patches)
+          https://arxiv.org/abs/2103.14030
+        - 参考实现：microsoft/Swin-Transformer (PatchEmbed)
+          https://github.com/microsoft/Swin-Transformer
+    """
+
     def __init__(
         self,
         img_size: int = 224,
@@ -463,10 +532,10 @@ class PatchEmbed(nn.Module):
         self.patch_size = patch_size
         self.patches_resolution = patches_resolution
         self.num_patches = patches_resolution[0] * patches_resolution[1]
-        
+
         self.in_chans = in_chans
         self.embed_dim = embed_dim
-        
+
         self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size)
         if norm_layer is not None:
             if isinstance(norm_layer, str):
@@ -478,13 +547,10 @@ class PatchEmbed(nn.Module):
                 self.norm = norm_layer(embed_dim)
         else:
             self.norm = None
-            
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         B, C, H, W = x.shape
-        # FIXME look at relaxing size constraints
-        # assert H == self.img_size[0] and W == self.img_size[1], \
-        #     f"Input image size ({H}*{W}) doesn't match model ({self.img_size[0]}*{self.img_size[1]})."
-        x = self.proj(x).flatten(2).transpose(1, 2)  # [B, Ph*Pw, C]
+        x = self.proj(x).flatten(2).transpose(1, 2)
         if self.norm is not None:
             x = self.norm(x)
         return x
@@ -493,11 +559,21 @@ class PatchEmbed(nn.Module):
 @register_model(name="swin_t", aliases=["SwinT", "SwinTransformerTiny"])
 class SwinTransformerTiny(BaseModel):
     """Swin Transformer Tiny模型
-    
+
     基于Swin Transformer Tiny架构，适配PDEBench稀疏观测重建任务。
     严格遵循统一接口：forward(x[B,C_in,H,W]) → y[B,C_out,H,W]
+
+    Reference (出处):
+        - Swin Transformer: Hierarchical Vision Transformer using Shifted Windows
+          https://arxiv.org/abs/2103.14030
+        - Swin-Unet（如果你采用了U-Net式对称编码器-解码器 + PatchExpand的解码思路）
+          https://arxiv.org/abs/2105.05537
+        - 参考实现（如为改写/借鉴来源请在仓库保留LICENSE并注明commit/URL）：
+            * Microsoft Swin Transformer: https://github.com/microsoft/Swin-Transformer
+            * Swin-Unet implementations (various forks; choose the one you actually used)
+            * timm utilities: https://github.com/huggingface/pytorch-image-models
     """
-    
+
     def __init__(
         self,
         in_channels: int = 3,
@@ -522,7 +598,11 @@ class SwinTransformerTiny(BaseModel):
         **kwargs
     ):
         super().__init__(in_channels, out_channels, img_size, **kwargs)
-        
+
+        # Reference (出处):
+        # - Swin Transformer Tiny config (embed_dim=96, depths=[2,2,6,2], heads=[3,6,12,24])
+        #   https://arxiv.org/abs/2103.14030
+
         self.num_layers = len(depths)
         self.embed_dim = embed_dim
         self.ape = ape
@@ -530,8 +610,7 @@ class SwinTransformerTiny(BaseModel):
         self.num_features = int(embed_dim * 2 ** (self.num_layers - 1))
         self.mlp_ratio = mlp_ratio
         self.final_upsample = final_upsample
-        
-        # 分割图像为不重叠的patches
+
         if isinstance(norm_layer, str):
             if norm_layer == "LayerNorm":
                 norm_layer_func = nn.LayerNorm
@@ -539,7 +618,7 @@ class SwinTransformerTiny(BaseModel):
                 raise ValueError(f"Unknown norm_layer: {norm_layer}")
         else:
             norm_layer_func = norm_layer
-            
+
         self.patch_embed = PatchEmbed(
             img_size=img_size, patch_size=patch_size, in_chans=in_channels, embed_dim=embed_dim,
             norm_layer=norm_layer_func if self.patch_norm else None
@@ -547,24 +626,32 @@ class SwinTransformerTiny(BaseModel):
         num_patches = self.patch_embed.num_patches
         patches_resolution = self.patch_embed.patches_resolution
         self.patches_resolution = patches_resolution
-        
-        # 绝对位置嵌入
+
+        # 绝对位置嵌入（APE）
+        # Reference (出处):
+        # - APE 作为可选项在ViT/部分Transformer中常见；Swin原版默认不开启
+        #   Swin: https://arxiv.org/abs/2103.14030
         if self.ape:
             self.absolute_pos_embed = nn.Parameter(torch.zeros(1, num_patches, embed_dim))
             nn.init.trunc_normal_(self.absolute_pos_embed, std=0.02)
-            
+
         self.pos_drop = nn.Dropout(p=drop_rate)
-        
-        # 随机深度
+
+        # 随机深度（Stochastic Depth）
+        # Reference (出处):
+        # - Huang et al., 2016: https://arxiv.org/abs/1603.09382
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(depths))]
-        
-        # 构建编码器层
+
+        # 构建编码器层（hierarchical stages）
+        # Reference (出处):
+        # - Swin Transformer encoder stages + PatchMerging
+        #   https://arxiv.org/abs/2103.14030
         self.layers = nn.ModuleList()
         for i_layer in range(self.num_layers):
             layer = BasicLayer(
                 dim=int(embed_dim * 2 ** i_layer),
                 input_resolution=(patches_resolution[0] // (2 ** i_layer),
-                                patches_resolution[1] // (2 ** i_layer)),
+                                  patches_resolution[1] // (2 ** i_layer)),
                 depth=depths[i_layer],
                 num_heads=num_heads[i_layer],
                 window_size=window_size,
@@ -577,8 +664,11 @@ class SwinTransformerTiny(BaseModel):
                 use_checkpoint=use_checkpoint
             )
             self.layers.append(layer)
-            
-        # 构建解码器层
+
+        # 构建解码器层（U-Net式对称上采样 + skip连接）
+        # Reference (出处):
+        # - Swin-Unet: Unet-like Pure Transformer for Medical Image Segmentation
+        #   https://arxiv.org/abs/2105.05537
         self.layers_up = nn.ModuleList()
         self.concat_back_dim = nn.ModuleList()
         for i_layer in range(self.num_layers):
@@ -586,18 +676,20 @@ class SwinTransformerTiny(BaseModel):
                 2 * int(embed_dim * 2 ** (self.num_layers - 1 - i_layer)),
                 int(embed_dim * 2 ** (self.num_layers - 1 - i_layer))
             ) if i_layer > 0 else nn.Identity()
-            
+
             if i_layer == 0:
                 layer_up = PatchExpand(
                     input_resolution=(patches_resolution[0] // (2 ** (self.num_layers - 1 - i_layer)),
-                                    patches_resolution[1] // (2 ** (self.num_layers - 1 - i_layer))),
-                    dim=int(embed_dim * 2 ** (self.num_layers - 1 - i_layer)), dim_scale=2, norm_layer=norm_layer
+                                      patches_resolution[1] // (2 ** (self.num_layers - 1 - i_layer))),
+                    dim=int(embed_dim * 2 ** (self.num_layers - 1 - i_layer)),
+                    dim_scale=2,
+                    norm_layer=norm_layer
                 )
             else:
                 layer_up = BasicLayer(
                     dim=int(embed_dim * 2 ** (self.num_layers - 1 - i_layer)),
                     input_resolution=(patches_resolution[0] // (2 ** (self.num_layers - 1 - i_layer)),
-                                    patches_resolution[1] // (2 ** (self.num_layers - 1 - i_layer))),
+                                      patches_resolution[1] // (2 ** (self.num_layers - 1 - i_layer))),
                     depth=depths[(self.num_layers - 1 - i_layer)],
                     num_heads=num_heads[(self.num_layers - 1 - i_layer)],
                     window_size=window_size,
@@ -611,7 +703,7 @@ class SwinTransformerTiny(BaseModel):
                 )
             self.layers_up.append(layer_up)
             self.concat_back_dim.append(concat_linear)
-            
+
         if isinstance(norm_layer, str):
             if norm_layer == "LayerNorm":
                 self.norm = nn.LayerNorm(self.num_features)
@@ -621,7 +713,13 @@ class SwinTransformerTiny(BaseModel):
         else:
             self.norm = norm_layer(self.num_features)
             self.norm_up = norm_layer(self.embed_dim)
-        
+
+        # 最终上采样到像素域
+        # Reference (出处):
+        # - Swin-Unet / SwinIR 类工作中常用的 PatchExpand / pixel-shuffle / conv 输出头
+        #   Swin-Unet: https://arxiv.org/abs/2105.05537
+        #   SwinIR: Image Restoration Using Swin Transformer (若你受其重建头部启发可并列引用)
+        #   https://arxiv.org/abs/2108.10257
         if final_upsample == "expand_first":
             print("---final upsample expand_first---")
             self.up = FinalPatchExpand_X4(
@@ -631,18 +729,18 @@ class SwinTransformerTiny(BaseModel):
             self.output = nn.Conv2d(in_channels=embed_dim, out_channels=out_channels, kernel_size=1, bias=False)
         elif final_upsample == "bilinear":
             print("---final upsample bilinear---")
-            # 替换为 PixelShuffle + Conv3x3 平滑，或者直接双线性上采样
-            # 考虑到 SwinIR 等做法，PixelShuffle 效果较好，但这里为了减少棋盘格，尝试 PixelShuffle + Conv
             self.up = nn.Sequential(
-                nn.Linear(embed_dim, embed_dim * 16, bias=False), # 4x4 upsample
+                nn.Linear(embed_dim, embed_dim * 16, bias=False),
                 nn.PixelShuffle(4),
             )
-            # 使用 3x3 卷积输出，减少伪影
             self.output = nn.Conv2d(in_channels=embed_dim, out_channels=out_channels, kernel_size=3, padding=1, bias=True)
-            
+
         self.apply(self._init_weights)
-        
+
     def _init_weights(self, m):
+        # Reference (出处):
+        # - Swin Transformer官方实现常用trunc_normal_初始化Linear/pos_embed
+        #   https://github.com/microsoft/Swin-Transformer
         if isinstance(m, nn.Linear):
             nn.init.trunc_normal_(m.weight, std=0.02)
             if isinstance(m, nn.Linear) and m.bias is not None:
@@ -650,24 +748,28 @@ class SwinTransformerTiny(BaseModel):
         elif isinstance(m, nn.LayerNorm):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
-            
+
     def forward_features(self, x: torch.Tensor) -> Tuple[torch.Tensor, List[torch.Tensor]]:
+        # Reference (出处):
+        # - Swin Transformer forward through hierarchical encoder stages
+        #   https://arxiv.org/abs/2103.14030
         x = self.patch_embed(x)
         if self.ape:
             x = x + self.absolute_pos_embed
         x = self.pos_drop(x)
-        
+
         x_downsample = []
-        
         for layer in self.layers:
             x_downsample.append(x)
             x = layer(x)
-            
-        x = self.norm(x)  # [B, L, C]
-        
+
+        x = self.norm(x)
         return x, x_downsample
-        
+
     def forward_up_features(self, x: torch.Tensor, x_downsample: List[torch.Tensor]) -> torch.Tensor:
+        # Reference (出处):
+        # - Swin-Unet style decoder with skip connections
+        #   https://arxiv.org/abs/2105.05537
         for inx, layer_up in enumerate(self.layers_up):
             if inx == 0:
                 x = layer_up(x)
@@ -675,80 +777,75 @@ class SwinTransformerTiny(BaseModel):
                 x = torch.cat([x, x_downsample[3 - inx]], -1)
                 x = self.concat_back_dim[inx](x)
                 x = layer_up(x)
-                
-        x = self.norm_up(x)  # [B, L, C]
-        
+
+        x = self.norm_up(x)
         return x
-        
+
     def up_x4(self, x: torch.Tensor) -> torch.Tensor:
+        # Reference (出处):
+        # - PatchExpand / PixelShuffle based upsampling heads used in Swin-Unet/SwinIR-like restoration pipelines
+        #   Swin-Unet: https://arxiv.org/abs/2105.05537
+        #   SwinIR: https://arxiv.org/abs/2108.10257
         H, W = self.patches_resolution
         B, L, C = x.shape
         assert L == H * W, "input features has wrong size"
-        
+
         if self.final_upsample == "expand_first":
             x = self.up(x)
             x = x.view(B, 4 * H, 4 * W, -1)
-            x = x.permute(0, 3, 1, 2)  # [B, C, H, W]
+            x = x.permute(0, 3, 1, 2)
             x = self.output(x)
         elif self.final_upsample == "bilinear":
-            # Manual forward for Sequential(Linear, PixelShuffle) due to shape mismatch
-            # self.up[0] is Linear: [B, L, C] -> [B, L, 16*C]
             x = self.up[0](x)
-            
-            # Reshape for PixelShuffle: [B, L, 16*C] -> [B, 16*C, H, W]
             x = x.view(B, H, W, -1).permute(0, 3, 1, 2)
-            
-            # self.up[1] is PixelShuffle: [B, 16*C, H, W] -> [B, C, 4H, 4W]
             x = self.up[1](x)
-            
-            # Final Conv
             x = self.output(x)
 
         return x
-        
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """前向传播
-        
-        Args:
-            x: 输入张量 [B, C_in, H, W]
-        Returns:
-            y: 输出张量 [B, C_out, H, W]
-        """
         x, x_downsample = self.forward_features(x)
         x = self.forward_up_features(x, x_downsample)
         x = self.up_x4(x)
-        
         return x
-        
+
     def get_num_params(self) -> int:
-        """获取模型参数数量"""
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
 
 class FinalPatchExpand_X4(nn.Module):
+    """最终4倍Patch扩展
+
+    Reference (出处):
+        - Swin-Unet / SwinIR 等Transformer重建中常见的线性展开 + rearrange 上采样策略
+          Swin-Unet: https://arxiv.org/abs/2105.05537
+          SwinIR: https://arxiv.org/abs/2108.10257
+        - einops rearrange:
+          https://github.com/arogozhnikov/einops
+    """
+
     def __init__(self, input_resolution, dim, dim_scale=4, norm_layer=nn.LayerNorm):
         super().__init__()
         self.input_resolution = input_resolution
         self.dim = dim
         self.dim_scale = dim_scale
-        self.expand = nn.Linear(dim, 16*dim, bias=False)
-        self.output_dim = dim 
+        self.expand = nn.Linear(dim, 16 * dim, bias=False)
+        self.output_dim = dim
         self.norm = norm_layer(self.output_dim)
 
     def forward(self, x):
-        """
-        x: B, H*W, C
-        """
         H, W = self.input_resolution
         x = self.expand(x)
         B, L, C = x.shape
         assert L == H * W, "input feature has wrong size"
 
         x = x.view(B, H, W, C)
-        x = rearrange(x, 'b h w (p1 p2 c)-> b (h p1) (w p2) c', p1=self.dim_scale, p2=self.dim_scale, c=C//(self.dim_scale**2))
-        x = x.view(B,-1,self.output_dim)
-        x= self.norm(x)
-
+        x = rearrange(
+            x, 'b h w (p1 p2 c)-> b (h p1) (w p2) c',
+            p1=self.dim_scale, p2=self.dim_scale, c=C // (self.dim_scale ** 2)
+        )
+        x = x.view(B, -1, self.output_dim)
+        x = self.norm(x)
         return x
 
 

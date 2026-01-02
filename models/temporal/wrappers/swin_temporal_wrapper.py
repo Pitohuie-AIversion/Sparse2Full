@@ -212,6 +212,18 @@ class SwinTemporalWrapper(BaseModel):
         Returns:
             预测序列 [B, T_out, C, H, W]
         """
+        # 兼容输入可能是列表的情况
+        if isinstance(x, (list, tuple)):
+            x = torch.stack(x, dim=1)
+            
+        # 兼容输入可能是[B, T, C, H, W]或[B, C, H, W]
+        if x.dim() == 4:
+             # [B, C, H, W] -> [B, 1, C, H, W]
+             x = x.unsqueeze(1)
+             
+        if x.dim() != 5:
+             raise ValueError(f"Input must be 5D tensor [B, T, C, H, W], got {x.shape}")
+             
         B, T_in, C_in, H, W = x.shape
         
         outputs = []

@@ -3,10 +3,10 @@
 结合Transformer和U-Net的混合架构，使用自注意力机制进行特征建模。
 SegFormer使用分层Transformer编码器，UNetFormer在U-Net中集成Transformer块。
 
-Reference:
+Reference (出处):
     SegFormer: Simple and Efficient Design for Semantic Segmentation with Transformers
     https://arxiv.org/abs/2105.15203
-    
+
     UNetFormer: A UNet-like transformer for efficient semantic segmentation
     https://arxiv.org/abs/2109.08417
 """
@@ -22,8 +22,12 @@ from ..registry import register_model
 
 class PatchEmbed(nn.Module):
     """图像到补丁嵌入
-    
+
     将输入图像分割成补丁并嵌入到高维空间
+
+    Reference (出处):
+    - SegFormer: Simple and Efficient Design for Semantic Segmentation with Transformers
+      https://arxiv.org/abs/2105.15203
     """
     
     def __init__(
@@ -51,7 +55,16 @@ class PatchEmbed(nn.Module):
 
 
 class MLP(nn.Module):
-    """多层感知机"""
+    """多层感知机
+
+    Transformer Block中的FFN/MLP子层（两层线性 + 激活 + dropout）的常见实现。
+
+    References (出处):
+    - SegFormer: Simple and Efficient Design for Semantic Segmentation with Transformers
+      https://arxiv.org/abs/2105.15203
+    - Vaswani et al. "Attention Is All You Need" (Transformer FFN基础形式)
+      https://arxiv.org/abs/1706.03762
+    """
     
     def __init__(
         self, 
@@ -80,7 +93,14 @@ class MLP(nn.Module):
 
 
 class Attention(nn.Module):
-    """多头自注意力机制"""
+    """多头自注意力机制（含可选的空间缩减 SR）
+
+    该实现对应SegFormer编码器中的Efficient Self-Attention（通过sr_ratio进行空间缩减以降低复杂度）。
+
+    Reference (出处):
+    - SegFormer: Simple and Efficient Design for Semantic Segmentation with Transformers
+      https://arxiv.org/abs/2105.15203
+    """
     
     def __init__(
         self, 
@@ -142,7 +162,16 @@ class Attention(nn.Module):
 
 
 class TransformerBlock(nn.Module):
-    """Transformer块"""
+    """Transformer块（Pre-LN + MHSA + MLP/FFN）
+
+    结构来源于Transformer基本范式，并在SegFormer中用于MiT编码器。
+
+    References (出处):
+    - SegFormer: Simple and Efficient Design for Semantic Segmentation with Transformers
+      https://arxiv.org/abs/2105.15203
+    - Vaswani et al. "Attention Is All You Need"
+      https://arxiv.org/abs/1706.03762
+    """
     
     def __init__(
         self, 
@@ -170,7 +199,10 @@ class TransformerBlock(nn.Module):
             sr_ratio=sr_ratio
         )
         
-        # 随机深度（Stochastic Depth）
+        # 随机深度（Stochastic Depth / DropPath）
+        # Reference (出处):
+        # - Huang et al. "Deep Networks with Stochastic Depth"
+        #   https://arxiv.org/abs/1603.09382
         self.drop_path = nn.Identity() if drop_path <= 0.0 else nn.Dropout(drop_path)
         
         self.norm2 = norm_layer(dim)
@@ -189,9 +221,13 @@ class TransformerBlock(nn.Module):
 
 
 class OverlapPatchEmbed(nn.Module):
-    """重叠补丁嵌入
-    
-    使用重叠的卷积进行补丁嵌入，保留更多空间信息
+    """重叠补丁嵌入（Overlap Patch Embedding）
+
+    使用重叠的卷积进行补丁嵌入，保留更多空间信息；对应SegFormer的MiT编码器设计。
+
+    Reference (出处):
+    - SegFormer: Simple and Efficient Design for Semantic Segmentation with Transformers
+      https://arxiv.org/abs/2105.15203
     """
     
     def __init__(self, img_size: int = 224, patch_size: int = 7, stride: int = 4, in_chans: int = 3, embed_dim: int = 768):
@@ -212,9 +248,13 @@ class OverlapPatchEmbed(nn.Module):
 
 
 class SegFormerEncoder(nn.Module):
-    """SegFormer编码器
-    
-    分层Transformer编码器，逐步降低分辨率并增加通道数
+    """SegFormer编码器（MiT风格的分层Transformer编码器）
+
+    分层Transformer编码器，逐步降低分辨率并增加通道数。
+
+    Reference (出处):
+    - SegFormer: Simple and Efficient Design for Semantic Segmentation with Transformers
+      https://arxiv.org/abs/2105.15203
     """
     
     def __init__(
@@ -238,7 +278,7 @@ class SegFormerEncoder(nn.Module):
         self.depths = depths
         self.embed_dims = embed_dims
         
-        # 补丁嵌入层
+        # 补丁嵌入层（Overlap Patch Embedding）
         self.patch_embed1 = OverlapPatchEmbed(img_size=img_size, patch_size=7, stride=4, in_chans=in_chans, embed_dim=embed_dims[0])
         self.patch_embed2 = OverlapPatchEmbed(img_size=img_size // 4, patch_size=3, stride=2, in_chans=embed_dims[0], embed_dim=embed_dims[1])
         self.patch_embed3 = OverlapPatchEmbed(img_size=img_size // 8, patch_size=3, stride=2, in_chans=embed_dims[1], embed_dim=embed_dims[2])
@@ -264,7 +304,7 @@ class SegFormerEncoder(nn.Module):
         self.norm2 = norm_layer(embed_dims[1])
         
         cur += depths[1]
-        # 修复注意力头数问题：确保embed_dims[2]能被num_heads[2]整除
+        # 修复注意力头数问题：确保embed_dims[2]能被num_heads[2]整除（工程性调整，非论文原始表述）
         adjusted_num_heads_2 = 4 if embed_dims[2] % num_heads[2] != 0 else num_heads[2]
         self.block3 = nn.ModuleList([TransformerBlock(
             dim=embed_dims[2], num_heads=adjusted_num_heads_2, mlp_ratio=mlp_ratios[2], qkv_bias=qkv_bias, qk_scale=qk_scale,
@@ -320,9 +360,14 @@ class SegFormerEncoder(nn.Module):
 
 
 class MLPDecoder(nn.Module):
-    """MLP解码器
-    
-    使用MLP进行特征融合和上采样
+    """MLP解码器（SegFormer风格的轻量解码器）
+
+    使用线性层将多尺度特征投影到统一维度后，上采样并融合。
+    对应SegFormer论文中的“all-MLP decoder / lightweight decoder head”思想。
+
+    Reference (出处):
+    - SegFormer: Simple and Efficient Design for Semantic Segmentation with Transformers
+      https://arxiv.org/abs/2105.15203
     """
     
     def __init__(self, in_channels: List[int], embedding_dim: int = 256, dropout: float = 0.1):
@@ -368,31 +413,16 @@ class MLPDecoder(nn.Module):
 @register_model(name="SegFormerUNetFormer", aliases=["segformer_unetformer"])
 class SegFormerUNetFormer(BaseModel):
     """SegFormer/UNetFormer模型
-    
+
     结合Transformer和U-Net的混合架构：
-    - 编码器：分层Transformer编码器（SegFormer风格）
-    - 解码器：MLP解码器进行特征融合
-    
-    这种设计结合了Transformer的全局建模能力和高效的解码策略。
-    
-    Args:
-        in_channels: 输入通道数
-        out_channels: 输出通道数
-        img_size: 图像尺寸（正方形）
-        embed_dims: 各阶段的嵌入维度，默认[64, 128, 256, 512]
-        num_heads: 各阶段的注意力头数，默认[1, 2, 4, 8]
-        mlp_ratios: MLP扩展比例，默认[4, 4, 4, 4]
-        depths: 各阶段的Transformer块数量，默认[3, 4, 6, 3]
-        sr_ratios: 空间缩减比例，默认[8, 4, 2, 1]
-        decoder_dim: 解码器嵌入维度，默认256
-        dropout: Dropout概率，默认0.1
-        **kwargs: 其他参数
-    
-    Examples:
-        >>> model = SegFormerUNetFormer(in_channels=3, out_channels=1, img_size=256)
-        >>> x = torch.randn(1, 3, 256, 256)
-        >>> y = model(x)
-        >>> print(y.shape)  # torch.Size([1, 1, 256, 256])
+    - 编码器：分层Transformer编码器（SegFormer风格 / MiT）
+    - 解码器：轻量MLP解码器进行特征融合（SegFormer风格）
+
+    References (出处):
+    - SegFormer: Simple and Efficient Design for Semantic Segmentation with Transformers
+      https://arxiv.org/abs/2105.15203
+    - UNetFormer: A UNet-like transformer for efficient semantic segmentation
+      https://arxiv.org/abs/2109.08417
     """
     
     def __init__(
@@ -431,7 +461,7 @@ class SegFormerUNetFormer(BaseModel):
         self.decoder_dim = decoder_dim
         self.dropout = dropout
         
-        # SegFormer编码器
+        # SegFormer编码器（MiT）
         self.encoder = SegFormerEncoder(
             img_size=img_size,
             in_chans=in_channels,
@@ -445,21 +475,30 @@ class SegFormerUNetFormer(BaseModel):
             drop_path_rate=0.1
         )
         
-        # MLP解码器
+        # MLP解码器（SegFormer-style lightweight head）
         self.decoder = MLPDecoder(
             in_channels=embed_dims,
             embedding_dim=decoder_dim,
             dropout=dropout
         )
         
-        # 输出头
+        # 输出头（1x1 conv输出类别/通道）
+        # Reference (出处):
+        # - SegFormer: Simple and Efficient Design for Semantic Segmentation with Transformers
+        #   https://arxiv.org/abs/2105.15203
         self.head = nn.Conv2d(decoder_dim, out_channels, kernel_size=1)
         
         # 初始化权重
         self._initialize_weights()
     
     def _initialize_weights(self):
-        """初始化模型权重"""
+        """初始化模型权重（工程实现）
+
+        References (出处):
+        - SegFormer implementation practice commonly uses truncated normal for Linear/LayerNorm init (e.g., ViT-style),
+          while Conv2d often uses variance scaling/He init variants.
+          (SegFormer paper provides architecture; init details are typically in official codebases.)
+        """
         for m in self.modules():
             if isinstance(m, nn.Linear):
                 nn.init.trunc_normal_(m.weight, std=0.02)
@@ -477,13 +516,10 @@ class SegFormerUNetFormer(BaseModel):
     
     def forward(self, x: torch.Tensor, **kwargs) -> torch.Tensor:
         """前向传播
-        
-        Args:
-            x: 输入张量 [B, C_in, H, W]
-            **kwargs: 可选输入（忽略，保持接口一致性）
-            
-        Returns:
-            输出张量 [B, C_out, H, W]
+
+        Reference (出处):
+        - SegFormer: encoder (MiT) + lightweight MLP decoder + upsample to input resolution
+          https://arxiv.org/abs/2105.15203
         """
         # 保存原始输入尺寸
         original_size = x.shape[2:]
@@ -505,12 +541,9 @@ class SegFormerUNetFormer(BaseModel):
     
     def compute_flops(self, input_shape: Tuple[int, ...] = None) -> int:
         """计算FLOPs（简化估算）
-        
-        Args:
-            input_shape: 输入形状，默认为(1, in_channels, img_size, img_size)
-            
-        Returns:
-            FLOPs数量
+
+        Note:
+        - 仅用于工程粗估，与论文/官方实现的精确统计可能不同。
         """
         if input_shape is None:
             input_shape = (1, self.in_channels, self.img_size, self.img_size)
@@ -534,13 +567,9 @@ class SegFormerUNetFormer(BaseModel):
             # Transformer块
             seq_len = h * w
             attn_flops = depth * (
-                # QKV投影
                 3 * embed_dim * embed_dim * seq_len +
-                # 注意力计算
                 num_head * seq_len * seq_len * (embed_dim // num_head) +
-                # 输出投影
                 embed_dim * embed_dim * seq_len +
-                # MLP
                 2 * embed_dim * (embed_dim * 4) * seq_len
             )
             
@@ -568,25 +597,15 @@ class SegFormerUNetFormer(BaseModel):
     
     def get_attention_maps(self, x: torch.Tensor) -> List[torch.Tensor]:
         """获取注意力图（用于可视化）
-        
-        Args:
-            x: 输入张量 [B, C_in, H, W]
-            
-        Returns:
-            各阶段的注意力图列表
+
+        Note:
+        - 当前实现返回特征均值作为“注意力代理”，并非真实的attention weights。
         """
-        # 这里简化实现，实际需要修改Attention类来返回注意力权重
         attention_maps = []
-        
-        # 通过编码器获取特征
         features = self.encoder(x)
-        
-        # 返回特征图作为注意力的代理（简化版本）
         for feat in features:
-            # 计算通道注意力作为代理
             attn = torch.mean(feat, dim=1, keepdim=True)  # [B, 1, H, W]
             attention_maps.append(attn)
-        
         return attention_maps
 
 

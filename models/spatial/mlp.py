@@ -1,106 +1,127 @@
-import math
+"""
+Standard MLP Model (Pointwise / 1x1 Conv)
+"""
+from __future__ import annotations
+from typing import List, Optional, Union
+
 import torch
 import torch.nn as nn
 
-class CoordinateEncoder(nn.Module):
+from ..base import BaseModel
+from ..registry import register_model
+
+
+@register_model(name="mlp", aliases=["MLP", "MLPModel"])
+class MLP(BaseModel):
     """
-    坐标编码器：输出严格为 [B, encoding_dim, H, W]
-
-    References (出处):
-    - Positional (sin/cos 多频位置编码思路，广泛用于隐式神经表示/坐标网络):
-      NeRF: "NeRF: Representing Scenes as Neural Radiance Fields for View Synthesis"
-      https://arxiv.org/abs/2003.08934
-
-    - Random Fourier Features / Fourier Features（随机傅里叶特征，用于增强高频表达）:
-      "Fourier Features Let Networks Learn High Frequency Functions in Low Dimensional Domains"
-      https://arxiv.org/abs/2006.10739
-
-    - Random Fourier Features 的经典理论来源（核近似）:
-      Rahimi & Recht, "Random Features for Large-Scale Kernel Machines" (NIPS 2007)
-      https://people.eecs.berkeley.edu/~brecht/papers/07.rah.rec.nips.pdf
+    Standard MLP baseline.
+    
+    By default, implements a Pointwise MLP (1x1 Convolutions) which is translation equivariant
+    and operates on each grid point independently. This is a strong baseline for dense prediction tasks.
+    
+    If `flatten=True`, it behaves as a global MLP (Flatten -> Dense -> Unflatten).
+    
+    Unified interface:
+        forward(x[B,C_in,H,W]) -> y[B,C_out,H,W]
     """
 
     def __init__(
         self,
-        encoding_type: str = "positional",
-        encoding_dim: int = 64,
-        max_freq: float = 10.0,
-        include_pi: bool = True,
+        in_channels: int | None = None,
+        out_channels: int | None = None,
+        img_size: int | None = None,
+        hidden_features: Optional[Union[int, List[int]]] = None,
+        num_layers: int = 4,
+        act_layer: str = "gelu",
+        drop: float = 0.0,
+        flatten: bool = False,
+        **kwargs,
     ):
-        super().__init__()
-        self.encoding_type = encoding_type
-        self.encoding_dim = int(encoding_dim)
-        self.max_freq = float(max_freq)
-        self.include_pi = bool(include_pi)
+        if in_channels is None:
+            in_channels = kwargs.pop("in_ch", kwargs.pop("in_chans", 1))
+        if out_channels is None:
+            out_channels = kwargs.pop("out_ch", kwargs.pop("num_classes", 1))
+        if img_size is None:
+            img_size = kwargs.get("img_size", 128)
+            
+        super().__init__(in_channels, out_channels, img_size, **kwargs)
+        
+        self.flatten = flatten
+        
+        # Resolve hidden features
+        if hidden_features is None:
+            hidden_features = [64] * (num_layers - 1)
+        elif isinstance(hidden_features, int):
+            hidden_features = [hidden_features] * (num_layers - 1)
+            
+        self.hidden_features = hidden_features
+        self.num_layers = num_layers
+        self.act_layer = act_layer
+        self.drop = drop
 
-        if self.encoding_type == "positional":
-            # NeRF-style 多频 sin/cos 编码（对坐标 x,y 使用一组 log-space 频率）:
-            # https://arxiv.org/abs/2003.08934
-            freq_dim = math.ceil(self.encoding_dim / 4)
-            self.register_buffer(
-                "freqs",
-                torch.exp(torch.linspace(0.0, math.log(self.max_freq), freq_dim)),
-                persistent=False,
-            )
-            raw_dim = 4 * freq_dim  # x: sin/cos + y: sin/cos
-            self.proj = nn.Identity() if raw_dim == self.encoding_dim else nn.Conv2d(raw_dim, self.encoding_dim, 1)
-
-        elif self.encoding_type == "fourier":
-            # Random Fourier Features / Fourier Features（Tancik et al.）:
-            # https://arxiv.org/abs/2006.10739
-            # 经典理论：Rahimi & Recht (NIPS 2007)
-            half = math.ceil(self.encoding_dim / 2)
-            B = torch.randn(half, 2) * self.max_freq
-            self.register_buffer("B", B, persistent=False)
-            raw_dim = 2 * half  # sin + cos
-            self.proj = nn.Identity() if raw_dim == self.encoding_dim else nn.Conv2d(raw_dim, self.encoding_dim, 1)
-
+        # Build layers
+        layers = []
+        in_dim = in_channels
+        
+        # Activation
+        if act_layer == "relu":
+            act_fn = nn.ReLU(inplace=True)
+        elif act_layer == "gelu":
+            act_fn = nn.GELU()
+        elif act_layer == "tanh":
+            act_fn = nn.Tanh()
         else:
-            self.proj = None  # 'none'：直接返回 coords（2通道）
+            raise ValueError(f"Unsupported activation: {act_layer}")
 
-    def forward(self, coords: torch.Tensor) -> torch.Tensor:
-        """
-        coords: [B, 2, H, W]，建议已归一化到 [-1, 1]
-        """
-        if self.encoding_type == "positional":
-            return self._positional(coords)
-        if self.encoding_type == "fourier":
-            return self._fourier(coords)
-        return coords  # [B,2,H,W]
+        # Construct MLP layers
+        for hidden_dim in hidden_features:
+            layers.append(self._make_layer(in_dim, hidden_dim))
+            layers.append(act_fn)
+            if drop > 0.0:
+                layers.append(self._make_dropout(drop))
+            in_dim = hidden_dim
+            
+        # Output layer
+        layers.append(self._make_layer(in_dim, out_channels))
+        
+        self.model = nn.Sequential(*layers)
+        self._init_weights()
 
-    def _positional(self, coords: torch.Tensor) -> torch.Tensor:
-        """
-        NeRF-style positional encoding:
-        - 对每个坐标维度，用一组频率做 sin/cos，得到多频特征
-        Reference: https://arxiv.org/abs/2003.08934
-        """
-        B, _, H, W = coords.shape
-        x = coords[:, 0:1]  # [B,1,H,W]
-        y = coords[:, 1:2]
+    def _make_layer(self, in_dim: int, out_dim: int) -> nn.Module:
+        if self.flatten:
+            return nn.Linear(in_dim, out_dim)
+        else:
+            return nn.Conv2d(in_dim, out_dim, kernel_size=1)
 
-        freqs = self.freqs.view(1, 1, 1, 1, -1)  # [1,1,1,1,f]
-        scale = math.pi if self.include_pi else 1.0
+    def _make_dropout(self, p: float) -> nn.Module:
+        if self.flatten:
+            return nn.Dropout(p)
+        else:
+            return nn.Dropout2d(p)
 
-        xw = x.unsqueeze(-1) * freqs * scale  # [B,1,H,W,f]
-        yw = y.unsqueeze(-1) * freqs * scale
+    def _init_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
 
-        # 拼到通道维： [B,4,H,W,f] -> [B,4f,H,W]
-        enc = torch.cat([torch.sin(xw), torch.cos(xw), torch.sin(yw), torch.cos(yw)], dim=1)
-        enc = enc.permute(0, 1, 4, 2, 3).contiguous().view(B, -1, H, W)
-        return self.proj(enc)
+    def forward(self, x: torch.Tensor, **kwargs) -> torch.Tensor:
+        if self.flatten:
+            # [B, C, H, W] -> [B, H*W, C] -> MLP -> [B, H*W, C_out] -> [B, C_out, H, W]
+            B, C, H, W = x.shape
+            x = x.permute(0, 2, 3, 1).reshape(B, -1, C)
+            x = self.model(x)
+            x = x.reshape(B, H, W, -1).permute(0, 3, 1, 2)
+        else:
+            # [B, C, H, W] -> 1x1 Conv -> [B, C_out, H, W]
+            x = self.model(x)
+            
+        return x
 
-    def _fourier(self, coords: torch.Tensor) -> torch.Tensor:
-        """
-        Fourier Features / Random Fourier Features:
-        - 使用随机矩阵 B 将坐标投影到高维，再做 sin/cos
-        Reference: https://arxiv.org/abs/2006.10739
-        Theory: Rahimi & Recht (NIPS 2007)
-        """
-        B, _, H, W = coords.shape
-        c = coords.permute(0, 2, 3, 1).contiguous().view(-1, 2)  # [BHW,2]
-        proj = c @ self.B.t()  # [BHW,half]
-        scale = 2 * math.pi if self.include_pi else 1.0
-        proj = proj * scale
-        enc = torch.cat([torch.sin(proj), torch.cos(proj)], dim=-1)  # [BHW, 2*half]
-        enc = enc.view(B, H, W, -1).permute(0, 3, 1, 2).contiguous()  # [B,2*half,H,W]
-        return self.proj(enc)
+# Alias for compatibility
+MLPModel = MLP

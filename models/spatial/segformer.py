@@ -3,7 +3,7 @@
 SegFormer是一个简单高效的语义分割Transformer模型，这里适配用于图像重建任务。
 使用分层Transformer编码器和轻量级MLP解码器。
 
-Reference:
+Reference (出处):
     SegFormer: Simple and Efficient Design for Semantic Segmentation with Transformers
     https://arxiv.org/abs/2105.15203
 """
@@ -18,13 +18,18 @@ from ..registry import register_model
 
 
 class PatchEmbed(nn.Module):
-    """图像到Patch嵌入"""
+    """图像到Patch嵌入
+
+    Reference (出处):
+    - SegFormer: Simple and Efficient Design for Semantic Segmentation with Transformers
+      https://arxiv.org/abs/2105.15203
+    """
     
     def __init__(self, img_size=224, patch_size=16, in_chans=3, embed_dim=768):
         super().__init__()
         self.img_size = img_size
         
-        # 确保patch_size不会超过输入尺寸
+        # 确保patch_size不会超过输入尺寸（工程适配）
         if isinstance(patch_size, int):
             patch_size = min(patch_size, img_size)
         
@@ -40,7 +45,12 @@ class PatchEmbed(nn.Module):
 
 
 class Attention(nn.Module):
-    """多头自注意力机制"""
+    """多头自注意力机制（含 SR: Spatial Reduction）
+
+    Reference (出处):
+    - SegFormer: Simple and Efficient Design for Semantic Segmentation with Transformers
+      https://arxiv.org/abs/2105.15203
+    """
     
     def __init__(self, dim, num_heads=8, qkv_bias=False, qk_scale=None, attn_drop=0., proj_drop=0., sr_ratio=1):
         super().__init__()
@@ -87,7 +97,14 @@ class Attention(nn.Module):
 
 
 class MLP(nn.Module):
-    """MLP模块"""
+    """MLP模块（Transformer FFN）
+
+    References (出处):
+    - SegFormer: Simple and Efficient Design for Semantic Segmentation with Transformers
+      https://arxiv.org/abs/2105.15203
+    - Attention Is All You Need（FFN基本形式）
+      https://arxiv.org/abs/1706.03762
+    """
     
     def __init__(self, in_features, hidden_features=None, out_features=None, act_layer=nn.GELU, drop=0.):
         super().__init__()
@@ -108,7 +125,14 @@ class MLP(nn.Module):
 
 
 class TransformerBlock(nn.Module):
-    """Transformer块"""
+    """Transformer块（Pre-LN + MHSA(SR) + MLP）
+
+    References (出处):
+    - SegFormer: Simple and Efficient Design for Semantic Segmentation with Transformers
+      https://arxiv.org/abs/2105.15203
+    - Attention Is All You Need（Transformer基本结构）
+      https://arxiv.org/abs/1706.03762
+    """
     
     def __init__(self, dim, num_heads, mlp_ratio=4., qkv_bias=False, qk_scale=None, drop=0., attn_drop=0.,
                  drop_path=0., act_layer=nn.GELU, norm_layer=nn.LayerNorm, sr_ratio=1):
@@ -117,7 +141,13 @@ class TransformerBlock(nn.Module):
         self.attn = Attention(
             dim, num_heads=num_heads, qkv_bias=qkv_bias, qk_scale=qk_scale,
             attn_drop=attn_drop, proj_drop=drop, sr_ratio=sr_ratio)
+
+        # Stochastic Depth / DropPath 的思想来源（工程实现这里用Dropout近似）
+        # Reference (出处):
+        # - Deep Networks with Stochastic Depth
+        #   https://arxiv.org/abs/1603.09382
         self.drop_path = nn.Identity() if drop_path <= 0. else nn.Dropout(drop_path)
+
         self.norm2 = norm_layer(dim)
         mlp_hidden_dim = int(dim * mlp_ratio)
         self.mlp = MLP(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer, drop=drop)
@@ -130,9 +160,11 @@ class TransformerBlock(nn.Module):
 
 @register_model(name="SegFormer", aliases=["segformer"])
 class SegFormer(BaseModel):
-    """SegFormer模型
-    
-    基于Transformer的分层编码器，用于图像重建任务
+    """SegFormer模型（用于重建任务的工程适配版）
+
+    References (出处):
+    - SegFormer: Simple and Efficient Design for Semantic Segmentation with Transformers
+      https://arxiv.org/abs/2105.15203
     """
     
     def __init__(
@@ -151,22 +183,20 @@ class SegFormer(BaseModel):
     ):
         super().__init__(in_channels, out_channels, img_size, **kwargs)
         
-
         self.embed_dims = embed_dims
         
-        # Patch嵌入层 - 动态调整patch sizes以适应小尺寸输入
-        # 对于128x128输入，使用更保守的patch sizes
+        # Patch嵌入层：此处对小尺寸输入做了patch size工程性调整（非SegFormer论文固定配置）
+        # Reference (出处):
+        # - SegFormer提出分层编码器与patch embedding + SR attention框架
+        #   https://arxiv.org/abs/2105.15203
         if img_size <= 128:
-            patch_sizes = [4, 2, 2, 2]  # 更小的patch sizes
+            patch_sizes = [4, 2, 2, 2]
         else:
             patch_sizes = [7, 3, 3, 3]
         
-        # 计算每个阶段的输入尺寸并调整patch size
         current_size = img_size
         adjusted_patch_sizes = []
-        
-        for i, base_size in enumerate(patch_sizes):
-            # 确保patch size不超过当前特征图尺寸，且至少为1
+        for base_size in patch_sizes:
             patch_size = min(base_size, max(1, current_size))
             adjusted_patch_sizes.append(patch_size)
             current_size = max(1, current_size // patch_size)
@@ -174,7 +204,6 @@ class SegFormer(BaseModel):
         self.patch_sizes = adjusted_patch_sizes
         self.patch_embed1 = PatchEmbed(img_size, adjusted_patch_sizes[0], in_channels, embed_dims[0])
         
-        # 计算后续阶段的输入尺寸
         size_after_1 = img_size // adjusted_patch_sizes[0]
         self.patch_embed2 = PatchEmbed(size_after_1, adjusted_patch_sizes[1], embed_dims[0], embed_dims[1])
         
@@ -184,7 +213,10 @@ class SegFormer(BaseModel):
         size_after_3 = size_after_2 // adjusted_patch_sizes[2]
         self.patch_embed4 = PatchEmbed(size_after_3, adjusted_patch_sizes[3], embed_dims[2], embed_dims[3])
         
-        # Transformer块
+        # Transformer块（MiT encoder的核心堆叠）
+        # Reference (出处):
+        # - SegFormer: Simple and Efficient Design for Semantic Segmentation with Transformers
+        #   https://arxiv.org/abs/2105.15203
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(depths))]
         cur = 0
         
@@ -215,7 +247,11 @@ class SegFormer(BaseModel):
             sr_ratio=sr_ratios[3]) for i in range(depths[3])])
         self.norm4 = nn.LayerNorm(embed_dims[3])
         
-        # MLP解码器
+        # 轻量解码头（融合多尺度特征后输出）
+        # 这里用Conv-BN-ReLU-Conv的工程实现来完成SegFormer“轻量解码器”思想的重建适配
+        # Reference (出处):
+        # - SegFormer: lightweight decoder head / MLP-based decode & fuse
+        #   https://arxiv.org/abs/2105.15203
         self.decode_head = nn.Sequential(
             nn.Conv2d(sum(embed_dims), 256, kernel_size=1),
             nn.BatchNorm2d(256),
@@ -227,6 +263,11 @@ class SegFormer(BaseModel):
         self.apply(self._init_weights)
     
     def _init_weights(self, m):
+        """权重初始化（工程实现）
+
+        Note:
+        - SegFormer论文给出架构设计；具体初始化细节通常在官方实现中给出。
+        """
         if isinstance(m, nn.Linear):
             nn.init.trunc_normal_(m.weight, std=.02)
             if isinstance(m, nn.Linear) and m.bias is not None:
@@ -265,8 +306,8 @@ class SegFormer(BaseModel):
         x = x.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous()
         outs.append(x)
         
-        # Stage 4 - 检查输入尺寸是否足够
-        if x.shape[2] >= 3 and x.shape[3] >= 3:  # 确保输入尺寸至少为3x3
+        # Stage 4（工程性保护：当特征图过小则跳过或降维）
+        if x.shape[2] >= 3 and x.shape[3] >= 3:
             x, H, W = self.patch_embed4(x)
             for blk in self.block4:
                 x = blk(x, H, W)
@@ -274,21 +315,26 @@ class SegFormer(BaseModel):
             x = x.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous()
             outs.append(x)
         else:
-            # 如果输入太小，跳过stage 4或使用1x1卷积
             x = nn.functional.adaptive_avg_pool2d(x, (1, 1))
-            x = x.expand(-1, -1, 1, 1)  # 保持维度
+            x = x.expand(-1, -1, 1, 1)
             outs.append(x)
         
         return outs
     
     def forward(self, x):
+        """前向传播
+
+        Reference (出处):
+        - SegFormer: multi-stage encoder + fuse multi-scale features + predict at input resolution
+          https://arxiv.org/abs/2105.15203
+        """
         features = self.forward_features(x)
         
-        # 上采样所有特征到相同尺寸
+        # 上采样所有特征到相同尺寸（以Stage1为目标）
         upsampled_features = []
         target_size = features[0].shape[2:]
         
-        for i, feat in enumerate(features):
+        for feat in features:
             if feat.shape[2:] != target_size:
                 feat = F.interpolate(feat, size=target_size, mode='bilinear', align_corners=False)
             upsampled_features.append(feat)
@@ -296,7 +342,7 @@ class SegFormer(BaseModel):
         # 特征融合
         x = torch.cat(upsampled_features, dim=1)
         
-        # 解码
+        # 解码输出
         x = self.decode_head(x)
         
         # 上采样到输入尺寸

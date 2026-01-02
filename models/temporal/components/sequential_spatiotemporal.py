@@ -462,6 +462,18 @@ class TemporalPredictionModule(nn.Module):
             )
             self.prediction_head = None
             self.feature_extractor = None
+        elif self.backend == 'conv_rnn':
+            from models.temporal.components.conv_temporal import ConvTemporalPredictor
+            self.conv_model = ConvTemporalPredictor(
+                in_channels=(spatial_feature_dim + out_channels),
+                hidden_channels=temporal_dim,
+                out_channels=out_channels,
+                num_layers=num_layers,
+                kernel_size=int(config.get('kernel_size', 3)),
+                dropout=dropout
+            )
+            self.prediction_head = None
+            self.feature_extractor = None
         else:
             self.feature_extractor = TemporalFeatureExtractor(
                 input_dim, temporal_dim, num_layers=num_layers, dropout=dropout,
@@ -578,7 +590,7 @@ class TemporalPredictionModule(nn.Module):
         
         # 5. 严格维度检查
         actual_input_dim = temporal_input.shape[-1]
-        if self.backend != 'tcn' and self.backend != 'physics_transformer':
+        if self.backend != 'tcn' and self.backend != 'physics_transformer' and self.backend != 'conv_rnn':
             expected_dim = self.feature_extractor.input_proj.in_features
             if actual_input_dim != expected_dim:
                 raise RuntimeError(
@@ -651,6 +663,22 @@ class TemporalPredictionModule(nn.Module):
                     final_pred.reshape(B * T, C_out, h_red, w_red),
                     size=desired_size, mode='bilinear', align_corners=False
                 ).reshape(B, T, C_out, desired_size[0], desired_size[1])
+
+        elif self.backend == 'conv_rnn':
+            # ConvRNN 处理 (不需要展平，需要保持空间维度)
+            # 重新获取未展平的输入
+            # spatial_pred: [B, T, C, H, W]
+            # spatial_features: [B, T, F, H, W]
+            
+            # 确保 spatial_features 和 spatial_pred 空间尺寸一致
+            if spatial_features is not None:
+                # 拼接
+                conv_input = torch.cat([spatial_pred, spatial_features], dim=2) # [B, T, C+F, H, W]
+            else:
+                conv_input = spatial_pred
+            
+            final_pred = self.conv_model(conv_input, T_out=T_out)
+            temporal_features = None # ConvRNN隐状态暂不暴露
 
         else:
             temporal_features = self.feature_extractor(temporal_input)
