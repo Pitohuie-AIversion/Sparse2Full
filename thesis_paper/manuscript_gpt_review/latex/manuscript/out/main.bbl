@@ -19,29 +19,53 @@
 
 \refsection{0}
   \datalist[entry]{nyt/apasortcite//global/global}
-    \entry{Bartolucci2023RENO}{article}{}
-      \true{moreauthor}
-      \true{morelabelname}
-      \name{author}{2}{}{%
-        {{un=0,uniquepart=base,hash=19322144761842de02fec630c75ce498}{%
+    \entry{bartolucci2023reno}{misc}{}
+      \name{author}{6}{}{%
+        {{un=0,uniquepart=base,hash=ac641863c011dd05d86606f4ac650947}{%
            family={Bartolucci},
            familyi={B\bibinitperiod},
-           given={Francesco},
+           given={Federico},
            giveni={F\bibinitperiod},
            givenun=0}}%
-        {{un=0,uniquepart=base,hash=6a284663e28ae5387ff497874fac9249}{%
-           family={De\bibnamedelima Bézenac},
-           familyi={D\bibinitperiod\bibinitdelim B\bibinitperiod},
+        {{un=0,uniquepart=base,hash=5ed6564e3978c8ff8e16f615891d5be7}{%
+           family={Bézenac},
+           familyi={B\bibinitperiod},
            given={Emmanuel},
            giveni={E\bibinitperiod},
+           givenun=0,
+           prefix={de},
+           prefixi={d\bibinitperiod}}}%
+        {{un=0,uniquepart=base,hash=0d902e17cfb2a7786d1a5e25e28438dc}{%
+           family={Raonić},
+           familyi={R\bibinitperiod},
+           given={Bogdan},
+           giveni={B\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=14e1d73a56a5ad8d944956bb85f1b428}{%
+           family={Molinaro},
+           familyi={M\bibinitperiod},
+           given={Roberto},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=202d2742653588d0b8e2bddcf2377672}{%
+           family={Mishra},
+           familyi={M\bibinitperiod},
+           given={Siddhartha},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=eb93d75a0fea470e6b1c14977ee21b56}{%
+           family={Alaifari},
+           familyi={A\bibinitperiod},
+           given={Roberto},
+           giveni={R\bibinitperiod},
            givenun=0}}%
       }
-      \strng{namehash}{1582d82784caa544c6445dc87a272962}
-      \strng{fullhash}{1582d82784caa544c6445dc87a272962}
-      \strng{bibnamehash}{1582d82784caa544c6445dc87a272962}
-      \strng{authorbibnamehash}{1582d82784caa544c6445dc87a272962}
-      \strng{authornamehash}{1582d82784caa544c6445dc87a272962}
-      \strng{authorfullhash}{1582d82784caa544c6445dc87a272962}
+      \strng{namehash}{128234082e39a198ce93423795f9d75f}
+      \strng{fullhash}{5be3b70ced3d5c64a228298f5b703456}
+      \strng{bibnamehash}{5be3b70ced3d5c64a228298f5b703456}
+      \strng{authorbibnamehash}{5be3b70ced3d5c64a228298f5b703456}
+      \strng{authornamehash}{128234082e39a198ce93423795f9d75f}
+      \strng{authorfullhash}{5be3b70ced3d5c64a228298f5b703456}
       \field{sortinit}{B}
       \field{sortinithash}{d7095fff47cda75ca2589920aae98399}
       \field{extradatescope}{labelyear}
@@ -49,17 +73,251 @@
       \true{uniqueprimaryauthor}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
-      \field{journaltitle}{Journal of Machine Learning Research}
-      \field{title}{Neural operators with representation equivalence for aliasing-free operator learning}
+      \field{eprintclass}{cs.LG}
+      \field{eprinttype}{arXiv}
+      \field{howpublished}{\url{https://arxiv.org/abs/2305.19913}}
+      \field{title}{Representation Equivalent Neural Operators: A Framework for Alias-Free Operator Learning}
       \field{year}{2023}
-      \verb{urlraw}
-      \verb https://www.jmlr.org/papers/volume24/21-1524/21-1524.pdf
-      \endverb
-      \verb{url}
-      \verb https://www.jmlr.org/papers/volume24/21-1524/21-1524.pdf
+      \verb{eprint}
+      \verb 2305.19913
       \endverb
     \endentry
-    \entry{Kovachki2023NeuralOperator}{article}{}
+    \entry{Berrone2022}{article}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=fd61a6f91ac13e797deb827c24599761}{%
+           family={Berrone},
+           familyi={B\bibinitperiod},
+           given={Stefano},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=0294cb897f23b64bfc42e94be07bf841}{%
+           family={Canuto},
+           familyi={C\bibinitperiod},
+           given={Claudio},
+           giveni={C\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=ec01120a138ba3cddd85e451a2211c41}{%
+           family={Pintore},
+           familyi={P\bibinitperiod},
+           given={Moreno},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{eb3d44b23c73046cacb6bf09c7bed260}
+      \strng{fullhash}{7aba1481613682e39e32b4b68877c52d}
+      \strng{bibnamehash}{7aba1481613682e39e32b4b68877c52d}
+      \strng{authorbibnamehash}{7aba1481613682e39e32b4b68877c52d}
+      \strng{authornamehash}{eb3d44b23c73046cacb6bf09c7bed260}
+      \strng{authorfullhash}{7aba1481613682e39e32b4b68877c52d}
+      \field{sortinit}{B}
+      \field{sortinithash}{d7095fff47cda75ca2589920aae98399}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Journal of Scientific Computing}
+      \field{title}{Variational Physics Informed Neural Networks: the Role of Quadratures and Test Functions}
+      \field{volume}{92}
+      \field{year}{2022}
+      \verb{doi}
+      \verb 10.1007/s10915-022-01950-4
+      \endverb
+      \verb{urlraw}
+      \verb https://link.springer.com/article/10.1007/s10915-022-01950-4
+      \endverb
+      \verb{url}
+      \verb https://link.springer.com/article/10.1007/s10915-022-01950-4
+      \endverb
+    \endentry
+    \entry{cohen1988power}{book}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=eaad07ee1c6ef93a9308150f12c3c2eb}{%
+           family={Cohen},
+           familyi={C\bibinitperiod},
+           given={Jacob},
+           giveni={J\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{location}{1}{%
+        {Hillsdale, NJ}%
+      }
+      \list{publisher}{1}{%
+        {Lawrence Erlbaum Associates}%
+      }
+      \strng{namehash}{eaad07ee1c6ef93a9308150f12c3c2eb}
+      \strng{fullhash}{eaad07ee1c6ef93a9308150f12c3c2eb}
+      \strng{bibnamehash}{eaad07ee1c6ef93a9308150f12c3c2eb}
+      \strng{authorbibnamehash}{eaad07ee1c6ef93a9308150f12c3c2eb}
+      \strng{authornamehash}{eaad07ee1c6ef93a9308150f12c3c2eb}
+      \strng{authorfullhash}{eaad07ee1c6ef93a9308150f12c3c2eb}
+      \field{sortinit}{C}
+      \field{sortinithash}{4d103a86280481745c9c897c925753c0}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{edition}{2}
+      \field{title}{Statistical Power Analysis for the Behavioral Sciences}
+      \field{year}{1988}
+    \endentry
+    \entry{cuomo2022}{article}{}
+      \name{author}{6}{}{%
+        {{un=0,uniquepart=base,hash=a149dbc0c7d8c7b44289299d659521f4}{%
+           family={Cuomo},
+           familyi={C\bibinitperiod},
+           given={Salvatore},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=c803f6b62d587bc05925228f778a1ab6}{%
+           family={Schiano\bibnamedelimb Di\bibnamedelima Cola},
+           familyi={S\bibinitperiod\bibinitdelim D\bibinitperiod\bibinitdelim C\bibinitperiod},
+           given={Vincenzo},
+           giveni={V\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=07970330b2a43b5c2e55ae13af5a7097}{%
+           family={Giampaolo},
+           familyi={G\bibinitperiod},
+           given={Fabio},
+           giveni={F\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=2b969effc2e931cc3f6118c144824d3f}{%
+           family={Rozza},
+           familyi={R\bibinitperiod},
+           given={Gianluigi},
+           giveni={G\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=95a17c39168b9e6b8812f207b4e036c1}{%
+           family={Raissi},
+           familyi={R\bibinitperiod},
+           given={Maziar},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=5e071190ec9de33600de48969adb345b}{%
+           family={Piccialli},
+           familyi={P\bibinitperiod},
+           given={Francesco},
+           giveni={F\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{ecacc4512ae1bd881356a9535bcb4121}
+      \strng{fullhash}{040a834255afe056b288bb978ea85b42}
+      \strng{bibnamehash}{040a834255afe056b288bb978ea85b42}
+      \strng{authorbibnamehash}{040a834255afe056b288bb978ea85b42}
+      \strng{authornamehash}{ecacc4512ae1bd881356a9535bcb4121}
+      \strng{authorfullhash}{040a834255afe056b288bb978ea85b42}
+      \field{sortinit}{C}
+      \field{sortinithash}{4d103a86280481745c9c897c925753c0}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Journal of Scientific Computing}
+      \field{title}{Scientific Machine Learning Through Physics--Informed Neural Networks: Where we are and What’s Next}
+      \field{volume}{92}
+      \field{year}{2022}
+      \field{pages}{88}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.1007/s10915-022-01939-z
+      \endverb
+      \verb{urlraw}
+      \verb https://link.springer.com/article/10.1007/s10915-022-01939-z
+      \endverb
+      \verb{url}
+      \verb https://link.springer.com/article/10.1007/s10915-022-01939-z
+      \endverb
+    \endentry
+    \entry{deryck2022kolmogorov}{article}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=c476d0adea0966fd27f146a4fcb429a1}{%
+           family={De\bibnamedelima Ryck},
+           familyi={D\bibinitperiod\bibinitdelim R\bibinitperiod},
+           given={Tim},
+           giveni={T\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=202d2742653588d0b8e2bddcf2377672}{%
+           family={Mishra},
+           familyi={M\bibinitperiod},
+           given={Siddhartha},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{7770bd1bacf205573d06418be796728f}
+      \strng{fullhash}{7770bd1bacf205573d06418be796728f}
+      \strng{bibnamehash}{7770bd1bacf205573d06418be796728f}
+      \strng{authorbibnamehash}{7770bd1bacf205573d06418be796728f}
+      \strng{authornamehash}{7770bd1bacf205573d06418be796728f}
+      \strng{authorfullhash}{7770bd1bacf205573d06418be796728f}
+      \field{extraname}{1}
+      \field{sortinit}{D}
+      \field{sortinithash}{6f385f66841fb5e82009dc833c761848}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Advances in Computational Mathematics}
+      \field{title}{Error analysis for physics-informed neural networks ({PINNs}) approximating Kolmogorov {PDEs}}
+      \field{volume}{48}
+      \field{year}{2022}
+      \field{pages}{79}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.1007/s10444-022-09985-9
+      \endverb
+      \verb{urlraw}
+      \verb https://arxiv.org/abs/2106.14473
+      \endverb
+      \verb{url}
+      \verb https://arxiv.org/abs/2106.14473
+      \endverb
+    \endentry
+    \entry{deryck2024acta_numerica}{article}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=c476d0adea0966fd27f146a4fcb429a1}{%
+           family={De\bibnamedelima Ryck},
+           familyi={D\bibinitperiod\bibinitdelim R\bibinitperiod},
+           given={Tim},
+           giveni={T\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=202d2742653588d0b8e2bddcf2377672}{%
+           family={Mishra},
+           familyi={M\bibinitperiod},
+           given={Siddhartha},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{7770bd1bacf205573d06418be796728f}
+      \strng{fullhash}{7770bd1bacf205573d06418be796728f}
+      \strng{bibnamehash}{7770bd1bacf205573d06418be796728f}
+      \strng{authorbibnamehash}{7770bd1bacf205573d06418be796728f}
+      \strng{authornamehash}{7770bd1bacf205573d06418be796728f}
+      \strng{authorfullhash}{7770bd1bacf205573d06418be796728f}
+      \field{extraname}{2}
+      \field{sortinit}{D}
+      \field{sortinithash}{6f385f66841fb5e82009dc833c761848}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Acta Numerica}
+      \field{title}{Numerical analysis of physics-informed neural networks and related models in physics-informed machine learning}
+      \field{volume}{33}
+      \field{year}{2024}
+      \field{pages}{633\bibrangedash 713}
+      \range{pages}{81}
+      \verb{urlraw}
+      \verb https://arxiv.org/abs/2402.10926
+      \endverb
+      \verb{url}
+      \verb https://arxiv.org/abs/2402.10926
+      \endverb
+    \endentry
+    \entry{kovachki2023neural_operator}{article}{}
       \name{author}{7}{}{%
         {{un=0,uniquepart=base,hash=d3715d69863d59245589f244c5866bd4}{%
            family={Kovachki},
@@ -119,7 +377,7 @@
       \field{labeltitlesource}{title}
       \field{journaltitle}{Journal of Machine Learning Research}
       \field{number}{89}
-      \field{title}{Neural Operator: Learning Maps Between Function Spaces}
+      \field{title}{Neural Operator: Learning Maps Between Function Spaces With Applications to {PDEs}}
       \field{volume}{24}
       \field{year}{2023}
       \field{pages}{1\bibrangedash 97}
@@ -131,7 +389,7 @@
       \verb https://www.jmlr.org/papers/v24/21-1524.html
       \endverb
     \endentry
-    \entry{Li2021FNO}{article}{}
+    \entry{li2021fno}{article}{}
       \name{author}{7}{}{%
         {{un=0,uniquepart=base,hash=009036050bf23abe561429f6eaa0b018}{%
            family={Li},
@@ -198,13 +456,57 @@
       \verb 2010.08895
       \endverb
       \verb{urlraw}
-      \verb https://arxiv.org/abs/2010.08895
+      \verb https://openreview.net/forum?id=c8P9NQVtmnO
       \endverb
       \verb{url}
-      \verb https://arxiv.org/abs/2010.08895
+      \verb https://openreview.net/forum?id=c8P9NQVtmnO
       \endverb
     \endentry
-    \entry{Lu2021DeepONet}{article}{}
+    \entry{liu2025diminishing_spectral_bias}{misc}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=448fc8464c0c45f9d3089a61e6536168}{%
+           family={Liu},
+           familyi={L\bibinitperiod},
+           given={Yarong},
+           giveni={Y\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=13a3758e760ae49a4b29a24bd7d22cf4}{%
+           family={Gu},
+           familyi={G\bibinitperiod},
+           given={Hong},
+           giveni={H\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=2c6e2164065d7a01ff2e22f57b52ef14}{%
+           family={Yu},
+           familyi={Y\bibinitperiod},
+           given={Xiangjun},
+           giveni={X\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{3e6e5bbc5043a722c6165d85439b38bb}
+      \strng{fullhash}{7c76c96b4542118b4df13c8d31500fc8}
+      \strng{bibnamehash}{7c76c96b4542118b4df13c8d31500fc8}
+      \strng{authorbibnamehash}{7c76c96b4542118b4df13c8d31500fc8}
+      \strng{authornamehash}{3e6e5bbc5043a722c6165d85439b38bb}
+      \strng{authorfullhash}{7c76c96b4542118b4df13c8d31500fc8}
+      \field{sortinit}{L}
+      \field{sortinithash}{7c47d417cecb1f4bd38d1825c427a61a}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{howpublished}{Computer Methods in Applied Mechanics and Engineering}
+      \field{title}{Diminishing spectral bias in physics-informed neural networks using spatially-adaptive {Fourier} feature encoding}
+      \field{year}{2025}
+      \verb{urlraw}
+      \verb https://www.sciencedirect.com/science/article/abs/pii/S0893608024008153
+      \endverb
+      \verb{url}
+      \verb https://www.sciencedirect.com/science/article/abs/pii/S0893608024008153
+      \endverb
+    \endentry
+    \entry{lu2021deeponet}{article}{}
       \name{author}{5}{}{%
         {{un=0,uniquepart=base,hash=6f6f1357e5a7fb658e3e9c999886ce83}{%
            family={Lu},
@@ -218,10 +520,10 @@
            given={Pengzhan},
            giveni={P\bibinitperiod},
            givenun=0}}%
-        {{un=0,uniquepart=base,hash=26d25140a656e316d5d3dd7e01a7a224}{%
+        {{un=0,uniquepart=base,hash=b04db7dd7744ba0a4c8516ea52b2b2a4}{%
            family={Pang},
            familyi={P\bibinitperiod},
-           given={Guanglin},
+           given={Guofei},
            giveni={G\bibinitperiod},
            givenun=0}}%
         {{un=0,uniquepart=base,hash=8d7acff517951d0a9eba8e9b39a167dc}{%
@@ -230,19 +532,19 @@
            given={Zhongqiang},
            giveni={Z\bibinitperiod},
            givenun=0}}%
-        {{un=0,uniquepart=base,hash=bfaf154b1f300f885a75adce4c6b773e}{%
+        {{un=0,uniquepart=base,hash=9aae361c2be63ce52bc98112e2a2fffa}{%
            family={Karniadakis},
            familyi={K\bibinitperiod},
-           given={George\bibnamedelima Em},
+           given={George\bibnamedelima E.},
            giveni={G\bibinitperiod\bibinitdelim E\bibinitperiod},
            givenun=0}}%
       }
       \strng{namehash}{fdebff66447a2ecc33abe80490823209}
-      \strng{fullhash}{d4a10e336f1cccfad3d28af5a250ff20}
-      \strng{bibnamehash}{d4a10e336f1cccfad3d28af5a250ff20}
-      \strng{authorbibnamehash}{d4a10e336f1cccfad3d28af5a250ff20}
+      \strng{fullhash}{7a83d80bac85b86120e56ea1039928f3}
+      \strng{bibnamehash}{7a83d80bac85b86120e56ea1039928f3}
+      \strng{authorbibnamehash}{7a83d80bac85b86120e56ea1039928f3}
       \strng{authornamehash}{fdebff66447a2ecc33abe80490823209}
-      \strng{authorfullhash}{d4a10e336f1cccfad3d28af5a250ff20}
+      \strng{authorfullhash}{7a83d80bac85b86120e56ea1039928f3}
       \field{sortinit}{L}
       \field{sortinithash}{7c47d417cecb1f4bd38d1825c427a61a}
       \field{extradatescope}{labelyear}
@@ -260,14 +562,55 @@
       \verb{doi}
       \verb 10.1038/s42256-021-00302-5
       \endverb
+    \endentry
+    \entry{odena2016checkerboard}{article}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=a04932af4057bbbbad95d73521f2d22b}{%
+           family={Odena},
+           familyi={O\bibinitperiod},
+           given={Augustus},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=1328d3ceef6add8461994fc364c664df}{%
+           family={Dumoulin},
+           familyi={D\bibinitperiod},
+           given={Vincent},
+           giveni={V\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=78be47e08348476a254b1217fd9041ca}{%
+           family={Olah},
+           familyi={O\bibinitperiod},
+           given={Chris},
+           giveni={C\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{cc5070deee87c12632dc009ee0d438dd}
+      \strng{fullhash}{f7f9b14bf38891984f22c4f684969d16}
+      \strng{bibnamehash}{f7f9b14bf38891984f22c4f684969d16}
+      \strng{authorbibnamehash}{f7f9b14bf38891984f22c4f684969d16}
+      \strng{authornamehash}{cc5070deee87c12632dc009ee0d438dd}
+      \strng{authorfullhash}{f7f9b14bf38891984f22c4f684969d16}
+      \field{sortinit}{O}
+      \field{sortinithash}{2cd7140a07aea5341f9e2771efe90aae}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Distill}
+      \field{title}{Deconvolution and Checkerboard Artifacts}
+      \field{year}{2016}
+      \verb{doi}
+      \verb 10.23915/distill.00003
+      \endverb
       \verb{urlraw}
-      \verb https://www.nature.com/articles/s42256-021-00302-5
+      \verb https://distill.pub/2016/deconv-checkerboard/
       \endverb
       \verb{url}
-      \verb https://www.nature.com/articles/s42256-021-00302-5
+      \verb https://distill.pub/2016/deconv-checkerboard/
       \endverb
     \endentry
-    \entry{OpenCVInterp}{online}{}
+    \entry{opencv_resize}{misc}{}
       \name{author}{1}{}{%
         {{un=0,uniquepart=base,hash=5bd4c87976f48e6a53919d53e14025e9}{%
            family={{OpenCV}},
@@ -283,25 +626,24 @@
       \field{sortinit}{O}
       \field{sortinithash}{2cd7140a07aea5341f9e2771efe90aae}
       \field{extradate}{1}
-      \field{extradatescope}{labelyear}
-      \field{labeldatesource}{}
+      \field{labeldatesource}{nodate}
       \true{uniqueprimaryauthor}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
-      \field{title}{Geometric Image Transformations: Interpolation flags (e.g., INTER\_AREA)}
-      \field{urlday}{26}
+      \field{howpublished}{OpenCV Documentation}
+      \field{title}{Geometric Image Transformations: resize interpolation (including \texttt{INTER\_AREA} guidance for shrinking)}
+      \field{urlday}{29}
       \field{urlmonth}{12}
       \field{urlyear}{2025}
-      \field{year}{n.d.}
       \field{urldateera}{ce}
       \verb{urlraw}
-      \verb https://docs.opencv.org/3.4/da/d54/group__imgproc__transform.html
+      \verb https://docs.opencv.org/master/da/d54/group__imgproc__transform.html
       \endverb
       \verb{url}
-      \verb https://docs.opencv.org/3.4/da/d54/group__imgproc__transform.html
+      \verb https://docs.opencv.org/master/da/d54/group__imgproc__transform.html
       \endverb
     \endentry
-    \entry{OpenCVGaussian}{online}{}
+    \entry{opencv_gaussianblur}{misc}{}
       \name{author}{1}{}{%
         {{un=0,uniquepart=base,hash=5bd4c87976f48e6a53919d53e14025e9}{%
            family={{OpenCV}},
@@ -317,25 +659,204 @@
       \field{sortinit}{O}
       \field{sortinithash}{2cd7140a07aea5341f9e2771efe90aae}
       \field{extradate}{2}
-      \field{extradatescope}{labelyear}
-      \field{labeldatesource}{}
+      \field{labeldatesource}{nodate}
       \true{uniqueprimaryauthor}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
-      \field{title}{Image Filtering: Gaussian blur and parameter definitions}
-      \field{urlday}{26}
+      \field{howpublished}{OpenCV Documentation}
+      \field{title}{Image Filtering: \texttt{GaussianBlur} parameters (\texttt{ksize}, \texttt{sigmaX}, \texttt{sigmaY}, \texttt{borderType})}
+      \field{urlday}{29}
       \field{urlmonth}{12}
       \field{urlyear}{2025}
-      \field{year}{n.d.}
       \field{urldateera}{ce}
       \verb{urlraw}
-      \verb https://docs.opencv.org/3.4/d4/d13/tutorial_py_filtering.html
+      \verb https://docs.opencv.org/3.4/d4/d86/group__imgproc__filter.html
       \endverb
       \verb{url}
-      \verb https://docs.opencv.org/3.4/d4/d13/tutorial_py_filtering.html
+      \verb https://docs.opencv.org/3.4/d4/d86/group__imgproc__filter.html
       \endverb
     \endentry
-    \entry{Raissi2019PINN}{article}{}
+    \entry{pytorch_cuda_memory}{misc}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=c390ae15dc416827a5426c11a2962971}{%
+           family={{PyTorch Contributors}},
+           familyi={P\bibinitperiod}}}%
+      }
+      \strng{namehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{fullhash}{c390ae15dc416827a5426c11a2962971}
+      \strng{bibnamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authorbibnamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authornamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authorfullhash}{c390ae15dc416827a5426c11a2962971}
+      \field{extraname}{1}
+      \field{sortinit}{P}
+      \field{sortinithash}{ff3bcf24f47321b42cb156c2cc8a8422}
+      \field{extradate}{1}
+      \field{labeldatesource}{nodate}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{howpublished}{PyTorch Documentation}
+      \field{title}{CUDA Memory Management Notes}
+      \field{urlday}{25}
+      \field{urlmonth}{12}
+      \field{urlyear}{2025}
+      \field{urldateera}{ce}
+      \verb{urlraw}
+      \verb https://pytorch.org/docs/stable/notes/cuda.html#memory-management
+      \endverb
+      \verb{url}
+      \verb https://pytorch.org/docs/stable/notes/cuda.html#memory-management
+      \endverb
+    \endentry
+    \entry{pytorch_randomness}{misc}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=c390ae15dc416827a5426c11a2962971}{%
+           family={{PyTorch Contributors}},
+           familyi={P\bibinitperiod}}}%
+      }
+      \strng{namehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{fullhash}{c390ae15dc416827a5426c11a2962971}
+      \strng{bibnamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authorbibnamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authornamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authorfullhash}{c390ae15dc416827a5426c11a2962971}
+      \field{extraname}{2}
+      \field{sortinit}{P}
+      \field{sortinithash}{ff3bcf24f47321b42cb156c2cc8a8422}
+      \field{extradate}{2}
+      \field{labeldatesource}{nodate}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{howpublished}{PyTorch Documentation}
+      \field{title}{Reproducibility (Randomness and Deterministic Algorithms)}
+      \field{urlday}{25}
+      \field{urlmonth}{12}
+      \field{urlyear}{2025}
+      \field{urldateera}{ce}
+      \verb{urlraw}
+      \verb https://pytorch.org/docs/stable/notes/randomness.html
+      \endverb
+      \verb{url}
+      \verb https://pytorch.org/docs/stable/notes/randomness.html
+      \endverb
+    \endentry
+    \entry{pytorch_max_memory_allocated}{misc}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=c390ae15dc416827a5426c11a2962971}{%
+           family={{PyTorch Contributors}},
+           familyi={P\bibinitperiod}}}%
+      }
+      \strng{namehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{fullhash}{c390ae15dc416827a5426c11a2962971}
+      \strng{bibnamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authorbibnamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authornamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authorfullhash}{c390ae15dc416827a5426c11a2962971}
+      \field{extraname}{3}
+      \field{sortinit}{P}
+      \field{sortinithash}{ff3bcf24f47321b42cb156c2cc8a8422}
+      \field{extradate}{3}
+      \field{labeldatesource}{nodate}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{howpublished}{PyTorch Documentation}
+      \field{title}{\texttt{torch.cuda.max\_memory\_allocated}}
+      \field{urlday}{25}
+      \field{urlmonth}{12}
+      \field{urlyear}{2025}
+      \field{urldateera}{ce}
+      \verb{urlraw}
+      \verb https://pytorch.org/docs/stable/generated/torch.cuda.max_memory_allocated.html
+      \endverb
+      \verb{url}
+      \verb https://pytorch.org/docs/stable/generated/torch.cuda.max_memory_allocated.html
+      \endverb
+    \endentry
+    \entry{pytorch_set_det_debug}{misc}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=c390ae15dc416827a5426c11a2962971}{%
+           family={{PyTorch Contributors}},
+           familyi={P\bibinitperiod}}}%
+      }
+      \strng{namehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{fullhash}{c390ae15dc416827a5426c11a2962971}
+      \strng{bibnamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authorbibnamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authornamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authorfullhash}{c390ae15dc416827a5426c11a2962971}
+      \field{extraname}{4}
+      \field{sortinit}{P}
+      \field{sortinithash}{ff3bcf24f47321b42cb156c2cc8a8422}
+      \field{extradate}{4}
+      \field{labeldatesource}{nodate}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{howpublished}{\url{https://pytorch.org/docs/stable/generated/torch.set_deterministic_debug_mode.html}}
+      \field{note}{PyTorch Documentation, accessed 2025-12-30}
+      \field{title}{torch.set\_deterministic\_debug\_mode}
+    \endentry
+    \entry{pytorch_deterministic_algorithms}{misc}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=c390ae15dc416827a5426c11a2962971}{%
+           family={{PyTorch Contributors}},
+           familyi={P\bibinitperiod}}}%
+      }
+      \strng{namehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{fullhash}{c390ae15dc416827a5426c11a2962971}
+      \strng{bibnamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authorbibnamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authornamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authorfullhash}{c390ae15dc416827a5426c11a2962971}
+      \field{extraname}{5}
+      \field{sortinit}{P}
+      \field{sortinithash}{ff3bcf24f47321b42cb156c2cc8a8422}
+      \field{extradate}{5}
+      \field{labeldatesource}{nodate}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{howpublished}{PyTorch Documentation}
+      \field{title}{\texttt{torch.use\_deterministic\_algorithms}}
+      \field{urlday}{25}
+      \field{urlmonth}{12}
+      \field{urlyear}{2025}
+      \field{urldateera}{ce}
+      \verb{urlraw}
+      \verb https://pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html
+      \endverb
+      \verb{url}
+      \verb https://pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html
+      \endverb
+    \endentry
+    \entry{pytorch_use_deterministic}{misc}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=c390ae15dc416827a5426c11a2962971}{%
+           family={{PyTorch Contributors}},
+           familyi={P\bibinitperiod}}}%
+      }
+      \strng{namehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{fullhash}{c390ae15dc416827a5426c11a2962971}
+      \strng{bibnamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authorbibnamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authornamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authorfullhash}{c390ae15dc416827a5426c11a2962971}
+      \field{extraname}{6}
+      \field{sortinit}{P}
+      \field{sortinithash}{ff3bcf24f47321b42cb156c2cc8a8422}
+      \field{extradate}{6}
+      \field{labeldatesource}{nodate}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{howpublished}{\url{https://pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html}}
+      \field{note}{PyTorch Documentation, accessed 2025-12-30}
+      \field{title}{torch.use\_deterministic\_algorithms}
+    \endentry
+    \entry{raissi2019pinn}{article}{}
       \name{author}{3}{}{%
         {{un=0,uniquepart=base,hash=95a17c39168b9e6b8812f207b4e036c1}{%
            family={Raissi},
@@ -378,65 +899,122 @@
       \verb{doi}
       \verb 10.1016/j.jcp.2018.10.045
       \endverb
+      \verb{urlraw}
+      \verb https://doi.org/10.1016/j.jcp.2018.10.045
+      \endverb
+      \verb{url}
+      \verb https://doi.org/10.1016/j.jcp.2018.10.045
+      \endverb
     \endentry
-    \entry{Wang2021PIDeepONet}{article}{}
-      \name{author}{3}{}{%
-        {{un=0,uniquepart=base,hash=15db674b3efc6848f40514aa0034717a}{%
-           family={Wang},
-           familyi={W\bibinitperiod},
-           given={Sifan},
-           giveni={S\bibinitperiod},
-           givenun=0}}%
-        {{un=0,uniquepart=base,hash=19dfd5f1a0cdf2eda91fd5d0ec97b9c3}{%
-           family={Yu},
-           familyi={Y\bibinitperiod},
-           given={Xuhui},
-           giveni={X\bibinitperiod},
-           givenun=0}}%
-        {{un=0,uniquepart=base,hash=197d71332633e07aa578718628fdc405}{%
-           family={Perdikaris},
-           familyi={P\bibinitperiod},
-           given={Paris},
-           giveni={P\bibinitperiod},
-           givenun=0}}%
+    \entry{student1908probable}{article}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=f5c0a1c9384c2e25e79ba1abf5d9a037}{%
+           family={Student},
+           familyi={S\bibinitperiod}}}%
       }
-      \strng{namehash}{ef1ca3afbde4b19c973486cc8a12bc89}
-      \strng{fullhash}{d12de1ab0f6e9d8495b5494d95b59253}
-      \strng{bibnamehash}{d12de1ab0f6e9d8495b5494d95b59253}
-      \strng{authorbibnamehash}{d12de1ab0f6e9d8495b5494d95b59253}
-      \strng{authornamehash}{ef1ca3afbde4b19c973486cc8a12bc89}
-      \strng{authorfullhash}{d12de1ab0f6e9d8495b5494d95b59253}
-      \field{extraname}{1}
-      \field{sortinit}{W}
-      \field{sortinithash}{4315d78024d0cea9b57a0c6f0e35ed0d}
+      \strng{namehash}{f5c0a1c9384c2e25e79ba1abf5d9a037}
+      \strng{fullhash}{f5c0a1c9384c2e25e79ba1abf5d9a037}
+      \strng{bibnamehash}{f5c0a1c9384c2e25e79ba1abf5d9a037}
+      \strng{authorbibnamehash}{f5c0a1c9384c2e25e79ba1abf5d9a037}
+      \strng{authornamehash}{f5c0a1c9384c2e25e79ba1abf5d9a037}
+      \strng{authorfullhash}{f5c0a1c9384c2e25e79ba1abf5d9a037}
+      \field{sortinit}{S}
+      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
       \field{extradatescope}{labelyear}
       \field{labeldatesource}{}
       \true{uniqueprimaryauthor}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
-      \field{journaltitle}{Science Advances}
-      \field{number}{40}
-      \field{title}{When and why {DeepONet}s work: {Physics}-informed {DeepONet} for learning and interpreting parametric partial differential equations}
-      \field{volume}{7}
-      \field{year}{2021}
-      \field{pages}{eabf1381}
-      \range{pages}{-1}
+      \field{journaltitle}{Biometrika}
+      \field{number}{1}
+      \field{title}{The Probable Error of a Mean}
+      \field{volume}{6}
+      \field{year}{1908}
+      \field{pages}{1\bibrangedash 25}
+      \range{pages}{25}
       \verb{doi}
-      \verb 10.1126/sciadv.abf1381
+      \verb 10.1093/biomet/6.1.1
       \endverb
     \endentry
-    \entry{Wang2022CausalityPINN}{article}{}
-      \name{author}{3}{}{%
-        {{un=0,uniquepart=base,hash=15db674b3efc6848f40514aa0034717a}{%
+    \entry{takamoto2022pdebench}{article}{}
+      \true{moreauthor}
+      \true{morelabelname}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=d9a5cf169a1e1ff25ce4d1cefa58d94a}{%
+           family={Takamoto},
+           familyi={T\bibinitperiod},
+           given={Makoto},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{b55dc51ed2a96200ae3ff85f68acd43b}
+      \strng{fullhash}{b55dc51ed2a96200ae3ff85f68acd43b}
+      \strng{bibnamehash}{b55dc51ed2a96200ae3ff85f68acd43b}
+      \strng{authorbibnamehash}{b55dc51ed2a96200ae3ff85f68acd43b}
+      \strng{authornamehash}{b55dc51ed2a96200ae3ff85f68acd43b}
+      \strng{authorfullhash}{b55dc51ed2a96200ae3ff85f68acd43b}
+      \field{sortinit}{T}
+      \field{sortinithash}{9af77f0292593c26bde9a56e688eaee9}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{NeurIPS Datasets and Benchmarks Track}
+      \field{title}{{PDEBench}: An Extensive Benchmark for Scientific Machine Learning}
+      \field{year}{2022}
+      \verb{urlraw}
+      \verb https://openreview.net/forum?id=dh_MkX0QfrK
+      \endverb
+      \verb{url}
+      \verb https://openreview.net/forum?id=dh_MkX0QfrK
+      \endverb
+    \endentry
+    \entry{wang2025spectralbias_multiscale}{misc}{}
+      \true{moreauthor}
+      \true{morelabelname}
+      \name{author}{1}{}{%
+        {{un=1,uniquepart=given,hash=15db674b3efc6848f40514aa0034717a}{%
            family={Wang},
            familyi={W\bibinitperiod},
            given={Sifan},
            giveni={S\bibinitperiod},
-           givenun=0}}%
-        {{un=0,uniquepart=base,hash=4a69e21696c5be8eb6972d559f536b32}{%
+           givenun=1}}%
+      }
+      \strng{namehash}{ef1ca3afbde4b19c973486cc8a12bc89}
+      \strng{fullhash}{ef1ca3afbde4b19c973486cc8a12bc89}
+      \strng{bibnamehash}{ef1ca3afbde4b19c973486cc8a12bc89}
+      \strng{authorbibnamehash}{ef1ca3afbde4b19c973486cc8a12bc89}
+      \strng{authornamehash}{ef1ca3afbde4b19c973486cc8a12bc89}
+      \strng{authorfullhash}{ef1ca3afbde4b19c973486cc8a12bc89}
+      \field{sortinit}{W}
+      \field{sortinithash}{4315d78024d0cea9b57a0c6f0e35ed0d}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{howpublished}{Preprint}
+      \field{title}{Spectral bias in multi-scale {PDE} learning}
+      \field{year}{2025}
+      \verb{urlraw}
+      \verb https://arxiv.org
+      \endverb
+      \verb{url}
+      \verb https://arxiv.org
+      \endverb
+    \endentry
+    \entry{wang2022causality_pinn}{article}{}
+      \name{author}{3}{ul=2}{%
+        {{un=1,uniquepart=given,hash=15db674b3efc6848f40514aa0034717a}{%
+           family={Wang},
+           familyi={W\bibinitperiod},
+           given={Sifan},
+           giveni={S\bibinitperiod},
+           givenun=1}}%
+        {{un=0,uniquepart=base,hash=a3e2e25bd681c86b4f52eff42c3197ff}{%
            family={Sankaran},
            familyi={S\bibinitperiod},
-           given={Surya},
+           given={Shyam},
            giveni={S\bibinitperiod},
            givenun=0}}%
         {{un=0,uniquepart=base,hash=197d71332633e07aa578718628fdc405}{%
@@ -446,23 +1024,21 @@
            giveni={P\bibinitperiod},
            givenun=0}}%
       }
-      \strng{namehash}{ef1ca3afbde4b19c973486cc8a12bc89}
-      \strng{fullhash}{98362320f6bb1326bf95d0538416f8a3}
-      \strng{bibnamehash}{98362320f6bb1326bf95d0538416f8a3}
-      \strng{authorbibnamehash}{98362320f6bb1326bf95d0538416f8a3}
-      \strng{authornamehash}{ef1ca3afbde4b19c973486cc8a12bc89}
-      \strng{authorfullhash}{98362320f6bb1326bf95d0538416f8a3}
-      \field{extraname}{2}
+      \strng{namehash}{c8c8782e17ad24757a70990ffc7545a2}
+      \strng{fullhash}{c8c8782e17ad24757a70990ffc7545a2}
+      \strng{bibnamehash}{c8c8782e17ad24757a70990ffc7545a2}
+      \strng{authorbibnamehash}{c8c8782e17ad24757a70990ffc7545a2}
+      \strng{authornamehash}{c8c8782e17ad24757a70990ffc7545a2}
+      \strng{authorfullhash}{c8c8782e17ad24757a70990ffc7545a2}
       \field{sortinit}{W}
       \field{sortinithash}{4315d78024d0cea9b57a0c6f0e35ed0d}
       \field{extradatescope}{labelyear}
       \field{labeldatesource}{}
-      \true{uniqueprimaryauthor}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
       \field{eprintclass}{cs.LG}
       \field{eprinttype}{arXiv}
-      \field{title}{Respecting causality is all you need for training physics-informed neural networks}
+      \field{title}{Respecting Causality is All You Need for Training Physics-Informed Neural Networks}
       \field{year}{2022}
       \verb{eprint}
       \verb 2203.07404
@@ -472,33 +1048,246 @@
       \endverb
       \verb{url}
       \verb https://arxiv.org/abs/2203.07404
+      \endverb
+    \endentry
+    \entry{wang2022pinn_ntk}{article}{}
+      \name{author}{3}{ul=2}{%
+        {{un=1,uniquepart=given,hash=15db674b3efc6848f40514aa0034717a}{%
+           family={Wang},
+           familyi={W\bibinitperiod},
+           given={Sifan},
+           giveni={S\bibinitperiod},
+           givenun=1}}%
+        {{un=0,uniquepart=base,hash=c4806f1b394b9b5bfd141eb562151ace}{%
+           family={Yu},
+           familyi={Y\bibinitperiod},
+           given={Xinling},
+           giveni={X\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=197d71332633e07aa578718628fdc405}{%
+           family={Perdikaris},
+           familyi={P\bibinitperiod},
+           given={Paris},
+           giveni={P\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{05730140fcac84924809252b5c6642ea}
+      \strng{fullhash}{05730140fcac84924809252b5c6642ea}
+      \strng{bibnamehash}{05730140fcac84924809252b5c6642ea}
+      \strng{authorbibnamehash}{05730140fcac84924809252b5c6642ea}
+      \strng{authornamehash}{05730140fcac84924809252b5c6642ea}
+      \strng{authorfullhash}{05730140fcac84924809252b5c6642ea}
+      \field{sortinit}{W}
+      \field{sortinithash}{4315d78024d0cea9b57a0c6f0e35ed0d}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Journal of Computational Physics}
+      \field{title}{When and why {PINNs} fail to train: A neural tangent kernel perspective}
+      \field{volume}{449}
+      \field{year}{2022}
+      \field{pages}{110768}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.1016/j.jcp.2021.110768
+      \endverb
+    \endentry
+    \entry{wang2004ssim}{article}{}
+      \name{author}{4}{}{%
+        {{un=1,uniquepart=given,hash=f244e8ae5eff7776cf2b4b5b84ad8c4a}{%
+           family={Wang},
+           familyi={W\bibinitperiod},
+           given={Zhou},
+           giveni={Z\bibinitperiod},
+           givenun=1}}%
+        {{un=0,uniquepart=base,hash=d9c2ab9a8cbcab08292923a454c88ce7}{%
+           family={Bovik},
+           familyi={B\bibinitperiod},
+           given={Alan\bibnamedelima C.},
+           giveni={A\bibinitperiod\bibinitdelim C\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=b21953b57a16342d57782f7a32ca10ea}{%
+           family={Sheikh},
+           familyi={S\bibinitperiod},
+           given={Hamid\bibnamedelima R.},
+           giveni={H\bibinitperiod\bibinitdelim R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=027ac5801d4cec598c393e1f9875c60b}{%
+           family={Simoncelli},
+           familyi={S\bibinitperiod},
+           given={Eero\bibnamedelima P.},
+           giveni={E\bibinitperiod\bibinitdelim P\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{ec7f3703fbd419b313e0a329e6241059}
+      \strng{fullhash}{678422238c76e65638062cadc184ea94}
+      \strng{bibnamehash}{678422238c76e65638062cadc184ea94}
+      \strng{authorbibnamehash}{678422238c76e65638062cadc184ea94}
+      \strng{authornamehash}{ec7f3703fbd419b313e0a329e6241059}
+      \strng{authorfullhash}{678422238c76e65638062cadc184ea94}
+      \field{sortinit}{W}
+      \field{sortinithash}{4315d78024d0cea9b57a0c6f0e35ed0d}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{IEEE Transactions on Image Processing}
+      \field{number}{4}
+      \field{title}{Image quality assessment: From error visibility to structural similarity}
+      \field{volume}{13}
+      \field{year}{2004}
+      \field{pages}{600\bibrangedash 612}
+      \range{pages}{13}
+      \verb{doi}
+      \verb 10.1109/TIP.2003.819861
+      \endverb
+    \endentry
+    \entry{wilkinson2016fair}{article}{}
+      \true{moreauthor}
+      \true{morelabelname}
+      \name{author}{10}{}{%
+        {{un=0,uniquepart=base,hash=e88185c2eca4405ce11cb8920f485660}{%
+           family={Wilkinson},
+           familyi={W\bibinitperiod},
+           given={Mark\bibnamedelima D.},
+           giveni={M\bibinitperiod\bibinitdelim D\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=93badcbcd9ff0747849763affb474199}{%
+           family={Dumontier},
+           familyi={D\bibinitperiod},
+           given={Michel},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=cda28834d0f69262ef00bb56bd87a0c0}{%
+           family={Aalbersberg},
+           familyi={A\bibinitperiod},
+           given={I.\bibnamedelimi Jsbrand\bibnamedelima Jan},
+           giveni={I\bibinitperiod\bibinitdelim J\bibinitperiod\bibinitdelim J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=c8bd3ce56531164a76d2447bea864837}{%
+           family={Appleton},
+           familyi={A\bibinitperiod},
+           given={Gabrielle},
+           giveni={G\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=f12336d71cec892ed279b160d6fcd07d}{%
+           family={Axton},
+           familyi={A\bibinitperiod},
+           given={Myles},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=24f9e2bf2d8c89090eef143a51d01653}{%
+           family={Baak},
+           familyi={B\bibinitperiod},
+           given={Arie},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=372112f8c145373974f902b8035baa7f}{%
+           family={Blomberg},
+           familyi={B\bibinitperiod},
+           given={Niklas},
+           giveni={N\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=311117127e85a09450298e1cb378cc6d}{%
+           family={Boiten},
+           familyi={B\bibinitperiod},
+           given={Jan-Willem},
+           giveni={J\bibinithyphendelim W\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=bd75fc4b7a3c5f7d6d42f7728f3f7d0c}{%
+           family={Silva\bibnamedelima Santos},
+           familyi={S\bibinitperiod\bibinitdelim S\bibinitperiod},
+           given={Luiz\bibnamedelima Bonino},
+           giveni={L\bibinitperiod\bibinitdelim B\bibinitperiod},
+           givenun=0,
+           prefix={da},
+           prefixi={d\bibinitperiod}}}%
+        {{un=0,uniquepart=base,hash=e8f011b361a44c99e0b3cd105b7553dc}{%
+           family={Bourne},
+           familyi={B\bibinitperiod},
+           given={Philip\bibnamedelima E.},
+           giveni={P\bibinitperiod\bibinitdelim E\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{f324cd0f485d0aaf63321d014f1f638f}
+      \strng{fullhash}{045ccac6770fe953276d10d7d3a69a54}
+      \strng{bibnamehash}{045ccac6770fe953276d10d7d3a69a54}
+      \strng{authorbibnamehash}{045ccac6770fe953276d10d7d3a69a54}
+      \strng{authornamehash}{f324cd0f485d0aaf63321d014f1f638f}
+      \strng{authorfullhash}{045ccac6770fe953276d10d7d3a69a54}
+      \field{sortinit}{W}
+      \field{sortinithash}{4315d78024d0cea9b57a0c6f0e35ed0d}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Scientific Data}
+      \field{title}{The {FAIR} Guiding Principles for scientific data management and stewardship}
+      \field{volume}{3}
+      \field{year}{2016}
+      \field{pages}{160018}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.1038/sdata.2016.18
+      \endverb
+      \verb{urlraw}
+      \verb https://www.nature.com/articles/sdata201618
+      \endverb
+      \verb{url}
+      \verb https://www.nature.com/articles/sdata201618
       \endverb
     \endentry
   \enddatalist
   \datalist[entry]{nyt/global//global/global}
-    \entry{Bartolucci2023RENO}{article}{}
-      \true{moreauthor}
-      \true{morelabelname}
-      \name{author}{2}{}{%
-        {{un=0,uniquepart=base,hash=19322144761842de02fec630c75ce498}{%
+    \entry{bartolucci2023reno}{misc}{}
+      \name{author}{6}{}{%
+        {{un=0,uniquepart=base,hash=ac641863c011dd05d86606f4ac650947}{%
            family={Bartolucci},
            familyi={B\bibinitperiod},
-           given={Francesco},
+           given={Federico},
            giveni={F\bibinitperiod},
            givenun=0}}%
-        {{un=0,uniquepart=base,hash=6a284663e28ae5387ff497874fac9249}{%
-           family={De\bibnamedelima Bézenac},
-           familyi={D\bibinitperiod\bibinitdelim B\bibinitperiod},
+        {{un=0,uniquepart=base,hash=5ed6564e3978c8ff8e16f615891d5be7}{%
+           family={Bézenac},
+           familyi={B\bibinitperiod},
            given={Emmanuel},
            giveni={E\bibinitperiod},
+           givenun=0,
+           prefix={de},
+           prefixi={d\bibinitperiod}}}%
+        {{un=0,uniquepart=base,hash=0d902e17cfb2a7786d1a5e25e28438dc}{%
+           family={Raonić},
+           familyi={R\bibinitperiod},
+           given={Bogdan},
+           giveni={B\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=14e1d73a56a5ad8d944956bb85f1b428}{%
+           family={Molinaro},
+           familyi={M\bibinitperiod},
+           given={Roberto},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=202d2742653588d0b8e2bddcf2377672}{%
+           family={Mishra},
+           familyi={M\bibinitperiod},
+           given={Siddhartha},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=eb93d75a0fea470e6b1c14977ee21b56}{%
+           family={Alaifari},
+           familyi={A\bibinitperiod},
+           given={Roberto},
+           giveni={R\bibinitperiod},
            givenun=0}}%
       }
-      \strng{namehash}{1582d82784caa544c6445dc87a272962}
-      \strng{fullhash}{1582d82784caa544c6445dc87a272962}
-      \strng{bibnamehash}{1582d82784caa544c6445dc87a272962}
-      \strng{authorbibnamehash}{1582d82784caa544c6445dc87a272962}
-      \strng{authornamehash}{1582d82784caa544c6445dc87a272962}
-      \strng{authorfullhash}{1582d82784caa544c6445dc87a272962}
+      \strng{namehash}{128234082e39a198ce93423795f9d75f}
+      \strng{fullhash}{5be3b70ced3d5c64a228298f5b703456}
+      \strng{bibnamehash}{5be3b70ced3d5c64a228298f5b703456}
+      \strng{authorbibnamehash}{5be3b70ced3d5c64a228298f5b703456}
+      \strng{authornamehash}{128234082e39a198ce93423795f9d75f}
+      \strng{authorfullhash}{5be3b70ced3d5c64a228298f5b703456}
       \field{sortinit}{B}
       \field{sortinithash}{d7095fff47cda75ca2589920aae98399}
       \field{extradatescope}{labelyear}
@@ -506,17 +1295,251 @@
       \true{uniqueprimaryauthor}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
-      \field{journaltitle}{Journal of Machine Learning Research}
-      \field{title}{Neural operators with representation equivalence for aliasing-free operator learning}
+      \field{eprintclass}{cs.LG}
+      \field{eprinttype}{arXiv}
+      \field{howpublished}{\url{https://arxiv.org/abs/2305.19913}}
+      \field{title}{Representation Equivalent Neural Operators: A Framework for Alias-Free Operator Learning}
       \field{year}{2023}
-      \verb{urlraw}
-      \verb https://www.jmlr.org/papers/volume24/21-1524/21-1524.pdf
-      \endverb
-      \verb{url}
-      \verb https://www.jmlr.org/papers/volume24/21-1524/21-1524.pdf
+      \verb{eprint}
+      \verb 2305.19913
       \endverb
     \endentry
-    \entry{Kovachki2023NeuralOperator}{article}{}
+    \entry{Berrone2022}{article}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=fd61a6f91ac13e797deb827c24599761}{%
+           family={Berrone},
+           familyi={B\bibinitperiod},
+           given={Stefano},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=0294cb897f23b64bfc42e94be07bf841}{%
+           family={Canuto},
+           familyi={C\bibinitperiod},
+           given={Claudio},
+           giveni={C\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=ec01120a138ba3cddd85e451a2211c41}{%
+           family={Pintore},
+           familyi={P\bibinitperiod},
+           given={Moreno},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{eb3d44b23c73046cacb6bf09c7bed260}
+      \strng{fullhash}{7aba1481613682e39e32b4b68877c52d}
+      \strng{bibnamehash}{7aba1481613682e39e32b4b68877c52d}
+      \strng{authorbibnamehash}{7aba1481613682e39e32b4b68877c52d}
+      \strng{authornamehash}{eb3d44b23c73046cacb6bf09c7bed260}
+      \strng{authorfullhash}{7aba1481613682e39e32b4b68877c52d}
+      \field{sortinit}{B}
+      \field{sortinithash}{d7095fff47cda75ca2589920aae98399}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Journal of Scientific Computing}
+      \field{title}{Variational Physics Informed Neural Networks: the Role of Quadratures and Test Functions}
+      \field{volume}{92}
+      \field{year}{2022}
+      \verb{doi}
+      \verb 10.1007/s10915-022-01950-4
+      \endverb
+      \verb{urlraw}
+      \verb https://link.springer.com/article/10.1007/s10915-022-01950-4
+      \endverb
+      \verb{url}
+      \verb https://link.springer.com/article/10.1007/s10915-022-01950-4
+      \endverb
+    \endentry
+    \entry{cohen1988power}{book}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=eaad07ee1c6ef93a9308150f12c3c2eb}{%
+           family={Cohen},
+           familyi={C\bibinitperiod},
+           given={Jacob},
+           giveni={J\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{location}{1}{%
+        {Hillsdale, NJ}%
+      }
+      \list{publisher}{1}{%
+        {Lawrence Erlbaum Associates}%
+      }
+      \strng{namehash}{eaad07ee1c6ef93a9308150f12c3c2eb}
+      \strng{fullhash}{eaad07ee1c6ef93a9308150f12c3c2eb}
+      \strng{bibnamehash}{eaad07ee1c6ef93a9308150f12c3c2eb}
+      \strng{authorbibnamehash}{eaad07ee1c6ef93a9308150f12c3c2eb}
+      \strng{authornamehash}{eaad07ee1c6ef93a9308150f12c3c2eb}
+      \strng{authorfullhash}{eaad07ee1c6ef93a9308150f12c3c2eb}
+      \field{sortinit}{C}
+      \field{sortinithash}{4d103a86280481745c9c897c925753c0}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{edition}{2}
+      \field{title}{Statistical Power Analysis for the Behavioral Sciences}
+      \field{year}{1988}
+    \endentry
+    \entry{cuomo2022}{article}{}
+      \name{author}{6}{}{%
+        {{un=0,uniquepart=base,hash=a149dbc0c7d8c7b44289299d659521f4}{%
+           family={Cuomo},
+           familyi={C\bibinitperiod},
+           given={Salvatore},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=c803f6b62d587bc05925228f778a1ab6}{%
+           family={Schiano\bibnamedelimb Di\bibnamedelima Cola},
+           familyi={S\bibinitperiod\bibinitdelim D\bibinitperiod\bibinitdelim C\bibinitperiod},
+           given={Vincenzo},
+           giveni={V\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=07970330b2a43b5c2e55ae13af5a7097}{%
+           family={Giampaolo},
+           familyi={G\bibinitperiod},
+           given={Fabio},
+           giveni={F\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=2b969effc2e931cc3f6118c144824d3f}{%
+           family={Rozza},
+           familyi={R\bibinitperiod},
+           given={Gianluigi},
+           giveni={G\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=95a17c39168b9e6b8812f207b4e036c1}{%
+           family={Raissi},
+           familyi={R\bibinitperiod},
+           given={Maziar},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=5e071190ec9de33600de48969adb345b}{%
+           family={Piccialli},
+           familyi={P\bibinitperiod},
+           given={Francesco},
+           giveni={F\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{ecacc4512ae1bd881356a9535bcb4121}
+      \strng{fullhash}{040a834255afe056b288bb978ea85b42}
+      \strng{bibnamehash}{040a834255afe056b288bb978ea85b42}
+      \strng{authorbibnamehash}{040a834255afe056b288bb978ea85b42}
+      \strng{authornamehash}{ecacc4512ae1bd881356a9535bcb4121}
+      \strng{authorfullhash}{040a834255afe056b288bb978ea85b42}
+      \field{sortinit}{C}
+      \field{sortinithash}{4d103a86280481745c9c897c925753c0}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Journal of Scientific Computing}
+      \field{title}{Scientific Machine Learning Through Physics--Informed Neural Networks: Where we are and What’s Next}
+      \field{volume}{92}
+      \field{year}{2022}
+      \field{pages}{88}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.1007/s10915-022-01939-z
+      \endverb
+      \verb{urlraw}
+      \verb https://link.springer.com/article/10.1007/s10915-022-01939-z
+      \endverb
+      \verb{url}
+      \verb https://link.springer.com/article/10.1007/s10915-022-01939-z
+      \endverb
+    \endentry
+    \entry{deryck2022kolmogorov}{article}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=c476d0adea0966fd27f146a4fcb429a1}{%
+           family={De\bibnamedelima Ryck},
+           familyi={D\bibinitperiod\bibinitdelim R\bibinitperiod},
+           given={Tim},
+           giveni={T\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=202d2742653588d0b8e2bddcf2377672}{%
+           family={Mishra},
+           familyi={M\bibinitperiod},
+           given={Siddhartha},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{7770bd1bacf205573d06418be796728f}
+      \strng{fullhash}{7770bd1bacf205573d06418be796728f}
+      \strng{bibnamehash}{7770bd1bacf205573d06418be796728f}
+      \strng{authorbibnamehash}{7770bd1bacf205573d06418be796728f}
+      \strng{authornamehash}{7770bd1bacf205573d06418be796728f}
+      \strng{authorfullhash}{7770bd1bacf205573d06418be796728f}
+      \field{extraname}{1}
+      \field{sortinit}{D}
+      \field{sortinithash}{6f385f66841fb5e82009dc833c761848}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Advances in Computational Mathematics}
+      \field{title}{Error analysis for physics-informed neural networks ({PINNs}) approximating Kolmogorov {PDEs}}
+      \field{volume}{48}
+      \field{year}{2022}
+      \field{pages}{79}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.1007/s10444-022-09985-9
+      \endverb
+      \verb{urlraw}
+      \verb https://arxiv.org/abs/2106.14473
+      \endverb
+      \verb{url}
+      \verb https://arxiv.org/abs/2106.14473
+      \endverb
+    \endentry
+    \entry{deryck2024acta_numerica}{article}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=c476d0adea0966fd27f146a4fcb429a1}{%
+           family={De\bibnamedelima Ryck},
+           familyi={D\bibinitperiod\bibinitdelim R\bibinitperiod},
+           given={Tim},
+           giveni={T\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=202d2742653588d0b8e2bddcf2377672}{%
+           family={Mishra},
+           familyi={M\bibinitperiod},
+           given={Siddhartha},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{7770bd1bacf205573d06418be796728f}
+      \strng{fullhash}{7770bd1bacf205573d06418be796728f}
+      \strng{bibnamehash}{7770bd1bacf205573d06418be796728f}
+      \strng{authorbibnamehash}{7770bd1bacf205573d06418be796728f}
+      \strng{authornamehash}{7770bd1bacf205573d06418be796728f}
+      \strng{authorfullhash}{7770bd1bacf205573d06418be796728f}
+      \field{extraname}{2}
+      \field{sortinit}{D}
+      \field{sortinithash}{6f385f66841fb5e82009dc833c761848}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Acta Numerica}
+      \field{title}{Numerical analysis of physics-informed neural networks and related models in physics-informed machine learning}
+      \field{volume}{33}
+      \field{year}{2024}
+      \field{pages}{633\bibrangedash 713}
+      \range{pages}{81}
+      \verb{urlraw}
+      \verb https://arxiv.org/abs/2402.10926
+      \endverb
+      \verb{url}
+      \verb https://arxiv.org/abs/2402.10926
+      \endverb
+    \endentry
+    \entry{kovachki2023neural_operator}{article}{}
       \name{author}{7}{}{%
         {{un=0,uniquepart=base,hash=d3715d69863d59245589f244c5866bd4}{%
            family={Kovachki},
@@ -576,7 +1599,7 @@
       \field{labeltitlesource}{title}
       \field{journaltitle}{Journal of Machine Learning Research}
       \field{number}{89}
-      \field{title}{Neural Operator: Learning Maps Between Function Spaces}
+      \field{title}{Neural Operator: Learning Maps Between Function Spaces With Applications to {PDEs}}
       \field{volume}{24}
       \field{year}{2023}
       \field{pages}{1\bibrangedash 97}
@@ -588,7 +1611,7 @@
       \verb https://www.jmlr.org/papers/v24/21-1524.html
       \endverb
     \endentry
-    \entry{Li2021FNO}{article}{}
+    \entry{li2021fno}{article}{}
       \name{author}{7}{}{%
         {{un=0,uniquepart=base,hash=009036050bf23abe561429f6eaa0b018}{%
            family={Li},
@@ -655,13 +1678,57 @@
       \verb 2010.08895
       \endverb
       \verb{urlraw}
-      \verb https://arxiv.org/abs/2010.08895
+      \verb https://openreview.net/forum?id=c8P9NQVtmnO
       \endverb
       \verb{url}
-      \verb https://arxiv.org/abs/2010.08895
+      \verb https://openreview.net/forum?id=c8P9NQVtmnO
       \endverb
     \endentry
-    \entry{Lu2021DeepONet}{article}{}
+    \entry{liu2025diminishing_spectral_bias}{misc}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=448fc8464c0c45f9d3089a61e6536168}{%
+           family={Liu},
+           familyi={L\bibinitperiod},
+           given={Yarong},
+           giveni={Y\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=13a3758e760ae49a4b29a24bd7d22cf4}{%
+           family={Gu},
+           familyi={G\bibinitperiod},
+           given={Hong},
+           giveni={H\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=2c6e2164065d7a01ff2e22f57b52ef14}{%
+           family={Yu},
+           familyi={Y\bibinitperiod},
+           given={Xiangjun},
+           giveni={X\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{3e6e5bbc5043a722c6165d85439b38bb}
+      \strng{fullhash}{7c76c96b4542118b4df13c8d31500fc8}
+      \strng{bibnamehash}{7c76c96b4542118b4df13c8d31500fc8}
+      \strng{authorbibnamehash}{7c76c96b4542118b4df13c8d31500fc8}
+      \strng{authornamehash}{3e6e5bbc5043a722c6165d85439b38bb}
+      \strng{authorfullhash}{7c76c96b4542118b4df13c8d31500fc8}
+      \field{sortinit}{L}
+      \field{sortinithash}{7c47d417cecb1f4bd38d1825c427a61a}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{howpublished}{Computer Methods in Applied Mechanics and Engineering}
+      \field{title}{Diminishing spectral bias in physics-informed neural networks using spatially-adaptive {Fourier} feature encoding}
+      \field{year}{2025}
+      \verb{urlraw}
+      \verb https://www.sciencedirect.com/science/article/abs/pii/S0893608024008153
+      \endverb
+      \verb{url}
+      \verb https://www.sciencedirect.com/science/article/abs/pii/S0893608024008153
+      \endverb
+    \endentry
+    \entry{lu2021deeponet}{article}{}
       \name{author}{5}{}{%
         {{un=0,uniquepart=base,hash=6f6f1357e5a7fb658e3e9c999886ce83}{%
            family={Lu},
@@ -675,10 +1742,10 @@
            given={Pengzhan},
            giveni={P\bibinitperiod},
            givenun=0}}%
-        {{un=0,uniquepart=base,hash=26d25140a656e316d5d3dd7e01a7a224}{%
+        {{un=0,uniquepart=base,hash=b04db7dd7744ba0a4c8516ea52b2b2a4}{%
            family={Pang},
            familyi={P\bibinitperiod},
-           given={Guanglin},
+           given={Guofei},
            giveni={G\bibinitperiod},
            givenun=0}}%
         {{un=0,uniquepart=base,hash=8d7acff517951d0a9eba8e9b39a167dc}{%
@@ -687,19 +1754,19 @@
            given={Zhongqiang},
            giveni={Z\bibinitperiod},
            givenun=0}}%
-        {{un=0,uniquepart=base,hash=bfaf154b1f300f885a75adce4c6b773e}{%
+        {{un=0,uniquepart=base,hash=9aae361c2be63ce52bc98112e2a2fffa}{%
            family={Karniadakis},
            familyi={K\bibinitperiod},
-           given={George\bibnamedelima Em},
+           given={George\bibnamedelima E.},
            giveni={G\bibinitperiod\bibinitdelim E\bibinitperiod},
            givenun=0}}%
       }
       \strng{namehash}{fdebff66447a2ecc33abe80490823209}
-      \strng{fullhash}{d4a10e336f1cccfad3d28af5a250ff20}
-      \strng{bibnamehash}{d4a10e336f1cccfad3d28af5a250ff20}
-      \strng{authorbibnamehash}{d4a10e336f1cccfad3d28af5a250ff20}
+      \strng{fullhash}{7a83d80bac85b86120e56ea1039928f3}
+      \strng{bibnamehash}{7a83d80bac85b86120e56ea1039928f3}
+      \strng{authorbibnamehash}{7a83d80bac85b86120e56ea1039928f3}
       \strng{authornamehash}{fdebff66447a2ecc33abe80490823209}
-      \strng{authorfullhash}{d4a10e336f1cccfad3d28af5a250ff20}
+      \strng{authorfullhash}{7a83d80bac85b86120e56ea1039928f3}
       \field{sortinit}{L}
       \field{sortinithash}{7c47d417cecb1f4bd38d1825c427a61a}
       \field{extradatescope}{labelyear}
@@ -717,14 +1784,55 @@
       \verb{doi}
       \verb 10.1038/s42256-021-00302-5
       \endverb
+    \endentry
+    \entry{odena2016checkerboard}{article}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=a04932af4057bbbbad95d73521f2d22b}{%
+           family={Odena},
+           familyi={O\bibinitperiod},
+           given={Augustus},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=1328d3ceef6add8461994fc364c664df}{%
+           family={Dumoulin},
+           familyi={D\bibinitperiod},
+           given={Vincent},
+           giveni={V\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=78be47e08348476a254b1217fd9041ca}{%
+           family={Olah},
+           familyi={O\bibinitperiod},
+           given={Chris},
+           giveni={C\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{cc5070deee87c12632dc009ee0d438dd}
+      \strng{fullhash}{f7f9b14bf38891984f22c4f684969d16}
+      \strng{bibnamehash}{f7f9b14bf38891984f22c4f684969d16}
+      \strng{authorbibnamehash}{f7f9b14bf38891984f22c4f684969d16}
+      \strng{authornamehash}{cc5070deee87c12632dc009ee0d438dd}
+      \strng{authorfullhash}{f7f9b14bf38891984f22c4f684969d16}
+      \field{sortinit}{O}
+      \field{sortinithash}{2cd7140a07aea5341f9e2771efe90aae}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Distill}
+      \field{title}{Deconvolution and Checkerboard Artifacts}
+      \field{year}{2016}
+      \verb{doi}
+      \verb 10.23915/distill.00003
+      \endverb
       \verb{urlraw}
-      \verb https://www.nature.com/articles/s42256-021-00302-5
+      \verb https://distill.pub/2016/deconv-checkerboard/
       \endverb
       \verb{url}
-      \verb https://www.nature.com/articles/s42256-021-00302-5
+      \verb https://distill.pub/2016/deconv-checkerboard/
       \endverb
     \endentry
-    \entry{OpenCVInterp}{online}{}
+    \entry{opencv_resize}{misc}{}
       \name{author}{1}{}{%
         {{un=0,uniquepart=base,hash=5bd4c87976f48e6a53919d53e14025e9}{%
            family={{OpenCV}},
@@ -740,25 +1848,24 @@
       \field{sortinit}{O}
       \field{sortinithash}{2cd7140a07aea5341f9e2771efe90aae}
       \field{extradate}{1}
-      \field{extradatescope}{labelyear}
-      \field{labeldatesource}{}
+      \field{labeldatesource}{nodate}
       \true{uniqueprimaryauthor}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
-      \field{title}{Geometric Image Transformations: Interpolation flags (e.g., INTER\_AREA)}
-      \field{urlday}{26}
+      \field{howpublished}{OpenCV Documentation}
+      \field{title}{Geometric Image Transformations: resize interpolation (including \texttt{INTER\_AREA} guidance for shrinking)}
+      \field{urlday}{29}
       \field{urlmonth}{12}
       \field{urlyear}{2025}
-      \field{year}{n.d.}
       \field{urldateera}{ce}
       \verb{urlraw}
-      \verb https://docs.opencv.org/3.4/da/d54/group__imgproc__transform.html
+      \verb https://docs.opencv.org/master/da/d54/group__imgproc__transform.html
       \endverb
       \verb{url}
-      \verb https://docs.opencv.org/3.4/da/d54/group__imgproc__transform.html
+      \verb https://docs.opencv.org/master/da/d54/group__imgproc__transform.html
       \endverb
     \endentry
-    \entry{OpenCVGaussian}{online}{}
+    \entry{opencv_gaussianblur}{misc}{}
       \name{author}{1}{}{%
         {{un=0,uniquepart=base,hash=5bd4c87976f48e6a53919d53e14025e9}{%
            family={{OpenCV}},
@@ -774,25 +1881,204 @@
       \field{sortinit}{O}
       \field{sortinithash}{2cd7140a07aea5341f9e2771efe90aae}
       \field{extradate}{2}
-      \field{extradatescope}{labelyear}
-      \field{labeldatesource}{}
+      \field{labeldatesource}{nodate}
       \true{uniqueprimaryauthor}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
-      \field{title}{Image Filtering: Gaussian blur and parameter definitions}
-      \field{urlday}{26}
+      \field{howpublished}{OpenCV Documentation}
+      \field{title}{Image Filtering: \texttt{GaussianBlur} parameters (\texttt{ksize}, \texttt{sigmaX}, \texttt{sigmaY}, \texttt{borderType})}
+      \field{urlday}{29}
       \field{urlmonth}{12}
       \field{urlyear}{2025}
-      \field{year}{n.d.}
       \field{urldateera}{ce}
       \verb{urlraw}
-      \verb https://docs.opencv.org/3.4/d4/d13/tutorial_py_filtering.html
+      \verb https://docs.opencv.org/3.4/d4/d86/group__imgproc__filter.html
       \endverb
       \verb{url}
-      \verb https://docs.opencv.org/3.4/d4/d13/tutorial_py_filtering.html
+      \verb https://docs.opencv.org/3.4/d4/d86/group__imgproc__filter.html
       \endverb
     \endentry
-    \entry{Raissi2019PINN}{article}{}
+    \entry{pytorch_cuda_memory}{misc}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=c390ae15dc416827a5426c11a2962971}{%
+           family={{PyTorch Contributors}},
+           familyi={P\bibinitperiod}}}%
+      }
+      \strng{namehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{fullhash}{c390ae15dc416827a5426c11a2962971}
+      \strng{bibnamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authorbibnamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authornamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authorfullhash}{c390ae15dc416827a5426c11a2962971}
+      \field{extraname}{1}
+      \field{sortinit}{P}
+      \field{sortinithash}{ff3bcf24f47321b42cb156c2cc8a8422}
+      \field{extradate}{1}
+      \field{labeldatesource}{nodate}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{howpublished}{PyTorch Documentation}
+      \field{title}{CUDA Memory Management Notes}
+      \field{urlday}{25}
+      \field{urlmonth}{12}
+      \field{urlyear}{2025}
+      \field{urldateera}{ce}
+      \verb{urlraw}
+      \verb https://pytorch.org/docs/stable/notes/cuda.html#memory-management
+      \endverb
+      \verb{url}
+      \verb https://pytorch.org/docs/stable/notes/cuda.html#memory-management
+      \endverb
+    \endentry
+    \entry{pytorch_randomness}{misc}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=c390ae15dc416827a5426c11a2962971}{%
+           family={{PyTorch Contributors}},
+           familyi={P\bibinitperiod}}}%
+      }
+      \strng{namehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{fullhash}{c390ae15dc416827a5426c11a2962971}
+      \strng{bibnamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authorbibnamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authornamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authorfullhash}{c390ae15dc416827a5426c11a2962971}
+      \field{extraname}{2}
+      \field{sortinit}{P}
+      \field{sortinithash}{ff3bcf24f47321b42cb156c2cc8a8422}
+      \field{extradate}{2}
+      \field{labeldatesource}{nodate}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{howpublished}{PyTorch Documentation}
+      \field{title}{Reproducibility (Randomness and Deterministic Algorithms)}
+      \field{urlday}{25}
+      \field{urlmonth}{12}
+      \field{urlyear}{2025}
+      \field{urldateera}{ce}
+      \verb{urlraw}
+      \verb https://pytorch.org/docs/stable/notes/randomness.html
+      \endverb
+      \verb{url}
+      \verb https://pytorch.org/docs/stable/notes/randomness.html
+      \endverb
+    \endentry
+    \entry{pytorch_max_memory_allocated}{misc}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=c390ae15dc416827a5426c11a2962971}{%
+           family={{PyTorch Contributors}},
+           familyi={P\bibinitperiod}}}%
+      }
+      \strng{namehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{fullhash}{c390ae15dc416827a5426c11a2962971}
+      \strng{bibnamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authorbibnamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authornamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authorfullhash}{c390ae15dc416827a5426c11a2962971}
+      \field{extraname}{3}
+      \field{sortinit}{P}
+      \field{sortinithash}{ff3bcf24f47321b42cb156c2cc8a8422}
+      \field{extradate}{3}
+      \field{labeldatesource}{nodate}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{howpublished}{PyTorch Documentation}
+      \field{title}{\texttt{torch.cuda.max\_memory\_allocated}}
+      \field{urlday}{25}
+      \field{urlmonth}{12}
+      \field{urlyear}{2025}
+      \field{urldateera}{ce}
+      \verb{urlraw}
+      \verb https://pytorch.org/docs/stable/generated/torch.cuda.max_memory_allocated.html
+      \endverb
+      \verb{url}
+      \verb https://pytorch.org/docs/stable/generated/torch.cuda.max_memory_allocated.html
+      \endverb
+    \endentry
+    \entry{pytorch_set_det_debug}{misc}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=c390ae15dc416827a5426c11a2962971}{%
+           family={{PyTorch Contributors}},
+           familyi={P\bibinitperiod}}}%
+      }
+      \strng{namehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{fullhash}{c390ae15dc416827a5426c11a2962971}
+      \strng{bibnamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authorbibnamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authornamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authorfullhash}{c390ae15dc416827a5426c11a2962971}
+      \field{extraname}{4}
+      \field{sortinit}{P}
+      \field{sortinithash}{ff3bcf24f47321b42cb156c2cc8a8422}
+      \field{extradate}{4}
+      \field{labeldatesource}{nodate}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{howpublished}{\url{https://pytorch.org/docs/stable/generated/torch.set_deterministic_debug_mode.html}}
+      \field{note}{PyTorch Documentation, accessed 2025-12-30}
+      \field{title}{torch.set\_deterministic\_debug\_mode}
+    \endentry
+    \entry{pytorch_deterministic_algorithms}{misc}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=c390ae15dc416827a5426c11a2962971}{%
+           family={{PyTorch Contributors}},
+           familyi={P\bibinitperiod}}}%
+      }
+      \strng{namehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{fullhash}{c390ae15dc416827a5426c11a2962971}
+      \strng{bibnamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authorbibnamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authornamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authorfullhash}{c390ae15dc416827a5426c11a2962971}
+      \field{extraname}{5}
+      \field{sortinit}{P}
+      \field{sortinithash}{ff3bcf24f47321b42cb156c2cc8a8422}
+      \field{extradate}{5}
+      \field{labeldatesource}{nodate}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{howpublished}{PyTorch Documentation}
+      \field{title}{\texttt{torch.use\_deterministic\_algorithms}}
+      \field{urlday}{25}
+      \field{urlmonth}{12}
+      \field{urlyear}{2025}
+      \field{urldateera}{ce}
+      \verb{urlraw}
+      \verb https://pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html
+      \endverb
+      \verb{url}
+      \verb https://pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html
+      \endverb
+    \endentry
+    \entry{pytorch_use_deterministic}{misc}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=c390ae15dc416827a5426c11a2962971}{%
+           family={{PyTorch Contributors}},
+           familyi={P\bibinitperiod}}}%
+      }
+      \strng{namehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{fullhash}{c390ae15dc416827a5426c11a2962971}
+      \strng{bibnamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authorbibnamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authornamehash}{c390ae15dc416827a5426c11a2962971}
+      \strng{authorfullhash}{c390ae15dc416827a5426c11a2962971}
+      \field{extraname}{6}
+      \field{sortinit}{P}
+      \field{sortinithash}{ff3bcf24f47321b42cb156c2cc8a8422}
+      \field{extradate}{6}
+      \field{labeldatesource}{nodate}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{howpublished}{\url{https://pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html}}
+      \field{note}{PyTorch Documentation, accessed 2025-12-30}
+      \field{title}{torch.use\_deterministic\_algorithms}
+    \endentry
+    \entry{raissi2019pinn}{article}{}
       \name{author}{3}{}{%
         {{un=0,uniquepart=base,hash=95a17c39168b9e6b8812f207b4e036c1}{%
            family={Raissi},
@@ -835,19 +2121,122 @@
       \verb{doi}
       \verb 10.1016/j.jcp.2018.10.045
       \endverb
+      \verb{urlraw}
+      \verb https://doi.org/10.1016/j.jcp.2018.10.045
+      \endverb
+      \verb{url}
+      \verb https://doi.org/10.1016/j.jcp.2018.10.045
+      \endverb
     \endentry
-    \entry{Wang2022CausalityPINN}{article}{}
-      \name{author}{3}{}{%
-        {{un=0,uniquepart=base,hash=15db674b3efc6848f40514aa0034717a}{%
+    \entry{student1908probable}{article}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=f5c0a1c9384c2e25e79ba1abf5d9a037}{%
+           family={Student},
+           familyi={S\bibinitperiod}}}%
+      }
+      \strng{namehash}{f5c0a1c9384c2e25e79ba1abf5d9a037}
+      \strng{fullhash}{f5c0a1c9384c2e25e79ba1abf5d9a037}
+      \strng{bibnamehash}{f5c0a1c9384c2e25e79ba1abf5d9a037}
+      \strng{authorbibnamehash}{f5c0a1c9384c2e25e79ba1abf5d9a037}
+      \strng{authornamehash}{f5c0a1c9384c2e25e79ba1abf5d9a037}
+      \strng{authorfullhash}{f5c0a1c9384c2e25e79ba1abf5d9a037}
+      \field{sortinit}{S}
+      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Biometrika}
+      \field{number}{1}
+      \field{title}{The Probable Error of a Mean}
+      \field{volume}{6}
+      \field{year}{1908}
+      \field{pages}{1\bibrangedash 25}
+      \range{pages}{25}
+      \verb{doi}
+      \verb 10.1093/biomet/6.1.1
+      \endverb
+    \endentry
+    \entry{takamoto2022pdebench}{article}{}
+      \true{moreauthor}
+      \true{morelabelname}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=d9a5cf169a1e1ff25ce4d1cefa58d94a}{%
+           family={Takamoto},
+           familyi={T\bibinitperiod},
+           given={Makoto},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{b55dc51ed2a96200ae3ff85f68acd43b}
+      \strng{fullhash}{b55dc51ed2a96200ae3ff85f68acd43b}
+      \strng{bibnamehash}{b55dc51ed2a96200ae3ff85f68acd43b}
+      \strng{authorbibnamehash}{b55dc51ed2a96200ae3ff85f68acd43b}
+      \strng{authornamehash}{b55dc51ed2a96200ae3ff85f68acd43b}
+      \strng{authorfullhash}{b55dc51ed2a96200ae3ff85f68acd43b}
+      \field{sortinit}{T}
+      \field{sortinithash}{9af77f0292593c26bde9a56e688eaee9}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{NeurIPS Datasets and Benchmarks Track}
+      \field{title}{{PDEBench}: An Extensive Benchmark for Scientific Machine Learning}
+      \field{year}{2022}
+      \verb{urlraw}
+      \verb https://openreview.net/forum?id=dh_MkX0QfrK
+      \endverb
+      \verb{url}
+      \verb https://openreview.net/forum?id=dh_MkX0QfrK
+      \endverb
+    \endentry
+    \entry{wang2025spectralbias_multiscale}{misc}{}
+      \true{moreauthor}
+      \true{morelabelname}
+      \name{author}{1}{}{%
+        {{un=1,uniquepart=given,hash=15db674b3efc6848f40514aa0034717a}{%
            family={Wang},
            familyi={W\bibinitperiod},
            given={Sifan},
            giveni={S\bibinitperiod},
-           givenun=0}}%
-        {{un=0,uniquepart=base,hash=4a69e21696c5be8eb6972d559f536b32}{%
+           givenun=1}}%
+      }
+      \strng{namehash}{ef1ca3afbde4b19c973486cc8a12bc89}
+      \strng{fullhash}{ef1ca3afbde4b19c973486cc8a12bc89}
+      \strng{bibnamehash}{ef1ca3afbde4b19c973486cc8a12bc89}
+      \strng{authorbibnamehash}{ef1ca3afbde4b19c973486cc8a12bc89}
+      \strng{authornamehash}{ef1ca3afbde4b19c973486cc8a12bc89}
+      \strng{authorfullhash}{ef1ca3afbde4b19c973486cc8a12bc89}
+      \field{sortinit}{W}
+      \field{sortinithash}{4315d78024d0cea9b57a0c6f0e35ed0d}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{howpublished}{Preprint}
+      \field{title}{Spectral bias in multi-scale {PDE} learning}
+      \field{year}{2025}
+      \verb{urlraw}
+      \verb https://arxiv.org
+      \endverb
+      \verb{url}
+      \verb https://arxiv.org
+      \endverb
+    \endentry
+    \entry{wang2022causality_pinn}{article}{}
+      \name{author}{3}{ul=2}{%
+        {{un=1,uniquepart=given,hash=15db674b3efc6848f40514aa0034717a}{%
+           family={Wang},
+           familyi={W\bibinitperiod},
+           given={Sifan},
+           giveni={S\bibinitperiod},
+           givenun=1}}%
+        {{un=0,uniquepart=base,hash=a3e2e25bd681c86b4f52eff42c3197ff}{%
            family={Sankaran},
            familyi={S\bibinitperiod},
-           given={Surya},
+           given={Shyam},
            giveni={S\bibinitperiod},
            givenun=0}}%
         {{un=0,uniquepart=base,hash=197d71332633e07aa578718628fdc405}{%
@@ -857,23 +2246,21 @@
            giveni={P\bibinitperiod},
            givenun=0}}%
       }
-      \strng{namehash}{ef1ca3afbde4b19c973486cc8a12bc89}
-      \strng{fullhash}{98362320f6bb1326bf95d0538416f8a3}
-      \strng{bibnamehash}{98362320f6bb1326bf95d0538416f8a3}
-      \strng{authorbibnamehash}{98362320f6bb1326bf95d0538416f8a3}
-      \strng{authornamehash}{ef1ca3afbde4b19c973486cc8a12bc89}
-      \strng{authorfullhash}{98362320f6bb1326bf95d0538416f8a3}
-      \field{extraname}{1}
+      \strng{namehash}{c8c8782e17ad24757a70990ffc7545a2}
+      \strng{fullhash}{c8c8782e17ad24757a70990ffc7545a2}
+      \strng{bibnamehash}{c8c8782e17ad24757a70990ffc7545a2}
+      \strng{authorbibnamehash}{c8c8782e17ad24757a70990ffc7545a2}
+      \strng{authornamehash}{c8c8782e17ad24757a70990ffc7545a2}
+      \strng{authorfullhash}{c8c8782e17ad24757a70990ffc7545a2}
       \field{sortinit}{W}
       \field{sortinithash}{4315d78024d0cea9b57a0c6f0e35ed0d}
       \field{extradatescope}{labelyear}
       \field{labeldatesource}{}
-      \true{uniqueprimaryauthor}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
       \field{eprintclass}{cs.LG}
       \field{eprinttype}{arXiv}
-      \field{title}{Respecting causality is all you need for training physics-informed neural networks}
+      \field{title}{Respecting Causality is All You Need for Training Physics-Informed Neural Networks}
       \field{year}{2022}
       \verb{eprint}
       \verb 2203.07404
@@ -885,18 +2272,18 @@
       \verb https://arxiv.org/abs/2203.07404
       \endverb
     \endentry
-    \entry{Wang2021PIDeepONet}{article}{}
-      \name{author}{3}{}{%
-        {{un=0,uniquepart=base,hash=15db674b3efc6848f40514aa0034717a}{%
+    \entry{wang2022pinn_ntk}{article}{}
+      \name{author}{3}{ul=2}{%
+        {{un=1,uniquepart=given,hash=15db674b3efc6848f40514aa0034717a}{%
            family={Wang},
            familyi={W\bibinitperiod},
            given={Sifan},
            giveni={S\bibinitperiod},
-           givenun=0}}%
-        {{un=0,uniquepart=base,hash=19dfd5f1a0cdf2eda91fd5d0ec97b9c3}{%
+           givenun=1}}%
+        {{un=0,uniquepart=base,hash=c4806f1b394b9b5bfd141eb562151ace}{%
            family={Yu},
            familyi={Y\bibinitperiod},
-           given={Xuhui},
+           given={Xinling},
            giveni={X\bibinitperiod},
            givenun=0}}%
         {{un=0,uniquepart=base,hash=197d71332633e07aa578718628fdc405}{%
@@ -906,13 +2293,151 @@
            giveni={P\bibinitperiod},
            givenun=0}}%
       }
-      \strng{namehash}{ef1ca3afbde4b19c973486cc8a12bc89}
-      \strng{fullhash}{d12de1ab0f6e9d8495b5494d95b59253}
-      \strng{bibnamehash}{d12de1ab0f6e9d8495b5494d95b59253}
-      \strng{authorbibnamehash}{d12de1ab0f6e9d8495b5494d95b59253}
-      \strng{authornamehash}{ef1ca3afbde4b19c973486cc8a12bc89}
-      \strng{authorfullhash}{d12de1ab0f6e9d8495b5494d95b59253}
-      \field{extraname}{2}
+      \strng{namehash}{05730140fcac84924809252b5c6642ea}
+      \strng{fullhash}{05730140fcac84924809252b5c6642ea}
+      \strng{bibnamehash}{05730140fcac84924809252b5c6642ea}
+      \strng{authorbibnamehash}{05730140fcac84924809252b5c6642ea}
+      \strng{authornamehash}{05730140fcac84924809252b5c6642ea}
+      \strng{authorfullhash}{05730140fcac84924809252b5c6642ea}
+      \field{sortinit}{W}
+      \field{sortinithash}{4315d78024d0cea9b57a0c6f0e35ed0d}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Journal of Computational Physics}
+      \field{title}{When and why {PINNs} fail to train: A neural tangent kernel perspective}
+      \field{volume}{449}
+      \field{year}{2022}
+      \field{pages}{110768}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.1016/j.jcp.2021.110768
+      \endverb
+    \endentry
+    \entry{wang2004ssim}{article}{}
+      \name{author}{4}{}{%
+        {{un=1,uniquepart=given,hash=f244e8ae5eff7776cf2b4b5b84ad8c4a}{%
+           family={Wang},
+           familyi={W\bibinitperiod},
+           given={Zhou},
+           giveni={Z\bibinitperiod},
+           givenun=1}}%
+        {{un=0,uniquepart=base,hash=d9c2ab9a8cbcab08292923a454c88ce7}{%
+           family={Bovik},
+           familyi={B\bibinitperiod},
+           given={Alan\bibnamedelima C.},
+           giveni={A\bibinitperiod\bibinitdelim C\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=b21953b57a16342d57782f7a32ca10ea}{%
+           family={Sheikh},
+           familyi={S\bibinitperiod},
+           given={Hamid\bibnamedelima R.},
+           giveni={H\bibinitperiod\bibinitdelim R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=027ac5801d4cec598c393e1f9875c60b}{%
+           family={Simoncelli},
+           familyi={S\bibinitperiod},
+           given={Eero\bibnamedelima P.},
+           giveni={E\bibinitperiod\bibinitdelim P\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{ec7f3703fbd419b313e0a329e6241059}
+      \strng{fullhash}{678422238c76e65638062cadc184ea94}
+      \strng{bibnamehash}{678422238c76e65638062cadc184ea94}
+      \strng{authorbibnamehash}{678422238c76e65638062cadc184ea94}
+      \strng{authornamehash}{ec7f3703fbd419b313e0a329e6241059}
+      \strng{authorfullhash}{678422238c76e65638062cadc184ea94}
+      \field{sortinit}{W}
+      \field{sortinithash}{4315d78024d0cea9b57a0c6f0e35ed0d}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{IEEE Transactions on Image Processing}
+      \field{number}{4}
+      \field{title}{Image quality assessment: From error visibility to structural similarity}
+      \field{volume}{13}
+      \field{year}{2004}
+      \field{pages}{600\bibrangedash 612}
+      \range{pages}{13}
+      \verb{doi}
+      \verb 10.1109/TIP.2003.819861
+      \endverb
+    \endentry
+    \entry{wilkinson2016fair}{article}{}
+      \true{moreauthor}
+      \true{morelabelname}
+      \name{author}{10}{}{%
+        {{un=0,uniquepart=base,hash=e88185c2eca4405ce11cb8920f485660}{%
+           family={Wilkinson},
+           familyi={W\bibinitperiod},
+           given={Mark\bibnamedelima D.},
+           giveni={M\bibinitperiod\bibinitdelim D\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=93badcbcd9ff0747849763affb474199}{%
+           family={Dumontier},
+           familyi={D\bibinitperiod},
+           given={Michel},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=cda28834d0f69262ef00bb56bd87a0c0}{%
+           family={Aalbersberg},
+           familyi={A\bibinitperiod},
+           given={I.\bibnamedelimi Jsbrand\bibnamedelima Jan},
+           giveni={I\bibinitperiod\bibinitdelim J\bibinitperiod\bibinitdelim J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=c8bd3ce56531164a76d2447bea864837}{%
+           family={Appleton},
+           familyi={A\bibinitperiod},
+           given={Gabrielle},
+           giveni={G\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=f12336d71cec892ed279b160d6fcd07d}{%
+           family={Axton},
+           familyi={A\bibinitperiod},
+           given={Myles},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=24f9e2bf2d8c89090eef143a51d01653}{%
+           family={Baak},
+           familyi={B\bibinitperiod},
+           given={Arie},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=372112f8c145373974f902b8035baa7f}{%
+           family={Blomberg},
+           familyi={B\bibinitperiod},
+           given={Niklas},
+           giveni={N\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=311117127e85a09450298e1cb378cc6d}{%
+           family={Boiten},
+           familyi={B\bibinitperiod},
+           given={Jan-Willem},
+           giveni={J\bibinithyphendelim W\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=bd75fc4b7a3c5f7d6d42f7728f3f7d0c}{%
+           family={Silva\bibnamedelima Santos},
+           familyi={S\bibinitperiod\bibinitdelim S\bibinitperiod},
+           given={Luiz\bibnamedelima Bonino},
+           giveni={L\bibinitperiod\bibinitdelim B\bibinitperiod},
+           givenun=0,
+           prefix={da},
+           prefixi={d\bibinitperiod}}}%
+        {{un=0,uniquepart=base,hash=e8f011b361a44c99e0b3cd105b7553dc}{%
+           family={Bourne},
+           familyi={B\bibinitperiod},
+           given={Philip\bibnamedelima E.},
+           giveni={P\bibinitperiod\bibinitdelim E\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{f324cd0f485d0aaf63321d014f1f638f}
+      \strng{fullhash}{045ccac6770fe953276d10d7d3a69a54}
+      \strng{bibnamehash}{045ccac6770fe953276d10d7d3a69a54}
+      \strng{authorbibnamehash}{045ccac6770fe953276d10d7d3a69a54}
+      \strng{authornamehash}{f324cd0f485d0aaf63321d014f1f638f}
+      \strng{authorfullhash}{045ccac6770fe953276d10d7d3a69a54}
       \field{sortinit}{W}
       \field{sortinithash}{4315d78024d0cea9b57a0c6f0e35ed0d}
       \field{extradatescope}{labelyear}
@@ -920,18 +2445,25 @@
       \true{uniqueprimaryauthor}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
-      \field{journaltitle}{Science Advances}
-      \field{number}{40}
-      \field{title}{When and why {DeepONet}s work: {Physics}-informed {DeepONet} for learning and interpreting parametric partial differential equations}
-      \field{volume}{7}
-      \field{year}{2021}
-      \field{pages}{eabf1381}
-      \range{pages}{-1}
+      \field{journaltitle}{Scientific Data}
+      \field{title}{The {FAIR} Guiding Principles for scientific data management and stewardship}
+      \field{volume}{3}
+      \field{year}{2016}
+      \field{pages}{160018}
+      \range{pages}{1}
       \verb{doi}
-      \verb 10.1126/sciadv.abf1381
+      \verb 10.1038/sdata.2016.18
+      \endverb
+      \verb{urlraw}
+      \verb https://www.nature.com/articles/sdata201618
+      \endverb
+      \verb{url}
+      \verb https://www.nature.com/articles/sdata201618
       \endverb
     \endentry
   \enddatalist
+  \keyalias{Cuomo2022}{cuomo2022}
+  \keyalias{gosset1908}{student1908probable}
 \endrefsection
 \endinput
 

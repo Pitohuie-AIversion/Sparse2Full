@@ -1,276 +1,341 @@
-下面给出**对你“重整后的第3章（方法论）”的直接改写版**：统一符号、补全缺失的数学对象、把“口径一致性”从口号落到**可执行约束 + 可审计证据**，并把引用替换为**可追溯的主来源**（OpenCV 官方文档、JMLR/NMI/ArXiv、Frontiers in Psychology 等）。
+# 第3章 方法论（重整结构、补强论证与可追溯引用｜修订版）
 
-为避免后续章节（第5–7章）出现颗粒度错位，改写时做了三件事：
+本章面向“稀疏观测驱动的时空场重建（sparse-to-full spatiotemporal field reconstruction）”任务，给出一套可复现、可审计、可工程落地的方法学框架。与仅强调网络结构改进的写法不同，本章将“**观测口径一致性**”提升为方法论硬约束，并将其落实为**可执行的算子定义、等价性审计与材料产出链路**。
 
-- **符号对齐**：把“算子 (H)”与“图像高 (H)”彻底拆开（用 (N_x,N_y) 表示空间分辨率；(\sigma_{\text{blur}}) 表示模糊核尺度；(\sigma_{\text{z}}) 表示 z-score 标准差）。
-- **口径声明模板化**：把 SR/Crop 的“口径参数表”写成论文可直接引用、YAML 可直接落地的条目。
-- **审计闭环前置**：把 H/DC 等价性检验、配置快照、环境指纹、统计协议放进方法章，而不是留给实验章“口头承诺”。
+本章核心思想可概括为两条硬约束与一个统一接口：
 
-------
+- **硬约束 A（采样/退化口径一致）**：数据侧观测算子 \(H\) 与训练侧退化算子 \(DC\) 复用同一实现与同一参数（同插值、同边界、同对齐、同预滤）。
+- **硬约束 B（评测口径回灌训练）**：在空间域重建误差之外，引入“原值域的观测一致性”项，使评测口径误差 \(H_{\mathrm{err}}\) 被直接优化，而非仅在测试阶段被动暴露。
+- **统一接口（可替换模型栈）**：将不同模型（CNN/UNet/Transformer/Neural Operator/Hybrid）约束在统一输入打包与统一输出签名下，确保对比实验可审计、可复核。
 
-# 第3章 方法论（重整结构、补强论证与可追溯引用｜修订稿）
-
-本章面向“稀疏观测驱动的时空流场重建”任务，给出可复现、可审计、可工程落地的方法学框架：**问题形式化—观测口径定义—H/DC 单一口径复用—时空耦合模型接口—三件套损失—确定性训练与统计检验—敏感性与失败模式**。方法设计强调两类“口径一致性”硬约束：
-
-1. **采样/退化口径一致**：数据侧观测算子 (H) 与训练侧退化算子 (DC) **复用同一实现与参数**；
-2. **频域/空间域口径一致**：在空间域重建误差之外，引入低频谱一致性与原值域观测一致性，以减少“指标断裂”（训练域达标、评测口径失真）。
-
-------
+---
 
 ## 3.1 问题定义与数学形式化
 
-设连续空间域 (\Omega\subset\mathbb{R}^2)，离散网格为 (\Omega_h)，空间分辨率记为 (N_x\times N_y)，离散时间索引 (t\in{1,\dots,T})。目标场为标量或多通道场
-[
-u_t:\Omega_h\rightarrow \mathbb{R}^{C},\qquad u_{1:T}={u_t}_{t=1}^{T}.
-]
+### 3.1.1 离散时空场与学习目标
 
-给定观测算子 (H)（包含滤波、采样/下采样、裁剪、边界处理与插值等）与噪声 (n_t)，观测为
-[
-y_t = H(u_t)+n_t.
-]
-学习映射 (\Phi_{\omega})，以观测序列与辅助信息恢复全场：
-[
-\hat{u}*{1:T}=\Phi*{\omega}\big(y_{1:T};,m_{1:T};,p\big),
-]
-其中 (m_t) 为观测掩码（稀疏口位置指示或缺失区域标注），(p) 为显式坐标/位置编码（可含 Fourier 特征，见 3.4–3.5）。
+设空间域 \(\Omega\subset\mathbb{R}^2\)，离散网格为 \(\Omega_h\)，网格分辨率为 \(N_x\times N_y\)。离散时间索引 \(t\in\{1,\dots,T\}\)。目标物理场为标量或多通道张量场：
+\[
+u_t:\Omega_h\rightarrow \mathbb{R}^{C},\qquad u_{1:T}=\{u_t\}_{t=1}^{T}.
+\]
 
-为避免“数学域优化有效，但评测口径失真”，本文同时报告两类误差：
+观测由观测算子 \(H\) 与噪声项 \(n_t\) 生成：
+\[
+y_t = H(u_t)+n_t,\qquad y_{1:T}=\{y_t\}_{t=1}^{T}.
+\]
 
-- **重建域误差**：Rel-L2、MAE、PSNR、SSIM 等；
-- **观测口径误差**（H-一致性误差）：
-  [
-  H_{\text{err}} \triangleq \big| H(\tilde{u})-y \big|_2,
-  ]
-  其中 (\tilde{u}) 为回到原值域的预测（见 3.5）。
+学习映射 \(\Phi_{\omega}\)（参数为 \(\omega\)），从观测序列与辅助信息恢复全场：
+\[
+\hat{u}_{1:T}=\Phi_{\omega}\big(y_{1:T},\, m_{1:T},\, p\big),
+\]
+其中 \(m_t\) 为观测掩码（观测位置/缺失区域指示），\(p\) 为显式坐标编码（可包含 Fourier 特征）。
 
-------
+### 3.1.2 两类误差口径：重建域误差与观测口径误差
 
-## 3.2 统一观测算子 (H)：抗混叠与口径声明
+为避免“训练指标改善但评测口径不降”的断裂，本研究同时报告两类误差：
 
-稀疏观测重建的关键不在于网络规模，而在于：
-(1) 观测过程是否丢失不可恢复的信息；(2) 训练与评测是否处于同一口径。
+- **重建域误差（逼近真值）**：如 Rel-L2、MAE 等。
+\[
+\mathrm{Rel\text{-}L2}=\frac{\lVert \hat{u}-u\rVert_2}{\lVert u\rVert_2}.
+\]
 
-对 SR（下采样）类观测，工程上采用“**先低通、再抽取**”以抑制混叠；实现上常用“模糊（低通）+ 缩小”。OpenCV 的 `resize` 文档明确指出：缩小图像通常使用 `INTER_AREA` 效果更佳，且在降采样时表现为“moire-free”重采样。([OpenCV 文档](https://docs.opencv.org/master/da/d54/group__imgproc__transform.html))
+- **观测口径误差（口径一致性）**：将预测回到原值域后再施加 \(H\)，与观测 \(y\) 比较：
+\[
+H_{\mathrm{err}} \triangleq \big\| H(\tilde{u})-y \big\|_2,
+\]
+其中 \(\tilde{u}\) 为反标准化后的预测（见 3.5.1）。
 
-### 3.2.1 SR 观测（下采样）口径
+> 解释性要点：\(\mathrm{Rel\text{-}L2}\) 衡量“数学意义上接近真值”的程度；\(H_{\mathrm{err}}\) 衡量“观测意义上与真实测量口径一致”的程度。两者同步下降，才对应可部署的工程改进。
 
-对缩小倍率 (s)，本文 SR 观测定义为
-[
-y^{\text{SR}}*t = D_s!\left(G*{\sigma_{\text{blur}}}\ast u_t\right)+n_t,
-]
-其中 (G_{\sigma_{\text{blur}}}) 为高斯核，(D_s) 为下采样算子。工程实现中，口径必须显式声明并写入配置（论文与 YAML 同步）：
+---
 
-- 核大小 (k)、模糊尺度 (\sigma_{\text{blur}})；
-- 插值策略：缩小使用 `INTER_AREA`（OpenCV 建议）。([OpenCV 文档](https://docs.opencv.org/master/da/d54/group__imgproc__transform.html))
-- 边界处理（如 reflect/replicate/wrap）与是否在滤波中使用该边界策略；
-- 标准化/反标准化发生在观测算子之前或之后（本文在 3.5 统一给出“原值域一致性”的执行顺序）。
+## 3.2 统一观测算子 \(H\)：抗混叠、插值、边界与对齐的口径声明
 
-> **实现可追溯性**：OpenCV `GaussianBlur` 的参数含义（(\sigma_X,\sigma_Y)、`borderType` 等）在官方函数说明中给出。([OpenCV 文档](https://docs.opencv.org/3.4/d4/d86/group__imgproc__filter.html))
+观测算子 \(H\) 不仅决定“观测长什么样”，还决定“评测如何裁判”。因此，本研究把 \(H\) 视为**唯一口径入口**：数据生成、训练退化、一致性损失与测试评测均从同一 \(H\) 实现出发。
 
-### 3.2.2 Crop 观测（裁剪）口径
+### 3.2.1 SR（下采样）观测口径：先低通、再缩小
 
-Crop 观测写为
-[
-y^{\text{Crop}}*t = C*{h_c,w_c}(u_t)+n_t,
-]
-其中 (C_{h_c,w_c}) 为中心对齐裁剪算子。裁剪任务的“口径”主要来自**对齐规则与边界策略**，必须显式声明：
+对超分辨/降采样观测，抗混叠的工程流程为“先低通、再缩小”。OpenCV 的官方教程明确给出经验性建议：缩小时优先使用 `INTER_AREA`，放大时常用 `INTER_CUBIC` 或 `INTER_LINEAR`。:contentReference[oaicite:0]{index=0}
 
-- 是否中心对齐；对齐偏移（像素级）如何定义；
-- ((h_c,w_c)) 与 `patch_size` 的整倍数约束；
-- 边界策略（mirror/zero/wrap）；
-- mask 与 crop 是否同步更新（本文要求同步更新，否则指标不可比）。
+本文将 SR 观测口径写为：
+\[
+y^{\mathrm{SR}}_t = D_s\!\left(G_{\sigma}\ast u_t\right)+n_t,
+\]
+其中 \(G_{\sigma}\) 为高斯低通核，\(\sigma\) 为模糊尺度，\(D_s\) 为倍率为 \(s\) 的缩小算子（实现时使用 `INTER_AREA` 作为默认缩小插值）。:contentReference[oaicite:1]{index=1}
 
-------
+**必须显式声明并写入配置（论文与 YAML 同步）**：
 
-## 3.3 H/DC 单一口径复用：从原则到硬约束
+- 预滤核：核大小 \(k\)、\(\sigma\)；
+- 插值策略：缩小使用 `INTER_AREA`；:contentReference[oaicite:2]{index=2}
+- 边界策略：`reflect/replicate/wrap/constant`；
+- 对齐策略：缩小前后坐标对齐（如是否 `align_corners` 等价语义）；
+- 噪声模型：\(n_t\) 的分布、强度与是否逐通道。
 
-### 3.3.1 复用原则（硬约束）
+> 工程可追溯性：OpenCV 的 `GaussianBlur` 在函数层面明确给出参数含义（如 \(\sigma_x,\sigma_y\)、核大小、边界类型等），可作为“预滤实现细节”的可核验依据。:contentReference[oaicite:3]{index=3}
 
-定义训练侧退化一致性算子 (DC)。本文采用硬约束：
-[
-DC \equiv H\quad (\text{同一实现、同一参数、同一边界与插值策略}).
-]
-该约束将“训练域—评测域隐性偏差”压缩到最小，避免 (H_{\text{err}}) 与 Rel-L2 趋势分裂。
+### 3.2.2 Crop（裁剪）观测口径：对齐规则与掩码同步
 
-### 3.3.2 等价性检验（阻断式审计）
+裁剪观测可写为：
+\[
+y^{\mathrm{Crop}}_t = C_{h_c,w_c}(u_t)+n_t,
+\]
+其中 \(C_{h_c,w_c}\) 为裁剪算子（常用中心对齐裁剪）。
 
-在工程流程中加入阻断式一致性检查（不通过即终止统计）：
+裁剪任务的口径风险集中在“对齐偏移”和“掩码是否同步更新”。因此本文要求：
 
-1. 抽样 (N\ge 100) 个样本 (u^{(i)})；
-2. 生成观测 (y^{(i)} = H(u^{(i)}))；
-3. 训练侧计算 (DC(u^{(i)}))；
+- 裁剪窗口 \((h_c,w_c)\) 与网络 patch/stride 的整倍数约束显式记录；
+- 采用中心对齐时，中心点与像素网格的定义方式（偶数尺寸时的偏移规则）需要固定；
+- 裁剪同时更新掩码 \(m_t\)：否则输入与标签不在同一几何口径上，指标不可比。
+
+### 3.2.3 点采样/稀疏传感器观测（可选扩展口径）
+
+当观测来自稀疏点集（传感器阵列/探针），可将 \(H\) 写为“采样矩阵/插值到点集”的组合：
+\[
+y_t = S(\Pi(u_t)) + n_t,
+\]
+其中 \(\Pi\) 为从网格场到连续场的插值（或从连续场到点的投影），\(S\) 为点采样算子。该形式为后续将“真实传感器口径”纳入统一框架提供接口（本研究如暂不涉及真实点集部署，可在实验章作为扩展讨论）。
+
+---
+
+## 3.3 \(H/DC\) 单一口径复用：从原则到硬约束与阻断式审计
+
+### 3.3.1 硬约束定义
+
+训练侧退化算子 \(DC\) 用于（1）合成训练输入；（2）构建一致性损失。本文采用硬约束：
+\[
+DC \equiv H\quad \text{（同一实现、同一参数、同一边界与对齐策略）}.
+\]
+
+该约束的目标是消除“训练端自造口径”带来的隐性域偏差，使 \(H_{\mathrm{err}}\) 不再成为测试阶段才出现的系统性误差。
+
+### 3.3.2 阻断式等价性审计（不通过即终止实验统计）
+
+为保证“口径一致性”从口号变为可执行证据，本研究在工程流程中加入阻断式审计：
+
+1. 抽样 \(N\ge 100\) 个样本 \(u^{(i)}\)；
+2. 计算 \(y^{(i)}=H(u^{(i)})\)；
+3. 计算 \(DC(u^{(i)})\)；
 4. 验证
-   [
-   \text{MSE}\big(H(u^{(i)}),DC(u^{(i)})\big) < \varepsilon,\quad \varepsilon=10^{-8};
-   ]
-5. 若失败，输出差异来源（(k,\sigma_{\text{blur}},s)、插值、边界、对齐偏移），并将报告归档到 `runs/<exp>/consistency_report.json`。
+\[
+\mathrm{MSE}\big(H(u^{(i)}),\,DC(u^{(i)})\big) < \varepsilon,
+\]
+其中 \(\varepsilon\) 默认取 \(10^{-8}\)（浮点实现下可根据 dtype 放宽到 \(10^{-6}\)）；
+5. 失败则输出差异来源（\(\sigma,k,s\)、插值、边界、对齐）并归档到 `runs/<exp>/consistency_report.json`。
 
-------
+> 建议写法：在论文中给出“审计失败样例 + 差异热力图 + 配置差异 diff”，用于支撑“训练/评测断裂会造成指标断裂”的论证力度。
 
-## 3.4 模型架构：统一接口、时空耦合与算子层（可替换）
+---
 
-### 3.4.1 统一输入打包（可审计接口契约）
+## 3.4 模型架构：统一接口、时空耦合与可替换算子层
 
-以单帧为例，输入张量在通道维拼接：
-[
-x_t=\text{Concat}\big(\text{baseline}(y_t),,m_t,,\text{coords},,\text{PE}_{\text{Fourier}}\big).
-]
+本研究不把贡献限定为某个特定网络，而把网络视为“可替换模块”。为保证对比实验可审计，先定义统一输入/输出接口，再讨论可替换结构族。
 
-- `baseline`：如双线性上采样/简单插值，用于稳定训练起点；
-- (m_t)：缺失掩码；
-- `coords`：显式坐标（归一化到 ([0,1])）；
-- (\text{PE}_{\text{Fourier}})：Fourier 特征，用于提升高频表达能力（Fourier features 的经典论证与实践可追溯）。([arXiv](https://arxiv.org/abs/1904.11486))
+### 3.4.1 统一输入打包（接口契约）
 
-统一模型签名（用于横向可替换与评测一致）：
-[
-\texttt{forward}(x\in\mathbb{R}^{B\times C_{\text{in}}\times N_x\times N_y})\rightarrow
-\hat{u}\in\mathbb{R}^{B\times C_{\text{out}}\times N_x\times N_y}.
-]
+对单帧输入，按通道拼接：
+\[
+x_t=\mathrm{Concat}\big(\mathrm{baseline}(y_t),\,m_t,\,\mathrm{coords},\,\mathrm{PE}\_{\mathrm{Fourier}}\big).
+\]
 
-### 3.4.2 算子层与时空耦合（方法定位）
+- `baseline`：如双线性上采样或简单插值，提供稳定的初始解；
+- \(m_t\)：掩码（观测位置/缺失区域）；
+- `coords`：归一化坐标 \((x,y)\in[0,1]^2\)；
+- \(\mathrm{PE}_{\mathrm{Fourier}}\)：Fourier 特征，提升高频表达能力。Fourier 特征的经典结果表明：将输入映射到随机 Fourier 特征空间可显著改善网络对高频函数的学习能力。:contentReference[oaicite:4]{index=4}
 
-将问题视为“函数到函数”的映射时，神经算子提供函数空间学习视角。JMLR 综述系统总结了神经算子对函数空间映射的学习形式与应用边界。([arXiv](https://arxiv.org/abs/1806.08734))
-DeepONet 给出了分支/主干结构的算子逼近范式，可作为可替换的算子层基线。([arXiv](https://arxiv.org/abs/1904.11486))
+统一模型签名：
+\[
+\mathrm{forward}:\mathbb{R}^{B\times C_{\mathrm{in}}\times N_x\times N_y}\rightarrow
+\mathbb{R}^{B\times C_{\mathrm{out}}\times N_x\times N_y}.
+\]
 
-> **写法建议（避免颗粒度错位）**：把“算子层”写成接口层 `OperatorBlock`，在第6章以替换实验对比 FNO-family / DeepONet-family / Conv-Attn hybrid，并同时报告资源四项。
+### 3.4.2 可替换结构族：时空耦合的三种实现路径
 
-### 3.4.3 解码与伪影控制（工程口径）
+**路径 A：时序显式建模（autoregressive / seq2seq）**  
+将 \((y_{1:T_{\mathrm{in}}})\) 映射到 \((\hat{u}_{1:T_{\mathrm{out}}})\)，适合长时滚动误差分析。
 
-解码侧采用“插值上采样 + 小卷积核细化”（如“双线性 + 3×3”）以降低棋盘格伪影，并在第6章用统一色标误差图与功率谱对比其对伪影与谱泄露的影响。
+**路径 B：把时间当作额外维度（3D 卷积/时空注意力）**  
+将 \((t,x,y)\) 共同建模，适合短窗高质量重建。
 
-------
+**路径 C：神经算子/算子层（operator block）**  
+神经算子强调学习函数空间之间的映射，并讨论离散化变化下的建模与泛化问题，可作为“跨分辨率/跨网格”讨论的结构基础。:contentReference[oaicite:5]{index=5}  
+在算子学习脉络中，DeepONet 通过 branch/trunk 的结构逼近算子映射，并在 Nature Machine Intelligence 论文中给出系统化论证。:contentReference[oaicite:6]{index=6}
+
+> 论文落笔建议：将算子层抽象为 `OperatorBlock`，实验章中以“替换 block”方式对比（FNO-family / DeepONet-family / Conv-Attn hybrid），并同步报告资源四项（参数量、FLOPs、显存峰值、推理延迟）。
+
+### 3.4.4 分阶段时空顺序训练策略（工程落地）
+
+针对时空耦合模型直接端到端训练收敛难、梯度不稳定的问题，本研究提出并实施了**三阶段顺序训练策略（Sequential Training Strategy）**，将空间重建与时序演化解耦学习：
+
+1. **阶段一：空间预训练（Spatial Pretraining）**
+   - **目标**：建立高质量的空间重建算子。
+   - **操作**：冻结时序模块或仅实例化空间网络（如 SwinUNet、FNO），将时序输入视为独立批次（Batch），仅优化单帧空间重建损失 \(L_{\mathrm{rec}} + L_{\mathrm{spec}} + L_{\mathrm{dc}}\)。
+   - **收益**：确保模型首先具备从稀疏/低质观测恢复高频细节的能力，为时序模块提供可信特征。
+
+2. **阶段二：时序预训练（Temporal Pretraining）**
+   - **目标**：学习潜在空间的动力学演化。
+   - **操作**：冻结已训练的空间编码器与解码器，仅训练时序演化模块（如 ARWrapper、LSTM、Transformer）。
+   - **策略**：采用 Teacher Forcing 策略，输入真实历史特征，预测下一时刻特征。
+
+3. **阶段三：联合微调（Joint Fine-tuning）**
+   - **目标**：端到端协同优化，消除模块间适配误差。
+   - **操作**：解冻所有参数，进行**20步自回归（AR）滚动预测**（20-step Autoregressive Rollout）。
+   - **课程学习**：引入 **Teacher Forcing Decay**，训练初期高频使用真值引导，随 Epoch 增加逐步切换为完全自回归模式（使用前一步预测值），以缓解 Exposure Bias 并提升长时稳定性。
+
+---
 
 ## 3.5 三件套损失：重建、低频谱一致性、原值域观测一致性
 
-### 3.5.1 标准化域与原值域
+### 3.5.1 标准化域与原值域：避免尺度口径偏差
 
-逐通道 z-score：
-[
-u^{(z)}=\frac{u-\mu}{\sigma_{\text{z}}},\qquad
-\tilde{u}=\sigma_{\text{z}}\hat{u}^{(z)}+\mu.
-]
-其中 (\tilde{u}) 用于计算与观测口径一致的损失，避免“标准化域优化、原值域评测”导致尺度偏差。
+逐通道 z-score 标准化：
+\[
+u^{(z)}=\frac{u-\mu}{\sigma_{z}},\qquad
+\hat{u}^{(z)}=\Phi_{\omega}(\cdot),\qquad
+\tilde{u}=\sigma_{z}\hat{u}^{(z)}+\mu.
+\]
 
-### 3.5.2 重建损失 (L_{\text{rec}})
+其中 \(\tilde{u}\) 用于计算与观测口径一致的损失与指标（因为 \(H\) 的实现通常定义在原值域或工程量纲域上）。
 
-在 z-score 域：
-[
-L_{\text{rec}}=\left|\hat{u}^{(z)}-u^{(z)}\right|_2^2.
-]
+### 3.5.2 重建损失 \(L_{\mathrm{rec}}\)
 
-### 3.5.3 低频谱一致性损失 (L_{\text{spec}})
+在 z-score 域计算：
+\[
+L_{\mathrm{rec}}=\left\|\hat{u}^{(z)}-u^{(z)}\right\|_2^2.
+\]
 
-二维 FFT 后，仅在低频集合 (\mathcal{K}*{\text{low}}) 上比较：
-[
-L*{\text{spec}}=
-\sum_{(k_x,k_y)\in\mathcal{K}*{\text{low}}}
-\left|\mathcal{F}*{2D}(\hat{u}^{(z)})*{k_x,k_y}
--\mathcal{F}*{2D}(u^{(z)})_{k_x,k_y}\right|*2^2,
-\quad \mathcal{K}*{\text{low}}={k_x\le K,,k_y\le K}.
-]
-阈值 (K) 在敏感性分析中扫描（建议 8–24），以形成可审计的“性能—口径—资源”折衷曲线。
+### 3.5.3 低频谱一致性损失 \(L_{\mathrm{spec}}\)
 
-### 3.5.4 原值域观测一致性损失 (L_{\text{dc}})
+对二维 FFT，仅在低频集合 \(\mathcal{K}_{\mathrm{low}}\) 上约束：
+\[
+L_{\mathrm{spec}}=
+\sum_{(k_x,k_y)\in\mathcal{K}_{\mathrm{low}}}
+\left|\mathcal{F}(\hat{u}^{(z)})_{k_x,k_y}
+-\mathcal{F}(u^{(z)})_{k_x,k_y}\right|^2,
+\quad \mathcal{K}_{\mathrm{low}}=\{k_x\le K,\,k_y\le K\}.
+\]
 
-用统一口径 (H) 直接约束评测口径误差：
-[
-L_{\text{dc}}=\left|H(\tilde{u})-y\right|*2^2.
-]
-该项将 (H*{\text{err}}) 内生到训练目标，降低口径断裂。
+设置该项的工程动机是：低频结构往往对应大尺度主导形态（平均流、主涡、锋面/团簇），对下游任务（识别、控制、诊断）具有更稳定的意义；同时低频约束对抗“仅靠像素误差导致的结构漂移”。
 
-### 3.5.5 总损失与权重审计
+### 3.5.4 原值域观测一致性损失 \(L_{\mathrm{dc}}\)
 
-[
-L = L_{\text{rec}}+\lambda_s L_{\text{spec}}+\lambda_{dc}L_{\text{dc}}.
-]
-(\lambda_s,\lambda_{dc}) 通过第6章扫描表与效应量报告给出证据，避免经验拍参。
+以统一口径 \(H\) 直接约束评测口径一致性：
+\[
+L_{\mathrm{dc}}=\left\|H(\tilde{u})-y\right\|_2^2.
+\]
 
-------
+该项的关键在于：把 \(H_{\mathrm{err}}\) 内生到训练目标，从机制上削弱“训练域好看、评测口径失真”的风险。
 
-## 3.6 训练确定性与复现闭环（方法章的可执行证据）
+### 3.5.5 时序一致性正则化（AR特化）
 
-方法学层面给出可复现闭环条款，并要求写入工程产物：
+针对自回归（AR）长时预测中可能出现的误差累积与物理量漂移，本研究引入两项辅助正则化损失（权重由 Teacher Forcing Decay 动态调制）：
+
+1. **时序导数一致性（Derivative Consistency）**：约束预测序列的时间差分与真值一致，强化动力学趋势捕捉。
+   \[
+   L_{\mathrm{deriv}} = \left\| \partial_t \hat{u} - \partial_t u \right\|_2^2 \approx \sum_t \left\| (\hat{u}_{t+1}-\hat{u}_t) - (u_{t+1}-u_t) \right\|_2^2
+   \]
+
+2. **能量演化一致性（Energy Consistency）**：约束全场能量（\(L^2\) 范数）的演化轨迹，防止长时预测中的能量耗散或爆炸。
+   \[
+   L_{\mathrm{energy}} = \sum_t \left| \|\hat{u}_t\|_2^2 - \|u_t\|_2^2 \right|
+   \]
+
+> 工程注记：这两项正则化通常在联合微调阶段随 Teacher Forcing 退出而逐步生效，作为“三件套”的补充。
+
+### 3.5.6 总损失与权重审计
+
+\[
+L = L_{\mathrm{rec}}+\lambda_{s}L_{\mathrm{spec}}+\lambda_{dc}L_{\mathrm{dc}}.
+\]
+
+权重 \((\lambda_s,\lambda_{dc})\) 不采用“经验拍参”写法，而在实验章通过扫描表、效应量与显著性检验给出证据链（见 3.8 与第6章设置）。
+
+---
+
+## 3.6 训练确定性与复现闭环（可执行证据要求）
+
+为满足研究生论文对“可复核、可追溯”的要求，本研究将复现实验的关键要素固化为**必须产物**：
 
 - 配置快照：`runs/<exp>/config_merged.yaml`；
-- 环境指纹：`runs/<exp>/env_fingerprint.json`（CUDA/驱动、PyTorch、混合精度策略、随机种子等）；
-- 一致性审计：`runs/<exp>/consistency_report.json`（H/DC 等价性检验）；
-- 统计口径：同配置下 (\ge 3) seeds，报告均值±标准差，并输出显著性与效应量（3.8）。
+- 环境指纹：`runs/<exp>/env_fingerprint.json`（CUDA/驱动、PyTorch、混合精度、确定性开关、随机种子等）；
+- 口径一致性审计：`runs/<exp>/consistency_report.json`（H/DC 等价性检验）；
+- 训练曲线与指标主表：`runs/<exp>/metrics.csv` + 可视化图；
+- 失败样例归档：`runs/<exp>/failure_cases/`（边界伪影、振铃、相位漂移等类型化保存）。
 
-------
+> 论文写作建议：把“产物列表 + 文件树 + 每项产物用于回答的审稿问题”写成方法章的“可审计性小节”，通常比“口头承诺可复现”更有说服力。
+
+---
 
 ## 3.7 研究设计：对照、消融、敏感性与失败模式归档
 
 ### 3.7.1 核心消融（建议表 3-3）
 
-- A0：仅 (L_{\text{rec}})
-- A1：(L_{\text{rec}}+\lambda_{dc}L_{\text{dc}})（检验口径一致性约束贡献）
-- A2：(L_{\text{rec}}+\lambda_sL_{\text{spec}})（检验结构约束贡献）
+- A0：仅 \(L_{\mathrm{rec}}\)
+- A1：\(L_{\mathrm{rec}}+\lambda_{dc}L_{\mathrm{dc}}\)（检验口径一致性约束贡献）
+- A2：\(L_{\mathrm{rec}}+\lambda_sL_{\mathrm{spec}}\)（检验低频结构约束贡献）
 - A3：三件套全开（主方法）
 
 ### 3.7.2 敏感性分析（建议表 3-4）
 
-- 观测参数：((s,\sigma_{\text{blur}},k)) 或 ((h_c,w_c))、边界策略；
-- 频域参数：低频阈值 (K)；
-- 表达参数：Fourier 特征维度/频率带宽（参考 Fourier features 原始论文设计）。([arXiv](https://arxiv.org/abs/1904.11486))
-- 训练随机性：种子、批大小、梯度裁剪阈值等。
+- 观测参数：\((s,\sigma,k)\) 或 \((h_c,w_c)\)、边界策略；
+- 频域参数：低频阈值 \(K\)（建议 8–24 扫描）；
+- 编码参数：Fourier 特征维度与频带（可据 Fourier 特征论文设置范围）。:contentReference[oaicite:7]{index=7}
+- 训练随机性：seed、batch size、梯度裁剪阈值等。
 
-### 3.7.3 失败模式类型化（方法章+实验章双份证据）
+### 3.7.3 失败模式类型化（方法章 + 实验章双份证据）
 
-- 边界伪影：边界策略/掩码错误导致；
-- 相位漂移：频域约束不足或时序耦合不足；
-- 振铃/能量泄露：频域约束过强或混叠未抑制（对应 3.2 的抗混叠口径）；
-- 指标断裂：H 与 DC 未复用（对应 3.3 的硬约束与审计脚本）。
+- **边界伪影**：边界策略不一致、掩码未同步更新；
+- **相位漂移/时序漂移**：时空耦合不足或谱约束缺失；
+- **振铃/能量泄露**：抗混叠不足或谱约束权重过强；
+- **指标断裂**：\(H\) 与 \(DC\) 未严格复用（由审计报告定位）。
 
-------
+---
 
 ## 3.8 统计检验：显著性与效应量（写作规范）
 
-仅报告单次最好结果缺乏累积科学意义。本文采用：
+仅报告“单次最好结果”难以支撑稳健结论。本文建议在同一测试样本集合上进行多种子重复，并报告：
 
-- paired t-test：在同一测试样本集合上比较两方法的 Rel-L2 序列；
-- Cohen’s d（配对设计的效应量口径），并与显著性共同报告。
+- 配对设计的显著性检验（paired t-test）；
+- 配对设计的效应量（Cohen’s d 或其配对变体口径）。
 
-效应量计算与报告建议可参考 Lakens 的实践指南（Frontiers in Psychology, 2013）。([埃因霍温理工大学研究](https://research.tue.nl/en/publications/calculating-and-reporting-effect-sizes-to-facilitate-cumulative-s))
+效应量计算与报告规范可参考 Lakens 的实践指南，该文针对 t-test/ANOVA 的效应量报告给出可操作建议。:contentReference[oaicite:8]{index=8}
 
-------
+---
 
-## 3.9 与物理约束（PINN 视角）的关系：边界定位
+## 3.9 与物理约束学习（PINN 视角）的关系与边界定位
 
-PINN 通过方程残差引入物理一致性，但在复杂动力系统上可能受制于训练稳定性与优化可达性。引入时空因果结构的训练策略被用于改善 PINN 的收敛与有效性，并给出在多尺度/混沌/湍流任务上的改进证据。([arXiv](https://arxiv.org/abs/2203.07404))
-因此，本文把 PINN 残差项定位为**可选的物理一致性正则或对照基线**，主方法定位为“统一口径下的时空模型/算子层 + 观测一致性约束”。
+PINN 通过 PDE 残差引入物理一致性，但在多尺度、混沌或湍流类动力系统上可能出现训练困难。相关研究从 NTK 视角解释了 PINN 的训练病理，并讨论了损失项收敛速率不一致等问题。:contentReference[oaicite:9]{index=9}  
+另外，因果结构约束被用于改善 PINN 在动态系统上的训练稳定性与长期预测表现。:contentReference[oaicite:10]{index=10}
 
-------
+因此，本研究对 PINN 的定位为：
 
-## 3.10 图表与表格（建议直接落地到论文）
+- PINN 残差项可作为可选正则或对照基线；
+- 主方法以“统一口径下的数据一致性（\(L_{\mathrm{dc}}\)）+ 结构性谱约束（\(L_{\mathrm{spec}}\)）+ 可替换时空模型栈”为中心。
 
-- 图 3-1 方法总流程图：(u\to H\to (y,m)\to) 输入打包 (\to \Phi_\omega \to \hat{u}\to \tilde{u}\to) 三件套损失 (\to) 审计与统计输出。
-- 表 3-1 符号表：新增边界策略、对齐偏移、(\sigma_{\text{blur}}) 与 (\sigma_{\text{z}}) 的区分、Fourier 特征参数。
-- 表 3-2 观测口径参数表：((k,\sigma_{\text{blur}},s))、`INTER_AREA`、边界策略、裁剪窗口与对齐规则。
-- 表 3-3 消融设置表：A0–A3。
-- 表 3-4 敏感性扫描表：参数范围、步长、固定变量、输出指标、资源四项。
+---
 
-------
+## 3.10 图表与表格建议（可直接落地到论文）
 
-## 3.11 参考文献（APA｜建议你在全文统一 BibTeX/APA 输出）
+- **图 3-1（方法总流程图）**：\(u\to H\to (y,m)\to\) 输入打包 \(\to \Phi_\omega \to \hat{u}\to \tilde{u}\to\) 三件套损失 \(\to\) 审计与统计产物。
+- **表 3-1（符号表）**：区分 \(\sigma\)（预滤）与 \(\sigma_z\)（标准化），列出边界策略与对齐偏移。
+- **表 3-2（观测口径参数表）**：\((k,\sigma,s)\)、`INTER_AREA`、边界策略、裁剪窗口与对齐规则。
+- **表 3-3（消融设置）**：A0–A3。
+- **表 3-4（敏感性扫描表）**：参数范围、步长、固定变量、输出指标、资源四项。
 
-- Lakens, D. (2013). *Calculating and reporting effect sizes to facilitate cumulative science: A practical primer for t-tests and ANOVAs*. *Frontiers in Psychology, 4*, 863. https://doi.org/10.3389/fpsyg.2013.00863 ([埃因霍温理工大学研究](https://research.tue.nl/en/publications/calculating-and-reporting-effect-sizes-to-facilitate-cumulative-s))
-- Lu, L., Jin, P., Pang, G., Zhang, Z., & Karniadakis, G. E. (2021). *Learning nonlinear operators via DeepONet based on the universal approximation theorem of operators*. *Nature Machine Intelligence, 3*(3), 218–229. https://doi.org/10.1038/s42256-021-00302-5 ([arXiv](https://arxiv.org/abs/1904.11486))
-- Kovachki, N. B., Li, Z., Liu, B., Azizzadenesheli, K., Bhattacharya, K., Stuart, A. M., & Anandkumar, A. (2023). *Neural operator: Learning maps between function spaces with applications to PDEs*. *Journal of Machine Learning Research, 24*, 1–97. https://www.jmlr.org/papers/v24/21-1524.html ([arXiv](https://arxiv.org/abs/1806.08734))
-- Tancik, M., Srinivasan, P. P., Mildenhall, B., et al. (2020). *Fourier features let networks learn high frequency functions in low dimensional domains*. *NeurIPS 2020*. https://arxiv.org/abs/2006.10739 ([arXiv](https://arxiv.org/abs/1904.11486))
-- Wang, S., Sankaran, S., & Perdikaris, P. (2022). *Respecting causality is all you need for training physics-informed neural networks*. arXiv:2203.07404. https://doi.org/10.48550/arXiv.2203.07404 ([arXiv](https://arxiv.org/abs/2203.07404))
-- OpenCV Documentation. *Geometric image transformations (resize) and interpolation; INTER_AREA guidance for shrinking/decimation*. https://docs.opencv.org/master/da/d54/group__imgproc__transform.html ([OpenCV 文档](https://docs.opencv.org/master/da/d54/group__imgproc__transform.html))
-- OpenCV Documentation. *GaussianBlur function reference (sigma, ksize, borderType)*. https://docs.opencv.org/3.4/d4/d86/group__imgproc__filter.html ([OpenCV 文档](https://docs.opencv.org/3.4/d4/d86/group__imgproc__filter.html))
+---
 
-------
+## 3.11 本章小结
 
-## 你接下来怎么改（一步步指引｜不需要你再想结构）
+本章围绕“稀疏观测驱动的时空场重建”任务，给出以观测口径一致性为核心的可执行方法论：用统一观测算子 \(H\) 固化评测口径，并通过硬约束 \(DC\equiv H\) 与阻断式等价性审计消除训练/评测断裂；在模型层面采用统一输入打包与可替换架构接口；在目标函数层面采用重建损失、低频谱一致性与原值域观测一致性三件套，直接优化 \(H_{\mathrm{err}}\)；在实验规范层面固化配置快照、环境指纹与统计检验，为后续章节的严格评测与可复核讨论奠定基础。
 
-你已经同意逐步修改，那就按下面顺序推进（每一步都“可检查”）：
+---
 
-1. **先替换符号**（10分钟内完成）：把所有“空间分辨率的 (H\times W)”改成 (N_x\times N_y)；把模糊核尺度写成 (\sigma_{\text{blur}})，把 z-score 标准差写成 (\sigma_{\text{z}})。
-2. **补一个“口径参数表（表3-2）”**：把 SR 与 Crop 的参数逐项列出（k、(\sigma_{\text{blur}})、s、插值、边界、对齐偏移、mask 同步规则）。
-3. **把 3.3.2 审计脚本写成“阻断式条款”**：明确“不通过不统计”，并写出归档路径。
-4. **把 3.8 统计检验写成可复制句式**：主文固定“paired t-test + Cohen’s d + ≥3 seeds”，把 Lakens 引用放在段尾。([埃因霍温理工大学研究](https://research.tue.nl/en/publications/calculating-and-reporting-effect-sizes-to-facilitate-cumulative-s))
-5. 完成后把你全文（第3–7章）里出现的同名对象做一次“全局查找替换”（尤其是 (H)、(\sigma)、mask 的定义句），避免颗粒度错位。
+## 本章参考文献（APA｜建议全文统一 BibTeX/APA）
 
-你把**你论文当前的第3章 LaTeX 源码片段**（或你正在用的 Overleaf 版本）贴出来后，我可以按你实际模板把上面修订稿进一步改成**完全可直接编译的 LaTeX（含 \label/\ref、表题、图题与 BibTeX 引用位点）**。
+- Lakens, D. (2013). Calculating and reporting effect sizes to facilitate cumulative science: A practical primer for t-tests and ANOVAs. *Frontiers in Psychology, 4*, 863. doi:10.3389/fpsyg.2013.00863 :contentReference[oaicite:11]{index=11}
+- Lu, L., Jin, P., Pang, G., Zhang, Z., & Karniadakis, G. E. (2021). Learning nonlinear operators via DeepONet based on the universal approximation theorem of operators. *Nature Machine Intelligence, 3*(3), 218–229. doi:10.1038/s42256-021-00302-5 :contentReference[oaicite:12]{index=12}
+- Kovachki, N., Li, Z., Liu, B., Azizzadenesheli, K., Bhattacharya, K., Stuart, A. M., & Anandkumar, A. (2023). Neural operator: Learning maps between function spaces with applications to PDEs. *Journal of Machine Learning Research, 24*(89), 1–97. :contentReference[oaicite:13]{index=13}
+- Tancik, M., Srinivasan, P. P., Mildenhall, B., et al. (2020). Fourier features let networks learn high frequency functions in low dimensional domains. *NeurIPS 2020*. arXiv:2006.10739. :contentReference[oaicite:14]{index=14}
+- Wang, S., Yu, X., & Perdikaris, P. (2022). When and why PINNs fail to train: A neural tangent kernel perspective. *Journal of Computational Physics, 449*, 110768. doi:10.1016/j.jcp.2021.110768 :contentReference[oaicite:15]{index=15}
+- Wang, S., Sankaran, S., & Perdikaris, P. (2022). Respecting causality is all you need for training physics-informed neural networks. arXiv:2203.07404. :contentReference[oaicite:16]{index=16}
+- OpenCV Documentation. Geometric Transformations of Images: Preferable interpolation methods are `INTER_AREA` for shrinking. :contentReference[oaicite:17]{index=17}
+- OpenCV Documentation. `GaussianBlur` function reference (parameters include ksize, sigma, borderType). :contentReference[oaicite:18]{index=18}

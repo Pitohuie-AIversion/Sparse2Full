@@ -464,8 +464,18 @@ class TemporalPredictionModule(nn.Module):
             self.feature_extractor = None
         elif self.backend == 'conv_rnn':
             from models.temporal.components.conv_temporal import ConvTemporalPredictor
+            
+            # 自动修正通道数...
+            effective_feature_dim = spatial_feature_dim
+            # 检查 backbone config
+            if 'backbone_config' in config and 'width' in config['backbone_config']:
+                 if config.get('backbone_type') != 'identity' and spatial_feature_dim == 0:
+                     effective_feature_dim = config['backbone_config']['width']
+            if config.get('backbone_type') == 'identity':
+                effective_feature_dim = 0
+            
             self.conv_model = ConvTemporalPredictor(
-                in_channels=(spatial_feature_dim + out_channels),
+                in_channels=(effective_feature_dim + out_channels),
                 hidden_channels=temporal_dim,
                 out_channels=out_channels,
                 num_layers=num_layers,
@@ -474,6 +484,98 @@ class TemporalPredictionModule(nn.Module):
             )
             self.prediction_head = None
             self.feature_extractor = None
+            
+            # Same channel logic as ConvRNN
+            # 在 verify 脚本中，spatial_feature_dim 被设为 0 (Identity)，但实际上 spatial_features 可能是 None
+            # 我们需要检查初始化逻辑
+            
+            # ConvRNN/VideoSwin 的 in_channels 初始化为 spatial_feature_dim + out_channels
+            # 如果 spatial_feature_dim=0, out=1, 则 in_channels=1
+            
+            # 但是在 verify 脚本中，我们使用了默认值?
+            # 让我们检查 verify_video_swin.py: 
+            # spatial_config = { ..., 'spatial_feature_dim': 0 }
+            # temporal_config = { ..., 'temporal_dim': 24 }
+            
+            # 所以 in_channels 应该是 1。
+            # 但错误信息说: weight size [24, 129, 1, 1, 1], expected input to have 129 channels.
+            # 这意味着 in_channels 被初始化为了 129。
+            # 为什么是 129? 128 (default) + 1 ?
+            
+            # 是的，config.get('spatial_feature_dim', 128) 在 TemporalPredictionModule.__init__ 中
+            # 但我们传入了 config，里面包含了 spatial_feature_dim=0
+            # 等等，SequentialSpatiotemporalModel.__init__ 中合并了 config:
+            # self.config = { **spatial, **temporal, ... }
+            # 如果 spatial_config 有 spatial_feature_dim=0, temporal_config 没有
+            # 那么合并后 spatial_feature_dim=0
+            
+            # TemporalPredictionModule.__init__(self, config):
+            # spatial_feature_dim = config.get('spatial_feature_dim', 128)
+            # 如果 config 中有 0，get 应该返回 0。
+            
+            # 除非... TemporalPredictionModule 的 config 并不是合并后的 config，而是仅 temporal_config?
+            # 检查 SequentialSpatiotemporalModel.__init__:
+            # self.temporal_module = TemporalPredictionModule(temporal_config)
+            # 是的！它只传了 temporal_config。
+            # 而 verify 脚本中 temporal_config 没有 'spatial_feature_dim'。
+            # 所以它使用了默认值 128。
+            
+            # 修正：我们需要确保 temporal_config 中包含了正确的 spatial_feature_dim。
+            # 或者在 TemporalPredictionModule 初始化时，不仅依赖 temporal_config，还应该允许覆盖。
+            
+            # 但这里我们只能修改 SequentialSpatiotemporalModel 或 TemporalPredictionModule。
+            
+            # 最好是在 SequentialSpatiotemporalModel 中，将 spatial_feature_dim 注入到 temporal_config 中。
+            
+            # 但我们正在修改的是 TemporalPredictionModule (它是 SequentialSpatiotemporalModel 的一部分文件，但它是独立类)
+            
+            # 让我们在 TemporalPredictionModule 初始化中，更智能地获取 spatial_feature_dim
+            # 实际上，代码已经在初始化 ConvRNN/VideoSwin 时尝试修正 effective_feature_dim
+            
+            # effective_feature_dim = spatial_feature_dim (这里是 128)
+            # if 'backbone_config' in config ... (temporal_config 没有 backbone_config)
+            # if config.get('backbone_type') == 'identity' ... (temporal_config 没有 backbone_type)
+            
+            # 所以 effective_feature_dim 保持为 128。
+            # in_channels = 128 + 1 = 129.
+            
+            # 这就是为什么权重是 129。
+            
+            # 解决方法：
+            # 1. 在 verify 脚本中，显式在 temporal_config 中设置 spatial_feature_dim=0。
+            # 2. 或者在 SequentialSpatiotemporalModel 中传递。
+            
+            # 由于我不能修改 verify 脚本（或者我可以，但我应该让代码更健壮），
+            # 我将修改 SequentialSpatiotemporalModel 的初始化，把 spatial_feature_dim 传给 temporal_module。
+            
+            # 但现在我只能修改 sequential_spatiotemporal.py。
+            
+            # 让我们修改 SequentialSpatiotemporalModel.__init__
+            pass # 占位，将在下一个 SearchReplace 中修改 __init__
+            
+        elif self.backend == 'video_swin':
+            from models.temporal.components.video_swin import VideoSwinPredictor
+            
+            # 使用 effective_feature_dim 逻辑
+            effective_feature_dim = spatial_feature_dim
+            if 'backbone_config' in config and 'width' in config['backbone_config']:
+                 if config.get('backbone_type') != 'identity' and spatial_feature_dim == 0:
+                     effective_feature_dim = config['backbone_config']['width']
+            if config.get('backbone_type') == 'identity':
+                effective_feature_dim = 0
+                
+            self.video_swin_model = VideoSwinPredictor(
+                in_channels=(effective_feature_dim + out_channels),
+                hidden_dim=temporal_dim,
+                out_channels=out_channels,
+                num_layers=num_layers,
+                num_heads=int(config.get('num_heads', 4)),
+                window_size=tuple(config.get('window_size', (2, 7, 7))),
+                dropout=dropout
+            )
+            self.prediction_head = None
+            self.feature_extractor = None
+            
         else:
             self.feature_extractor = TemporalFeatureExtractor(
                 input_dim, temporal_dim, num_layers=num_layers, dropout=dropout,
@@ -590,7 +692,7 @@ class TemporalPredictionModule(nn.Module):
         
         # 5. 严格维度检查
         actual_input_dim = temporal_input.shape[-1]
-        if self.backend != 'tcn' and self.backend != 'physics_transformer' and self.backend != 'conv_rnn':
+        if self.backend != 'tcn' and self.backend != 'physics_transformer' and self.backend != 'conv_rnn' and self.backend != 'video_swin':
             expected_dim = self.feature_extractor.input_proj.in_features
             if actual_input_dim != expected_dim:
                 raise RuntimeError(
@@ -671,7 +773,7 @@ class TemporalPredictionModule(nn.Module):
             # spatial_features: [B, T, F, H, W]
             
             # 确保 spatial_features 和 spatial_pred 空间尺寸一致
-            if spatial_features is not None:
+            if spatial_features is not None and spatial_features.shape[2] > 0:
                 # 拼接
                 conv_input = torch.cat([spatial_pred, spatial_features], dim=2) # [B, T, C+F, H, W]
             else:
@@ -679,6 +781,54 @@ class TemporalPredictionModule(nn.Module):
             
             final_pred = self.conv_model(conv_input, T_out=T_out)
             temporal_features = None # ConvRNN隐状态暂不暴露
+
+            # 如果进行了空间降维，需要上采样回原始分辨率
+            if target is not None and target.dim() == 5:
+                desired_size = (int(target.shape[3]), int(target.shape[4]))
+            else:
+                img_size = self.config.get('img_size', (256, 256))
+                try:
+                    desired_size = (int(img_size[0]), int(img_size[1]))
+                except (TypeError, IndexError, KeyError):
+                    desired_size = (int(img_size), int(img_size))
+            
+            if final_pred.shape[-2] != desired_size[0] or final_pred.shape[-1] != desired_size[1]:
+                import torch.nn.functional as F
+                B_out, T_out, C_out, H_out, W_out = final_pred.shape
+                final_pred = F.interpolate(
+                    final_pred.reshape(B_out * T_out, C_out, H_out, W_out),
+                    size=desired_size, mode='bilinear', align_corners=False
+                ).reshape(B_out, T_out, C_out, desired_size[0], desired_size[1])
+
+        elif self.backend == 'video_swin':
+            from models.temporal.components.video_swin import VideoSwinPredictor
+            
+            # Similar to ConvRNN, we need proper input channel handling
+            if spatial_features is not None and spatial_features.shape[2] > 0:
+                conv_input = torch.cat([spatial_pred, spatial_features], dim=2) 
+            else:
+                conv_input = spatial_pred
+                
+            final_pred = self.video_swin_model(conv_input, T_out=T_out)
+            temporal_features = None 
+            
+            # Upsampling if needed
+            if target is not None and target.dim() == 5:
+                desired_size = (int(target.shape[3]), int(target.shape[4]))
+            else:
+                img_size = self.config.get('img_size', (256, 256))
+                try:
+                    desired_size = (int(img_size[0]), int(img_size[1]))
+                except (TypeError, IndexError, KeyError):
+                    desired_size = (int(img_size), int(img_size))
+            
+            if final_pred.shape[-2] != desired_size[0] or final_pred.shape[-1] != desired_size[1]:
+                import torch.nn.functional as F
+                B_out, T_out, C_out, H_out, W_out = final_pred.shape
+                final_pred = F.interpolate(
+                    final_pred.reshape(B_out * T_out, C_out, H_out, W_out),
+                    size=desired_size, mode='bilinear', align_corners=False
+                ).reshape(B_out, T_out, C_out, desired_size[0], desired_size[1])
 
         else:
             temporal_features = self.feature_extractor(temporal_input)
@@ -731,6 +881,15 @@ class SequentialSpatiotemporalModel(nn.Module):
             'device': device
         }
         
+        # 自动将空间配置中的特征维度同步到时序配置中，防止维度不匹配
+        if 'spatial_feature_dim' in spatial_config and 'spatial_feature_dim' not in temporal_config:
+            temporal_config['spatial_feature_dim'] = spatial_config['spatial_feature_dim']
+        # 同时也同步 backbone 信息，用于 VideoSwin/ConvRNN 的通道推断
+        if 'backbone_type' in spatial_config:
+            temporal_config['backbone_type'] = spatial_config['backbone_type']
+        if 'backbone_config' in spatial_config:
+            temporal_config['backbone_config'] = spatial_config['backbone_config']
+            
         self.spatial_module = SpatialPredictionModule(spatial_config)
         self.temporal_module = TemporalPredictionModule(temporal_config)
         self.teacher_prob: float = 0.0
@@ -753,7 +912,8 @@ class SequentialSpatiotemporalModel(nn.Module):
             # 使用最后一帧作为空间预测占位，减少无意义的时间维差异
             spatial_pred = x[:, -1:].clone()
             T_sp = spatial_pred.shape[1]
-            spatial_features = torch.zeros(B, T_sp, 1, H, W, device=x.device, dtype=x.dtype)
+            # 如果没有特征提取器，特征维度应为0，而不是1个通道的零张量
+            spatial_features = torch.zeros(B, T_sp, 0, H, W, device=x.device, dtype=x.dtype)
             spatial_output = SpatialPredictionOutput(
                 spatial_pred=spatial_pred,
                 spatial_features=spatial_features,

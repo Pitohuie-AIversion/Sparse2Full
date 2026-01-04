@@ -22,6 +22,7 @@ Reference:
 
 from __future__ import annotations
 from typing import List, Optional, Tuple, Dict
+from omegaconf import ListConfig
 
 import math
 import torch
@@ -108,7 +109,11 @@ class MultiHeadAttention(nn.Module):
     """
     def __init__(self, dim: int, num_heads: int = 8, dropout: float = 0.0, qkv_bias: bool = True):
         super().__init__()
+        # Handle ListConfig or other types for num_heads
+        if hasattr(num_heads, '__len__') and not isinstance(num_heads, str):
+            num_heads = num_heads[0]
         num_heads = int(num_heads)
+        
         while num_heads > 1 and dim % num_heads != 0:
             num_heads -= 1
         self.num_heads = num_heads

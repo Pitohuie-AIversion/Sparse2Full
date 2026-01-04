@@ -1,52 +1,184 @@
-\contentsline {chapter}{\numberline {第一章\hspace {.3em}}绪论}{3}{chapter.1}%
-\contentsline {section}{\numberline {1.1}研究背景}{3}{section.1.1}%
-\contentsline {subsection}{\numberline {1.1.1}稀疏观测下的时空场重建需求}{3}{subsection.1.1.1}%
-\contentsline {subsection}{\numberline {1.1.2}科学机器学习与算子学习的推动作用}{3}{subsection.1.1.2}%
-\contentsline {section}{\numberline {1.2}研究动机与应用场景}{4}{section.1.2}%
-\contentsline {section}{\numberline {1.3}研究问题定义与数学形式化}{4}{section.1.3}%
-\contentsline {subsection}{\numberline {1.3.1}观测模型与重建目标}{4}{subsection.1.3.1}%
-\contentsline {subsection}{\numberline {1.3.2}任务口径：超分辨与裁剪（示例）}{5}{subsection.1.3.2}%
-\contentsline {section}{\numberline {1.4}稀疏观测重建的关键挑战}{5}{section.1.4}%
-\contentsline {subsection}{\numberline {1.4.1}混叠与频谱失真}{5}{subsection.1.4.1}%
-\contentsline {subsection}{\numberline {1.4.2}训练口径与评测口径断裂}{5}{subsection.1.4.2}%
-\contentsline {subsection}{\numberline {1.4.3}非周期边界与局部伪影扩散}{5}{subsection.1.4.3}%
-\contentsline {subsection}{\numberline {1.4.4}可复现性与可审计性}{5}{subsection.1.4.4}%
-\contentsline {section}{\numberline {1.5}相关工作综述与定位（聚焦可落地引用）}{6}{section.1.5}%
-\contentsline {subsection}{\numberline {1.5.1}物理约束学习：PINN}{6}{subsection.1.5.1}%
-\contentsline {subsection}{\numberline {1.5.2}算子学习：FNO 与 DeepONet}{6}{subsection.1.5.2}%
-\contentsline {subsection}{\numberline {1.5.3}物理信息与算子学习的结合：Physics-informed DeepONet}{6}{subsection.1.5.3}%
-\contentsline {subsection}{\numberline {1.5.4}本文定位}{6}{subsection.1.5.4}%
-\contentsline {section}{\numberline {1.6}研究内容与技术路线}{6}{section.1.6}%
-\contentsline {subsection}{\numberline {1.6.1}总体路线}{6}{subsection.1.6.1}%
-\contentsline {subsection}{\numberline {1.6.2}指标体系与一致性目标}{7}{subsection.1.6.2}%
-\contentsline {subsection}{\numberline {1.6.3}损失设计（示意）}{7}{subsection.1.6.3}%
-\contentsline {section}{\numberline {1.7}创新点与主要贡献}{7}{section.1.7}%
-\contentsline {section}{\numberline {1.8}论文结构安排}{7}{section.1.8}%
-\contentsline {section}{\numberline {1.9}研究伦理与合规}{8}{section.1.9}%
-\contentsline {section}{\numberline {1.10}本章小结}{8}{section.1.10}%
-\contentsline {section}{关键术语表（本章口径）}{8}{section*.2}%
-\contentsline {chapter}{\numberline {第二章\hspace {.3em}}相关工作}{9}{chapter.2}%
-\contentsline {section}{\numberline {2.1}本章概述}{9}{section.2.1}%
-\contentsline {section}{\numberline {2.2}内容（占位）}{9}{section.2.2}%
-\contentsline {chapter}{\numberline {第三章\hspace {.3em}}方法}{11}{chapter.3}%
-\contentsline {section}{\numberline {3.1}本章概述}{11}{section.3.1}%
-\contentsline {section}{\numberline {3.2}内容（占位）}{11}{section.3.2}%
-\contentsline {chapter}{\numberline {第四章\hspace {.3em}}实验设置}{13}{chapter.4}%
-\contentsline {section}{\numberline {4.1}本章概述}{13}{section.4.1}%
-\contentsline {section}{\numberline {4.2}内容（占位）}{13}{section.4.2}%
-\contentsline {chapter}{\numberline {第五章\hspace {.3em}}结果与分析}{15}{chapter.5}%
-\contentsline {section}{\numberline {5.1}本章概述}{15}{section.5.1}%
-\contentsline {section}{\numberline {5.2}内容（占位）}{15}{section.5.2}%
-\contentsline {chapter}{\numberline {第六章\hspace {.3em}}讨论}{17}{chapter.6}%
-\contentsline {section}{\numberline {6.1}本章概述}{17}{section.6.1}%
-\contentsline {section}{\numberline {6.2}内容（占位）}{17}{section.6.2}%
-\contentsline {chapter}{\numberline {第七章\hspace {.3em}}结论}{19}{chapter.7}%
-\contentsline {section}{\numberline {7.1}本章概述}{19}{section.7.1}%
-\contentsline {section}{\numberline {7.2}内容（占位）}{19}{section.7.2}%
-\contentsline {chapter}{\numberline {第八章\hspace {.3em}}附录}{21}{chapter.8}%
-\contentsline {section}{\numberline {8.1}本章概述}{21}{section.8.1}%
-\contentsline {section}{\numberline {8.2}内容（占位）}{21}{section.8.2}%
-\contentsline {chapter}{\numberline {第九章\hspace {.3em}}致谢}{23}{chapter.9}%
-\contentsline {section}{\numberline {9.1}本章概述}{23}{section.9.1}%
-\contentsline {section}{\numberline {9.2}内容（占位）}{23}{section.9.2}%
-\contentsline {chapter}{参考文献}{25}{chapter*.3}%
+\contentsline {chapter}{\numberline {第一章\hspace {.3em}}绪论}{7}{chapter.1}%
+\contentsline {section}{\numberline {1.1}研究背景}{7}{section.1.1}%
+\contentsline {subsection}{\numberline {1.1.1}稀疏观测下的时空场重建需求}{7}{subsection.1.1.1}%
+\contentsline {subsection}{\numberline {1.1.2}科学机器学习与算子学习的推动作用}{7}{subsection.1.1.2}%
+\contentsline {section}{\numberline {1.2}研究动机与应用场景}{8}{section.1.2}%
+\contentsline {section}{\numberline {1.3}研究问题定义与数学形式化}{8}{section.1.3}%
+\contentsline {subsection}{\numberline {1.3.1}观测模型与重建目标}{8}{subsection.1.3.1}%
+\contentsline {subsection}{\numberline {1.3.2}任务口径：超分辨与裁剪（示例）}{9}{subsection.1.3.2}%
+\contentsline {section}{\numberline {1.4}稀疏观测重建的关键挑战}{9}{section.1.4}%
+\contentsline {subsection}{\numberline {1.4.1}混叠与频谱失真}{9}{subsection.1.4.1}%
+\contentsline {subsection}{\numberline {1.4.2}训练口径与评测口径断裂}{9}{subsection.1.4.2}%
+\contentsline {subsection}{\numberline {1.4.3}非周期边界与局部伪影扩散}{9}{subsection.1.4.3}%
+\contentsline {subsection}{\numberline {1.4.4}可复现性与可审计性}{9}{subsection.1.4.4}%
+\contentsline {section}{\numberline {1.5}相关工作综述与定位（聚焦可落地引用）}{10}{section.1.5}%
+\contentsline {subsection}{\numberline {1.5.1}物理约束学习：PINN}{10}{subsection.1.5.1}%
+\contentsline {subsection}{\numberline {1.5.2}算子学习：FNO 与 DeepONet}{10}{subsection.1.5.2}%
+\contentsline {subsection}{\numberline {1.5.3}物理信息与算子学习的结合：Physics-informed DeepONet}{10}{subsection.1.5.3}%
+\contentsline {subsection}{\numberline {1.5.4}本文定位}{10}{subsection.1.5.4}%
+\contentsline {section}{\numberline {1.6}研究内容与技术路线}{11}{section.1.6}%
+\contentsline {subsection}{\numberline {1.6.1}总体路线}{11}{subsection.1.6.1}%
+\contentsline {subsection}{\numberline {1.6.2}指标体系与一致性目标}{11}{subsection.1.6.2}%
+\contentsline {subsection}{\numberline {1.6.3}损失设计（示意）}{11}{subsection.1.6.3}%
+\contentsline {section}{\numberline {1.7}创新点与主要贡献（面向论文审查口径）}{12}{section.1.7}%
+\contentsline {section}{\numberline {1.8}论文结构安排}{12}{section.1.8}%
+\contentsline {section}{\numberline {1.9}研究伦理与合规}{12}{section.1.9}%
+\contentsline {section}{\numberline {1.10}本章小结}{13}{section.1.10}%
+\contentsline {section}{\numberline {1.11}关键术语表（本章使用口径）}{13}{section.1.11}%
+\contentsline {chapter}{\numberline {第二章\hspace {.3em}}相关工作}{15}{chapter.2}%
+\contentsline {section}{\numberline {2.1}引言}{15}{section.2.1}%
+\contentsline {section}{\numberline {2.2}问题范式与两类核心路线：PINN 与算子学习}{16}{section.2.2}%
+\contentsline {subsection}{\numberline {2.2.1}PINN：以物理残差为关键的约束学习}{16}{subsection.2.2.1}%
+\contentsline {subsection}{\numberline {2.2.2}算子学习：从“拟合单个解”转向“学习解算子”}{16}{subsection.2.2.2}%
+\contentsline {subsection}{\numberline {2.2.3}DeepONet：算子近似的分支—主干结构}{17}{subsection.2.2.3}%
+\contentsline {section}{\numberline {2.3}稀疏观测与退化建模：观测算子、抗混叠与口径一致性}{17}{section.2.3}%
+\contentsline {subsection}{\numberline {2.3.1}稀疏观测的“信息瓶颈”与退化算子表述}{17}{subsection.2.3.1}%
+\contentsline {subsection}{\numberline {2.3.2}抗混叠（anti-aliasing）在下采样口径中的必要性}{17}{subsection.2.3.2}%
+\contentsline {subsection}{\numberline {2.3.3}口径一致性（$H$ 与 $DC$）与可复现评测}{18}{subsection.2.3.3}%
+\contentsline {section}{\numberline {2.4}时空耦合建模与训练偏置：多尺度、频谱偏置与因果性}{18}{section.2.4}%
+\contentsline {subsection}{\numberline {2.4.1}时空结构的多尺度性与频谱偏置问题}{18}{subsection.2.4.1}%
+\contentsline {subsection}{\numberline {2.4.2}因果性与时序稳定性：从 PINN 到算子序列建模}{18}{subsection.2.4.2}%
+\contentsline {subsection}{\numberline {2.4.3}与稀疏观测重建的关系}{19}{subsection.2.4.3}%
+\contentsline {section}{\numberline {2.5}离散化误差与别名（aliasing）：跨网格鲁棒性的关键障碍}{19}{section.2.5}%
+\contentsline {section}{\numberline {2.6}基准与数据：PDEBench 的意义与边界}{20}{section.2.6}%
+\contentsline {section}{\numberline {2.7}统计检验与工程成本：从“论文结果”走向“可部署结论”}{20}{section.2.7}%
+\contentsline {subsection}{\numberline {2.7.1}多种子统计与效应量}{20}{subsection.2.7.1}%
+\contentsline {subsection}{\numberline {2.7.2}资源成本透明化}{20}{subsection.2.7.2}%
+\contentsline {section}{\numberline {2.8}文献关系框架与对照维度（可直接用于论文配图/配表）}{21}{section.2.8}%
+\contentsline {subsection}{\numberline {2.8.1}“方法—理论—基准—问题”四象限关系框架（文字版）}{21}{subsection.2.8.1}%
+\contentsline {subsection}{\numberline {2.8.2}关键方法对照表（面向稀疏观测重建的评审维度）}{21}{subsection.2.8.2}%
+\contentsline {section}{\numberline {2.9}符号与记号对齐（与第3章接口，避免跨章歧义）}{21}{section.2.9}%
+\contentsline {section}{\numberline {2.10}本章小结与章节过渡}{22}{section.2.10}%
+\contentsline {chapter}{\numberline {第三章\hspace {.3em}}方法}{23}{chapter.3}%
+\contentsline {section}{\numberline {3.1}问题定义与数学形式化}{23}{section.3.1}%
+\contentsline {section}{\numberline {3.2}统一观测算子 $H$：抗混叠与口径声明}{24}{section.3.2}%
+\contentsline {subsection}{\numberline {3.2.1}SR 观测口径（下采样）}{24}{subsection.3.2.1}%
+\contentsline {subsection}{\numberline {3.2.2}Crop 观测口径（裁剪）}{24}{subsection.3.2.2}%
+\contentsline {section}{\numberline {3.3}$H/DC$ 单一口径复用：硬约束与阻断式审计}{24}{section.3.3}%
+\contentsline {subsection}{\numberline {3.3.1}硬约束：训练退化 $DC\equiv H$}{24}{subsection.3.3.1}%
+\contentsline {subsection}{\numberline {3.3.2}阻断式等价性检验（不通过则不进入统计）}{24}{subsection.3.3.2}%
+\contentsline {section}{\numberline {3.4}模型接口：统一输入打包与可替换算子层}{25}{section.3.4}%
+\contentsline {subsection}{\numberline {3.4.1}统一输入打包（接口契约）}{25}{subsection.3.4.1}%
+\contentsline {subsection}{\numberline {3.4.2}算子学习视角（方法定位）}{25}{subsection.3.4.2}%
+\contentsline {section}{\numberline {3.5}三件套损失：重建、低频谱一致性、原值域观测一致性}{25}{section.3.5}%
+\contentsline {subsection}{\numberline {3.5.1}标准化域与原值域}{25}{subsection.3.5.1}%
+\contentsline {subsection}{\numberline {3.5.2}重建损失 $L_{\mathrm {rec}}$}{25}{subsection.3.5.2}%
+\contentsline {subsection}{\numberline {3.5.3}低频谱一致性损失 $L_{\mathrm {spec}}$}{25}{subsection.3.5.3}%
+\contentsline {subsection}{\numberline {3.5.4}原值域观测一致性损失 $L_{\mathrm {dc}}$}{26}{subsection.3.5.4}%
+\contentsline {subsection}{\numberline {3.5.5}总损失}{26}{subsection.3.5.5}%
+\contentsline {section}{\numberline {3.6}复现闭环：配置快照、环境指纹与一致性归档}{26}{section.3.6}%
+\contentsline {section}{\numberline {3.7}研究设计：对照、消融与敏感性分析}{26}{section.3.7}%
+\contentsline {section}{\numberline {3.8}统计检验：显著性与效应量}{26}{section.3.8}%
+\contentsline {section}{\numberline {3.9}与 PINN 物理残差约束的关系（边界定位）}{26}{section.3.9}%
+\contentsline {chapter}{\numberline {第四章\hspace {.3em}}实验设置}{29}{chapter.4}%
+\contentsline {section}{\numberline {4.0}引言}{29}{section.4.0}%
+\contentsline {section}{\numberline {4.1}预备定义：函数空间、算子范数与误差度量}{29}{section.4.1}%
+\contentsline {section}{\numberline {4.2}观测口径一致性（$H/DC$ 复用）的可证明意义}{30}{section.4.2}%
+\contentsline {subsection}{\numberline {4.2.1}命题 4.1：评测口径误差由重建误差上界控制（前提：同一 $H$）}{30}{subsection.4.2.1}%
+\contentsline {subsection}{\numberline {4.2.2}SR 与 Crop 两类 $H$ 的算子稳定性：为何 $\|H\|_{\mathrm {op}}$ 往往温和}{30}{subsection.4.2.2}%
+\contentsline {subsection}{\numberline {4.2.3}欠定性与必要补充：为何仅 $L_{dc}$ 不够}{31}{subsection.4.2.3}%
+\contentsline {section}{\numberline {4.3}三件套损失的理论作用分解：从可行到可泛化、可解释}{31}{section.4.3}%
+\contentsline {subsection}{\numberline {4.3.1}$L_{\text {rec}}$：逼近误差的直接控制项}{31}{subsection.4.3.1}%
+\contentsline {subsection}{\numberline {4.3.2}$L_{\text {dc}}$：把优化目标绑定到评测口径上}{31}{subsection.4.3.2}%
+\contentsline {subsection}{\numberline {4.3.3}$L_{\text {spec}}$：低频结构优先与谱偏置缓解}{32}{subsection.4.3.3}%
+\contentsline {section}{\numberline {4.4}收敛性与训练稳定性：为何需要课程学习与因果/时序约束}{32}{section.4.4}%
+\contentsline {subsection}{\numberline {4.4.1}PINN 的失败模式与 NTK 视角}{32}{subsection.4.4.1}%
+\contentsline {subsection}{\numberline {4.4.2}因果性训练与先易后难的合理性}{32}{subsection.4.4.2}%
+\contentsline {section}{\numberline {4.5}神经算子泛化与跨网格鲁棒性：为何算子视角更匹配 PDE 数据}{33}{section.4.5}%
+\contentsline {section}{\numberline {4.6}离散化与混叠：为何必须把抗混叠口径写进方法}{33}{section.4.6}%
+\contentsline {subsection}{\numberline {4.6.1}混叠的结构性风险}{33}{subsection.4.6.1}%
+\contentsline {subsection}{\numberline {4.6.2}别名无关学习与跨网格一致性}{33}{subsection.4.6.2}%
+\contentsline {section}{\numberline {4.7}解码稳定性：为何坚持“上采样 + 小卷积”而非反卷积堆叠}{33}{section.4.7}%
+\contentsline {section}{\numberline {4.8}确定性训练与可复现性：把可复现当作理论假设的一部分}{34}{section.4.8}%
+\contentsline {section}{\numberline {4.9}理论命题到实证设计的映射}{34}{section.4.9}%
+\contentsline {section}{\numberline {4.10}小结}{34}{section.4.10}%
+\contentsline {chapter}{\numberline {第五章\hspace {.3em}}结果与分析}{37}{chapter.5}%
+\contentsline {section}{\numberline {5.1}本章概述}{37}{section.5.1}%
+\contentsline {section}{\numberline {5.2}内容（占位）}{37}{section.5.2}%
+\contentsline {chapter}{\numberline {第六章\hspace {.3em}}讨论}{39}{chapter.6}%
+\contentsline {section}{\numberline {6.1}实验设置}{39}{section.6.1}%
+\contentsline {subsection}{\numberline {6.1.1}数据集与数据治理}{39}{subsection.6.1.1}%
+\contentsline {subsection}{\numberline {6.1.2}固定切分与逐通道标准化}{39}{subsection.6.1.2}%
+\contentsline {paragraph}{固定切分。}{39}{paragraph*.2}%
+\contentsline {paragraph}{逐通道 z-score。}{39}{paragraph*.3}%
+\contentsline {subsection}{\numberline {6.1.3}观测生成与口径一致性（$H/\mathrm {DC}$ 同源复用）}{39}{subsection.6.1.3}%
+\contentsline {paragraph}{观测生成。}{39}{paragraph*.4}%
+\contentsline {paragraph}{单一口径复用。}{39}{paragraph*.5}%
+\contentsline {subsection}{\numberline {6.1.4}确定性训练与快照产物}{40}{subsection.6.1.4}%
+\contentsline {subsection}{\numberline {6.1.5}评测指标与计算口径}{40}{subsection.6.1.5}%
+\contentsline {paragraph}{(1) 相对 $L_2$ 误差（Rel-L2）。}{40}{paragraph*.6}%
+\contentsline {paragraph}{(2) MAE。}{40}{paragraph*.7}%
+\contentsline {paragraph}{(3) PSNR。}{40}{paragraph*.8}%
+\contentsline {paragraph}{(4) SSIM。}{40}{paragraph*.9}%
+\contentsline {paragraph}{(5) 频带误差：fRMSE-low/mid/high。}{40}{paragraph*.10}%
+\contentsline {paragraph}{(6) 区域误差：bRMSE 与 cRMSE。}{41}{paragraph*.11}%
+\contentsline {paragraph}{(7) 评测口径误差：$H_{\mathrm {err}} \equiv \|H(\tilde u)-y\|$。}{41}{paragraph*.12}%
+\contentsline {subsection}{\numberline {6.1.6}统计与显著性检验}{41}{subsection.6.1.6}%
+\contentsline {paragraph}{多种子统计。}{41}{paragraph*.13}%
+\contentsline {paragraph}{paired t-test（Rel-L2）。}{41}{paragraph*.14}%
+\contentsline {paragraph}{效应量（Cohen's $d$，配对设计）。}{41}{paragraph*.15}%
+\contentsline {subsection}{\numberline {6.1.7}资源四项：测量流程与口径固定}{41}{subsection.6.1.7}%
+\contentsline {section}{\numberline {6.2}主实验结果}{42}{section.6.2}%
+\contentsline {subsection}{\numberline {6.2.1}稀疏观测（SR 与 Crop）下的重建性能}{42}{subsection.6.2.1}%
+\contentsline {subsection}{\numberline {6.2.2}与 SOTA/代表基线对比}{42}{subsection.6.2.2}%
+\contentsline {subsection}{\numberline {6.2.3}显著性检验结果}{43}{subsection.6.2.3}%
+\contentsline {section}{\numberline {6.3}消融实验}{43}{section.6.3}%
+\contentsline {subsection}{\numberline {6.3.1}去除 $L_{\mathrm {spec}}$}{43}{subsection.6.3.1}%
+\contentsline {subsection}{\numberline {6.3.2}去除 $L_{\mathrm {dc}}$}{43}{subsection.6.3.2}%
+\contentsline {subsection}{\numberline {6.3.3}$H/\mathrm {DC}$ 不复用（故意错配）}{43}{subsection.6.3.3}%
+\contentsline {subsection}{\numberline {6.3.4}解码器替换（去除“双线性+3$\times $3”）}{43}{subsection.6.3.4}%
+\contentsline {subsection}{\numberline {6.3.5}频谱阈值扫描（$K$ 或 $\rho _1,\rho _2$）}{44}{subsection.6.3.5}%
+\contentsline {section}{\numberline {6.4}可视化分析}{44}{section.6.4}%
+\contentsline {subsection}{\numberline {6.4.1}标准图组与绘图规范}{44}{subsection.6.4.1}%
+\contentsline {subsection}{\numberline {6.4.2}代表案例（$\ge 3$）}{44}{subsection.6.4.2}%
+\contentsline {subsection}{\numberline {6.4.3}失败案例与类型化诊断}{44}{subsection.6.4.3}%
+\contentsline {section}{\numberline {6.5}资源与性能}{45}{section.6.5}%
+\contentsline {subsection}{\numberline {6.5.1}Params 与 FLOPs}{45}{subsection.6.5.1}%
+\contentsline {subsection}{\numberline {6.5.2}显存峰值与推理延迟}{45}{subsection.6.5.2}%
+\contentsline {subsection}{\numberline {6.5.3}资源—性能折衷}{45}{subsection.6.5.3}%
+\contentsline {section}{\numberline {6.6}结果小结与讨论}{45}{section.6.6}%
+\contentsline {section}{\numberline {6.7}统计与可视化自检清单}{45}{section.6.7}%
+\contentsline {section}{\numberline {6.8}YAML 字段到实验的映射}{46}{section.6.8}%
+\contentsline {section}{\numberline {6.9}结果再现与汇总（材料包结构）}{46}{section.6.9}%
+\contentsline {chapter}{\numberline {第七章\hspace {.3em}}结论}{47}{chapter.7}%
+\contentsline {section}{\numberline {7.1}引言}{47}{section.7.1}%
+\contentsline {section}{\numberline {7.2}一致性验证（对应命题1）}{47}{section.7.2}%
+\contentsline {subsection}{\numberline {7.2.1}H/DC 等价性测试（硬门槛）}{47}{subsection.7.2.1}%
+\contentsline {subsection}{\numberline {7.2.2}评测口径一致性验证：相关性与“断裂”负例}{48}{subsection.7.2.2}%
+\contentsline {section}{\numberline {7.3}收敛性与稳定性验证（对应命题2与第\ref {chap:ch4_theory}章稳定性讨论）}{48}{section.7.3}%
+\contentsline {subsection}{\numberline {7.3.1}课程学习对收敛的影响（SR $\times 2\rightarrow \times 4$；Crop 40\%$\rightarrow $20\%）}{48}{subsection.7.3.1}%
+\contentsline {subsection}{\numberline {7.3.2}因果/时序约束验证（时序打乱负例）}{49}{subsection.7.3.2}%
+\contentsline {subsection}{\numberline {7.3.3}解码策略验证（双线性+3$\times $3 vs 反卷积）}{49}{subsection.7.3.3}%
+\contentsline {section}{\numberline {7.4}泛化能力与跨网格鲁棒性（对应命题3）}{50}{section.7.4}%
+\contentsline {subsection}{\numberline {7.4.1}多分辨率外推评测（img\_size = 128/256/512）}{50}{subsection.7.4.1}%
+\contentsline {subsection}{\numberline {7.4.2}网格/离散化变化与别名诊断}{50}{subsection.7.4.2}%
+\contentsline {section}{\numberline {7.5}显著性检验与效应大小（统一统计协议）}{50}{section.7.5}%
+\contentsline {subsection}{\numberline {7.5.1}paired t-test（主指标 Rel-L2）}{50}{subsection.7.5.1}%
+\contentsline {subsection}{\numberline {7.5.2}Cohen’s $d$（配对版本）与置信区间}{50}{subsection.7.5.2}%
+\contentsline {section}{\numberline {7.6}敏感性分析（参数—口径—资源三维折衷）}{51}{section.7.6}%
+\contentsline {subsection}{\numberline {7.6.1}扫描维度与最小覆盖集}{51}{subsection.7.6.1}%
+\contentsline {subsection}{\numberline {7.6.2}结果呈现模板（主表 + 附录）}{51}{subsection.7.6.2}%
+\contentsline {section}{\numberline {7.7}可复现性验证（确定性、快照、指纹）}{51}{section.7.7}%
+\contentsline {subsection}{\numberline {7.7.1}确定性配置与方差门槛}{51}{subsection.7.7.1}%
+\contentsline {subsection}{\numberline {7.7.2}复现闭环材料检查}{51}{subsection.7.7.2}%
+\contentsline {section}{\numberline {7.8}小结（命题$\rightarrow $证据$\rightarrow $材料）}{52}{section.7.8}%
+\contentsline {chapter}{\numberline {第八章\hspace {.3em}}附录}{53}{chapter.8}%
+\contentsline {section}{\numberline {8.1}方法优势与机理解释}{53}{section.8.1}%
+\contentsline {subsection}{\numberline {8.1.1}口径一致性带来的“评测可控性”}{53}{subsection.8.1.1}%
+\contentsline {subsection}{\numberline {8.1.2}三件套损失的“互补约束结构”}{53}{subsection.8.1.2}%
+\contentsline {subsection}{\numberline {8.1.3}统一接口与确定性训练提高“横向可比性”}{53}{subsection.8.1.3}%
+\contentsline {section}{\numberline {8.2}局限性与风险点（更具体的“何时会变差”）}{54}{section.8.2}%
+\contentsline {subsection}{\numberline {8.2.1}复杂几何与非周期边界下的谱域瓶颈}{54}{subsection.8.2.1}%
+\contentsline {subsection}{\numberline {8.2.2}极端稀疏与高噪声下的权重敏感性}{54}{subsection.8.2.2}%
+\contentsline {subsection}{\numberline {8.2.3}资源与流程成本上升}{54}{subsection.8.2.3}%
+\contentsline {section}{\numberline {8.3}适用条件与工程实践建议（可操作）}{54}{section.8.3}%
+\contentsline {section}{\numberline {8.4}未来工作（与本文框架强耦合的方向）}{55}{section.8.4}%
+\contentsline {subsection}{\numberline {8.4.1}主动学习与自适应采样（信息效率）}{55}{subsection.8.4.1}%
+\contentsline {subsection}{\numberline {8.4.2}弱式/变分物理约束与复杂边界融合}{55}{subsection.8.4.2}%
+\contentsline {subsection}{\numberline {8.4.3}数据基准与跨任务扩展}{55}{subsection.8.4.3}%
+\contentsline {section}{\numberline {8.5}小结}{55}{section.8.5}%
+\contentsline {section}{\numberline {8.6}参考文献（APA）}{55}{section.8.6}%
+\contentsline {chapter}{\numberline {第九章\hspace {.3em}}致谢}{57}{chapter.9}%
+\contentsline {section}{\numberline {9.1}本章概述}{57}{section.9.1}%
+\contentsline {section}{\numberline {9.2}内容（占位）}{57}{section.9.2}%
+\contentsline {chapter}{参考文献}{59}{chapter*.16}%

@@ -1,6 +1,280 @@
-\section{本章概述}
-本章概述（占位）。
+%========================
+% Chapter 2 Related Work
+%========================
 
-\section{内容（占位）}
-本节内容（占位）。
+\section{引言}\label{sec:rw_intro}
 
+稀疏观测驱动的时空流场重建（sparse-to-full spatiotemporal field reconstruction）处于科学机器学习（SciML）与计算流体/计算物理交叉地带。相关研究大体沿两条主线发展：
+
+\begin{enumerate}
+  \item \textbf{物理约束学习：}以 Physics-Informed Neural Networks（PINN）为代表，通过在损失中嵌入 PDE 残差、初边界条件与观测约束，强调物理一致性与可解释性；典型工作为 Raissi 等提出的 PINN 框架\cite{raissi2019pinn}。
+  \item \textbf{算子学习（Neural Operator / Operator Learning）：}以 Fourier Neural Operator（FNO）与 DeepONet 等为代表，学习“函数到函数”的映射（即 PDE 解算算子或其近似），强调跨参数/跨初值的快速推理与外推能力；系统性论述可参考 Kovachki 等在 JMLR 的 neural operator 工作\cite{kovachki2023neural_operator}。
+\end{enumerate}
+
+除方法路线外，稀疏观测重建还长期被三个工程问题持续“卡脖子”：
+
+\begin{itemize}
+  \item \textbf{观测口径与训练口径是否一致：}观测算子 $H$ 与训练端退化算子 $DC$ 是否一致/复用；
+  \item \textbf{离散化与别名（aliasing）是否影响跨分辨率/跨网格泛化：}分辨率变化、插值/边界处理变化会否触发系统性性能退化；
+  \item \textbf{评测协议与复现实验是否足够严格：}统一指标、统计显著性与资源成本透明化是否到位。
+\end{itemize}
+
+本章围绕上述维度，对关键文献进行综述与批判性归纳，并在章末给出“方法—理论—基准—问题”的关系框架与对照维度表，为第\ref{chap:method}章的方法论形式化与第\ref{chap:experiments}章的评测设计提供直接支撑。
+
+
+\section{问题范式与两类核心路线：PINN 与算子学习}\label{sec:rw_routes}
+
+\subsection{PINN：以物理残差为关键的约束学习}\label{subsec:rw_pinn}
+
+PINN 的核心思想是：在神经网络逼近解函数 $u_{\theta}(\mathbf{x},t)$ 的同时，将 PDE 残差、初边界条件与观测误差统一写入损失函数，从而在数据稀缺或观测受限场景中利用物理规律“补信息”。该范式由 Raissi 等提出并系统化\cite{raissi2019pinn}。
+
+PINN 的研究价值主要体现在：
+\begin{enumerate}
+  \item \textbf{对观测稀缺的天然适配：}可在少量观测下用 PDE 约束收缩解空间；
+  \item \textbf{对下游任务的可解释性：}PDE 残差与边界条件违反程度可被审计；
+  \item \textbf{对反问题的统一表达：}可把未知参数（系数、源项）纳入可学习变量。
+\end{enumerate}
+
+与此同时，近年研究也指出 PINN 在多尺度、刚性（stiff）或高维问题上可能出现训练困难与收敛失败。Wang 等从神经切线核（NTK）视角分析“何时、为何 PINN 难以训练”，为损失权重、采样策略与网络结构设计提供解释框架\cite{wang2022pinn_ntk}。
+
+
+\subsection{算子学习：从“拟合单个解”转向“学习解算子”}\label{subsec:rw_operator}
+
+与 PINN 的“拟合单个方程实例解”不同，算子学习目标是学习映射
+\begin{equation}
+\mathcal{G}: a(\cdot)\mapsto u(\cdot),
+\end{equation}
+其中 $a(\cdot)$ 可表示系数场/初值/源项等函数输入，$u(\cdot)$ 为解函数。该路线旨在在同一类 PDE 上实现\textbf{跨参数/跨初值快速推理}。Kovachki 等在 JMLR 系统化“Neural Operator”框架，并强调其离散化不变（discretization-invariant）建模动机与形式化\cite{kovachki2023neural_operator}。
+
+在工程上，算子学习的优势集中体现在：
+\begin{itemize}
+  \item \textbf{推理速度：}可替代传统 PDE 求解器的多次迭代；
+  \item \textbf{批量推理与外推：}适合数据驱动的参数扫描与不确定性分析；
+  \item \textbf{与深度网络工程栈兼容：}可结合编码器/Transformer/UNet 等架构。
+\end{itemize}
+
+FNO 属于 neural operator 的关键实例之一；其 ICLR 2021 论文与配套材料给出典型应用与效率对比场景\cite{li2021fno}。
+
+
+\subsection{DeepONet：算子近似的分支—主干结构}\label{subsec:rw_deeponet}
+
+DeepONet 将算子近似写为“分支网络编码输入函数 + 主干网络编码查询点”，适合处理不规则采样与函数输入。其代表性论文发表于 \emph{Nature Machine Intelligence}\cite{lu2021deeponet}。
+
+在“稀疏观测 $\rightarrow$ 全场重建”任务中，DeepONet 的结构优势常体现在：对输入观测点集合与查询点集合的自然解耦、对网格变化的适配潜力，以及与物理约束项（PDE 残差、边界条件）结合的便利性\cite{lu2021deeponet}。
+
+
+\section{稀疏观测与退化建模：观测算子、抗混叠与口径一致性}\label{sec:rw_degradation}
+
+\subsection{稀疏观测的“信息瓶颈”与退化算子表述}\label{subsec:rw_obsmodel}
+
+稀疏观测可统一写为：
+\begin{equation}\label{eq:rw_obs}
+y = H(u) + n,
+\end{equation}
+其中 $u$ 为高分辨率真值场，$H$ 为观测算子（下采样、裁剪、点采样、投影、卷积模糊等），$n$ 为噪声。该表述既适用于遥感/浮标类观测，也适用于工业管网/风洞测点类观测。
+
+此处关键不在公式本身，而在于：\textbf{$H$ 的定义决定“评测口径”。}若训练端使用的退化过程与评测端观测口径不一致，将引入难以察觉的域偏差，造成“指标虚优或不可复现”的风险。\emph{该判断属于方法学归纳：}后续章节将给出本文的制度化约束与自检脚本，并将其写成可执行协议。
+
+
+\subsection{抗混叠（anti-aliasing）在下采样口径中的必要性}\label{subsec:rw_antialias}
+
+对超分辨或降采样观测，抗混叠的基本原则是：\textbf{在缩小分辨率前抑制高频分量}，以避免混叠带来的不可逆信息折叠。
+
+工程实现中，OpenCV 官方文档指出：进行图像缩小（decimation）时，通常推荐使用 \texttt{INTER\_AREA} 插值\cite{opencv_resize}。同时，\texttt{GaussianBlur} 属于常用低通平滑算子；OpenCV 官方教程给出其接口与参数语义（核大小、$\sigma$、边界处理等）\cite{opencv_gaussianblur}。
+
+据此，可落地的口径选择通常采用“低通预滤 + 面积插值缩小”的组合：
+\begin{itemize}
+  \item 低通预滤：\texttt{GaussianBlur}（控制 $\sigma$、kernel size 与边界处理）\cite{opencv_gaussianblur}；
+  \item 缩小插值：\texttt{INTER\_AREA}（优先用于 downsampling）\cite{opencv_resize}。
+\end{itemize}
+
+\noindent\textbf{说明：}上述两条属于“工具文档可核验事实”；而“为何低通能抑制混叠”属于信号处理基础原理（Nyquist/频域折叠），通常不依赖单一论文出处。
+
+
+\subsection{口径一致性（\texorpdfstring{$H$}{H} 与 \texorpdfstring{$DC$}{DC}）与可复现评测}\label{subsec:rw_consistency}
+
+文献层面，PDEBench 强调基准化数据与评测的重要性，并通过 OpenReview 给出基准描述、代码与数据获取方式\cite{takamoto2022pdebench}；其数据发布条目同时提供可检索的公开数据标识（含数据集 DOI/仓储信息）\cite{takamoto2022pdebench}。
+
+在稀疏观测重建问题上，“口径一致性”的工程含义可概括为：
+\begin{itemize}
+  \item 数据侧观测算子 $H$ 决定观测生成与评测口径；
+  \item 训练侧退化 $DC$ 若用于合成观测或一致性损失，宜与 $H$ 保持实现与参数一致；
+  \item 当研究目标面向工程部署，训练—评测—部署三者口径需要闭环一致。
+\end{itemize}
+
+上述三点中，前两点可通过工具链与数据管线直接落地；第三点属于本文面向应用的研究立场，将在第\ref{chap:method}章与第\ref{chap:experiments}章被形式化为可执行协议。
+
+
+\section{时空耦合建模与训练偏置：多尺度、频谱偏置与因果性}\label{sec:rw_spatiotemporal}
+
+\subsection{时空结构的多尺度性与频谱偏置问题}\label{subsec:rw_spectralbias}
+
+湍流/对流/波动类流场往往呈现宽频谱特性，模型在训练中可能出现“对某些频段更易拟合”的偏置。近年工作针对 PINN/神经网络的频谱偏置缓解提出多类策略，例如通过（空间）自适应 Fourier 特征编码削弱偏置并改善高频学习\cite{liu2025diminishing_spectral_bias}。
+
+相关研究指向一个一致结论：频谱偏置并非仅是网络表达力问题，优化动态、编码方式与损失设计共同决定频段学习的先后顺序与稳定性\cite{liu2025diminishing_spectral_bias}。
+
+因此，面向“稀疏 $\rightarrow$ 全场”的重建任务，相关工作的经验通常支持三类改进方向：
+\begin{enumerate}
+  \item \textbf{输入编码：}Fourier 特征或多尺度位置编码；
+  \item \textbf{谱域约束：}在损失中显式约束低频/中频结构一致性；
+  \item \textbf{结构化解码与抗伪影：}减少插值与上采样带来的棋盘格/振铃伪影。
+\end{enumerate}
+其中（2）（3）更容易形成稳定可复现的工程管线，原因在于其对数据与网络结构的改动幅度可控。
+
+
+\subsection{因果性与时序稳定性：从 PINN 到算子序列建模}\label{subsec:rw_causality}
+
+时间维度建模常面临滚动误差累积与稳定性问题。Wang 等提出“Respecting causality is all you need for training physics-informed neural networks”，强调训练时尊重时间因果结构可改善 PINN 训练稳定性与长期预测表现\cite{wang2022causality_pinn}。
+
+在算子学习路线下，时序建模也可通过自回归（AR）、序列到序列（Seq2Seq），或将时间作为额外维度输入等方式实现；不同策略在误差传播与推理成本方面存在权衡。该权衡将直接影响第\ref{chap:experiments}章的评测设计与资源对比口径设置。
+
+
+\subsection{与稀疏观测重建的关系}\label{subsec:rw_relation}
+
+综合相关工作，可得到更“可落地”的经验链：
+\begin{itemize}
+  \item 观测稀疏导致高频细节不可辨识；
+  \item 频谱偏置使高频恢复进一步困难；
+  \item 因果结构与时序稳定性决定长时重建/预测的误差是否可控。
+\end{itemize}
+
+因此，将频谱一致性与观测一致性显式纳入损失与评测，往往比单纯扩大模型容量更具稳定收益。\emph{该结论属于方法学归纳，}具体实现与消融将在后续章节展开。
+
+
+\section{离散化误差与别名（aliasing）：跨网格鲁棒性的关键障碍}\label{sec:rw_aliasing}
+
+算子学习强调函数空间映射，但训练与推理最终落到离散网格/离散采样点。当离散化方式变化（分辨率变化、采样点变化、插值方式变化）时，模型可能出现\textbf{表示别名}与跨网格性能退化。Kovachki 等在 neural operator 工作中讨论了离散化不变建模的动机与形式化框架\cite{kovachki2023neural_operator}。
+
+为直接应对别名问题，Bartolucci 等提出 Representation Equivalent Neural Operators（ReNO），目标是缓解离散表示差异导致的别名效应并提升跨离散化设置的可靠性\cite{bartolucci2023reno}。
+
+对“稀疏观测 $\rightarrow$ 全场”的任务而言，别名问题常通过两类现象暴露：
+\begin{itemize}
+  \item 分辨率变化时，低频结构看似正确但高频细节严重漂移；
+  \item 评测口径变化（不同插值/边界处理）时，指标出现不可解释波动。
+\end{itemize}
+
+因此，跨网格鲁棒性评测不宜仅使用单一分辨率或单一口径；相关工作为本文在第\ref{chap:experiments}章设置“跨分辨率/跨口径敏感性分析”提供直接依据\cite{bartolucci2023reno}。
+
+
+\section{基准与数据：PDEBench 的意义与边界}\label{sec:rw_pdebench}
+
+PDEBench 提供多类 PDE 的数据、代码与基线方法，用于系统化对比科学机器学习模型\cite{takamoto2022pdebench}。其公开发布的信息为复现实验与结果审计提供基础条件\cite{takamoto2022pdebench}。
+
+需要指出的是，基准的存在并不自动保证“稀疏观测重建”的评测公平：
+\begin{itemize}
+  \item 若任务引入自定义观测算子（下采样、裁剪、噪声模型），则“观测生成口径”必须在实验材料中被明确声明；
+  \item 若训练端使用额外的退化/一致性约束，则训练端退化与评测端观测口径之间的对应关系必须可审计。
+\end{itemize}
+
+因此，PDEBench 更适合作为“数据与基本协议的共同底座”，而观测口径与一致性约束需要在具体研究中额外制度化（该点构成本文在第\ref{chap:method}章提出统一口径协议的直接动机）。
+
+
+\section{统计检验与工程成本：从“论文结果”走向“可部署结论”}\label{sec:rw_stats_cost}
+
+\subsection{多种子统计与效应量}\label{subsec:rw_stats}
+
+机器学习实验对随机种子敏感已是共识；仅报告单次结果容易造成结论不稳健。统计意义上的稳健结论往往需要：
+\begin{itemize}
+  \item 多次重复实验报告均值与方差；
+  \item 在主对照上做显著性检验；
+  \item 给出效应量以量化实际改进幅度。
+\end{itemize}
+
+效应量（如 Cohen's $d$）在统计分析中的定义与解释可追溯到 Cohen 的经典著作\cite{cohen1988power}。
+
+\noindent\textbf{说明：}本文后续采用的“$\geq 3$ 种子、paired $t$-test、Cohen's $d$、资源四项”等属于\emph{本文拟定的评测协议}，与“统计学工具可核验定义”不同；统计工具本身的出处如上所示。
+
+
+\subsection{资源成本透明化}\label{subsec:rw_cost}
+
+对工程部署而言，参数量、FLOPs、显存峰值与推理延迟决定可落地性。相关工作通常以“速度/精度权衡”呈现算子学习优势，例如 FNO 工作在效率与精度方面给出典型对比\cite{li2021fno}。因此，相关工作部分需要把“精度提升”与“成本变化”放在同一评价框架内讨论，而不是仅以误差指标排序。
+
+
+\section{文献关系框架与对照维度（可直接用于论文配图/配表）}\label{sec:rw_framework}
+
+\subsection{“方法—理论—基准—问题”四象限关系框架（文字版）}\label{subsec:rw_quadrant}
+
+\begin{itemize}
+  \item \textbf{方法（Methods）：}PINN（物理残差约束）\cite{raissi2019pinn}，FNO/DeepONet（算子学习）\cite{li2021fno,lu2021deeponet}。
+  \item \textbf{理论（Theory）：}PINN 训练失败机制（NTK 视角）\cite{wang2022pinn_ntk}，因果性约束\cite{wang2022causality_pinn}，频谱偏置缓解\cite{liu2025diminishing_spectral_bias}。
+  \item \textbf{基准（Benchmark）：}PDEBench（数据、协议、基线）\cite{takamoto2022pdebench}。
+  \item \textbf{问题（Issues）：}离散化别名与跨网格鲁棒性（ReNO）\cite{bartolucci2023reno}，观测口径与评测一致性（由观测算子定义驱动）。
+\end{itemize}
+
+该框架的直接用途：第\ref{chap:method}章在“问题象限”落地观测算子与口径协议；第\ref{chap:experiments}章在“基准象限”对齐数据与指标，并在“理论象限”指导消融与敏感性分析设置。
+
+
+\subsection{关键方法对照表（面向稀疏观测重建的评审维度）}\label{subsec:rw_table}
+
+\begin{table}[t]
+\centering
+\caption{面向稀疏观测重建的关键方法对照（评审维度组织）。}
+\label{tab:rw_compare}
+\renewcommand{\arraystretch}{1.15}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{p{2.5cm}p{3.2cm}p{2.1cm}p{3.2cm}p{3.2cm}p{3.4cm}p{3.8cm}}
+\hline
+方法类别 & 代表工作 & 物理约束显式程度 & 跨网格/跨分辨率讨论 & 对稀疏观测的适配性 & 主要风险点 & 与本文关注点的接口 \\
+\hline
+物理约束学习 &
+PINN\cite{raissi2019pinn} &
+高 &
+视实现而定 &
+强（可直接写观测损失） &
+训练不稳定/多尺度困难\cite{wang2022pinn_ntk} &
+观测一致性损失、因果/采样策略\cite{wang2022causality_pinn} \\
+\hline
+算子学习（谱域） &
+Neural Operator / FNO\cite{li2021fno} &
+中（需外加约束） &
+强调离散化不变动机\cite{kovachki2023neural_operator} &
+强（学习函数$\rightarrow$函数映射） &
+别名/口径差异导致泛化波动 &
+统一观测口径 + 频谱一致性项 \\
+\hline
+算子学习（采样友好） &
+DeepONet\cite{lu2021deeponet} &
+中（需外加约束） &
+具潜力（依赖实现） &
+强（分支/主干适合不规则点） &
+训练成本与表达/泛化权衡 &
+与稀疏点集输入、坐标编码对齐 \\
+\hline
+别名无关/等价表示 &
+ReNO\cite{bartolucci2023reno} &
+与主干方法相关 &
+直接针对 aliasing &
+间接（更偏离散化鲁棒） &
+理论与实现复杂度提升 &
+跨分辨率敏感性分析与负例对照 \\
+\hline
+\end{tabular}%
+}
+\end{table}
+
+
+\section{符号与记号对齐（与第3章接口，避免跨章歧义）}\label{sec:rw_notation}
+
+为保证后续数学形式化与实现描述一致，本章采用的符号约定如下（第\ref{chap:method}章将给出完整符号表与严格定义）：
+\begin{itemize}
+  \item $u$：高分辨率真值场（spatiotemporal field）；
+  \item $y$：观测（稀疏/退化后信号）；
+  \item $H$：观测算子（定义观测生成与评测口径）；
+  \item $DC$：训练端退化算子（若用于一致性约束，需与 $H$ 对齐）；
+  \item $\hat{u}$ 或 $\hat{y}$：模型预测；
+  \item $\Omega\subset\mathbb{R}^2$、$t\in[0,T]$：空间域与时间域；
+  \item $\mathcal{G}$：PDE 解算子/学习到的算子映射\cite{kovachki2023neural_operator}。
+\end{itemize}
+
+
+\section{本章小结与章节过渡}\label{sec:rw_summary}
+
+相关工作表明：
+\begin{enumerate}
+  \item PINN 与算子学习分别从“物理约束”与“函数空间映射”两端提供解决路径，二者具有互补性\cite{raissi2019pinn,kovachki2023neural_operator}；
+  \item 稀疏观测重建在工程上高度依赖观测算子口径，抗混叠与插值策略具备明确可复现的工具链依据（例如 OpenCV 中 \texttt{INTER\_AREA} 常用于缩小分辨率）\cite{opencv_resize}；
+  \item 跨分辨率/跨网格泛化受到离散化别名影响，ReNO 等工作为“别名—鲁棒性”提供明确研究方向与评测动机\cite{bartolucci2023reno}；
+  \item 频谱偏置与因果性约束等理论线索，为损失设计与时序稳定性提供可解释的改进空间\cite{liu2025diminishing_spectral_bias,wang2022causality_pinn}。
+\end{enumerate}
+
+基于上述归纳，第\ref{chap:method}章将把“观测口径一致性”提升为可执行的形式化约束，给出观测算子 $H$ 与训练端退化 $DC$ 的统一定义方式，并在统一接口下推导损失与训练流程；第\ref{chap:experiments}章将在 PDEBench 底座上构建可审计的评测与统计检验协议，并通过跨分辨率/跨口径的敏感性分析验证结论稳健性\cite{takamoto2022pdebench}。

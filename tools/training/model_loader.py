@@ -127,7 +127,20 @@ class ModelLoader:
         if self._external_model_factory:
             # 这里可以添加外部工厂支持的模型名称
             models.extend(["unet", "fno2d", "swin_unet", "segformer", "hybrid"])
-        return sorted(list(set(models)))
+        
+        # 过滤掉非独立模型的组件
+        exclude_components = {
+            "down", "up", "downsample", "upsample", "fourierblock2d", "spectralconv2d",
+            "stablespectralconv2d", "outconv", "pconvdoubleconv", "pconvdown", "pconvup",
+            "convbnact", "denselayer", "basetemporalmodel", "convlstmcell", "simplespatialcnn",
+            "simplespatialtemporalcnn", "causalconv1d", "spatialfeatureextractor",
+            "temporalconv1d", "physicstransformertemporal", "convtemporalpredictor",
+            "branchencoder", "overlappatchembed", "basemodel", "sparseattentionencoder", "sparseswinunet", "swintemporalwrapper",
+            "partialconv2d"
+        }
+        
+        filtered_models = [m for m in models if m.lower() not in exclude_components]
+        return sorted(list(set(filtered_models)))
     
     def get_model_info(self, model_name: str) -> Optional[Dict[str, Any]]:
         """获取模型信息"""

@@ -1,6 +1,194 @@
-\section{本章概述}
-本章概述（占位）。
+%========================
+% Chapter 4: Theory
+%========================
+% Requirements in preamble (suggested):
+% \usepackage{amsmath,amssymb,amsthm}
+% \usepackage{enumitem}
+% \usepackage{hyperref}
+% \newtheorem{proposition}{命题}[chapter]
+% \newtheorem{remark}{说明}[chapter]
+%========================
 
-\section{内容（占位）}
-本节内容（占位）。
+% 使本章第一节编号为 4.0（如不需要 4.0，可删除下一行）
+\setcounter{section}{-1}
 
+\section{引言}\label{sec:theory_intro}
+
+稀疏观测驱动的时空流场重建本质上是一个欠定逆问题：观测算子 $H$ 往往不可逆，单纯依赖观测一致性并不能唯一确定高分辨率真值场。本文方法的关键并非“把欠定问题变成可解”，而是通过三类互补约束，使学习过程在可解释、可检验、可复现的条件下收敛到一个“评测口径一致且结构合理”的解：
+\begin{enumerate}[label=(\arabic*)]
+  \item \textbf{观测口径一致性（$H/DC$ 复用）}：训练侧退化算子 $DC$ 与数据侧观测算子 $H$ 使用同一实现与同一参数，避免“训练口径—评测口径不一致”导致的断裂；
+  \item \textbf{三件套损失}：$L_{\text{rec}} + \lambda_s L_{\text{spec}} + \lambda_{dc} L_{\text{dc}}$，分别约束点对点、低频结构与观测一致性；
+  \item \textbf{统一接口与确定性训练}：通过固定配置快照、随机种子与确定性算子策略，使实验结论具有可复验性（复现闭环），并遵循 PyTorch 可复现性建议与限制说明\cite{pytorch_randomness}.
+\end{enumerate}
+
+在理论层面，本章回答三个核心问题：
+\begin{itemize}
+  \item 为什么 \textbf{$H/DC$ 复用}可将“评测口径误差 $H_{\text{err}}=\|H(\tilde u)-y\|_2$”与“重建误差 $\|\tilde u-u\|_2$”重新绑定？
+  \item 为什么 \textbf{低频谱一致性}可以显著提升大尺度结构与跨网格稳定性？
+  \item 为什么 \textbf{神经算子/多尺度网络 + 统一口径}能在离散化与混叠问题上获得更稳健的泛化？
+\end{itemize}
+
+\section{预备定义：函数空间、算子范数与误差度量}\label{sec:prelim}
+
+令 $\Omega \subset \mathbb{R}^2$，时间 $t\in[0,T]$。对每个时刻 $t$，真值场 $u_t \in \mathcal{X}$（可取 $L^2(\Omega)^C$，或离散网格上的 $\mathbb{R}^{N_x\times N_y\times C}$）。观测为
+\begin{equation}
+y_t = H(u_t) + n_t,
+\label{eq:obs}
+\end{equation}
+其中 $H:\mathcal{X}\to\mathcal{Y}$ 为（离散实现的）有界线性算子或近似线性算子（典型如卷积、下采样、裁剪），$n_t$ 为噪声。
+
+本文在原值域定义评测口径误差
+\begin{equation}
+H_{\text{err}}(t)\triangleq \|H(\tilde u_t)-y_t\|_2,
+\label{eq:herr}
+\end{equation}
+而常用重建误差（如 Rel-L2）可写为
+\begin{equation}
+\mathrm{Rel\text{-}L2}(t)=\frac{\|\tilde u_t-u_t\|_2}{\|u_t\|_2}.
+\label{eq:rell2}
+\end{equation}
+
+关键点：若训练时的退化算子 $DC$ 与评测时的 $H$ 不一致，则训练得到的“数据一致性”并不等价于评测口径下的一致性，导致 $H_{\text{err}}$ 与 Rel-L2 的趋势可能分裂（第2章称为“评测断裂”）。
+
+\section{观测口径一致性（\texorpdfstring{$H/DC$}{H/DC} 复用）的可证明意义}\label{sec:hdc_theory}
+
+\subsection{命题 4.1：评测口径误差由重建误差上界控制（前提：同一 \texorpdfstring{$H$}{H}）}\label{sec:prop41}
+
+\begin{proposition}[评测一致性上界]\label{prop:eval_bound}
+若 $H$ 为有界线性算子，则对任意预测 $\tilde u$ 有
+\begin{equation}
+\|H(\tilde u)-H(u)\|_2 \le \|H\|_{\mathrm{op}}\,\|\tilde u-u\|_2,
+\label{eq:op_bound}
+\end{equation}
+其中 $\|H\|_{\mathrm{op}}$ 为算子范数。进一步，若 $y=H(u)+n$，则
+\begin{equation}
+\underbrace{\|H(\tilde u)-y\|_2}_{H_{\mathrm{err}}}
+\le
+\|H\|_{\mathrm{op}}\,\|\tilde u-u\|_2 + \|n\|_2.
+\label{eq:herr_bound}
+\end{equation}
+\end{proposition}
+
+\begin{proof}[证明思路（素描）]
+由线性有界算子的定义，$\|H(v)\|_2\le \|H\|_{\mathrm{op}}\|v\|_2$，令 $v=\tilde u-u$ 得式\eqref{eq:op_bound}。再由三角不等式与 $y=H(u)+n$，
+\[
+\|H(\tilde u)-y\|_2=\|H(\tilde u)-H(u)-n\|_2 \le \|H(\tilde u)-H(u)\|_2 + \|n\|_2,
+\]
+结合式\eqref{eq:op_bound} 即得式\eqref{eq:herr_bound}。
+\end{proof}
+
+该命题解释了：当且仅当训练与评测使用同一 $H$（即 $DC\equiv H$ 的严格复用）时，降低重建误差才会稳定传导到评测口径误差，从而为“强制 $H/DC$ 复用”提供直接理论支撑。类似的“训练误差$\to$泛化误差”的链式控制思想在 PINN 的误差与数值分析语境中也经常出现\cite{deryck2022kolmogorov,deryck2024acta_numerica}。
+
+\begin{table}[htbp]
+  \centering
+  \caption{DC Equivalence Audit Template (Hard Threshold Test)}
+  \label{tab:dc_equivalence_template}
+  \begin{tabular}{lcc}
+    \toprule
+    Audit Item & Tolerance ($\varepsilon$) & Action on Fail \\
+    \midrule
+    Kernel Size Consistency & 0 & Block \\
+    Sigma Value ($\sigma$) & $10^{-6}$ & Block \\
+    Border Handling & Identical & Block \\
+    Output Norm Difference & $10^{-5}$ & Block \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{SR 与 Crop 两类 \texorpdfstring{$H$}{H} 的算子稳定性：为何 \texorpdfstring{$\|H\|_{\mathrm{op}}$}{||H||op} 往往温和}\label{sec:H_stability}
+
+\begin{itemize}
+\item \textbf{Crop（居中裁剪）}：可视为离散向量的坐标子集选择（restriction）。在 $\ell_2$ 范数下，裁剪不会放大能量，因此 $\|H\|_{\mathrm{op}}\le 1$。
+\item \textbf{SR（Gaussian 预滤 + 下采样）}：高斯卷积为平滑算子；缩小采样若使用面积插值（OpenCV 的 \texttt{INTER\_AREA}）属于典型的“缩小推荐插值”实践，目标之一是减轻缩小过程的混叠伪影\cite{opencv_resize,opencv_gaussianblur}。
+\end{itemize}
+
+因此，对 SR 与 Crop 两类任务，命题\ref{prop:eval_bound}中的 $\|H\|_{\mathrm{op}}$ 通常不会异常巨大，使得“评测口径误差受控于重建误差”的结论具有工程可操作性。
+
+\subsection{欠定性与必要补充：为何仅 \texorpdfstring{$L_{dc}$}{Ldc} 不够}\label{sec:underdetermined}
+
+即便 $DC$ 与 $H$ 完全一致，若只最小化
+\begin{equation}
+L_{dc}=\|H(\tilde u)-y\|_2^2,
+\label{eq:Ldc_only}
+\end{equation}
+仍可能出现多个 $\tilde u$ 同时满足 $H(\tilde u)\approx y$（尤其在稀疏/降采样场景）。这并非方法缺陷，而是逆问题的固有性质。本文引入 $L_{\text{rec}}$ 与 $L_{\text{spec}}$ 的意义在于：用“点对点逼近 + 低频结构先验”把可行解集合缩到更合理的子空间，从而在真实评测口径下实现稳定提升。
+
+\section{三件套损失的理论作用分解：从可行到可泛化、可解释}\label{sec:triple_loss}
+
+总损失为
+\begin{equation}
+L = L_{\text{rec}} + \lambda_s L_{\text{spec}} + \lambda_{dc} L_{\text{dc}}.
+\label{eq:total_loss_theory}
+\end{equation}
+
+\subsection{\texorpdfstring{$L_{\text{rec}}$}{Lrec}：逼近误差的直接控制项}\label{sec:Lrec}
+$L_{\text{rec}}$ 对 $\|\hat u-u\|$ 的优化可视为经验风险最小化；对算子学习而言，该项对应在离散网格上逼近目标映射（例如 $y\mapsto u$ 或 $u_{\text{coarse}}\mapsto u_{\text{fine}}$）的直接监督。
+
+\subsection{\texorpdfstring{$L_{\text{dc}}$}{Ldc}：把优化目标绑定到评测口径上}\label{sec:Ldc}
+当 $DC\equiv H$ 且实现完全复用时，最小化 $L_{dc}$ 等价于直接压缩 $H_{\text{err}}$（式\eqref{eq:herr}），从而避免“训练时优化了一个口径、评测时用另一个口径”的结构性错误（命题\ref{prop:eval_bound}的前提）。
+
+\subsection{\texorpdfstring{$L_{\text{spec}}$}{Lspec}：低频结构优先与谱偏置缓解}\label{sec:Lspec}
+深网优化常呈现谱偏置（倾向先学习低频再学习高频）。在 PDE/流场这类宽频谱信号中，若高频恢复不稳，常会反向污染宏观结构（能量泄漏、相位漂移、边界振铃）。近期工作在 PINN 与多尺度网络中从不同角度讨论了谱偏置的缓解，并指出 Fourier 特征/编码在高频或振荡问题上的价值\cite{liu2025diminishing_spectral_bias,wang2025spectralbias_multiscale}。
+
+本文的 $L_{\text{spec}}$ 采取“低频子空间一致性”（例如限制 $(k_x,k_y)\le K$）的工程化形式：先锁定决定整体形态的低频模态，再在 $L_{\text{rec}}$ 与 $L_{\text{dc}}$ 约束下细化中高频细节，从而改善稳定性与可解释性。
+
+\section{收敛性与训练稳定性：为何需要课程学习与因果/时序约束}\label{sec:stability}
+
+\subsection{PINN 的失败模式与 NTK 视角}\label{sec:ntk}
+PINN 在多尺度、强非线性或混沌/湍流问题上训练困难，已有工作从神经切线核（NTK）角度分析其收敛病态，解释不同残差分量的收敛速度差异及优化陷入错误极小值的原因\cite{wang2022pinn_ntk}。此外，Acta Numerica 的数值分析综述系统总结了 PINN 及相关模型的训练不稳定、误差来源与可改进方向（采样、加权、结构与数值策略等）\cite{deryck2024acta_numerica}。
+
+\subsection{因果性训练与先易后难的合理性}\label{sec:causal}
+在时序系统中，若训练过程忽视时序因果结构，模型可能出现“先拟合后期、再回头补前期”的偏差，从而违背物理演化规律并放大误差传播。针对这一点，已有工作提出在 PINN 中显式尊重因果结构的训练策略，并在多尺度/混沌基准上展示显著改善\cite{wang2022causality_pinn}。
+
+对应到本文：
+\begin{itemize}
+  \item SR 采用 $\times 2\rightarrow \times 4$ 的课程、Crop 采用 $40\%\rightarrow 20\%$ 的窗口课程，本质上是把逆问题从“较弱欠定”逐步推向“更强欠定”，以改善优化路径的条件数与梯度稳定性；
+  \item 时空耦合结构（ConvLSTM/Transformer 等）若配合因果掩码或分段训练，可在经验上减少误差累积与不稳定振荡。本章将其作为稳定性来源之一，而不额外引入更强的理论假设。
+\end{itemize}
+
+\section{神经算子泛化与跨网格鲁棒性：为何算子视角更匹配 PDE 数据}\label{sec:neural_operator}
+
+神经算子学习的核心优势是学习“函数到函数”的映射，而非固定维度向量到向量。JMLR 的系统综述对神经算子的表示能力、误差刻画与在 PDE 场景的适用性给出了较完整框架\cite{kovachki2023neural_operator}。在代表性模型上：
+\begin{itemize}
+  \item FNO 利用谱域卷积逼近算子，在多类参数化 PDE 上验证了外推与效率优势\cite{li2021fno};
+  \item DeepONet 以“分支—主干”结构提供通用算子近似路径，并与算子泛逼近理论相关联\cite{lu2021deeponet}.
+\end{itemize}
+
+对本文而言，“算子层 + 统一口径 + 频谱约束”的组合更自然地对应“跨网格/跨分辨率”的目标：模型并非记忆某个网格上的像素模式，而是在逼近更稳定的映射规则。
+
+\section{离散化与混叠：为何必须把抗混叠口径写进方法}\label{sec:aliasing}
+
+\subsection{混叠的结构性风险}\label{sec:alias_risk}
+下采样若缺少低通预滤或采用不当插值，频谱能量会折叠到低频区，使模型把“混叠伪信号”当成真实低频结构学习，进而产生系统性偏差。工程实践中，OpenCV 文档指出缩小图像通常推荐 \texttt{INTER\_AREA} 以获得更好的缩小效果并减少伪影\cite{opencv_resize}；与之配套的高斯滤波参数与边界策略也应在方法章显式声明\cite{opencv_gaussianblur}。
+
+\subsection{别名无关学习与跨网格一致性}\label{sec:reno}
+离散实现的算子学习还面临“表示别名误差”：同一连续函数在不同网格上的离散表示并不等价，导致训练/测试分辨率切换时出现不一致。ReNO 提出了别名无关的算子学习框架，将该问题作为理论与方法核心来处理\cite{bartolucci2023reno}。
+
+本文采取更工程化的组合策略：严格 $H/DC$ 复用（避免口径别名）、低频谱一致性（压住大尺度主导模态）、以及多分辨率敏感性分析（把跨网格稳定从口头承诺变成可检验指标）来减轻别名相关的评测断裂。
+
+\section{解码稳定性：为何坚持“上采样 + 小卷积”而非反卷积堆叠}\label{sec:decoder}
+
+在图像/场重建任务中，转置卷积常产生棋盘格伪影；经典分析建议使用“上采样（如双线性/最近邻）+ 卷积”替代部分转置卷积以减少该类伪影\cite{odena2016checkerboard}。对流场而言，棋盘格伪影不仅影响视觉，还会在频谱上引入非物理解耦的高频尖峰，反过来干扰 $L_{\text{spec}}$ 与 $L_{dc}$ 的优化。因此本文将该解码策略作为稳定性工程约束写入方法论，而不是实现细节。
+
+\section{确定性训练与可复现性：把可复现当作理论假设的一部分}\label{sec:repro}
+
+深度学习训练存在多源随机性与非确定性算子（并行归约、非确定性 CUDA kernel 等）。即便固定随机种子，也可能出现不可忽略漂移。PyTorch 官方文档明确说明了随机性来源、确定性策略以及“确定性与性能/算子可用性”的权衡\cite{pytorch_randomness}。因此，“同一 YAML + 种子方差 $\le 10^{-4}$”应被视为实证可复现性约束：需要通过环境指纹、配置快照与一致性门禁脚本把训练过程“钉死”，从而使第6章统计检验（均值$\pm$标准差、paired t-test、效应量）具备可信前提。
+
+\section{理论命题到实证设计的映射}\label{sec:theory_to_exp}
+
+\begin{itemize}
+  \item \textbf{命题\ref{prop:eval_bound}（评测一致性上界）}：对比 $DC=H$（严格复用）与 $DC\neq H$（故意错配），观察 $H_{\text{err}}$ 与 Rel-L2 的相关性是否显著增强（负例应出现断裂）。
+  \item \textbf{低频谱一致性有效性（结构稳健性假设）}：固定模型容量，扫描 $K_{\text{low}}\in[8,24]$、$\lambda_s$；报告低频 fRMSE 与整体 Rel-L2 的协同改善，并与谱偏置缓解工作进行对照讨论\cite{liu2025diminishing_spectral_bias,wang2025spectralbias_multiscale}。
+  \item \textbf{跨网格稳定性（别名与离散化敏感性）}：固定训练分辨率，在多个测试分辨率上评测；将“口径一致性 + $L_{\text{spec}}$”作为消融条件，验证误差差异是否收敛；并以 ReNO 的别名问题定义作为理论参照\cite{bartolucci2023reno}。
+\end{itemize}
+
+\section{小结}\label{sec:theory_summary}
+
+本章给出了“口径一致性—三件套损失—稳定泛化”的理论链条：
+\begin{enumerate}[label=(\arabic*)]
+  \item 当 $DC$ 与 $H$ 严格复用时，评测口径误差 $H_{\text{err}}$ 可由重建误差上界控制（命题\ref{prop:eval_bound}），从根源上抑制评测断裂；
+  \item 低频谱一致性针对谱偏置与多尺度信号的结构特性提供宏观形态约束，并与谱偏置缓解研究方向一致\cite{liu2025diminishing_spectral_bias,wang2025spectralbias_multiscale}；
+  \item 神经算子理论指出跨网格一致性是算子学习的重要挑战\cite{kovachki2023neural_operator}，ReNO 进一步从“别名”角度刻画离散实现的不一致来源\cite{bartolucci2023reno}。本文通过统一口径与频谱约束以工程可行方式减轻该问题，并将其转化为可检验的敏感性实验。
+\end{enumerate}
+
+以上理论分析为第5章的算法实现细节（唯一入口实现 $H/DC$、损失计算与资源统计）和第6章的严格实验设计提供可核验依据。

@@ -1,21 +1,14 @@
-# AR训练配置文件 - 仅时序预测版本（控制变量测试）
-# 禁用空间SR处理，仅测试时序预测能力
+# AR训练配置文件 - Video Swin Transformer (Tier 2/3 实验)
+# 基于 3D Window Attention 的时空预测
 
 experiment:
-  name: "AR-ShallowWater-ConvRNN-s2025"
-  description: "自回归预测（ConvLSTM/ConvRNN）"
+  name: "AR-ShallowWater-VideoSwin-s2025"
+  description: "自回归预测（Video Swin Transformer）"
   device: cuda
   seed: 2025
   output_dir: runs
   log_every_n_steps: 5
 
-# 根级可视化与日志控制移至文件后部 logging 节，避免重复键
-
-
-
-# 测试配置统一在文件后部 testing 段，避免重复键
-
-# 设备与并行（CPU）
 device:
   accelerator: cuda
   devices: 1
@@ -23,11 +16,10 @@ device:
   allow_data_parallel_fallback: true
   precision: fp32
 
-# 启用专用时序模型 - SequentialSpatiotemporalModel
+# 启用专用时序模型
 ar:
   enabled: true
 
-# 启用专用时序模型架构
 sequential:
   enabled: true
   model_type: "SequentialSpatiotemporalModel"
@@ -45,44 +37,40 @@ sequential:
       activation: 'gelu'
   temporal:
     spatial_feature_dim: 0
-    temporal_dim: 64
+    temporal_dim: 96       # Swin 常用隐藏层维度
     out_channels: 1
     img_size: [128, 128]
-    backend: conv_rnn
-    num_heads: 8
+    backend: video_swin    # 启用 Video Swin
+    num_heads: 4
     num_layers: 2
-    dropout: 0.2
-    use_positional_encoding: true
+    window_size: [2, 8, 8] # (T, H, W) 窗口大小
+    dropout: 0.1
+    use_positional_encoding: false # Swin自带相对位置编码
     reduce_spatial: avgpool
     reduce_size: [32, 32]
-    kernel_size: 3
     teacher_forcing_cap: 0.0
     teacher_forcing_schedule:
       enabled: false
   
-  # 一致性检查配置
   consistency:
     enabled: true
     spatial_temporal_consistency: true
     feature_consistency_weight: 0.3
   
-  # 训练配置 - 单阶段训练（仅时序）
   training:
-    two_stage_training: false  # 禁用两阶段训练
+    two_stage_training: false
     stage1_epochs: 0
     stage2_epochs: 2000
-    spatial_loss_weight: 0.0      # 禁用空间损失
-    temporal_loss_weight: 1.0     # 仅用时序损失
+    spatial_loss_weight: 0.0
+    temporal_loss_weight: 1.0
     teacher_forcing_cap: 0.2
 
-# 禁用ARWrapper，使用专用模型
 model_wrapper:
   enabled: false
 
-# 模型配置 - 使用FNO2D模型
 model:
   name: fno2d
-  in_channels: 1  # 仅使用1个通道（原图输入）
+  in_channels: 1
   out_channels: 1
   img_size: 128
   modes1: 12
@@ -91,7 +79,6 @@ model:
   n_layers: 4
   activation: 'gelu'
 
-# 数据配置 - 关键修改：禁用空间降采样
 data:
   data_path: "data/2D/shallow-water/2D_rdb_NA_NA.h5"
   dataset_name: ShallowWater
@@ -105,44 +92,32 @@ data:
   input_channels: 1
   sample_limit: 30
   
-  # AR特定配置
-  T_in: 30     # 输入时间步数
-  T_out: 1     # 单步预测以评估损失是否更小
+  T_in: 30
+  T_out: 1
   
-  # 数据集分割配置
   train_ratio: 1.0
   val_ratio: 0.1
   test_ratio: 0.1
   
-  # 时间步配置
   time_step_start: 0
   time_step_end: 101
   time_step_stride: 1
   
-  # 关键修改：禁用观测降采样 - 使用原图输入
   observation:
-    mode: identity  # 使用恒等变换，无降采样
-    # 禁用所有降采样参数
+    mode: identity
     use_coords: false
     use_mask: false
   
-  # 预处理
   normalize: true
   augmentation:
     enabled: false
 
-  # 启用合成数据模式用于调试
   use_synthetic_data: false
-  synthetic_data_config:
-    num_samples: 1000
-    image_size: 128
-    channels: 2
-    
-  # 数据加载器
+  
   dataloader:
-    batch_size: 2048
-    val_batch_size: 2048
-    test_batch_size: 2048
+    batch_size: 512 # Swin 显存占用较大，降低 batch_size
+    val_batch_size: 512
+    test_batch_size: 512
     num_workers: 8
     pin_memory: true
     persistent_workers: true
@@ -163,13 +138,9 @@ hardware:
   numexpr_threads: 96
   vram_threshold: 0.98
 
-# 训练配置
 training:
   epochs: 500
-  # 提升训练轮次以观察时序稳定性
-  # 如需更长训练可继续提高
-  # 保持小批以便快速验证
-  batch_size: 1024
+  batch_size: 512
   gradient_accumulation_steps: 1
   
   torch_compile: false
@@ -177,11 +148,9 @@ training:
   torch_compile_mode: "reduce-overhead"
   channels_last: true
   
-  # 专用时序模型训练配置
   dataloader:
-    batch_size: 1024
+    batch_size: 512
   rollout_training: true
-  # 仅时序NAR：提高teacher forcing以稳定长时域
   teacher_forcing_cap: 0.7
   teacher_forcing_schedule:
     enabled: true
@@ -201,17 +170,12 @@ training:
     rel2_weight: 1.0
     mae_weight: 0.1
   
-  # 专用时序模型验证配置
   validation:
     enabled: true
     check_val_every_n_epoch: 1
     save_val_batch_for_viz: false
     log_val_metrics: true
-  # 训练阶段的logging段统一合并到文件后部的全局logging，避免重复键
-  # 训练阶段的可视化开关统一由全局 visualization 控制
-  # 测试阶段的可视化采样数统一由全局 testing 段控制
   
-  # 优化器配置
   optimizer:
     name: "AdamW"
     lr: 0.001
@@ -221,14 +185,12 @@ training:
     fused: false
     foreach: false
   
-  # 调度器配置
   scheduler:
     name: "CosineAnnealingLR"
     T_max: 3000
     eta_min: 1e-6
     warmup_epochs: 10
   
-  # 分布式训练配置
   distributed:
     enabled: false
     backend: "gloo"
@@ -237,16 +199,13 @@ training:
   gradient_clip_val: 1.0
   gradient_clip_algorithm: norm
   
-  # AMP配置
   amp:
     enabled: true
     autocast_dtype: bfloat16
   
-  # 课程学习
   curriculum:
     enabled: false
   
-  # 检查点配置
   checkpoint:
     save_best: true
     save_last: true
@@ -255,7 +214,6 @@ training:
     mode: min
     save_every_n_epochs: 10
   
-  # 早停配置
   early_stopping:
     enabled: false
     patience: 50
@@ -263,32 +221,21 @@ training:
     mode: min
     min_delta: 1e-4
 
-# 损失配置 - 仅保留R2损失
 loss:
-  # AR特定损失
   ar_loss:
     weight: 0.0
     reduction: mean
-  # 重建损失权重
   rel2_weight: 1.0
   mae_weight: 0.0
-  # 频谱低权重以稳定低频
   spectral:
     weight: 0.0
   data_consistency:
     weight: 0.0
   
-  # 辅助损失 - 全部禁用
-
-  # 辅助损失 - 全部禁用
-  #（可视化和日志配置移至文件末尾统一定义，避免重复键）
-  
-  # R2损失配置（禁用，使用 rel2+mae）
   r2:
     weight: 0.0
     reduction: mean
 
-# 验证配置
 validation:
   check_val_every_n_epoch: 5
   use_observation: false
@@ -298,20 +245,15 @@ validation:
     - mae
     - degradation_consistency
   
-  # AR特定验证 - 多时序步验证
   rollout_steps: [1, 3, 5]
-  # 仅时序NAR：记录分步指标，便于诊断
   
   convergence_criteria:
     target_rel_l2: 0.3
     patience_for_convergence: 5
     min_improvement: 5e-4
 
-# 设备配置（统一在前文 device 段配置，避免重复键）
-
-# 日志配置
 logging:
-  experiment_name: "AR-ShallowWater-ConvRNN-s2025"
+  experiment_name: "AR-ShallowWater-VideoSwin-s2025"
   version: null
   default_hp_metric: false
   log_model: false
@@ -322,9 +264,8 @@ logging:
   
   tensorboard:
     save_dir: runs/tensorboard
-    name: ar_training_temporal_only
+    name: ar_training_temporal_video_swin
     version: null
-  # 将随机切分信息写入快照，便于复现
   save_splits_snapshot: true
   
   visualization:
@@ -341,11 +282,8 @@ logging:
       max_batches: 1
       max_time_steps: 4
 
-
-# 随机种子
 seed: 2025
 
-# 测试配置
 testing:
   enabled: true
   run_final_test: true
@@ -360,16 +298,13 @@ testing:
   skip_complex_metrics: false
   minimal_logging: false
 
-# 数据增强配置
 data_augmentation:
   enable: false
-  # CPU密集型增强操作
   random_rotation: 
     enable: false
   random_flip:
     enable: false
   gaussian_noise:
     enable: false
-  # 数值计算密集型操作
   normalize_per_sample: false
   compute_statistics: false

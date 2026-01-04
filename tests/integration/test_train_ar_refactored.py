@@ -25,7 +25,7 @@ project_root = Path(__file__).resolve().parents[1]
 sys.path.append(str(project_root))
 
 # 导入要测试的模块
-from tools.training.train_real_data_ar_refactored import (
+from tools.training.train_real_data_ar import (
     ConfigManager, DeviceManager, LogManager, DataManager, ModelManager,
     OptimizerManager, LossManager, CurriculumManager, CheckpointManager,
     RealDataARTrainer, convert_numpy_types, seed_worker_fn
@@ -426,14 +426,27 @@ class TestRealDataARTrainer(unittest.TestCase):
     def test_trainer_setup(self):
         """测试训练器设置"""
         # 模拟数据模块和模型
-        with patch('datasets.real_diffusion_reaction_dataset.RealDiffusionReactionDataModule') as mock_data_module:
-            with patch('models.swin_unet.SwinUNet') as mock_model:
-                with patch('models.ar.wrapper.ARWrapper') as mock_ar_wrapper:
+        with patch('tools.training.train_real_data_ar.RealDiffusionReactionDataModule') as mock_data_module:
+            with patch('tools.training.train_real_data_ar.SwinUNet') as mock_model:
+                with patch('tools.training.train_real_data_ar.ARWrapper') as mock_ar_wrapper:
                     # 配置mock对象
                     mock_data_instance = Mock()
                     mock_data_instance.train_dataset = Mock()
+                    mock_data_instance.train_dataset.__len__ = Mock(return_value=10)
+                    
+                    mock_mean = Mock()
+                    mock_mean.numel.return_value = 2
+                    mock_mean.__getitem__ = Mock(return_value=0.0)
+                    mock_data_instance.train_dataset.mean = mock_mean
+                    
+                    mock_std = Mock()
+                    mock_std.__getitem__ = Mock(return_value=1.0)
+                    mock_data_instance.train_dataset.std = mock_std
+                    
                     mock_data_instance.val_dataset = Mock()
+                    mock_data_instance.val_dataset.__len__ = Mock(return_value=5)
                     mock_data_instance.test_dataset = Mock()
+                    mock_data_instance.test_dataset.__len__ = Mock(return_value=5)
                     mock_data_instance.prepare_data = Mock()
                     mock_data_instance.setup = Mock()
                     mock_data_module.return_value = mock_data_instance
@@ -444,6 +457,7 @@ class TestRealDataARTrainer(unittest.TestCase):
                     
                     mock_ar_instance = Mock()
                     mock_ar_instance.to = Mock(return_value=mock_ar_instance)
+                    mock_ar_instance.parameters = Mock(return_value=[torch.randn(1, requires_grad=True)])
                     mock_ar_wrapper.return_value = mock_ar_instance
                     
                     trainer = RealDataARTrainer()
@@ -599,16 +613,28 @@ class TestIntegration(unittest.TestCase):
         })
         
         # 模拟所有依赖
-        with patch('datasets.real_diffusion_reaction_dataset.RealDiffusionReactionDataModule') as mock_data_module:
-            with patch('models.swin_unet.SwinUNet') as mock_model:
-                with patch('models.ar.wrapper.ARWrapper') as mock_ar_wrapper:
-                    with patch('ops.losses.compute_ar_total_loss') as mock_loss:
+        with patch('tools.training.train_real_data_ar.RealDiffusionReactionDataModule') as mock_data_module:
+            with patch('tools.training.train_real_data_ar.SwinUNet') as mock_model:
+                with patch('tools.training.train_real_data_ar.ARWrapper') as mock_ar_wrapper:
+                    with patch('tools.training.train_real_data_ar.compute_ar_total_loss') as mock_loss:
                         with patch('utils.metrics.compute_metrics') as mock_metrics:
                             # 配置mock对象
                             mock_data_instance = Mock()
                             mock_data_instance.train_dataset = Mock()
+                            mock_data_instance.train_dataset.__len__ = Mock(return_value=10)
+                            mock_mean = Mock()
+                            mock_mean.numel.return_value = 2
+                            mock_mean.__getitem__ = Mock(return_value=0.0)
+                            mock_data_instance.train_dataset.mean = mock_mean
+                            
+                            mock_std = Mock()
+                            mock_std.__getitem__ = Mock(return_value=1.0)
+                            mock_data_instance.train_dataset.std = mock_std
+                            
                             mock_data_instance.val_dataset = Mock()
+                            mock_data_instance.val_dataset.__len__ = Mock(return_value=5)
                             mock_data_instance.test_dataset = Mock()
+                            mock_data_instance.test_dataset.__len__ = Mock(return_value=5)
                             mock_data_instance.prepare_data = Mock()
                             mock_data_instance.setup = Mock()
                             mock_data_module.return_value = mock_data_instance
@@ -622,6 +648,7 @@ class TestIntegration(unittest.TestCase):
                             mock_ar_instance.to = Mock(return_value=mock_ar_instance)
                             mock_ar_instance.train = Mock()
                             mock_ar_instance.eval = Mock()
+                            mock_ar_instance.parameters = Mock(return_value=[torch.randn(1, requires_grad=True)])
                             mock_ar_wrapper.return_value = mock_ar_instance
                             
                             # 模拟损失函数

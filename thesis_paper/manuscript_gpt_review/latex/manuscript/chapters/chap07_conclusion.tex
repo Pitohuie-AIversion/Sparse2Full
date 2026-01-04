@@ -1,6 +1,204 @@
-\section{本章概述}
-本章概述（占位）。
+\section{引言}
+第\ref{chap:ch4_theory}章给出了三条核心理论命题：
+（i）\textbf{评测一致性命题}：若训练端退化算子 $\mathrm{DC}$ 与数据观测算子 $H$ 在实现与参数上严格一致，则当观测一致性损失收敛时，评测口径误差
+\begin{equation}
+H_{\mathrm{err}} \triangleq \left\| H(\tilde{u}) - y \right\|_2
+\end{equation}
+可被有效约束，并与重建误差同步变化；
+（ii）\textbf{低频约束稳健性命题}：在低频子空间上约束可优先稳定大尺度结构，配合观测一致性项可减少“Rel-L2 降而 $H_{\mathrm{err}}$ 不降”的评测断裂；
+（iii）\textbf{跨网格稳定性命题}：在离散化一致性与别名（aliasing）控制得到保证时，多分辨率/跨网格评测的性能差异应更可控。
 
-\section{内容（占位）}
-本节内容（占位）。
+本章以“\textbf{可运行脚本 + 明确验收阈值 + 统计检验}”为主线，对上述命题给出实证验证闭环，并将结果落到 \path{paper_package/metrics/} 与 \path{paper_package/figs/} 的材料产出规范上。
 
+\section{一致性验证（对应命题1）}
+
+\subsection{H/DC 等价性测试（硬门槛）}
+\textbf{目的}：证明训练端使用的 $\mathrm{DC}$ 与数据观测 $H$ \textbf{同一入口、同一实现、同一参数镜像}。
+
+\textbf{方法}：运行 \texttt{tools/check\_dc\_equivalence.py} 随机抽样 $N\ge 100$ 组样本 $\{(u^{(i)}, y^{(i)})\}$，对每个样本计算
+\begin{equation}
+e^{(i)}=\mathrm{MSE}\!\left(H(u^{(i)}),\, y^{(i)}\right),
+\quad
+e_{\max}=\max_i e^{(i)},\quad
+\bar{e}=\frac{1}{N}\sum_{i=1}^{N} e^{(i)}.
+\end{equation}
+
+\textbf{验收阈值（与第\ref{chap:ch5_algorithm}章保持一致）}：
+\begin{itemize}
+  \item $\bar{e} < 10^{-8}$ 且 $e_{\max} < 10^{-7}$：判定为 \textbf{Pass}；
+  \item 否则判定为 \textbf{Fail}（口径不一致），必须阻断后续统计汇总与结果发布。
+\end{itemize}
+
+\noindent
+工程层面，“确定性与可复现”需要显式控制随机性与确定性算法开关；PyTorch 官方对随机性来源与可复现设置给出了说明（随机数种子、cuDNN、非确定性算子等）\cite{pytorch_randomness}。
+
+\textbf{推荐输出表}（写入 \path{runs/<exp>/consistency_report.json} 并在论文中汇总）：
+\begin{table}[h]
+\centering
+\caption{H/DC 等价性测试输出模板（示例字段）}
+\label{tab:dc_equivalence_template_example}
+\begin{tabular}{l l r r r l}
+\hline
+任务 & 参数组 & $N$ & mean MSE & max MSE & 结论 \\
+\hline
+SR   & $(\sigma, k, s, \texttt{interp}, \texttt{boundary})$  & 100 & \dots & \dots & Pass/Fail \\
+Crop & $(h_c, w_c, \texttt{boundary}, \texttt{align})$       & 100 & \dots & \dots & Pass/Fail \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{评测口径一致性验证：相关性与“断裂”负例}
+\textbf{核心检验}：在统一口径下，验证 $H_{\mathrm{err}}$ 与 Rel-L2 的相关性显著增强；同时构造\textbf{负例}（人为打破 $H/\mathrm{DC}$ 镜像），观察两者不同步。
+
+\begin{itemize}
+  \item \textbf{统一口径条件}：$\mathrm{DC}\equiv H$（同实例或同参数构造，且通过表\ref{tab:dc_equivalence_template_example}的硬门槛测试）。
+  \item \textbf{负例条件}：例如 SR 下将插值方式 \texttt{INTER\_AREA} 改为 \texttt{INTER\_LINEAR}，或将 $\sigma$ 改为 $\sigma+\Delta$；Crop 下改变边界策略（mirror$\rightarrow$zero）或对齐策略（center$\rightarrow$corner）。
+\end{itemize}
+
+\textbf{统计量}：对测试集每个样本得到 $(\mathrm{RelL2}_j, H_{\mathrm{err},j})$，计算
+\begin{itemize}
+  \item Pearson 相关系数 $r$（线性相关）；
+  \item Spearman 秩相关系数 $\rho$（对异常值更稳健）。
+\end{itemize}
+
+\textbf{95\% 置信区间（Pearson）}：可采用 Fisher $z$ 变换的工程实现：
+\begin{equation}
+z=\mathrm{arctanh}(r),\quad
+\mathrm{SE}(z)=\frac{1}{\sqrt{n-3}},\quad
+z_{\pm}=z\pm 1.96\,\mathrm{SE}(z),\quad
+r_{\pm}=\tanh(z_{\pm}),
+\end{equation}
+其中 $n$ 为样本数。
+
+\textbf{论文呈现建议}：
+\begin{itemize}
+  \item 图：散点图（Rel-L2 vs $H_{\mathrm{err}}$）+ 线性拟合；统一口径与负例口径并排对比；
+  \item 表：给出 $r,\rho$ 及 $p$-value，并在 caption 中注明是否通过一致性硬门槛。
+\end{itemize}
+
+\section{收敛性与稳定性验证（对应命题2与第\ref{chap:ch4_theory}章稳定性讨论）}
+
+\subsection{课程学习对收敛的影响（SR \texorpdfstring{$\times2\rightarrow\times4$}{x2->x4}；Crop 40\%\texorpdfstring{$\rightarrow$}{->}20\%）}
+\textbf{实验设计}（二因素对照，固定其余超参不变）：
+\begin{itemize}
+  \item A：无课程（直接 SR$\times4$ / Crop 20\%）；
+  \item B：有课程（先易后难：SR$\times2\rightarrow\times4$ 或 Crop 40\%$\rightarrow$20\%）。
+\end{itemize}
+
+\textbf{记录与指标}：
+\begin{itemize}
+  \item 训练/验证曲线：$L, L_{\mathrm{rec}}, L_{\mathrm{spec}}, L_{\mathrm{dc}}$；
+  \item 梯度稳定：每 step 的 $\|\nabla\theta\|_2$ 分位数（p50/p90/p99）；
+  \item 最终泛化：测试集 Rel-L2 与 $H_{\mathrm{err}}$。
+\end{itemize}
+
+\textbf{验收逻辑}：若课程学习显著降低 early-stage 的梯度爆炸/震荡，并在最终指标上取得稳定收益，则支持“课程改善优化路径”的结论。
+
+\subsection{因果/时序约束验证（时序打乱负例）}
+若模型含时序模块（ConvLSTM/Transformer/AR 等），建议加入\textbf{时序一致性负例}：
+\begin{itemize}
+  \item 正例：保持时间顺序输入；
+  \item 负例：在 batch 内随机打乱时间维（保持同一帧集合但破坏顺序）。
+\end{itemize}
+
+比较两者在 $T_{\mathrm{out}}$ 上的误差增长曲线（例如按步长报告 Rel-L2$(t)$），以检验“尊重因果/时序结构”对稳定性的贡献。关于“因果性约束有助于 PINN/物理学习稳定训练”的背景论述，可参考对应公开论文\cite{wang2022causality_pinn}。
+
+\subsection{解码策略验证（双线性+3\texorpdfstring{$\times$}{x}3 vs 反卷积）}
+\textbf{实验目的}：验证第\ref{chap:ch3_method}章提出的“抑制棋盘格伪影与高频噪声累积”的工程结论。
+
+\textbf{对照}：
+\begin{itemize}
+  \item Baseline：转置卷积（deconv）上采样；
+  \item Ours：双线性插值 + $3\times3$ 卷积（固定）。
+\end{itemize}
+
+\textbf{量化指标}：
+\begin{itemize}
+  \item 空域：PSNR/SSIM、边界带误差（bRMSE/cRMSE）；
+  \item 频域：功率谱差异、fRMSE-mid/high。
+\end{itemize}
+
+\textbf{定性材料}：输出“棋盘格/振铃”典型失败案例图组，写入
+\path{paper_package/figs/failure_modes/decoder/}。
+关于棋盘格伪影的经典讨论可参考 Distill 的系统分析\cite{odena2016checkerboard}。
+
+\section{泛化能力与跨网格鲁棒性（对应命题3）}
+
+\subsection{多分辨率外推评测（img\_size = 128/256/512）}
+\textbf{统一原则}：保持观测口径 $H$ 与指标定义不变，改变仅限于评测分辨率与重采样策略（写入 YAML 与图注）。
+
+\textbf{输出}：每个分辨率报告同一指标集 + 资源四项（Params、FLOPs@256$^2$、显存峰值、延迟）。为便于横向对照，建议在资源表中固定统计输入口径（例如统一以 256$^2$ 作为 FLOPs 报告基准）。
+
+\subsection{网格/离散化变化与别名诊断}
+当出现“256 上好、512 上崩”或相反异常，需要优先将原因定位到：
+\begin{itemize}
+  \item 观测口径是否仍一致（优先排查 $H/\mathrm{DC}$ 是否通过硬门槛）；
+  \item 离散化与表示别名（aliasing）是否被放大；
+  \item 频谱约束阈值是否对高分辨率不再合适（$k_{\max}$ 或按比例阈值需要重设）。
+\end{itemize}
+
+关于“别名无关（alias-free）算子学习/离散一致性影响跨网格表现”的背景，可参考 ReNO 框架的公开预印本\cite{bartolucci2023reno}。
+
+\section{显著性检验与效应大小（统一统计协议）}
+
+\subsection{paired t-test（主指标 Rel-L2）}
+对每个种子 $s$ 在相同测试集上的结果构造差值：
+\begin{equation}
+d_s=\mathrm{RelL2}^{(\mathrm{baseline})}_s-\mathrm{RelL2}^{(\mathrm{ours})}_s.
+\end{equation}
+对 $\{d_s\}$ 做\textbf{配对 t 检验}，并报告 $p$-value 与均值$\pm$标准差。相关思想可追溯到 Student（Gosset）的经典工作\cite{gosset1908}。
+
+\subsection{Cohen’s \texorpdfstring{$d$}{d}（配对版本）与置信区间}
+建议报告配对效应量（常用记作 $d_z$）：
+\begin{equation}
+d=\frac{\bar{d}}{s_d},
+\end{equation}
+其中 $\bar{d}$ 为差值均值，$s_d$ 为差值样本标准差。置信区间可采用 bootstrap（工程实现简单且稳健），并在 \path{paper_package/metrics/} 中给出脚本与随机种子。
+
+\noindent
+若同时比较很多模型/很多任务（多重比较），建议在论文中说明控制策略（例如控制 FDR 或采用更保守的校正），并将\textbf{主结论仅绑定主对照}写明，避免过度显著性解读。
+
+\section{敏感性分析（参数—口径—资源三维折衷）}
+
+\subsection{扫描维度与最小覆盖集}
+建议将敏感性分析拆为三层：
+\begin{enumerate}
+  \item \textbf{口径层（必须覆盖）}：$\sigma$、缩放倍率 $s$、$(h_c,w_c)$、\texttt{boundary}、\texttt{interp}；
+  \item \textbf{损失层（核心）}：$\lambda_s, \lambda_{dc}$、低频阈值 $k_x,k_y$（或统一记作 $k_{\max}$）；
+  \item \textbf{训练层（稳健性）}：seed、AMP 开关、grad clip、warmup steps。
+\end{enumerate}
+
+\subsection{结果呈现模板（主表 + 附录）}
+\begin{itemize}
+  \item 主表：固定模型结构，仅变口径/损失关键参数，报告 Rel-L2 与 $H_{\mathrm{err}}$ 的同步性（相关系数 + 均值$\pm$标准差）；
+  \item 附录：给出更细粒度的扫描曲线（例如 $k_{\max}\in\{8,12,16,20,24\}$）与代表性可视化对照。
+\end{itemize}
+
+\section{可复现性验证（确定性、快照、指纹）}
+
+\subsection{确定性配置与方差门槛}
+\textbf{目标}：同一 YAML + 同一种子条件下，多次运行指标方差 $\le 10^{-4}$。
+
+\textbf{必要措施}：
+\begin{itemize}
+  \item 固定 Python/NumPy/PyTorch seeds；
+  \item 明确 cuDNN/算子确定性策略；
+  \item 记录环境指纹（CUDA、驱动、torch 版本、GPU 型号等）。
+\end{itemize}
+
+PyTorch 官方对“随机性来源”与确定性控制接口给出了说明（包括随机性说明页与 \texttt{torch.use\_deterministic\_algorithms}、\texttt{torch.set\_deterministic\_debug\_mode} 等接口）\cite{pytorch_randomness,pytorch_use_deterministic,pytorch_set_det_debug}。
+
+\subsection{复现闭环材料检查}
+\begin{itemize}
+  \item \path{runs/<exp>/config_merged.yaml}：配置快照；
+  \item \path{runs/<exp>/env_fingerprint.json}：环境指纹；
+  \item \path{paper_package/scripts/}：一键复现与汇总；
+  \item \path{paper_package/metrics/}：主表 + 显著性 + 资源表；
+  \item \path{paper_package/figs/}：代表案例 + 失败案例 + 频谱图。
+\end{itemize}
+
+\section{小结（命题\texorpdfstring{$\rightarrow$}{->}证据\texorpdfstring{$\rightarrow$}{->}材料）}
+本章以硬门槛一致性测试（$H/\mathrm{DC}$ 等价性）、相关性与负例断裂实验、课程/时序/解码消融、跨分辨率与跨网格评测、显著性与效应量报告、以及确定性复现闭环材料六类证据，构成对第\ref{chap:ch4_theory}章理论命题的实证验证链条。其输出直接沉淀到 \texttt{consistency\_report.json}、主结果表与显著性报告、以及标准化图组与失败案例归档中，从而满足审稿对“可核验、可复现、可解释”的要求。
+
+% 注：本章涉及的数据集背景（PDEBench）与别名无关学习背景（ReNO）引用见本章参考文献。
+% PDEBench: \cite{takamoto2022pdebench}

@@ -3,10 +3,16 @@
 
 \usepackage[a4paper,margin=2.5cm]{geometry}
 \usepackage{amsmath,amssymb,bm}
+\usepackage{amsthm}
 \usepackage{booktabs}
 \usepackage{tabularx}
 \usepackage{csquotes}
 \usepackage{graphicx}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{enumitem}
+
+\newtheorem{proposition}{命题}[chapter]
 
 \usepackage[
   backend=biber,
@@ -23,6 +29,7 @@
   citecolor=blue,
   urlcolor=blue
 }
+\providecommand*{\algorithmautorefname}{算法}
 
 \setcounter{secnumdepth}{3}
 \setcounter{tocdepth}{3}
@@ -35,17 +42,20 @@
 
 \chapter{绪论}\label{chap:intro}
 \input{chapters/chap01_intro.tex}
-微任务
 \chapter{相关工作}\label{chap:related}
 \input{chapters/chap02_related.tex}
 
 \chapter{方法}\label{chap:method}
+\label{chap:ch3_method}
 \input{chapters/chap03_method.tex}
 
 \chapter{实验设置}\label{chap:experiments}
+\label{chap:theory}
+\label{chap:ch4_theory}
 \input{chapters/chap04_experiments.tex}
 
 \chapter{结果与分析}\label{chap:results}
+\label{chap:ch5_algorithm}
 \input{chapters/chap05_results.tex}
 
 \chapter{讨论}\label{chap:discussion}

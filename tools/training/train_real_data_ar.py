@@ -4323,6 +4323,131 @@ class RealDataARTrainer:
         self.logger.error(f"堆栈:\n{traceback.format_exc()}")
         return False  # 默认不恢复，除非是明确的OOM
 
+    def _apply_crop_training(self, target_hr: torch.Tensor, input_lr: torch.Tensor, crop_config: DictConfig) -> tuple[torch.Tensor, torch.Tensor]:
+        """应用随机裁剪并生成对应的低分辨率输入
+        
+        Args:
+            target_hr: 高分辨率目标序列 [B, T, C, H, W]
+            input_lr: 低分辨率输入序列 [B, T, C, H_lr, W_lr] (或 HR)
+            crop_config: 裁剪配置
+            
+        Returns:
+            (patches_hr, patches_lr) 均为 [B*N, T, C, h, w]
+        """
+        B, T, C, H, W = target_hr.shape
+        crop_size = int(crop_config.size)
+        n_patches = int(crop_config.patches_per_image)
+        
+        # 确定 scale_factor 用于同步裁剪
+        scale_factor = 1
+        if self.observation_op is not None and hasattr(self.observation_op, 'scale'):
+             # 确保 scale 是有效的整数
+             try:
+                 scale_factor = int(self.observation_op.scale)
+             except Exception:
+                 scale_factor = 1
+        
+        # 检查是否可以进行同步裁剪
+        # 要求: input_lr 是 LR，且尺寸符合 scale 关系
+        _, _, _, H_in, W_in = input_lr.shape
+        can_sync_crop = False
+        if H_in * scale_factor == H and W_in * scale_factor == W:
+            can_sync_crop = True
+        elif H_in == H and W_in == W:
+            # 输入也是 HR，说明 Dataset 没做 SR (或者 scale=1)
+            # 这种情况下，我们需要自己做 degradation (退回到原来的逻辑)
+            can_sync_crop = False
+            scale_factor = 1 # 这种情况下 crop 坐标不需要缩放，但在 degradation 时会缩放
+        else:
+            # 尺寸对不上，无法同步裁剪，只能退回到 "Crop then Degrade"
+            can_sync_crop = False
+
+        if crop_size > H or crop_size > W:
+            # 图像太小，使用全图
+            patches_hr = target_hr.repeat_interleave(n_patches, dim=0)
+            if can_sync_crop:
+                 patches_lr = input_lr.repeat_interleave(n_patches, dim=0)
+            else:
+                 # 重新生成 LR
+                 patches_hr_flat = patches_hr.reshape(-1, C, H, W)
+                 with torch.no_grad():
+                     if self.observation_op is not None:
+                         patches_lr_flat = self.observation_op(patches_hr_flat)
+                     else:
+                         patches_lr_flat = patches_hr_flat
+                 patches_lr = patches_lr_flat.reshape(patches_hr.shape[0], T, C, patches_lr_flat.shape[-2], patches_lr_flat.shape[-1])
+            return patches_hr, patches_lr
+            
+        patches_hr_list = []
+        patches_lr_list = []
+        
+        for _ in range(n_patches):
+            # 为了同步裁剪，我们需要生成符合 grid 对齐的坐标
+            # 随机起点必须是 scale_factor 的倍数
+            
+            # 有效的起始范围
+            max_h = H - crop_size
+            max_w = W - crop_size
+            
+            if max_h < 0 or max_w < 0:
+                 continue # Should not happen given check above
+            
+            # 生成随机起点 (单个值应用到整个Batch，增加效率)
+            # 我们在 [0, max_h/scale] 范围内生成，然后乘 scale
+            
+            if can_sync_crop and scale_factor > 1:
+                # 确保 HR 坐标是 scale 的倍数
+                h_steps = max_h // scale_factor
+                w_steps = max_w // scale_factor
+                
+                h_start_base = torch.randint(0, h_steps + 1, (1,)).item()
+                w_start_base = torch.randint(0, w_steps + 1, (1,)).item()
+                
+                h_start = h_start_base * scale_factor
+                w_start = w_start_base * scale_factor
+                
+                # LR 坐标
+                h_start_lr = h_start_base
+                w_start_lr = w_start_base
+                crop_size_lr = crop_size // scale_factor
+                
+                patch_hr = target_hr[..., h_start:h_start+crop_size, w_start:w_start+crop_size]
+                patch_lr = input_lr[..., h_start_lr:h_start_lr+crop_size_lr, w_start_lr:w_start_lr+crop_size_lr]
+                
+                patches_hr_list.append(patch_hr)
+                patches_lr_list.append(patch_lr)
+            
+            else:
+                # 无法同步裁剪 (Input是HR 或 尺寸不匹配)，只能 Crop HR 然后降质
+                h_start = torch.randint(0, max_h + 1, (1,)).item()
+                w_start = torch.randint(0, max_w + 1, (1,)).item()
+                
+                patch_hr = target_hr[..., h_start:h_start+crop_size, w_start:w_start+crop_size]
+                patches_hr_list.append(patch_hr)
+                
+                # 这种情况下 LR patch 需要稍后生成
+        
+        # 堆叠
+        patches_hr = torch.stack(patches_hr_list, dim=1).reshape(-1, T, C, crop_size, crop_size)
+        
+        if can_sync_crop and scale_factor > 1:
+             patches_lr = torch.stack(patches_lr_list, dim=1).reshape(-1, T, C, crop_size // scale_factor, crop_size // scale_factor)
+        else:
+             # 生成 LR 输入 (Crop then Degrade)
+             B_new = patches_hr.shape[0]
+             patches_hr_flat = patches_hr.reshape(-1, C, crop_size, crop_size)
+             
+             with torch.no_grad():
+                 if self.observation_op is not None:
+                     patches_lr_flat = self.observation_op(patches_hr_flat)
+                 else:
+                     patches_lr_flat = patches_hr_flat
+             
+             h_lr, w_lr = patches_lr_flat.shape[-2:]
+             patches_lr = patches_lr_flat.reshape(B_new, T, C, h_lr, w_lr)
+
+        return patches_hr, patches_lr
+
     def train_epoch(self, epoch: int) -> float:
         """训练一个epoch"""
         model_to_train = self.get_model()
@@ -4470,6 +4595,17 @@ class RealDataARTrainer:
                 # 移动数据到设备
                 input_seq = batch['input_sequence'].to(self.device, non_blocking=True)  # [B, T_in, C, H, W]
                 target_seq = batch['target_sequence'].to(self.device, non_blocking=True)  # [B, T_out, C, H, W]
+                
+                # Crop训练逻辑
+                crop_cfg = getattr(getattr(self.config, 'training', None), 'crop', None)
+                if crop_cfg and getattr(crop_cfg, 'enabled', False):
+                    # 使用裁剪生成新的 input_seq (LR) 和 target_seq (HR)
+                    # 传入 input_seq (LR) 以尝试同步裁剪，避免重复计算 SR
+                    target_seq, input_seq = self._apply_crop_training(target_seq, input_seq, crop_cfg)
+                    # 强制清空 observed_lr_sequence，防止后续逻辑误用全图LR
+                    if isinstance(batch, dict):
+                        batch['observed_lr_sequence'] = None
+                
                 data_end = time.perf_counter()
 
 
@@ -5022,7 +5158,11 @@ class RealDataARTrainer:
                             # Forward
                             with autocast(device_type=self.device.type, dtype=self.autocast_dtype, enabled=True):
                                 # 简化调用逻辑，仅支持核心路径
-                                mb_out = model(mb_input, mb_target)
+                                try:
+                                    mb_out = model(mb_input, mb_target)
+                                except TypeError:
+                                    mb_out = model(mb_input)
+                                
                                 if isinstance(mb_out, dict): mb_out = mb_out['final_pred']
                                 
                                 # Loss

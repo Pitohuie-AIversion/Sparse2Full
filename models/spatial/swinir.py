@@ -17,6 +17,7 @@ Reference / 出处：
 from __future__ import annotations
 
 from typing import List, Optional, Tuple, Union
+from omegaconf import ListConfig
 
 import torch
 import torch.nn as nn
@@ -31,7 +32,7 @@ from ..registry import register_model
 # -------------------------
 def _to_int(x, default: int):
     """兼容 Hydra/OmegaConf：允许 int / list[int] / tuple[int]"""
-    if isinstance(x, (list, tuple)):
+    if isinstance(x, (list, tuple, ListConfig)):
         return int(x[0]) if len(x) > 0 else int(default)
     return int(x)
 
@@ -39,7 +40,7 @@ def _to_int(x, default: int):
 def _to_int_list(x, default: List[int]) -> List[int]:
     if x is None:
         return list(default)
-    if isinstance(x, (list, tuple)):
+    if isinstance(x, (list, tuple, ListConfig)):
         return [int(v) for v in x]
     # 单个 int -> 复制到和 default 等长
     return [int(x) for _ in range(len(default))]

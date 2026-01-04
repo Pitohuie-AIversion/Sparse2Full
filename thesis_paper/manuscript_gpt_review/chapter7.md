@@ -1,213 +1,262 @@
-- 下面给出**按研究生论文写作体例扩写**后的《第7章 理论验证》，并将文中关键论断对应到**可核验的信息来源**（带在线可访问出处的引用）。为避免“引用但不可追溯”的问题，本章只对我已核验到的公开来源进行标注；其余属于通用统计学常识或工程经验的内容不强行加引文。
+# 第7章 理论验证（扩写版：命题—脚本—阈值—统计—材料闭环）
 
-  ------
+## 7.0 引言
 
-  # 第7章 理论验证（扩写版，含可核验出处）
+第4章从“欠定逆问题”的角度提出三条可检验命题，并在第5–6章给出工程化落地。本章面向研究生论文的可核验要求，将三条命题进一步**制度化为可运行脚本 + 明确验收阈值 + 统计检验 + 材料归档**的验证闭环，并将全部产出固化到 `runs/<exp>/` 与 `paper_package/`。
 
-  ## 引言
+为避免符号漂移，沿用第3–6章口径。对任意时刻（或任意测试样本）真值场记为 \(u\)，网络输出（z-score 域）记为 \(\hat u^{(z)}\)，回到原值域后的预测记为
+\[
+\tilde u = \sigma_z \hat u^{(z)} + \mu. \tag{7-1}
+\]
+数据观测由统一观测算子 \(H\) 给出
+\[
+y = H(u) + n, \qquad n \text{ 为噪声（可为 0）}. \tag{7-2}
+\]
+评测口径误差（与第3章一致）定义为
+\[
+H_{\mathrm{err}} \triangleq \|H(\tilde u)-y\|_2. \tag{7-3}
+\]
 
-  第4章给出了三条核心理论命题：
-  （i）**评测一致性命题**：若训练端退化算子 DC 与数据观测算子 H 在实现与参数上严格一致，则当观测一致性损失收敛时，评测口径误差 (H_\mathrm{err}=|H(\tilde{u})-y|) 可被有效约束，并与重建误差同步变化；
-  （ii）**低频约束稳健性命题**：在低频子空间上约束可优先稳定大尺度结构，配合观测一致性项可减少“Rel-L2 降而 H_\mathrm{err} 不降”的评测断裂；
-  （iii）**跨网格稳定性命题**：在离散化一致性与别名控制得到保证时，多分辨率/跨网格评测的性能差异应更可控。
+本章验证的三条命题写为：
 
-  本章以“**可运行脚本 + 明确验收阈值 + 统计检验**”为主线，对上述命题给出实证验证闭环，并将结果落到 `paper_package/metrics/` 与 `paper_package/figs/` 的材料产出规范上。
+- **命题1（评测一致性命题）**：若训练端退化算子 \(\mathrm{DC}\) 与数据观测算子 \(H\) 在实现与参数上严格一致（同源复用），则当观测一致性项收敛时，\(H_{\mathrm{err}}\) 与重建误差将呈同步变化，并且“口径断裂”（Rel-L2 下降但 \(H_{\mathrm{err}}\) 不降）显著减少。
+- **命题2（低频约束稳健性命题）**：在低频子空间引入一致性约束，可优先稳定大尺度结构；与观测一致性项联合时，可进一步减少评测断裂并改善跨场景稳定性。
+- **命题3（跨网格稳定性命题）**：在离散化口径一致、混叠得到控制的条件下，多分辨率/跨网格评测的性能差异将更可控；异常退化可通过“口径一致性—频谱阈值—别名诊断”三步定位。
 
-  ------
+> **本章输出目标**：每条命题至少给出“正例 + 负例 + 阈值 + 统计量 + 归档路径”，并在第6章主实验表格中提供可追溯链接（文件路径与配置哈希）。
 
-  ## 7.1 一致性验证（对应命题1）
+---
 
-  ### 7.1.1 H/DC 等价性测试（硬门槛）
+## 7.1 一致性验证：\(H/\mathrm{DC}\) 同源复用（对应命题1）
 
-  **目的**：证明训练端使用的 DC 与数据观测 H **同一入口、同一实现、同一参数镜像**。
-  **方法**：运行 `tools/check_dc_equivalence.py` 随机抽样 (N\ge 100) 组样本 ({u^{(i)}, y^{(i)}})，对每个样本计算
-  [
-  e^{(i)}=\mathrm{MSE}\big(H(u^{(i)}), y^{(i)}\big),
-  \quad
-  e_{\max}=\max_i e^{(i)},\ \bar{e}=\frac{1}{N}\sum_i e^{(i)}.
-  ]
-  **验收阈值**（建议保持与你第5章一致）：
+### 7.1.1 \(H/\mathrm{DC}\) 等价性测试（硬门槛）
 
-  - (\bar{e} < 10^{-8}) 且 (e_{\max} < 10^{-7}) 视为通过；否则判定为**口径不一致**，必须阻断统计汇总。
+**目的**：在统计汇总之前，证明训练端退化算子 \(\mathrm{DC}\) 与数据观测算子 \(H\) 满足硬约束  
+\[
+\mathrm{DC} \equiv H \quad \text{（同一入口、同一实现、同一参数镜像、同一边界/插值/对齐策略）}. \tag{7-4}
+\]
 
-  > 工程层面，“确定性与可复现”需要显式控制随机性与确定性算法开关；PyTorch 官方对随机性来源与可复现设置给出了明确说明（随机数种子、cuDNN、非确定性算子等）。([PyTorch](https://pytorch.org/docs/stable/notes/randomness.html))
+**脚本**：`tools/check_dc_equivalence.py`
 
-  **推荐输出表（写入 `runs/<exp>/consistency_report.json` 并在论文中汇总）**：
+**方法**：随机抽样 \(N\ge 100\) 个样本 \(u^{(i)}\)，计算数据侧观测 \(y^{(i)}\) 与复用算子输出 \(H(u^{(i)})\)，并记录
+\[
+e^{(i)}=\mathrm{MSE}\!\left(H(u^{(i)}),\,y^{(i)}\right),\quad
+\bar e=\frac{1}{N}\sum_{i=1}^N e^{(i)},\quad
+e_{\max}=\max_i e^{(i)}. \tag{7-5}
+\]
 
-  | 任务 | 参数组                   | N    | mean MSE | max MSE | 结论      |
-  | ---- | ------------------------ | ---- | -------- | ------- | --------- |
-  | SR   | (σ,k,s,interp,boundary)  | 100  | …        | …       | Pass/Fail |
-  | Crop | (h_c,w_c,boundary,align) | 100  | …        | …       | Pass/Fail |
+**验收阈值（与第5章保持一致）**：
+- \(\bar e < 10^{-8}\) 且 \(e_{\max} < 10^{-7}\) 判定为 **Pass**；
+- 否则判定为 **Fail**，直接阻断该实验进入第6章统计汇总（避免不公平横向对比）。
 
-  ------
+> **工程备注（避免“误判”）**：当 \(H\) 内含浮点插值、FFT、混合精度或 GPU 非确定性算子时，阈值需要与实际数值精度匹配；阈值调整必须写入 `consistency_report.json`，并在论文中说明原因（例如从 FP32 改为 AMP 导致最小可达误差上移）。
 
-  ### 7.1.2 评测口径一致性验证：相关性与“断裂”负例
+**归档**：`runs/<exp>/consistency_report.json`（必须包含：任务类型、参数签名、\(N\)、\(\bar e\)、\(e_{\max}\)、Pass/Fail、差异定位日志）
 
-  **核心检验**：在统一口径下，验证 (H_\mathrm{err}) 与 Rel-L2 的相关性显著增强；同时构造**负例**（人为打破 H/DC 镜像），观察两者不同步。
+**论文汇总表模板**（建议写入第6章或附录）：
 
-  - **统一口径条件**：`DC ≡ H`（同实例或同参数构造）
-  - **负例条件**：例如 SR 下把 `INTER_AREA` 改成 `INTER_LINEAR`，或把 (\sigma) 改成 (\sigma+\Delta)，或 Crop 改边界策略（mirror→zero）
+| 任务 | 参数签名（摘要） | \(N\) | mean MSE \(\bar e\) | max MSE \(e_{\max}\) | 结论 |
+|---|---|---:|---:|---:|---|
+| SR | \((s,k,\sigma,\text{interp},\text{boundary})\) | 100 | … | … | Pass/Fail |
+| Crop | \((h_c,w_c,\text{align},\text{boundary})\) | 100 | … | … | Pass/Fail |
 
-  **统计量**：对测试集每个样本得到 ((\mathrm{RelL2}_j, H_{\mathrm{err},j}))，计算
+---
 
-  - Pearson 相关系数 (r)（线性相关）
-  - Spearman (\rho)（秩相关，抗异常值）
+### 7.1.2 评测口径一致性验证：相关性增强与“断裂负例”
 
-  并给出 95% 置信区间（Pearson 可用 Fisher z 变换）。
+**核心检验问题**：在 \(\mathrm{DC}\equiv H\) 成立的前提下，Rel-L2 与 \(H_{\mathrm{err}}\) 的统计相关性是否显著增强？当人为破坏口径镜像（负例）时，相关性是否显著下降并出现评测断裂？
 
-  **论文呈现建议**：
+**两组条件**：
+- **正例（统一口径）**：\(\mathrm{DC}\equiv H\)；
+- **负例（口径错配）**：仅改动一个关键口径参数，其余保持不变（保证“唯一原因”）。
+  - SR：`INTER_AREA → INTER_LINEAR` 或 \(\sigma \to \sigma+\Delta\sigma\)
+  - Crop：边界策略 `reflect → zero` 或中心对齐偏移 +1 像素
 
-  - 图：散点图（Rel-L2 vs H_\mathrm{err}）+ 线性拟合；统一口径与负例口径并排对比。
-  - 表：给出 (r,\rho) 及 p-value。
+**统计量与可视化**：对测试集样本 \(j=1,\dots,N_{\text{test}}\)，计算
+\[
+r=\mathrm{corr}_{\text{Pearson}}(\mathrm{RelL2}_j,\,H_{\mathrm{err},j}),\qquad
+\rho=\mathrm{corr}_{\text{Spearman}}(\mathrm{RelL2}_j,\,H_{\mathrm{err},j}). \tag{7-6}
+\]
+并报告 Pearson 的 95% 置信区间（Fisher z 变换）及对应 p-value；Spearman 给出 p-value 与稳健结论（抗异常值）。
 
-  ------
+**图表呈现**（写入 `paper_package/figs/theory_verif/`）：
+- 散点图：\(H_{\mathrm{err}}\)–Rel-L2（正例 vs 负例并排）
+- 分箱曲线：按 Rel-L2 分箱后的 \(H_{\mathrm{err}}\) 均值±置信带（更直观暴露“断裂”）
 
-  ## 7.2 收敛性与稳定性验证（对应命题2与第4章稳定性讨论）
+**判定准则（建议）**：
+- 正例：\(|r|\) 与 \(|\rho|\) 同时显著高于负例，并且 Rel-L2 下降时 \(H_{\mathrm{err}}\) 同步下降；
+- 负例：出现“Rel-L2 改善但 \(H_{\mathrm{err}}\) 无改善/变差”的样本比例显著升高（将该比例写入表格，作为“断裂率”指标）。
 
-  ### 7.2.1 课程学习对收敛的影响（SR ×2→×4；Crop 40%→20%）
+### 7.1.3 顺序训练课程有效性验证
 
-  **实验设计**（二因素对照，建议固定其他超参不变）：
+为验证“空间 \(\to\) 时序 \(\to\) 联合”三阶段策略的必要性，本研究设计了如下消融验证实验：
 
-  - A：无课程（直接 SR×4 / Crop 20%）
-  - B：有课程（先易后难：SR×2→×4 或 Crop 40%→20%）
+1. **课程阶段切换稳定性**
+   记录每个阶段切换点（Transition Epoch）前后的 Loss 变化率。
+   **验证目标**：验证 \(\Delta \text{Loss}_{\text{transition}} < 0\)，即阶段切换未导致模型崩溃，且新阶段的训练任务（如从单帧到多步）能够平滑承接上一阶段的特征空间。
+   
+2. **端到端 vs 顺序训练收敛对比**
+   在同一组随机种子下，对比两种策略的验证集 Loss 收敛曲线。
+   **验证目标**：顺序训练策略在达到相同 Loss 水平时所需的总 Epoch 数显著少于端到端训练，或最终收敛值更优。
 
-  **记录与指标**：
+3. **时序正则化贡献**
+   对比开启与关闭时序导数/能量损失时的长时预测（20步）稳定性。
+   **验证目标**：开启正则化后，长时预测的能量漂移率（Energy Drift Rate）显著降低。
 
-  - 训练/验证曲线：(L, L_\mathrm{rec}, L_\mathrm{spec}, L_\mathrm{dc})
-  - 梯度稳定：每 step 的 (|\nabla\theta|) 分位数（p50/p90/p99）
-  - 最终泛化：测试集 Rel-L2 与 H_\mathrm{err}
+相关实验结果详见第 6.6 节。
 
-  **验收逻辑**：若课程学习显著降低 early-stage 的梯度爆炸/震荡，并在最终指标上取得稳定收益，则支持“课程改善优化路径”的结论。
+---
 
-  ------
+## 7.2 低频约束稳健性验证（对应命题2）
 
-  ### 7.2.2 因果/时序约束验证（时序打乱负例）
+### 7.2.1 消融：是否引入 \(L_{\mathrm{spec}}\) 的结构稳定收益
 
-  若你的模型含时序模块（ConvLSTM/Transformer/AR 等），建议增加**时序一致性负例**：
+**对照组**（与第3章 A0–A3 对齐）：
+- A0：仅 \(L_{\mathrm{rec}}\)
+- A1：\(L_{\mathrm{rec}}+\lambda_{dc}L_{\mathrm{dc}}\)
+- A2：\(L_{\mathrm{rec}}+\lambda_s L_{\mathrm{spec}}\)
+- A3：\(L_{\mathrm{rec}}+\lambda_s L_{\mathrm{spec}}+\lambda_{dc}L_{\mathrm{dc}}\)（主方法）
 
-  - 正例：保持时间顺序输入
-  - 负例：在 batch 内随机打乱时间维（保持同一帧集合但破坏顺序）
+**低频指标（与第6章一致）**：将频域误差分段为 low/mid/high；以 low 段为主验证对象（大尺度结构）。例如对 2D FFT 频率索引集合 \(\mathcal K_{\text{low}}\) 定义
+\[
+\mathrm{fRMSE}_{\text{low}} \triangleq
+\sqrt{\frac{1}{|\mathcal K_{\text{low}}|}
+\sum_{k\in\mathcal K_{\text{low}}}
+\left|\mathcal F(\tilde u)_k-\mathcal F(u)_k\right|^2}. \tag{7-7}
+\]
+并与 Rel-L2、\(H_{\mathrm{err}}\) 同表报告。
 
-  比较两者在 (T_{out}) 上的误差增长曲线（例如按步长报告 Rel-L2(t)）。
+**判定逻辑**：
+- 若 A3 相对 A1（固定 \(\lambda_{dc}\)）显著降低 \(\mathrm{fRMSE}_{\text{low}}\) 且带来 Rel-L2 的稳健改善，则支持“低频结构先稳”的命题；
+- 若 A2 在部分任务中改善低频但 \(H_{\mathrm{err}}\) 不稳定，则提示 \(L_{\mathrm{dc}}\) 在“评测口径绑定”上的必要性（与命题1衔接）。
 
-  关于“因果性约束有助于 PINN/物理学习稳定训练”的观点，可引用对应的公开论文条目作为背景支撑。([arXiv](https://arxiv.org/abs/2203.07404))
+---
 
-  ------
+### 7.2.2 频谱阈值 \(k_{\max}\) 扫描：结构—口径—资源折衷
 
-  ### 7.2.3 解码策略验证（双线性+3×3 vs 反卷积）
+**扫描变量**：
+\[
+k_{\max} \in \{8,12,16,20,24\},\qquad \lambda_s \in \{10^{-4},10^{-3},10^{-2}\}. \tag{7-8}
+\]
 
-  **实验目的**：验证你在第3章提出的“抑制棋盘格伪影与高频噪声累积”的工程结论。
-  **对照**：
+**固定变量**：模型结构、训练步数、学习率计划、batch、数据切分、\(H/\mathrm{DC}\) 口径签名全部固定。
 
-  - Baseline：转置卷积（deconv）上采样
-  - Ours：双线性插值 + 3×3 卷积（固定）
+**输出**：
+- 主表：Rel-L2、\(H_{\mathrm{err}}\)、\(\mathrm{fRMSE}_{\text{low}}\)、资源四项
+- 曲线：\((k_{\max},\lambda_s)\) → 指标热力图（便于呈现拐点）
 
-  **量化指标**：
+**验收结论写法建议**：不以“最好点”叙述，而以“稳定区间 + 拐点 + 资源代价”叙述，例如：
+- \(k_{\max}\le 12\) 低频稳定但细节不足；
+- \(k_{\max}\ge 24\) 训练不稳或高频噪声上升；
+- \(k_{\max}=16\) 出现结构与口径同步改善且资源可接受（作为默认设置）。
 
-  - 空域：PSNR/SSIM、边界带误差（bRMSE/cRMSE）
-  - 频域：功率谱差异、fRMSE-mid/high
+---
 
-  **定性材料**：输出“棋盘格/振铃”典型失败案例图组，写入 `paper_package/figs/failure_modes/decoder/`。
+## 7.3 跨分辨率/跨网格鲁棒性验证（对应命题3）
 
-  ------
+### 7.3.1 多分辨率外推评测（img\_size = 128 / 256 / 512）
 
-  ## 7.3 泛化能力与跨网格鲁棒性（对应命题3）
+**设计原则**：训练分辨率固定为 256；评测阶段仅改变输出分辨率与重采样路径，并将重采样策略写入 YAML 与图注，确保可解释。
 
-  ### 7.3.1 多分辨率外推评测（img_size = 128/256/512）
+**输出表（建议）**：
+- 每个分辨率报告：Rel-L2、MAE、PSNR、SSIM、\(\mathrm{fRMSE}_{\text{low/mid/high}}\)、\(H_{\mathrm{err}}\)
+- 同时报告资源四项：Params、FLOPs@256²、显存峰值、推理延迟（统一设备与 batch）
 
-  **统一原则**：保持观测口径 H 与指标定义不变，改变仅限于评测分辨率与重采样策略（写入 YAML 与图注）。
-  **输出**：每个分辨率报告同一指标集 + 资源四项（Params、FLOPs@256²、显存峰值、延迟）。
+**判定逻辑**：
+- 若主方法在 128/512 上相对基线保持“同步下降”（Rel-L2 与 \(H_{\mathrm{err}}\) 同向改善），支持命题3；
+- 若出现单一分辨率异常退化，进入 7.3.2 的诊断流程。
 
-  ### 7.3.2 网格/离散化变化与别名诊断
+---
 
-  当出现“256 上好、512 上崩”或相反的异常，需要把原因定位到：
+### 7.3.2 异常诊断流程：口径 → 别名 → 阈值
 
-  - 观测口径是否仍一致（优先排查 H/DC）
-  - 离散化与表示别名（aliasing）是否被放大
-  - 频谱约束阈值是否对高分辨率不再合适
+当出现“256 上好、512 上崩（或相反）”的异常，需要按以下顺序定位原因，并将诊断记录写入 `paper_package/metrics/diagnosis_log.md`：
 
-  关于“别名无关（alias-free）算子学习/离散一致性影响跨网格表现”的论点，可引用 ReNO/别名无关框架条目作为背景支撑。([arXiv](https://arxiv.org/abs/2305.19913))
+1. **口径复核**：重新运行 `check_dc_equivalence.py`，确认 \(\mathrm{DC}\equiv H\) 仍通过（优先排除口径漂移）。
+2. **别名/混叠诊断**：对比不同分辨率的功率谱与误差谱，检查是否出现“能量折叠”或特定频带异常尖峰。
+3. **阈值自适应**：当分辨率改变导致“低频集合语义漂移”，需要将 \(k_{\max}\) 改为“按比例阈值”（例如按 Nyquist 比例），并在附录报告替代口径的影响。
 
-  ------
+> **背景引用（写作定位）**：别名无关（alias-free）的算子学习框架将“表示别名”作为跨网格不稳定的重要来源之一，可用作第4章理论背景与本章诊断流程的文献支撑。
 
-  ## 7.4 显著性检验与效应大小（统一统计协议）
+---
 
-  ### 7.4.1 paired t-test（主指标 Rel-L2）
+## 7.4 统计显著性与效应量（统一协议，避免口径混用）
 
-  对每个种子 (s) 计算相同测试集上的差值
-  [
-  d_s=\mathrm{RelL2}^{(\mathrm{baseline})}_s-\mathrm{RelL2}^{(\mathrm{ours})}_s,
-  ]
-  对 ({d_s}) 做**配对 t 检验**，并报告 p-value 与均值±标准差。t 分布的来源可追溯到 Student（Gosset）提出的相关工作。([IME-USP](https://www.ime.usp.br/~abe/lista/pdf4R8xPVzCnX.pdf?utm_source=chatgpt.com))
+### 7.4.1 paired t-test：以“同一样本对”为统计单位
 
-  ### 7.4.2 Cohen’s d（配对版本）与置信区间
+配对检验必须以**同一测试样本**为配对单位。对每个 seed 的一次完整训练—评测，记录测试集样本级指标序列：
+\[
+a_j=\mathrm{RelL2}^{(\text{baseline})}_j,\qquad
+b_j=\mathrm{RelL2}^{(\text{ours})}_j,\qquad
+d_j=a_j-b_j,\quad j=1,\dots,N_{\text{test}}. \tag{7-9}
+\]
+对 \(\{d_j\}\) 做 paired t-test，报告 \(t\)、p-value、以及 \(\bar d \pm s_d\)。
 
-  建议报告配对效应量
-  [
-  d=\frac{\bar{d}}{s_d},
-  ]
-  其中 (s_d) 为差值样本标准差；并给出 bootstrap 置信区间（工程实现简单且更稳健）。
+**多 seed 呈现**（建议二选一，写清楚即可）：
+- 方案A：每个 seed 单独检验，报告 p-value 的分布（min/median/max）；
+- 方案B：对每个样本先对 seed 求平均 \(\bar a_j,\bar b_j\)，再对 \(\bar d_j\) 做 paired t-test（强调“跨 seed 稳健平均”）。
 
-  > 若你同时比较很多模型/很多任务（多重比较），建议在论文中说明控制策略（例如控制 FDR 或采用更保守的校正），并把“主结论仅绑定主对照”写清楚，避免过度显著性解读。
+> **多重比较声明**：当同时比较多个 PDE 场景/多个模型，主结论仅绑定“主对照组”，其余比较放入附录并说明控制策略（FDR 或保守校正）。
 
-  ------
+---
 
-  ## 7.5 敏感性分析（参数—口径—资源三维折衷）
+### 7.4.2 配对 Cohen’s \(d\) 与置信区间
 
-  ### 7.5.1 扫描维度与最小覆盖集
+配对效应量定义为
+\[
+d=\frac{\bar d}{s_d}. \tag{7-10}
+\]
+其中 \(\bar d\) 与 \(s_d\) 来自 (7-9)。为避免正态性假设过强，置信区间建议采用 bootstrap（对样本索引 \(j\) 重采样）。
 
-  建议把敏感性分析拆为三层：
+---
 
-  1. **口径层（必须覆盖）**：(\sigma, s, (h_c,w_c),) boundary、interp
-  2. **损失层（核心）**：(\lambda_s, \lambda_{dc}, k_x,k_y)（低频阈值）
-  3. **训练层（稳健性）**：seed、AMP 开关、grad clip、warmup steps
+## 7.5 可复现性验证（确定性、快照、指纹）
 
-  ### 7.5.2 结果呈现模板（建议写入论文主表+附录）
+### 7.5.1 确定性设置与方差门槛
 
-  - 主表：固定模型结构，仅变口径/损失关键参数，报告 Rel-L2 与 H_\mathrm{err} 同步性
-  - 附录：给出更细粒度的扫描曲线（例如 (k_{\max}\in{8,12,16,20,24})）
+**目标门槛**：同一 YAML + 同一种子条件下，多次运行关键指标方差 \(\le 10^{-4}\)（写入第6章自检清单）。
 
-  ------
+**必要记录**（必须写入 `env_fingerprint.json`）：
+- Python / NumPy / PyTorch seed
+- cuDNN deterministic / benchmark 开关
+- `torch.use_deterministic_algorithms` 与 debug mode（是否启用、告警级别）
+- AMP 开关与 scaler 配置
+- GPU/驱动/CUDA/torch 版本、算子后端信息
 
-  ## 7.6 可复现性验证（确定性、快照、指纹）
+### 7.5.2 可复现材料闭环检查（强制）
 
-  ### 7.6.1 确定性配置与方差门槛
+- `runs/<exp>/config_merged.yaml`
+- `runs/<exp>/env_fingerprint.json`
+- `runs/<exp>/consistency_report.json`
+- `paper_package/scripts/`（一键复现 + 汇总 + 显著性 + 画图）
+- `paper_package/metrics/`（主表、显著性、资源表、诊断日志）
+- `paper_package/figs/`（代表案例、失败案例、功率谱、边界带放大）
 
-  **目标**：同一 YAML + 同一种子条件下，多次运行指标方差 ≤ (10^{-4})。
-  **必要措施**：
+---
 
-  - 固定 Python/NumPy/PyTorch seeds
-  - 明确 cuDNN/算子确定性策略
-  - 记录环境指纹（CUDA、驱动、torch 版本、GPU 型号等）
+## 7.6 章节小结（命题 → 证据 → 文件）
 
-  PyTorch 官方对“随机性来源”“确定性算法开关（例如 `torch.use_deterministic_algorithms`）”给出了明确说明，可作为论文中“可复现设置依据”的出处。([PyTorch](https://pytorch.org/docs/stable/notes/randomness.html))
+本章将第4章三条理论命题落实为可核验证据链：
 
-  ### 7.6.2 复现闭环材料检查
+- 命题1：以 `check_dc_equivalence.py` 的硬门槛 + 相关性增强 + 口径错配负例，证明“口径一致性”可显著抑制评测断裂；
+- 命题2：以 \(L_{\mathrm{spec}}\) 消融与 \((k_{\max},\lambda_s)\) 扫描，证明低频约束对大尺度结构稳定与口径同步改善具有可重复收益；
+- 命题3：以跨分辨率评测与“口径→别名→阈值”的诊断流程，证明跨网格异常可定位、可解释、可修复。
 
-  - `runs/<exp>/config_merged.yaml`：配置快照
-  - `runs/<exp>/env_fingerprint.json`：环境指纹
-  - `paper_package/scripts/`：一键复现与汇总
-  - `paper_package/metrics/`：主表 + 显著性 + 资源表
-  - `paper_package/figs/`：代表案例 + 失败案例 + 频谱图
+上述验证的全部中间产物均落地到 `runs/<exp>/` 与 `paper_package/`，从而满足“可复现、可审计、可复核”的研究生论文要求。
 
-  ------
+---
 
-  ## 7.7 小结（命题→证据→材料）
+## 参考文献（APA 7；本章引用且可核验）
 
-  本章以硬门槛一致性测试（H/DC 等价性）、相关性与负例断裂实验、课程/时序/解码消融、跨分辨率与跨网格评测、显著性与效应量报告、以及确定性复现闭环材料六类证据，构成对第4章理论命题的实证验证链条。其输出直接沉淀到 `consistency_report.json`、主结果表与显著性报告、以及标准化图组与失败案例归档中，从而满足审稿对“可核验、可复现、可解释”的要求。
+- Bartolucci, F., de Bézenac, E., Raonić, B., Molinaro, R., Mishra, S., & Alaifari, R. (2023). *Representation equivalent neural operators: A framework for alias-free operator learning* (arXiv:2305.19913). arXiv.
+- Gosset, W. S. (1908). The probable error of a mean. *Biometrika, 6*(1), 1–25. https://doi.org/10.1093/biomet/6.1.1
+- Takamoto, M., Praditia, T., Leiteritz, R., MacKinlay, D., Alesiani, F., Pflüger, D., & Niepert, M. (2022). *PDEBench: An extensive benchmark for scientific machine learning* (arXiv:2210.07182). arXiv.
+- Takamoto, M., Praditia, T., Leiteritz, R., MacKinlay, D., Alesiani, F., Pflüger, D., & Niepert, M. (2022). *PDEBench* (Version 1.0) [Data set]. DaRUS. https://doi.org/10.18419/darus-2986
+- Wang, S., Sankaran, S., & Perdikaris, P. (2022). *Respecting causality is all you need for training physics-informed neural networks* (arXiv:2203.07404). arXiv.
+- PyTorch Contributors. (n.d.). *Reproducibility*. In *PyTorch documentation*. https://docs.pytorch.org/docs/stable/notes/randomness.html
+- PyTorch Contributors. (n.d.). *torch.use_deterministic_algorithms*. In *PyTorch documentation*. https://docs.pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html
+- PyTorch Contributors. (n.d.). *torch.set_deterministic_debug_mode*. In *PyTorch documentation*. https://docs.pytorch.org/docs/stable/generated/torch.set_deterministic_debug_mode.html
 
-  ------
+---
 
-  # 参考文献（APA；仅列本章使用且可核验来源）
-
-  - Bartolucci, F., de Bézenac, E., Raonić, B., Molinaro, R., Mishra, S., & Alaifari, R. (2023). *Representation equivalent neural operators: A framework for alias-free operator learning*. arXiv:2305.19913. ([arXiv](https://arxiv.org/abs/2305.19913))
-  - Gosset, W. S. (1908). The probable error of a mean. *Biometrika, 6*(1), 1–25. ([IME-USP](https://www.ime.usp.br/~abe/lista/pdf4R8xPVzCnX.pdf?utm_source=chatgpt.com))
-  - Takamoto, M., Praditia, T., Leiteritz, R., MacKinlay, D., Alesiani, F., Pflüger, D., & Niepert, M. (2022). *PDEBench: An extensive benchmark for scientific machine learning*. arXiv:2210.07182. ([arXiv](https://arxiv.org/abs/2210.07182))
-  - Wang, S., Sankaran, S., & Perdikaris, P. (2022). *Respecting causality is all you need for training physics-informed neural networks*. arXiv:2203.07404. ([arXiv](https://arxiv.org/abs/2203.07404))
-  - PyTorch. (n.d.). *Reproducibility (randomness)*. PyTorch Documentation. ([PyTorch](https://pytorch.org/docs/stable/notes/randomness.html))
-  - PyTorch. (n.d.). *torch.use_deterministic_algorithms*. PyTorch Documentation. ([PyTorch](https://pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html))
-  - PyTorch. (n.d.). *torch.set_deterministic_debug_mode*. PyTorch Documentation. ([PyTorch](https://pytorch.org/docs/stable/generated/torch.set_deterministic_debug_mode.html))
-
-  ------
-
-  如果你希望我“同样处理”的方式继续到**第8章讨论**或**第9章结论与展望**，我会沿用本章这种“命题—实验—阈值—材料—统计”的写法，并把每条关键论断都绑定到可核验出处或你自己的实验材料路径上。
+*最后更新：2026-01-01*

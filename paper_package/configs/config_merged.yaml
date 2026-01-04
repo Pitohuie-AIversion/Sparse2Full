@@ -1,13 +1,13 @@
 experiment:
-  name: AR-DR2D-FNO2d-SRx4-10M-300ep-model_SwinUNet-s2025-20251227
-  description: 快速Debug配置 - 5步AR自回归训练
+  name: AR-DR2D-EDSR-SRx4-10M-300ep-model_EDSR-s2025-20260103
+  description: 正式训练 - EDSR Crop训练 (ShallowWater SRx4)
   device: cuda
   seed: 2025
   seeds:
   - 2025
   - 2026
   - 2027
-  output_dir: runs_drd
+  output_dir: run_sw_4x
   log_every_n_steps: 10
   precision: bf16-mixed
 device:
@@ -22,8 +22,8 @@ ar:
 sequential:
   enabled: false
 data:
-  data_path: /share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/data/DR2D/2D_diff-react_NA_NA.h5
-  dataset_name: RealDiffusionReaction
+  data_path: data/2D/shallow-water/2D_rdb_NA_NA.h5
+  dataset_name: ShallowWater
   img_size: 128
   keys:
   - data
@@ -82,12 +82,15 @@ hardware:
   pin_memory: false
   persistent_workers: false
 model:
-  name: SwinUNet
+  name: EDSR
   in_channels: 1
   out_channels: 1
   img_size: 128
-  embed_dim: 96
-  window_size: 4
+  n_feats: 64
+  n_resblocks: 16
+  res_scale: 0.1
+  upscale: 4
+  add_input_residual: true
 model_budget:
   target_params_m: 10.0
   tolerance_m: 1.0
@@ -96,6 +99,10 @@ training:
   epochs: 300
   batch_size: 96
   gradient_accumulation_steps: 1
+  crop:
+    enabled: true
+    size: 64
+    patches_per_image: 4
   torch_compile: false
   torch_compile_backend: inductor
   torch_compile_mode: reduce-overhead
@@ -177,7 +184,7 @@ validation:
     patience_for_convergence: 10
     min_improvement: 0.0001
 logging:
-  experiment_name: AR-DR2D-10M-300ep
+  experiment_name: AR-DR2D-EDSR-SRx4-10M-300ep
   version: null
   default_hp_metric: false
   log_model: false

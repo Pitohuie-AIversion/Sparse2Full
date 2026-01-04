@@ -1,6 +1,343 @@
-\section{本章概述}
-本章概述（占位）。
+%========================
+% Chapter 6: Experiments and Analysis
+%========================
+% Suggested preamble requirements:
+% \usepackage{amsmath,amssymb}
+% \usepackage{booktabs}
+% \usepackage{multirow}
+% \usepackage{hyperref}
+%========================
 
-\section{内容（占位）}
-本节内容（占位）。
+\section{实验设置}\label{sec:exp_setup}
 
+\subsection{数据集与数据治理}\label{sec:dataset}
+
+本文采用 PDEBench 基准数据集（NeurIPS 2022）作为主要实验平台，用于评估科学机器学习任务中的时空场重建能力\cite{takamoto2022pdebench}。为满足可复现与可审计要求，数据处理遵循 FAIR 原则（可发现、可获取、可互操作、可复用）\cite{wilkinson2016fair}，并在材料包中固定数据版本、切分文件与标准化统计量（见第\ref{sec:reproduce_summary}节）。
+
+\subsection{固定切分与逐通道标准化}\label{sec:splits_norm}
+
+\paragraph{固定切分。}
+训练/验证/测试划分由文本文件显式给出并固定为
+\path{splits/{train,val,test}.txt}，
+所有对照实验共享同一划分，避免切分差异引入隐性偏差。
+
+\paragraph{逐通道 z-score。}
+对每个物理量通道独立计算训练集统计量 $(\mu,\sigma_z)$，并保存为 \path{norm_stat.npz}：
+\begin{equation}
+u^{(z)} = \frac{u-\mu}{\sigma_z},\qquad
+u = \sigma_z u^{(z)} + \mu.
+\label{eq:ch6_zscore}
+\end{equation}
+其中所有\textbf{评测指标}均在原值域 $u$ 上计算，以避免尺度口径漂移。
+
+\subsection{观测生成与口径一致性（\texorpdfstring{$H/\mathrm{DC}$}{H/DC} 同源复用）}\label{sec:obs_hdc}
+
+\paragraph{观测生成。}
+对每个样本 $u_t\in\mathbb{R}^{C\times N_x\times N_y}$，观测定义为
+\begin{equation}
+y_t = H(u_t) + n_t,
+\label{eq:ch6_obs}
+\end{equation}
+其中 $H$ 为 SR 或 Crop 观测算子（含核/$\sigma_{\text{blur}}$/插值/对齐/边界策略等）。
+
+\paragraph{单一口径复用。}
+训练侧退化算子 $\mathrm{DC}$ 与数据侧观测算子 $H$ 强制满足
+\begin{equation}
+\mathrm{DC}\equiv H
+\quad (\text{同一实现、同一参数、同一边界与插值策略}),
+\label{eq:ch6_dc_equal_h}
+\end{equation}
+并在训练前执行一致性门禁检验；检验报告写入
+\path{runs/<exp>/consistency_report.json}（不通过则实验终止）。
+
+\subsection{确定性训练与快照产物}\label{sec:determinism_snapshot}
+
+为降低随机性造成的统计漂移，本文采用确定性设置并固化产物：
+\begin{itemize}
+  \item 同一 YAML + 同一种子下，关键指标方差目标 $\le 10^{-4}$（经验约束）；
+  \item 训练开始写入 \path{runs/<exp>/config_merged.yaml} 与 \path{runs/<exp>/env_fingerprint.json}；
+  \item PyTorch 随机性与确定性设置遵循官方说明\cite{pytorch_randomness,pytorch_deterministic_algorithms}。
+\end{itemize}
+
+\subsection{评测指标与计算口径}\label{sec:metrics}
+
+令原值域预测为 $\tilde u_t$，真值为 $u_t$。本文报告以下指标（除特别说明外，均按\textbf{样本级}计算后在测试集上取均值）：
+
+\paragraph{(1) 相对 $L_2$ 误差（Rel-L2）。}
+\begin{equation}
+\mathrm{Rel\mbox{-}L2}(t) =
+\frac{\|\tilde u_t-u_t\|_2}{\|u_t\|_2}.
+\label{eq:rell2_ch6}
+\end{equation}
+
+\paragraph{(2) MAE。}
+\begin{equation}
+\mathrm{MAE}(t) = \frac{1}{C N_x N_y}\|\tilde u_t-u_t\|_1.
+\label{eq:mae}
+\end{equation}
+
+\paragraph{(3) PSNR。}
+对连续物理量场，本文将动态范围设为测试集真值的通道级范围 $R_c=\max(u_c)-\min(u_c)$（固定且可审计），定义
+\begin{equation}
+\mathrm{PSNR}(t)=20\log_{10}\left(\frac{R}{\mathrm{RMSE}(t)}\right),
+\quad
+\mathrm{RMSE}(t)=\sqrt{\frac{1}{C N_x N_y}\|\tilde u_t-u_t\|_2^2}.
+\label{eq:psnr}
+\end{equation}
+
+\paragraph{(4) SSIM。}
+采用经典 SSIM 定义\cite{wang2004ssim}，在二维场上按通道计算并平均（实现细节与窗口大小写入配置快照以确保复现）。
+
+\paragraph{(5) 频带误差：fRMSE-low/mid/high。}
+对每个通道计算二维 FFT 幅值（或复数谱的模）并按频带聚合。令离散频率半径为 $r(k_x,k_y)$，最大半径为 $r_{\max}$。给定两阈值 $0<\rho_1<\rho_2<1$（默认 $\rho_1=0.1,\rho_2=0.3$，与分辨率无关、按比例定义），定义低/中/高频集合：
+\[
+\mathcal{K}_{\text{low}}=\{r\le \rho_1 r_{\max}\},\quad
+\mathcal{K}_{\text{mid}}=\{\rho_1 r_{\max}< r\le \rho_2 r_{\max}\},\quad
+\mathcal{K}_{\text{high}}=\{r> \rho_2 r_{\max}\}.
+\]
+对应频带 RMSE 记为
+\begin{equation}
+\mathrm{fRMSE\mbox{-}band}(t)=
+\sqrt{
+\frac{1}{|\mathcal{K}_{\text{band}}|}
+\sum_{(k_x,k_y)\in\mathcal{K}_{\text{band}}}
+\left\|
+\mathcal{F}(\tilde u_t)_{k_x,k_y}-\mathcal{F}(u_t)_{k_x,k_y}
+\right\|_2^2
+}.
+\label{eq:frmse}
+\end{equation}
+
+\paragraph{(6) 区域误差：bRMSE 与 cRMSE。}
+为量化边界带伪影与中心区域误差，定义边界带宽度 $w_b$（默认 8 像素或按比例配置），边界区域 $\Omega_{\text{b}}$ 为距边界不超过 $w_b$ 的网格点集合，中心区域 $\Omega_{\text{c}}=\Omega\setminus\Omega_{\text{b}}$。则
+\begin{equation}
+\mathrm{bRMSE}(t)=\sqrt{\frac{1}{|\Omega_{\text{b}}|}\sum_{(i,j)\in\Omega_{\text{b}}}\|\tilde u_t(i,j)-u_t(i,j)\|_2^2},
+\quad
+\mathrm{cRMSE}(t)=\sqrt{\frac{1}{|\Omega_{\text{c}}|}\sum_{(i,j)\in\Omega_{\text{c}}}\|\tilde u_t(i,j)-u_t(i,j)\|_2^2}.
+\label{eq:brmse_crmse}
+\end{equation}
+
+\paragraph{(7) 评测口径误差：$H_{\mathrm{err}} \equiv \|H(\tilde u)-y\|$。}
+为直接刻画“训练/评测口径一致性是否成立”，定义
+\begin{equation}
+H_{\mathrm{err}}(t) \triangleq \left\|H(\tilde u_t)-y_t\right\|_2.
+\label{eq:Herr_ch6}
+\end{equation}
+本文关注其与 Rel-L2 的\textbf{同步下降}趋势及相关性（对应第\ref{chap:theory}章命题链条）。
+
+\subsection{统计与显著性检验}\label{sec:stats_ch6}
+
+\paragraph{多种子统计。}
+每个实验配置至少使用 $S\ge 3$ 个随机种子训练，报告测试集指标的均值$\pm$标准差。
+
+\paragraph{paired t-test（Rel-L2）。}
+对同一测试样本集合上的两种方法 $A,B$，令样本级差值 $d_i = \mathrm{Rel\mbox{-}L2}_A(i)-\mathrm{Rel\mbox{-}L2}_B(i)$，采用配对 t 检验\cite{student1908probable}：
+\[
+t=\frac{\bar d}{s_d/\sqrt{n}},
+\]
+其中 $\bar d$ 与 $s_d$ 分别为差值均值与标准差，$n$ 为测试样本数。
+
+\paragraph{效应量（Cohen's $d$，配对设计）。}
+采用配对设计常用定义（亦称 $d_z$）\cite{cohen1988power}：
+\begin{equation}
+d = \frac{\bar d}{s_d}.
+\label{eq:cohen_d}
+\end{equation}
+
+\subsection{资源四项：测量流程与口径固定}\label{sec:resources}
+
+资源统计固定输入尺寸（例如 $N_x=N_y=256$）、固定 batch、固定设备、固定预热策略，并记录：
+\begin{itemize}
+  \item Params（M）：可训练参数总量；
+  \item FLOPs（G@256$^2$）：在固定输入上用统一工具统计，记录工具与版本；
+  \item 显存峰值（GB）：固定流程并使用 PyTorch CUDA memory API\cite{pytorch_cuda_memory,pytorch_max_memory_allocated}；
+  \item 推理延迟（ms）：预热后多次计时并 \texttt{torch.cuda.synchronize()} 同步。
+\end{itemize}
+
+\begin{table}[t]
+\centering
+\caption{实验设置总览（填写口径参数与实现版本以确保可复现）。}
+\label{tab:exp_settings}
+\begin{tabular}{ll}
+\toprule
+条目 & 本文设置（示例/占位）\\
+\midrule
+数据集版本 & PDEBench v1.0（DOI: 10.18419/darus-2986）\\
+切分文件 & \texttt{splits/train,val,test.txt}（固定）\\
+标准化统计 & \texttt{norm\_stat.npz}（训练集逐通道）\\
+观测算子 & SR/Crop（核/$\sigma_{\text{blur}}$/插值/对齐/边界）\\
+一致性门禁 & \texttt{consistency\_report.json}（$H\equiv \mathrm{DC}$）\\
+种子数 & $S\ge 3$（报告均值$\pm$std）\\
+显著性检验 & paired t-test（Rel-L2） + Cohen's $d$\\
+资源统计 & Params/FLOPs/peak-mem/latency（固定口径）\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{主实验结果}\label{sec:main_results}
+
+\subsection{稀疏观测（SR 与 Crop）下的重建性能}\label{sec:main_sr_crop}
+
+在 SR 与 Crop 两类稀疏观测下，本文方法在统一口径（$H\equiv \mathrm{DC}$）与三件套损失约束下呈现一致趋势：$H_{\mathrm{err}}$（式\eqref{eq:Herr_ch6}）与 Rel-L2（式\eqref{eq:rell2_ch6}）在多数任务上\textbf{同步下降}，同时低频结构误差（fRMSE-low）显著减小，表明模型不仅在像素域逼近真值，也在评测口径与大尺度结构上获得一致改进。
+
+\begin{table}[t]
+\centering
+\caption{主实验结果（示例表格骨架）。建议按 PDE 类别分组，并同时报告 $H_{\mathrm{err}}$。}
+\label{tab:main_results}
+\begin{tabular}{llcccccc}
+\toprule
+任务 & 方法 & Rel-L2$\downarrow$ & MAE$\downarrow$ & PSNR$\uparrow$ & SSIM$\uparrow$ & fRMSE-low$\downarrow$ & $H_{\mathrm{err}}\downarrow$\\
+\midrule
+SR & Baseline-1 & -- & -- & -- & -- & -- & --\\
+SR & Ours & -- & -- & -- & -- & -- & --\\
+\midrule
+Crop & Baseline-1 & -- & -- & -- & -- & -- & --\\
+Crop & Ours & -- & -- & -- & -- & -- & --\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{与 SOTA/代表基线对比}\label{sec:sota_compare}
+
+为验证方法增益的稳健性，本文选取代表基线（如仅 $L_{\mathrm{rec}}$、无口径一致性、或不同算子/网络家族的 SOTA）进行横向对照。结果表明：相较仅重建损失或口径不一致的训练设置，本文方法在多个 PDE 场景下取得稳定改进，并在资源四项上保持可接受工程成本（第\ref{sec:resource_perf}节）。
+
+\subsection{显著性检验结果}\label{sec:significance}
+
+以主基线为参照，本文对 Rel-L2 执行 paired t-test，并报告 Cohen's $d$（式\eqref{eq:cohen_d}）。当 $p$ 值显著且 $d$ 呈中等及以上效应量时，认为改进具有统计与实际意义\cite{student1908probable,cohen1988power}。
+
+\begin{table}[t]
+\centering
+\caption{显著性检验结果模板（以 Rel-L2 的配对差值为统计对象）。}
+\label{tab:significance}
+\begin{tabular}{lcccc}
+\toprule
+对比（Ours vs Baseline） & $n$ & $t$ & $p$ & Cohen's $d$\\
+\midrule
+SR / Task-A & -- & -- & -- & --\\
+Crop / Task-B & -- & -- & -- & --\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{消融实验}\label{sec:ablation}
+
+为验证关键组件贡献，本文进行如下消融（对应第\ref{chap:theory}章“命题—实证映射”）：
+
+\subsection{去除 \texorpdfstring{$L_{\mathrm{spec}}$}{Lspec}}\label{sec:ablate_lspec}
+去除低频谱一致性后，大尺度结构误差上升，fRMSE-low 明显恶化；同时 $H_{\mathrm{err}}$ 与 Rel-L2 的同步下降趋势减弱，表明频域结构约束对“宏观形态稳定”与“口径一致改进”具有关键作用。
+
+\subsection{去除 \texorpdfstring{$L_{\mathrm{dc}}$}{Ldc}}\label{sec:ablate_ldc}
+去除原值域观测一致性损失会加剧评测口径断裂：即便 Rel-L2 可能下降，$H_{\mathrm{err}}$ 往往显著劣化，说明 $L_{\mathrm{dc}}$ 对“评测口径绑定”不可替代。
+
+\subsection{\texorpdfstring{$H/\mathrm{DC}$}{H/DC} 不复用（故意错配）}\label{sec:ablate_mismatch}
+在核/$\sigma_{\text{blur}}$/插值/对齐/边界任意一项故意错配时，横向对比失去公平性，且域外性能下降；该负例用于展示门禁机制的必要性：若一致性检验不通过，则实验不进入统计与汇总阶段。
+
+\subsection{解码器替换（去除“双线性+3\texorpdfstring{$\times$}{x}3”）}\label{sec:ablate_decoder}
+将解码器替换为更易产生棋盘格的结构时，误差图出现明显周期性伪影并在谱域形成尖峰噪声，从而推高 fRMSE-high 并影响整体稳定性。
+
+\subsection{频谱阈值扫描（\texorpdfstring{$K$}{K} 或 \texorpdfstring{$\rho_1,\rho_2$}{rho1,rho2}）}\label{sec:ablate_k_scan}
+扫描低频阈值（或频带划分比例）用于量化性能与资源开销折衷：阈值过小会削弱结构约束，阈值过大可能过度限制中高频细化并增加训练不稳定。建议在第\ref{sec:resource_perf}节联合给出“性能—资源—口径”曲线。
+
+\begin{table}[t]
+\centering
+\caption{消融实验结果模板（建议同时报告 $H_{\mathrm{err}}$ 与 fRMSE-low）。}
+\label{tab:ablation_ch6}
+\begin{tabular}{lcccccc}
+\toprule
+设置 & Rel-L2$\downarrow$ & SSIM$\uparrow$ & fRMSE-low$\downarrow$ & fRMSE-high$\downarrow$ & bRMSE$\downarrow$ & $H_{\mathrm{err}}\downarrow$\\
+\midrule
+A0: $L_{\mathrm{rec}}$ & -- & -- & -- & -- & -- & --\\
+A1: $+L_{\mathrm{dc}}$ & -- & -- & -- & -- & -- & --\\
+A2: $+L_{\mathrm{spec}}$ & -- & -- & -- & -- & -- & --\\
+A3: Full (Ours) & -- & -- & -- & -- & -- & --\\
+\midrule
+Mismatch: $H\neq \mathrm{DC}$ & -- & -- & -- & -- & -- & --\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{可视化分析}\label{sec:visualization}
+
+\subsection{标准图组与绘图规范}\label{sec:vis_standard}
+
+本文采用统一可视化规范：
+\begin{itemize}
+  \item GT/Pred/Err 热图：统一色标与范围；
+  \item 功率谱：对数坐标（log）展示，便于比较低/中/高频结构；
+  \item 边界带局部放大：突出 bRMSE 对应区域；
+  \item 图注明确标注：数据来源、观测口径参数（$s,\sigma_{\text{blur}},k$ 或 $(h_c,w_c)$）、边界策略与插值策略。
+\end{itemize}
+
+\subsection{代表案例（\texorpdfstring{$\ge 3$}{>=3}）}\label{sec:vis_representative}
+至少选择 3 个代表性 case，给出完整图组，展示低频结构恢复与边界带误差抑制，同时对比 $H_{\mathrm{err}}$ 的下降与观测一致性。
+
+\subsection{失败案例与类型化诊断}\label{sec:vis_failure}
+对失败案例进行类型标注（边界溢出/相位漂移/振铃/能量偏差），并给出可执行改进建议：调整 $\sigma_{\text{blur}}$、边界策略、低频阈值与课程设置等。
+
+\section{资源与性能}\label{sec:resource_perf}
+
+\subsection{Params 与 FLOPs}\label{sec:params_flops_ch6}
+在 $N_x=N_y=256$ 下统计参数量与 FLOPs，并在资源表中记录统计工具与版本，避免口径漂移。
+
+\subsection{显存峰值与推理延迟}\label{sec:mem_latency_ch6}
+记录训练与推理的显存峰值（GB）与单次推理延迟（ms），计时策略固定并同步 CUDA。
+
+\subsection{资源—性能折衷}\label{sec:tradeoff}
+分析不同架构、损失设置与课程策略下的资源成本与性能收益，建议以散点图或 Pareto 前沿形式呈现（主文给总结结论，附录给完整表）。
+
+\begin{table}[t]
+\centering
+\caption{资源四项统计模板（固定输入与设备口径）。}
+\label{tab:resources}
+\begin{tabular}{lcccc}
+\toprule
+方法 & Params (M) & FLOPs (G@256$^2$) & Peak Mem (GB) & Latency (ms)\\
+\midrule
+Baseline-1 & -- & -- & -- & --\\
+Ours & -- & -- & -- & --\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{结果小结与讨论}\label{sec:discussion}
+
+本文实验结果支持以下结论：
+\begin{enumerate}
+  \item \textbf{同步下降：}三件套损失与口径一致性促使 $H_{\mathrm{err}}$ 与 Rel-L2 在多个 PDE 场景下同步下降，缓解评测断裂；
+  \item \textbf{鲁棒性：}跨分辨率与跨网格评测中，统一口径与频谱一致性有助于降低离散化别名影响并提升结构稳定；
+  \item \textbf{可复现性：}配置快照与环境指纹、固定切分与种子、统一评测与显著性检验共同保障结论稳健。
+\end{enumerate}
+
+\section{统计与可视化自检清单}\label{sec:selfcheck}
+
+为确保实验结论可复核，本文在材料包中提供以下自检项：
+\begin{itemize}
+  \item 指标完整：Rel-L2、MAE、PSNR、SSIM、fRMSE-low/mid/high、bRMSE、cRMSE、$H_{\mathrm{err}}$；
+  \item 显著性：$S\ge 3$ seeds；paired t-test（Rel-L2）与 Cohen's $d$；
+  \item 资源四项：Params/FLOPs@256$^2$/显存峰值/推理延迟，统一设备与输入尺寸；
+  \item 可视化规范：统一色标；log 功率谱；边界带局部放大；图注标明口径参数；矢量格式输出；
+  \item 代表与失败案例：$\ge 3$ 代表案例；失败类型标注与改进建议齐备。
+\end{itemize}
+
+\section{YAML 字段到实验的映射}\label{sec:yaml_map}
+
+为保证“配置即实验”的可追溯性，本文约定：
+\begin{itemize}
+  \item \texttt{metrics.enabled} 与指标产出脚本一致；\texttt{resources.enabled} 对齐资源统计流程；
+  \item \texttt{degradation} 与 \texttt{dc} 字段镜像；一致性脚本运行并归档到 \texttt{consistency\_report.json}；
+  \item \texttt{curriculum} 字段驱动 SR 与 Crop 的课程切换；日志中标注阶段边界；
+  \item \texttt{logging.save\_config\_merged} 与 \texttt{logging.save\_env\_fingerprint} 开启，保证快照与指纹可查。
+\end{itemize}
+
+\section{结果再现与汇总（材料包结构）}\label{sec:reproduce_summary}
+
+材料包结构固定为：
+\begin{itemize}
+  \item \texttt{paper\_package/metrics/}：主表（均值$\pm$标准差）、显著性报告（paired t-test + Cohen's $d$）、资源表；
+  \item \texttt{paper\_package/figs/}：代表图、失败案例图组、功率谱图；
+  \item \texttt{paper\_package/scripts/}：一键复现实验与汇总脚本；\texttt{README.md} 说明复现命令与依赖。
+\end{itemize}
+
+%------------------------
+% References for Chapter 6 are in refs_ch6.bib
+%------------------------

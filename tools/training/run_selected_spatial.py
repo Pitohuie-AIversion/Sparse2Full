@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
-Script to run training for classified spatial models with ~10M parameters on Shallow Water dataset.
-Uses single GPU execution (no DDP overhead for small spatial models).
-Supports RESUMING from interrupted runs.
+Script to run training for SELECTED strong baseline models with ~10M parameters.
+This is a filtered subset of models (Tier 1) for the first round of experiments.
 """
 
 import sys
@@ -18,15 +17,27 @@ from omegaconf import OmegaConf
 project_root = Path(__file__).resolve().parents[2]
 sys.path.append(str(project_root))
 
-from tools.training.model_loader import list_models
-
-# Define Model Categories (Dynamic)
-def get_all_models():
-    """Dynamically get all spatial models"""
-    models = list_models()
-    return {"Auto-Discovered": models}
-
-MODEL_CATEGORIES = get_all_models()
+# Define Model Categories - Tier 1 Selection
+MODEL_CATEGORIES = {
+    "Transformer_SOTA": [
+        "SwinUNet",       # 论文核心，Hybrid代表
+        "Restormer",      # 图像恢复强基线
+        "NAFNet",         # 极简高效强基线
+        "UformerLite",    # Transformer U-Net代表
+    ],
+    "CNN_Baseline": [
+        "ConvUNetLite",   # 现代化CNN基线
+        "UNet",           # 经典基线
+    ],
+    "Operator_Learning": [
+        "FNO2d",          # 物理驱动标准基线
+        "UNO",            # U-Net结构算子
+    ],
+    # "Potential_Strong": [
+    #     "SegFormer",    # 语义分割迁移来的强基线
+    #     "SwinIRLite",   # SwinIR的轻量版
+    # ]
+}
 
 def get_free_port():
     """Finds a free port on localhost."""
@@ -34,66 +45,9 @@ def get_free_port():
         s.bind(("", 0))
         return s.getsockname()[1]
 
-def find_existing_run(model_name):
-    """
-    Finds the latest run directory for a given model.
-    Returns (status, path)
-    status: 'completed', 'interrupted', 'not_found'
-    path: path to directory (if found) or checkpoint (if interrupted)
-    """
-    runs_dir = project_root / "runs"
-    # Search for directories matching the pattern
-    # Pattern: AR-ShallowWater-10M-{model_name}*
-    # Note: We need to be careful not to match partial names (e.g. UNet vs UNetFormer)
-    # So we look for AR-ShallowWater-10M-{model_name}-* 
-    # But wait, the experiment name is AR-ShallowWater-10M-{model_name}
-    # The trainer appends -s{seed}-{date} or similar.
-    # So we search for folders starting with AR-ShallowWater-10M-{model_name}-
-    
-    candidates = []
-    if runs_dir.exists():
-        for d in runs_dir.iterdir():
-            if not d.is_dir():
-                continue
-            # Check if it matches the specific model
-            # We need to ensure we don't match UNetFormer when looking for UNet
-            prefix = f"AR-ShallowWater-10M-{model_name}-"
-            if d.name.startswith(prefix):
-                 candidates.append(d)
-    
-    if not candidates:
-        return 'not_found', None
-    
-    # Sort by modification time (newest first)
-    candidates.sort(key=lambda x: x.stat().st_mtime, reverse=True)
-    
-    latest_run = candidates[0]
-    
-    # Check for completion
-    # test_results.json indicates full completion (including testing)
-    if (latest_run / "test_results.json").exists():
-        return 'completed', latest_run
-    
-    # Check for checkpoint to resume
-    # Check in root first (common behavior)
-    ckpt_path = latest_run / "last.ckpt"
-    if ckpt_path.exists():
-        return 'interrupted', ckpt_path
-        
-    # Check in checkpoints/ subdir (alternative behavior)
-    ckpt_path = latest_run / "checkpoints" / "last.ckpt"
-    if ckpt_path.exists():
-        return 'interrupted', ckpt_path
-        
-    # If no checkpoint, we might have just started and crashed, or no checkpoints saved yet.
-    # In this case, we treat it as 'not_found' (restart) to be safe, 
-    # or 'failed' if we want to debug. 
-    # We'll treat it as 'not_found' (restart)
-    return 'not_found', None
-
 def main():
     print(f"Project Root: {project_root}")
-    print(f"Configuring batch run for {sum(len(v) for v in MODEL_CATEGORIES.values())} models across {len(MODEL_CATEGORIES)} categories.")
+    print(f"Configuring batch run for SELECTED {sum(len(v) for v in MODEL_CATEGORIES.values())} strong baselines.")
     
     # Configuration
     config_path = "thesis_paper/configs/ar_paper_aligned_sr4_shallow_water.yaml"
@@ -101,7 +55,14 @@ def main():
     
     if not abs_config_path.exists():
         print(f"Error: Config file not found at {abs_config_path}")
-        return
+        # Fallback to the one user mentioned if the above doesn't exist
+        fallback_path = "thesis_paper/configs/ar_paper_aligned_sr4_2D_diff_react_NA_NA.yaml"
+        abs_fallback = project_root / fallback_path
+        if abs_fallback.exists():
+            print(f"Falling back to {fallback_path}")
+            abs_config_path = abs_fallback
+        else:
+            return
 
     # Load base config
     try:
@@ -111,13 +72,7 @@ def main():
         return
 
     # Determine Output Directory from config
-    # Use dictionary access for OmegaConf to ensure we get the value
-    if 'output_dir' in base_cfg.experiment:
-        output_dir_name = base_cfg.experiment.output_dir
-    else:
-        output_dir_name = 'run_sw_4x' # Force default as requested by user if missing
-        
-    base_output_dir = project_root / output_dir_name
+    base_output_dir = project_root / getattr(base_cfg.experiment, 'output_dir', 'runs')
     print(f"Base Output Directory: {base_output_dir}")
 
     # Ensure temp dir exists
@@ -137,17 +92,16 @@ def main():
             current_idx += 1
             print(f"\n[{current_idx}/{total_models}] Checking model: {model_name} ({category})")
             
-            # Update prefix for experiment check - Changed to SW (Shallow Water)
-            exp_prefix = f"AR-SW-10M-{model_name}"
+            # Update prefix for experiment check
+            exp_prefix = f"Spatial-Tier1-10M-{model_name}"
             
-            # Helper to find existing run with new prefix
+            # Helper to find existing run
             def find_run_custom(name_prefix):
                 runs_dir = base_output_dir
                 candidates = []
                 if runs_dir.exists():
                     for d in runs_dir.iterdir():
                         if not d.is_dir(): continue
-                        # Match AR-SW-10M-{model_name}-*
                         if d.name.startswith(f"{name_prefix}-"):
                             candidates.append(d)
                 if not candidates: return 'not_found', None
@@ -175,27 +129,27 @@ def main():
             
             print(f"{'-'*60}")
             
-            # Prepare overrides - aligned with thesis_paper/configs/ar_paper_aligned_sr4_shallow_water.yaml
-            # Construct specific output dir for this model
-            model_output_dir = base_output_dir / exp_prefix
-            
+            # Prepare overrides
             overrides = {
                 "model": {"name": model_name},
                 "model_budget": {
                     "target_params_m": 10.0,
                     "auto_tune": True,
-                    "strict_mode": False
+                    "strict_mode": True
                 },
                 "experiment": {
                     "name": exp_prefix,
-                    # Ensure output_dir is passed correctly as the FULL path for this specific run
-                    "output_dir": str(model_output_dir.relative_to(project_root) if model_output_dir.is_relative_to(project_root) else model_output_dir)
+                    "description": "Tier 1 Spatial Baseline Selection"
                 },
-                "ar": {"enabled": False},
+                "ar": {"enabled": False}, # Ensure Spatial only
                 "training": {
                     "torch_compile": False,
                     "oom_recovery": {"enabled": True},
-                    "smoke_test": False
+                },
+                # Ensure we use the correct dataset for spatial task
+                "data": {
+                    "T_in": 1,
+                    "T_out": 1
                 },
                 "device": {"devices": 2}
             }
@@ -204,13 +158,13 @@ def main():
             cfg = OmegaConf.merge(base_cfg, OmegaConf.create(overrides))
             
             # Save temp config
-            tmp_cfg_path = tmp_dir / f"batch_run_{model_name}.yaml"
+            tmp_cfg_path = tmp_dir / f"batch_run_tier1_{model_name}.yaml"
             with open(tmp_cfg_path, 'w') as f:
                 OmegaConf.save(cfg, f)
             
             print(f"Generated temp config: {tmp_cfg_path}")
 
-            # Construct command - Use torchrun for dual GPU
+            # Construct command
             cmd = [
                 "torchrun",
                 "--nproc_per_node=2",
@@ -226,18 +180,14 @@ def main():
             print(f"Command: {' '.join(cmd)}")
             
             try:
-                # Run and wait for completion
-                # set cwd to project root to ensure relative paths work
                 subprocess.run(cmd, cwd=project_root, check=True)
                 print(f"\n✅ Successfully finished {model_name}")
             except subprocess.CalledProcessError as e:
                 print(f"\n❌ Error running {model_name}: {e}")
-                # We continue to the next model even if one fails
             except KeyboardInterrupt:
                 print("\n⚠️ Interrupted by user. Stopping batch run.")
                 return
                 
-            # Small pause to ensure resources are released
             time.sleep(5)
 
 if __name__ == "__main__":

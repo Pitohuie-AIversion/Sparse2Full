@@ -3059,67 +3059,65 @@
     <bcf:datasource type="file" datatype="bibtex" glob="false">references.bib</bcf:datasource>
   </bcf:bibdata>
   <bcf:section number="0">
-    <bcf:citekey order="1" intorder="1">Raissi2019PINN</bcf:citekey>
-    <bcf:citekey order="2" intorder="1">Li2021FNO</bcf:citekey>
-    <bcf:citekey order="2" intorder="2">Lu2021DeepONet</bcf:citekey>
-    <bcf:citekey order="3" intorder="1">Kovachki2023NeuralOperator</bcf:citekey>
-    <bcf:citekey order="4" intorder="1">OpenCVInterp</bcf:citekey>
-    <bcf:citekey order="5" intorder="1">OpenCVGaussian</bcf:citekey>
-    <bcf:citekey order="6" intorder="1">Bartolucci2023RENO</bcf:citekey>
-    <bcf:citekey order="7" intorder="1">Raissi2019PINN</bcf:citekey>
-    <bcf:citekey order="8" intorder="1">Wang2022CausalityPINN</bcf:citekey>
-    <bcf:citekey order="9" intorder="1">Li2021FNO</bcf:citekey>
-    <bcf:citekey order="10" intorder="1">Lu2021DeepONet</bcf:citekey>
-    <bcf:citekey order="11" intorder="1">Bartolucci2023RENO</bcf:citekey>
-    <bcf:citekey order="12" intorder="1">Wang2021PIDeepONet</bcf:citekey>
-    <bcf:citekey order="15" intorder="1">OpenCVInterp</bcf:citekey>
-  </bcf:section>
-  <!-- SORTING TEMPLATES -->
-  <bcf:sortingtemplate name="nyt">
-    <bcf:sort order="1">
-      <bcf:sortitem order="1">presort</bcf:sortitem>
-    </bcf:sort>
-    <bcf:sort order="2" final="1">
-      <bcf:sortitem order="1">sortkey</bcf:sortitem>
-    </bcf:sort>
-    <bcf:sort order="3">
-      <bcf:sortitem order="1">sortname</bcf:sortitem>
-      <bcf:sortitem order="2">author</bcf:sortitem>
-      <bcf:sortitem order="3">editor</bcf:sortitem>
-      <bcf:sortitem order="4">translator</bcf:sortitem>
-      <bcf:sortitem order="5">sorttitle</bcf:sortitem>
-      <bcf:sortitem order="6">title</bcf:sortitem>
-    </bcf:sort>
-    <bcf:sort order="4">
-      <bcf:sortitem order="1">sortyear</bcf:sortitem>
-      <bcf:sortitem order="2">year</bcf:sortitem>
-    </bcf:sort>
-    <bcf:sort order="5">
-      <bcf:sortitem order="1">sorttitle</bcf:sortitem>
-      <bcf:sortitem order="2">title</bcf:sortitem>
-    </bcf:sort>
-    <bcf:sort order="6">
-      <bcf:sortitem order="1">volume</bcf:sortitem>
-      <bcf:sortitem literal="1" order="2">0</bcf:sortitem>
-    </bcf:sort>
-  </bcf:sortingtemplate>
-  <!-- DATALISTS -->
-  <bcf:datalist section="0"
-                name="nyt/apasortcite//global/global"
-                type="entry"
-                sortingtemplatename="nyt"
-                sortingnamekeytemplatename="apasortcite"
-                labelprefix=""
-                uniquenametemplatename="global"
-                labelalphanametemplatename="global">
-  </bcf:datalist>
-  <bcf:datalist section="0"
-                name="nyt/global//global/global"
-                type="entry"
-                sortingtemplatename="nyt"
-                sortingnamekeytemplatename="global"
-                labelprefix=""
-                uniquenametemplatename="global"
-                labelalphanametemplatename="global">
-  </bcf:datalist>
-</bcf:controlfile>
+    <bcf:citekey order="1" intorder="1">raissi2019pinn</bcf:citekey>
+    <bcf:citekey order="2" intorder="1">li2021fno</bcf:citekey>
+    <bcf:citekey order="2" intorder="2">lu2021deeponet</bcf:citekey>
+    <bcf:citekey order="3" intorder="1">deryck2024acta_numerica</bcf:citekey>
+    <bcf:citekey order="4" intorder="1">opencv_resize</bcf:citekey>
+    <bcf:citekey order="5" intorder="1">opencv_gaussianblur</bcf:citekey>
+    <bcf:citekey order="6" intorder="1">bartolucci2023reno</bcf:citekey>
+    <bcf:citekey order="7" intorder="1">raissi2019pinn</bcf:citekey>
+    <bcf:citekey order="8" intorder="1">li2021fno</bcf:citekey>
+    <bcf:citekey order="9" intorder="1">lu2021deeponet</bcf:citekey>
+    <bcf:citekey order="10" intorder="1">kovachki2023neural_operator</bcf:citekey>
+    <bcf:citekey order="10" intorder="2">bartolucci2023reno</bcf:citekey>
+    <bcf:citekey order="11" intorder="1">deryck2024acta_numerica</bcf:citekey>
+    <bcf:citekey order="14" intorder="1">opencv_resize</bcf:citekey>
+    <bcf:citekey order="15" intorder="1">raissi2019pinn</bcf:citekey>
+    <bcf:citekey order="16" intorder="1">kovachki2023neural_operator</bcf:citekey>
+    <bcf:citekey order="17" intorder="1">raissi2019pinn</bcf:citekey>
+    <bcf:citekey order="18" intorder="1">wang2022pinn_ntk</bcf:citekey>
+    <bcf:citekey order="19" intorder="1">kovachki2023neural_operator</bcf:citekey>
+    <bcf:citekey order="20" intorder="1">li2021fno</bcf:citekey>
+    <bcf:citekey order="21" intorder="1">lu2021deeponet</bcf:citekey>
+    <bcf:citekey order="22" intorder="1">lu2021deeponet</bcf:citekey>
+    <bcf:citekey order="23" intorder="1">opencv_resize</bcf:citekey>
+    <bcf:citekey order="24" intorder="1">opencv_gaussianblur</bcf:citekey>
+    <bcf:citekey order="25" intorder="1">opencv_gaussianblur</bcf:citekey>
+    <bcf:citekey order="26" intorder="1">opencv_resize</bcf:citekey>
+    <bcf:citekey order="27" intorder="1">takamoto2022pdebench</bcf:citekey>
+    <bcf:citekey order="28" intorder="1">takamoto2022pdebench</bcf:citekey>
+    <bcf:citekey order="29" intorder="1">liu2025diminishing_spectral_bias</bcf:citekey>
+    <bcf:citekey order="30" intorder="1">liu2025diminishing_spectral_bias</bcf:citekey>
+    <bcf:citekey order="31" intorder="1">wang2022causality_pinn</bcf:citekey>
+    <bcf:citekey order="32" intorder="1">kovachki2023neural_operator</bcf:citekey>
+    <bcf:citekey order="33" intorder="1">bartolucci2023reno</bcf:citekey>
+    <bcf:citekey order="34" intorder="1">bartolucci2023reno</bcf:citekey>
+    <bcf:citekey order="35" intorder="1">takamoto2022pdebench</bcf:citekey>
+    <bcf:citekey order="36" intorder="1">takamoto2022pdebench</bcf:citekey>
+    <bcf:citekey order="37" intorder="1">cohen1988power</bcf:citekey>
+    <bcf:citekey order="38" intorder="1">li2021fno</bcf:citekey>
+    <bcf:citekey order="39" intorder="1">raissi2019pinn</bcf:citekey>
+    <bcf:citekey order="40" intorder="1">li2021fno</bcf:citekey>
+    <bcf:citekey order="40" intorder="2">lu2021deeponet</bcf:citekey>
+    <bcf:citekey order="41" intorder="1">wang2022pinn_ntk</bcf:citekey>
+    <bcf:citekey order="42" intorder="1">wang2022causality_pinn</bcf:citekey>
+    <bcf:citekey order="43" intorder="1">liu2025diminishing_spectral_bias</bcf:citekey>
+    <bcf:citekey order="44" intorder="1">takamoto2022pdebench</bcf:citekey>
+    <bcf:citekey order="45" intorder="1">bartolucci2023reno</bcf:citekey>
+    <bcf:citekey order="46" intorder="1">raissi2019pinn</bcf:citekey>
+    <bcf:citekey order="47" intorder="1">wang2022pinn_ntk</bcf:citekey>
+    <bcf:citekey order="48" intorder="1">wang2022causality_pinn</bcf:citekey>
+    <bcf:citekey order="49" intorder="1">li2021fno</bcf:citekey>
+    <bcf:citekey order="50" intorder="1">kovachki2023neural_operator</bcf:citekey>
+    <bcf:citekey order="51" intorder="1">lu2021deeponet</bcf:citekey>
+    <bcf:citekey order="52" intorder="1">bartolucci2023reno</bcf:citekey>
+    <bcf:citekey order="53" intorder="1">kovachki2023neural_operator</bcf:citekey>
+    <bcf:citekey order="54" intorder="1">raissi2019pinn</bcf:citekey>
+    <bcf:citekey order="54" intorder="2">kovachki2023neural_operator</bcf:citekey>
+    <bcf:citekey order="55" intorder="1">opencv_resize</bcf:citekey>
+    <bcf:citekey order="56" intorder="1">bartolucci2023reno</bcf:citekey>
+    <bcf:citekey order="57" intorder="1">liu2025diminishing_spectral_bias</bcf:citekey>
+    <bcf:citekey order="57" intorder="2">wang2022causality_pinn</bcf:citekey>
+    <bcf:citekey order="58" intorder="1">takamoto2022pdebench</bcf:citekey>
+    <bcf:citekey order="59" intorder="1">pytorch_randomne

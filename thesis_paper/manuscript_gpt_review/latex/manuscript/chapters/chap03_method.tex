@@ -1,6 +1,242 @@
-\section{本章概述}
-本章概述（占位）。
+%========================
+% Chapter 3: Methodology
+%========================
 
-\section{内容（占位）}
-本节内容（占位）。
+本章给出面向“稀疏观测驱动的时空场重建”的可复现、可审计、可工程落地的方法学框架。
+方法设计围绕两类硬约束展开：\textbf{（i）采样/退化口径一致：}数据侧观测算子 $H$ 与训练侧退化算子 $DC$ 复用同一实现与参数；
+\textbf{（ii）评测口径内生：}除重建误差外，引入观测口径一致性约束，使 $H(\hat{u})$ 与观测 $y$ 在同一口径下对齐。
 
+\section{问题定义与数学形式化}
+\label{sec:problem_formulation}
+
+设连续空间域 $\Omega\subset\mathbb{R}^2$，离散网格为 $\Omega_h$，空间分辨率记为 $N_x\times N_y$；
+离散时间索引 $t\in\{1,\dots,T\}$。目标场为标量或多通道场
+\begin{equation}
+u_t:\Omega_h\rightarrow \mathbb{R}^{C},\qquad u_{1:T}=\{u_t\}_{t=1}^{T}.
+\end{equation}
+
+给定观测算子 $H$（包含滤波、采样/下采样、裁剪、边界处理与插值对齐等实现细节）与噪声项 $n_t$，观测为
+\begin{equation}
+y_t = H(u_t) + n_t.
+\label{eq:obs_model}
+\end{equation}
+
+学习映射 $\Phi_{\omega}$，以观测序列与辅助信息恢复全场：
+\begin{equation}
+\hat{u}_{1:T}=\Phi_{\omega}\big(y_{1:T},\, m_{1:T},\, p\big),
+\label{eq:learn_map}
+\end{equation}
+其中 $m_t$ 为观测掩码（稀疏口位置或缺失区域标注），$p$ 为显式坐标/位置编码（可含 Fourier 特征）。
+
+为避免“数学域指标改善但评测口径误差不降”的断裂现象，本研究同时关注两类误差：
+\begin{itemize}
+  \item \textbf{重建域误差：}如 Rel-L2、MAE 等；
+  \item \textbf{观测口径误差（H-一致性误差）：}
+  \begin{equation}
+  H_{\mathrm{err}} \triangleq \big\| H(\tilde{u}) - y \big\|_2,
+  \label{eq:Herr}
+  \end{equation}
+  其中 $\tilde{u}$ 为回到原值域的预测（见\autoref{sec:losses}）。
+\end{itemize}
+
+\section{统一观测算子 \texorpdfstring{$H$}{H}：抗混叠与口径声明}
+\label{sec:H_define}
+
+稀疏观测重建的关键在于：观测过程是否丢失不可恢复的信息，以及训练与评测是否处于同一口径。
+对 SR（下采样）观测，工程上常采用“先低通、再缩小”的抗混叠流程；OpenCV 在插值枚举中明确指出：
+\texttt{INTER\_AREA} 在图像缩小时通常更优，并与 ``moire-free'' 重采样相关联。
+
+\subsection{SR 观测口径（下采样）}
+\label{subsec:sr_protocol}
+
+对缩小倍率 $s$，本文将 SR 观测写为
+\begin{equation}
+y^{\mathrm{SR}}_t = D_s\!\left(G_{\sigma_{\mathrm{blur}}} * u_t\right) + n_t,
+\label{eq:sr_obs}
+\end{equation}
+其中 $G_{\sigma_{\mathrm{blur}}}$ 为高斯低通核，$D_s$ 为下采样算子。
+实现层面需显式声明并写入配置：核大小 $k$、$\sigma_{\mathrm{blur}}$、插值策略（缩小优先 \texttt{INTER\_AREA}）、边界处理与对齐规则等。
+
+\subsection{Crop 观测口径（裁剪）}
+\label{subsec:crop_protocol}
+
+Crop 观测写为
+\begin{equation}
+y^{\mathrm{Crop}}_t = C_{h_c,w_c}(u_t) + n_t,
+\label{eq:crop_obs}
+\end{equation}
+其中 $C_{h_c,w_c}$ 为中心对齐裁剪算子。裁剪任务口径主要来自对齐规则与边界策略，需显式声明：
+中心对齐/偏移定义、$(h_c,w_c)$ 与 patch-size 的整倍数约束、边界策略、mask 是否同步裁剪等。
+
+\section{\texorpdfstring{$H/DC$}{H/DC} 单一口径复用：硬约束与阻断式审计}
+\label{sec:H_DC_audit}
+
+\subsection{硬约束：训练退化 \texorpdfstring{$DC\equiv H$}{DC=H}}
+\label{subsec:DC_equals_H}
+
+定义训练侧退化一致性算子 $DC$。本文采用硬约束：
+\begin{equation}
+DC \equiv H \quad \text{（同一实现、同一参数、同一边界与插值/对齐策略）}.
+\label{eq:DCeqH}
+\end{equation}
+
+\subsection{阻断式等价性检验（不通过则不进入统计）}
+\label{subsec:blocking_audit}
+
+为把“口径一致性”从写作承诺落到可执行证据链，训练流程在进入统计之前执行阻断式审计：
+对随机抽样样本 $u^{(i)}$，比较 $H(u^{(i)})$ 与 $DC(u^{(i)})$ 的差异；若超过阈值 $\varepsilon$，直接终止该实验配置并归档差异报告。
+高斯滤波接口中关于 $\sigma$、核大小与 \texttt{borderType} 的参数语义可追溯到 OpenCV 官方函数文档。
+
+（伪代码与归档路径见\autoref{alg:consistency_audit}。）
+
+\section{模型接口：统一输入打包与可替换算子层}
+\label{sec:model_interface}
+
+\subsection{统一输入打包（接口契约）}
+\label{subsec:input_pack}
+
+以单帧为例，输入在通道维拼接：
+\begin{equation}
+x_t=\mathrm{Concat}\big(\mathrm{baseline}(y_t),\, m_t,\, \mathrm{coords},\, \mathrm{PE}_{\mathrm{Fourier}}\big).
+\end{equation}
+其中 baseline 可取简单插值/上采样，用于稳定训练起点；Fourier 特征常用于提升高频函数拟合能力。
+
+统一模型签名（便于横向替换与统一评测）：
+\begin{equation}
+\mathrm{forward}:\ \mathbb{R}^{B\times C_{\mathrm{in}}\times N_x\times N_y}\rightarrow
+\mathbb{R}^{B\times C_{\mathrm{out}}\times N_x\times N_y}.
+\end{equation}
+
+\subsection{算子学习视角（方法定位）}
+\label{subsec:operator_view}
+
+从“函数到函数映射”的角度，神经算子框架强调离散化不变的建模动机，并系统讨论了 Fourier neural operator 等高效参数化类别。
+本研究把“算子层”抽象为可替换模块，用于在统一接口下对比 FNO-family、Conv-Attn hybrid 等实现，同时同步报告资源成本。
+
+\section{三件套损失：重建、低频谱一致性、原值域观测一致性}
+\label{sec:losses}
+
+\subsection{标准化域与原值域}
+逐通道 z-score：
+\begin{equation}
+u^{(z)}=\frac{u-\mu}{\sigma_{z}},\qquad
+\tilde{u}=\sigma_{z}\hat{u}^{(z)}+\mu.
+\label{eq:zscore}
+\end{equation}
+其中 $\tilde{u}$ 用于计算与观测口径一致的损失项，避免尺度不一致导致的优化偏差。
+
+\subsection{重建损失 \texorpdfstring{$L_{\mathrm{rec}}$}{Lrec}}
+\begin{equation}
+L_{\mathrm{rec}}=\big\|\hat{u}^{(z)}-u^{(z)}\big\|_2^2.
+\label{eq:Lrec}
+\end{equation}
+
+\subsection{低频谱一致性损失 \texorpdfstring{$L_{\mathrm{spec}}$}{Lspec}}
+二维 FFT 后仅在低频集合 $\mathcal{K}_{\mathrm{low}}$ 上比较：
+\begin{equation}
+L_{\mathrm{spec}}=
+\sum_{(k_x,k_y)\in\mathcal{K}_{\mathrm{low}}}
+\left|\mathcal{F}_{2D}(\hat{u}^{(z)})_{k_x,k_y}
+-\mathcal{F}_{2D}(u^{(z)})_{k_x,k_y}\right|^2,
+\quad \mathcal{K}_{\mathrm{low}}=\{k_x\le K,\,k_y\le K\}.
+\label{eq:Lspec}
+\end{equation}
+
+\subsection{原值域观测一致性损失 \texorpdfstring{$L_{\mathrm{dc}}$}{Ldc}}
+用统一口径 $H$ 直接约束评测口径误差：
+\begin{equation}
+L_{\mathrm{dc}}=\big\|H(\tilde{u})-y\big\|_2^2.
+\label{eq:Ldc}
+\end{equation}
+
+\subsection{总损失}
+\begin{equation}
+L = L_{\mathrm{rec}}+\lambda_s L_{\mathrm{spec}}+\lambda_{dc}L_{\mathrm{dc}}.
+\label{eq:total_loss}
+\end{equation}
+
+\section{复现闭环：配置快照、环境指纹与一致性归档}
+\label{sec:reproducibility}
+
+方法章内置复现闭环产物（训练完成自动写入）：
+\begin{itemize}
+  \item \texttt{runs/<exp>/config\_merged.yaml}（配置快照）；
+  \item \texttt{runs/<exp>/env\_fingerprint.json}（CUDA/驱动、PyTorch、AMP、随机种子等）；
+  \item \texttt{runs/<exp>/consistency\_report.json}（$H/DC$ 审计报告）；
+  \item \texttt{runs/<exp>/metrics\_by\_seed.csv}（多种子结果表）。
+\end{itemize}
+
+\section{研究设计：对照、消融与敏感性分析}
+\label{sec:ablation_sensitivity}
+
+核心消融见\autoref{tab:ablation}；敏感性分析建议把 $s,\sigma_{\mathrm{blur}},k$、边界策略、低频阈值 $K$、Fourier 特征维度与频带等纳入扫描，并同步输出误差与资源四项。
+
+\section{统计检验：显著性与效应量}
+\label{sec:stats}
+
+为避免单次结果偶然性，本文采用同配置下不少于 3 个随机种子，报告均值$\pm$标准差；
+并在主对照上使用 paired t-test 与配对效应量（Cohen's $d$）共同报告，效应量报告实践可参考 Lakens 的指南。
+
+\section{与 PINN 物理残差约束的关系（边界定位）}
+\label{sec:pinn_relation}
+
+PINN 通过 PDE 残差引入物理一致性，但在多尺度/混沌/湍流动力系统上可能受训练可达性影响。
+因果结构被用于改善 PINN 训练稳定性并扩展可解问题范围。
+因此本文把 PDE 残差项定位为可选正则或对照基线，主方法定位为“统一口径下的时空模型 + 观测一致性约束”。
+
+%========================
+% Tables and Algorithm
+%========================
+\begin{table}[t]
+\centering
+\caption{观测口径参数表（SR 与 Crop）}
+\label{tab:protocol_table}
+\begin{tabular}{@{}p{2.4cm}p{12.2cm}@{}}
+\toprule
+口径类型 & 需显式声明的参数（论文与 YAML 同步） \\
+\midrule
+SR（下采样） &
+缩小倍率 $s$；高斯核大小 $k$ 与 $\sigma_{\mathrm{blur}}$；缩小插值（建议 \texttt{INTER\_AREA}）；边界策略（reflect/replicate/wrap/constant）；滤波是否共享同一边界策略；对齐规则（像素中心定义、rounding 规则）；噪声模型与强度。 \\
+\addlinespace
+Crop（裁剪） &
+窗口大小 $(h_c,w_c)$；中心对齐与偏移定义；与 patch-size 的整倍数约束；边界策略；mask 是否同步裁剪与对齐；噪声模型与强度。 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[t]
+\centering
+\caption{消融实验设置（A0--A3）}
+\label{tab:ablation}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+设置 & $L_{\mathrm{rec}}$ & $L_{\mathrm{spec}}$ & $L_{\mathrm{dc}}$ \\
+\midrule
+A0（仅重建） & \checkmark &  &  \\
+A1（+口径一致性） & \checkmark &  & \checkmark \\
+A2（+低频谱一致性） & \checkmark & \checkmark &  \\
+A3（主方法：三件套） & \checkmark & \checkmark & \checkmark \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% 伪代码：阻断式审计（如你不用 algorithm 包，可改成 enumerate 文字版）
+\begin{algorithm}[t]
+\caption{$H/DC$ 等价性阻断式审计（不通过则不进入统计）}
+\label{alg:consistency_audit}
+\begin{algorithmic}[1]
+\State 输入：实现 $H(\cdot)$，实现 $DC(\cdot)$，抽样数 $N\ge 100$，阈值 $\varepsilon$
+\For{$i=1$ to $N$}
+\State 抽样 $u^{(i)}$（原值域）
+\State $y_H \leftarrow H(u^{(i)})$
+\State $y_{DC} \leftarrow DC(u^{(i)})$
+\State $e_i \leftarrow \mathrm{MSE}(y_H, y_{DC})$
+\EndFor
+\If{$\max_i e_i \ge \varepsilon$}
+\State 归档：\texttt{runs/<exp>/consistency\_report.json}（差异来源、参数快照、样本索引）
+\State 终止：该配置不进入训练与统计
+\Else
+\State 通过：进入训练与后续统计
+\EndIf
+\end{algorithmic}
+\end{algorithm}

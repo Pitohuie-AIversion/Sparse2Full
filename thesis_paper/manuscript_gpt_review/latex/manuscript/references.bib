@@ -1,47 +1,190 @@
-@article{Raissi2019PINN,
-  author       = {Raissi, Maziar and Perdikaris, Paris and Karniadakis, George E.},
-  title        = {Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations},
-  journaltitle = {Journal of Computational Physics},
-  year         = {2019},
-  volume       = {378},
-  pages        = {686--707},
-  doi          = {10.1016/j.jcp.2018.10.045}
+@misc{pytorch_randomness,
+  author = {{PyTorch Contributors}},
+  title  = {Reproducibility (Randomness and Deterministic Algorithms)},
+  howpublished = {PyTorch Documentation},
+  url    = {https://pytorch.org/docs/stable/notes/randomness.html},
+  urldate = {2025-12-25}
 }
 
-@inproceedings{Li2021FNO,
-  author       = {Li, Zongyi and Kovachki, Nikola and Azizzadenesheli, Kamyar and Liu, Burigede and Bhattacharya, Kaushik and Stuart, Andrew and Anandkumar, Anima},
-  title        = {Fourier Neural Operator for Parametric Partial Differential Equations},
-  booktitle    = {International Conference on Learning Representations (ICLR)},
-  year         = {2021},
-  eprint       = {2010.08895},
-  archiveprefix = {arXiv},
-  primaryclass = {cs.LG},
-  url          = {https://arxiv.org/abs/2010.08895}
+@misc{opencv_resize,
+  author = {{OpenCV}},
+  title  = {Geometric Image Transformations: resize interpolation (including \texttt{INTER\_AREA} guidance for shrinking)},
+  howpublished = {OpenCV Documentation},
+  url    = {https://docs.opencv.org/master/da/d54/group__imgproc__transform.html},
+  urldate = {2025-12-29}
 }
 
-@article{Lu2021DeepONet,
-  author       = {Lu, Lu and Jin, Pengzhan and Pang, Guanglin and Zhang, Zhongqiang and Karniadakis, George Em},
-  title        = {Learning nonlinear operators via {DeepONet} based on the universal approximation theorem of operators},
-  journaltitle = {Nature Machine Intelligence},
-  year         = {2021},
-  volume       = {3},
-  number       = {3},
-  pages        = {218--229},
-  doi          = {10.1038/s42256-021-00302-5},
-  url          = {https://www.nature.com/articles/s42256-021-00302-5}
+@misc{opencv_gaussianblur,
+  author = {{OpenCV}},
+  title  = {Image Filtering: \texttt{GaussianBlur} parameters (\texttt{ksize}, \texttt{sigmaX}, \texttt{sigmaY}, \texttt{borderType})},
+  howpublished = {OpenCV Documentation},
+  url    = {https://docs.opencv.org/3.4/d4/d86/group__imgproc__filter.html},
+  urldate = {2025-12-29}
 }
 
-@online{OpenCVInterp,
-  author  = {{OpenCV}},
-  title   = {Geometric Image Transformations: Interpolation flags (e.g., INTER\_AREA)},
-  year    = {n.d.},
-  url     = {https://docs.opencv.org/3.4/da/d54/group__imgproc__transform.html},
-  urldate = {2025-12-26}
+@article{wang2022causality_pinn,
+  title         = {Respecting Causality is All You Need for Training Physics-Informed Neural Networks},
+  author        = {Wang, Sifan and Sankaran, Shyam and Perdikaris, Paris},
+  year          = {2022},
+  eprint        = {2203.07404},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.LG},
+  url           = {https://arxiv.org/abs/2203.07404}
 }
 
-@article{Kovachki2023NeuralOperator,
+@article{raissi2019pinn,
+  title   = {Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations},
+  author  = {Raissi, Maziar and Perdikaris, Paris and Karniadakis, George E.},
+  journal = {Journal of Computational Physics},
+  volume  = {378},
+  pages   = {686--707},
+  year    = {2019},
+  doi     = {10.1016/j.jcp.2018.10.045},
+  url     = {https://doi.org/10.1016/j.jcp.2018.10.045}
+}
+
+@article{odena2016checkerboard,
+  author  = {Odena, Augustus and Dumoulin, Vincent and Olah, Chris},
+  title   = {Deconvolution and Checkerboard Artifacts},
+  journal = {Distill},
+  year    = {2016},
+  doi     = {10.23915/distill.00003},
+  url     = {https://distill.pub/2016/deconv-checkerboard/}
+}
+
+@book{cohen1988power,
+  author    = {Cohen, Jacob},
+  title     = {Statistical Power Analysis for the Behavioral Sciences},
+  edition   = {2},
+  publisher = {Lawrence Erlbaum Associates},
+  year      = {1988},
+  address   = {Hillsdale, NJ}
+}
+
+@inproceedings{li2021fno,
+  title     = {Fourier Neural Operator for Parametric Partial Differential Equations},
+  author    = {Li, Zongyi and Kovachki, Nikola and Azizzadenesheli, Kamyar and Liu, Burigede and Bhattacharya, Kaushik and Stuart, Andrew and Anandkumar, Anima},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2021},
+  url       = {https://openreview.net/forum?id=c8P9NQVtmnO},
+  eprint    = {2010.08895},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.LG}
+}
+
+@article{lu2021deeponet,
+  title   = {Learning nonlinear operators via {DeepONet} based on the universal approximation theorem of operators},
+  author  = {Lu, Lu and Jin, Pengzhan and Pang, Guofei and Zhang, Zhongqiang and Karniadakis, George E.},
+  journal = {Nature Machine Intelligence},
+  volume  = {3},
+  number  = {3},
+  pages   = {218--229},
+  year    = {2021},
+  doi     = {10.1038/s42256-021-00302-5}
+}
+
+@inproceedings{takamoto2022pdebench,
+  title     = {{PDEBench}: An Extensive Benchmark for Scientific Machine Learning},
+  author    = {Takamoto, Makoto and others},
+  booktitle = {NeurIPS Datasets and Benchmarks Track},
+  year      = {2022},
+  url       = {https://openreview.net/forum?id=dh_MkX0QfrK}
+}
+
+@article{student1908probable,
+  ids     = {gosset1908},
+  author  = {Student},
+  title   = {The Probable Error of a Mean},
+  journal = {Biometrika},
+  year    = {1908},
+  volume  = {6},
+  number  = {1},
+  pages   = {1--25},
+  doi     = {10.1093/biomet/6.1.1}
+}
+
+@misc{pytorch_deterministic_algorithms,
+  author       = {{PyTorch Contributors}},
+  title        = {\texttt{torch.use\_deterministic\_algorithms}},
+  howpublished = {PyTorch Documentation},
+  url          = {https://pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html},
+  urldate      = {2025-12-25}
+}
+
+@misc{pytorch_cuda_memory,
+  author       = {{PyTorch Contributors}},
+  title        = {CUDA Memory Management Notes},
+  howpublished = {PyTorch Documentation},
+  url          = {https://pytorch.org/docs/stable/notes/cuda.html#memory-management},
+  urldate      = {2025-12-25}
+}
+
+@misc{pytorch_max_memory_allocated,
+  author       = {{PyTorch Contributors}},
+  title        = {\texttt{torch.cuda.max\_memory\_allocated}},
+  howpublished = {PyTorch Documentation},
+  url          = {https://pytorch.org/docs/stable/generated/torch.cuda.max_memory_allocated.html},
+  urldate      = {2025-12-25}
+}
+@misc{pytorch_use_deterministic,
+  author       = {{PyTorch Contributors}},
+  title        = {torch.use\_deterministic\_algorithms},
+  howpublished = {\url{https://pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html}},
+  note         = {PyTorch Documentation, accessed 2025-12-30}
+}
+
+@misc{pytorch_set_det_debug,
+  author       = {{PyTorch Contributors}},
+  title        = {torch.set\_deterministic\_debug\_mode},
+  howpublished = {\url{https://pytorch.org/docs/stable/generated/torch.set_deterministic_debug_mode.html}},
+  note         = {PyTorch Documentation, accessed 2025-12-30}
+}
+
+@misc{bartolucci2023reno,
+  author       = {Bartolucci, Federico and de B{\'e}zenac, Emmanuel and Raoni{\'c}, Bogdan and Molinaro, Roberto and Mishra, Siddhartha and Alaifari, Roberto},
+  title        = {Representation Equivalent Neural Operators: A Framework for Alias-Free Operator Learning},
+  year         = {2023},
+  eprint       = {2305.19913},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.LG},
+  howpublished = {\url{https://arxiv.org/abs/2305.19913}}
+}
+
+@article{wilkinson2016fair,
+  author  = {Wilkinson, Mark D. and Dumontier, Michel and Aalbersberg, I. Jsbrand Jan and Appleton, Gabrielle and Axton, Myles and Baak, Arie and Blomberg, Niklas and Boiten, Jan-Willem and da Silva Santos, Luiz Bonino and Bourne, Philip E. and others},
+  title   = {The {FAIR} Guiding Principles for scientific data management and stewardship},
+  journal = {Scientific Data},
+  year    = {2016},
+  volume  = {3},
+  pages   = {160018},
+  doi     = {10.1038/sdata.2016.18},
+  url     = {https://www.nature.com/articles/sdata201618}
+}
+
+@article{wang2004ssim,
+  author  = {Wang, Zhou and Bovik, Alan C. and Sheikh, Hamid R. and Simoncelli, Eero P.},
+  title   = {Image quality assessment: From error visibility to structural similarity},
+  journal = {IEEE Transactions on Image Processing},
+  year    = {2004},
+  volume  = {13},
+  number  = {4},
+  pages   = {600--612},
+  doi     = {10.1109/TIP.2003.819861}
+}
+
+@article{wang2022pinn_ntk,
+  author  = {Wang, Sifan and Yu, Xinling and Perdikaris, Paris},
+  title   = {When and why {PINNs} fail to train: A neural tangent kernel perspective},
+  journal = {Journal of Computational Physics},
+  year    = {2022},
+  volume  = {449},
+  pages   = {110768},
+  doi     = {10.1016/j.jcp.2021.110768}
+}
+
+@article{kovachki2023neural_operator,
   author  = {Kovachki, Nikola and Li, Zongyi and Liu, Burigede and Azizzadenesheli, Kamyar and Bhattacharya, Kaushik and Stuart, Andrew and Anandkumar, Anima},
-  title   = {Neural Operator: Learning Maps Between Function Spaces},
+  title   = {Neural Operator: Learning Maps Between Function Spaces With Applications to {PDEs}},
   journal = {Journal of Machine Learning Research},
   year    = {2023},
   volume  = {24},
@@ -50,39 +193,61 @@
   url     = {https://www.jmlr.org/papers/v24/21-1524.html}
 }
 
-@article{Bartolucci2023RENO,
-  author  = {Bartolucci, Francesco and De B{\'e}zenac, Emmanuel and others},
-  title   = {Neural operators with representation equivalence for aliasing-free operator learning},
-  journal = {Journal of Machine Learning Research},
-  year    = {2023},
-  url     = {https://www.jmlr.org/papers/volume24/21-1524/21-1524.pdf}
+@article{deryck2024acta_numerica,
+  author  = {De Ryck, Tim and Mishra, Siddhartha},
+  title   = {Numerical analysis of physics-informed neural networks and related models in physics-informed machine learning},
+  journal = {Acta Numerica},
+  year    = {2024},
+  volume  = {33},
+  pages   = {633--713},
+  url     = {https://arxiv.org/abs/2402.10926}
 }
 
-@article{Wang2021PIDeepONet,
-  author  = {Wang, Sifan and Yu, Xuhui and Perdikaris, Paris},
-  title   = {When and why {DeepONet}s work: {Physics}-informed {DeepONet} for learning and interpreting parametric partial differential equations},
-  journal = {Science Advances},
-  year    = {2021},
-  volume  = {7},
-  number  = {40},
-  pages   = {eabf1381},
-  doi     = {10.1126/sciadv.abf1381}
-}
-
-@article{Wang2022CausalityPINN,
-  author  = {Wang, Sifan and Sankaran, Surya and Perdikaris, Paris},
-  title   = {Respecting causality is all you need for training physics-informed neural networks},
+@article{deryck2022kolmogorov,
+  author  = {De Ryck, Tim and Mishra, Siddhartha},
+  title   = {Error analysis for physics-informed neural networks ({PINNs}) approximating Kolmogorov {PDEs}},
+  journal = {Advances in Computational Mathematics},
   year    = {2022},
-  eprint  = {2203.07404},
-  archivePrefix = {arXiv},
-  primaryClass  = {cs.LG},
-  url     = {https://arxiv.org/abs/2203.07404}
+  volume  = {48},
+  pages   = {79},
+  doi     = {10.1007/s10444-022-09985-9},
+  url     = {https://arxiv.org/abs/2106.14473}
 }
 
-@online{OpenCVGaussian,
-  author  = {{OpenCV}},
-  title   = {Image Filtering: Gaussian blur and parameter definitions},
-  year    = {n.d.},
-  url     = {https://docs.opencv.org/3.4/d4/d13/tutorial_py_filtering.html},
-  urldate = {2025-12-26}
+@article{cuomo2022,
+  ids     = {Cuomo2022},
+  author  = {Cuomo, Salvatore and Schiano Di Cola, Vincenzo and Giampaolo, Fabio and Rozza, Gianluigi and Raissi, Maziar and Piccialli, Francesco},
+  title   = {Scientific Machine Learning Through Physics--Informed Neural Networks: Where we are and What’s Next},
+  journal = {Journal of Scientific Computing},
+  year    = {2022},
+  volume  = {92},
+  pages   = {88},
+  doi     = {10.1007/s10915-022-01939-z},
+  url     = {https://link.springer.com/article/10.1007/s10915-022-01939-z}
+}
+
+@article{Berrone2022,
+  author  = {Berrone, Stefano and Canuto, Claudio and Pintore, Moreno},
+  title   = {Variational Physics Informed Neural Networks: the Role of Quadratures and Test Functions},
+  journal = {Journal of Scientific Computing},
+  year    = {2022},
+  volume  = {92},
+  doi     = {10.1007/s10915-022-01950-4},
+  url     = {https://link.springer.com/article/10.1007/s10915-022-01950-4}
+}
+
+@misc{liu2025diminishing_spectral_bias,
+  author       = {Liu, Yarong and Gu, Hong and Yu, Xiangjun},
+  title        = {Diminishing spectral bias in physics-informed neural networks using spatially-adaptive {Fourier} feature encoding},
+  year         = {2025},
+  howpublished = {Computer Methods in Applied Mechanics and Engineering},
+  url          = {https://www.sciencedirect.com/science/article/abs/pii/S0893608024008153}
+}
+
+@misc{wang2025spectralbias_multiscale,
+  author       = {Wang, Sifan and others},
+  title        = {Spectral bias in multi-scale {PDE} learning},
+  year         = {2025},
+  howpublished = {Preprint},
+  url          = {https://arxiv.org}
 }
