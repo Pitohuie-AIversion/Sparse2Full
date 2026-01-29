@@ -503,10 +503,23 @@ class SequentialSpatiotemporalTrainer:
         """构建时序损失函数"""
         return nn.MSELoss()
 
-    def _ensure_time_dim(self, x: torch.Tensor, t: int) -> torch.Tensor:
-        if x.dim() == 4:
-            return x.unsqueeze(1).expand(-1, t, -1, -1, -1).contiguous()
-        return x
+    def _ensure_time_dim(self, tensor: torch.Tensor, target_t: int) -> torch.Tensor:
+        """确保张量具有正确的时间维度"""
+        # [B, C, H, W] -> [B, 1, C, H, W]
+        if tensor.dim() == 4:
+            tensor = tensor.unsqueeze(1)
+        
+        # 截断或填充
+        if tensor.shape[1] > target_t:
+            tensor = tensor[:, :target_t]
+        elif tensor.shape[1] < target_t:
+            # 这种情况比较少见，通常需要报错或特殊处理
+            # 这里简单重复最后一帧（仅作防御）
+            repeats = target_t - tensor.shape[1]
+            last_frame = tensor[:, -1:].repeat(1, repeats, 1, 1, 1)
+            tensor = torch.cat([tensor, last_frame], dim=1)
+            
+        return tensor
 
     def _get_loss_weight(self, key: str, default: float = 1.0) -> float:
         try:
@@ -533,38 +546,89 @@ class SequentialSpatiotemporalTrainer:
         if batch_idx % getattr(self.config.data_consistency, 'check_interval', 100) == 0:
             self._perform_data_consistency_check(batch)
         
+        total_loss = 0.0
+        spatial_loss_val = 0.0
+        temporal_loss_val = 0.0
+        
+        # 1. 空间阶段训练 (仅当 spatial_module 未冻结时)
+        run_spatial = any(p.requires_grad for p in self.spatial_module.parameters())
+        # 2. 时序阶段训练 (仅当 temporal_module 未冻结时)
+        run_temporal = any(p.requires_grad for p in self.temporal_module.parameters())
+        
+        # 特殊情况：如果两个都未冻结（联合微调），则需要端到端计算
+        # 如果只有空间未冻结（Phase 1），则不需要跑 Temporal
+        # 如果只有时序未冻结（Phase 2），则需要跑 Spatial (no_grad) 然后跑 Temporal
+        
         # 阶段1: 空间预测
-        spatial_results = self.spatial_module(x)
-        spatial_loss = self._calculate_spatial_loss(spatial_results, y)
-
-        # 阶段2: 时间预测（联合微调）
-        temporal_results = self.temporal_module(spatial_results, x)
-        temporal_loss = self._calculate_temporal_loss(temporal_results, y)
-
-        total_loss = spatial_loss + temporal_loss
-
-        # 反向传播（避免重复反向图复用）
-        self.spatial_optimizer.zero_grad()
-        self.temporal_optimizer.zero_grad()
-        total_loss.backward()
+        if run_spatial:
+            spatial_results = self.spatial_module(x)
+            spatial_loss = self._calculate_spatial_loss(spatial_results, y)
+            total_loss += spatial_loss
+            spatial_loss_val = spatial_loss.item()
+        else:
+            with torch.no_grad():
+                spatial_results = self.spatial_module(x)
         
-        # 梯度裁剪
-        if hasattr(self.config.training, 'grad_clip'):
-            torch.nn.utils.clip_grad_norm_(self.temporal_module.parameters(), self.config.training.grad_clip)
-            torch.nn.utils.clip_grad_norm_(self.spatial_module.parameters(), self.config.training.grad_clip)
-        
-        self.spatial_optimizer.step()
-        self.temporal_optimizer.step()
+        # 阶段2: 时间预测
+        if run_temporal:
+            # 在 Phase 2 (Temporal Only) 中，spatial_results 必须 detach 以防止梯度回传到冻结的 Spatial
+            # 但在 Phase 3 (Joint) 中，需要保持梯度链
+            if not run_spatial:
+                # Detach spatial outputs if spatial is frozen
+                spatial_results_detached = {
+                    k: v.detach() if isinstance(v, torch.Tensor) else v 
+                    for k, v in spatial_results.items()
+                }
+                temporal_results = self.temporal_module(spatial_results_detached, x)
+            else:
+                temporal_results = self.temporal_module(spatial_results, x)
+                
+            temporal_loss = self._calculate_temporal_loss(temporal_results, y)
+            total_loss += temporal_loss
+            temporal_loss_val = temporal_loss.item()
+            final_pred = temporal_results['final_pred']
+        else:
+            # 仅 Spatial 训练时，不跑 Temporal
+            final_pred = spatial_results['spatial_pred']
+
+        # 反向传播
+        if run_spatial:
+            self.spatial_optimizer.zero_grad()
+        if run_temporal:
+            self.temporal_optimizer.zero_grad()
+            
+        if isinstance(total_loss, torch.Tensor):
+            total_loss.backward()
+            
+            # 梯度裁剪
+            if hasattr(self.config.training, 'grad_clip'):
+                if run_temporal:
+                    torch.nn.utils.clip_grad_norm_(self.temporal_module.parameters(), self.config.training.grad_clip)
+                if run_spatial:
+                    torch.nn.utils.clip_grad_norm_(self.spatial_module.parameters(), self.config.training.grad_clip)
+            
+            if run_spatial:
+                self.spatial_optimizer.step()
+            if run_temporal:
+                self.temporal_optimizer.step()
+            
+            total_loss_val = total_loss.item()
+        else:
+            total_loss_val = 0.0
         
         # 计算指标
-        spatial_metrics = self._calculate_spatial_metrics(spatial_results['spatial_pred'], y)
-        temporal_metrics = self._calculate_temporal_metrics(temporal_results['final_pred'], y)
+        with torch.no_grad():
+            spatial_metrics = self._calculate_spatial_metrics(spatial_results['spatial_pred'], y)
+            if run_temporal:
+                temporal_metrics = self._calculate_temporal_metrics(final_pred, y)
+            else:
+                temporal_metrics = {}
 
         return {
-            'joint_loss': total_loss.item(),
-            'spatial_loss': spatial_loss.item(),
-            'temporal_loss': temporal_loss.item(),
-            'total_loss': total_loss.item(),
+            'joint_loss': total_loss_val,
+            'spatial_loss': spatial_loss_val,
+            'temporal_loss': temporal_loss_val,
+            'total_loss': total_loss_val,
             **spatial_metrics,
             **temporal_metrics
         }
@@ -668,6 +732,7 @@ class SequentialSpatiotemporalTrainer:
                 x = self._ensure_time_dim(batch['input'].to(self.device), int(self.config.data.T_in))
                 y = self._ensure_time_dim(batch['target'].to(self.device), int(self.config.data.T_out))
 
+                # 在线生成空间特征，避免 OOM
                 spatial_results = self.spatial_module(x)
                 temporal_results = self.temporal_module(spatial_results, x)
                 loss = self._calculate_temporal_loss(temporal_results, y)
@@ -800,13 +865,23 @@ class SequentialSpatiotemporalTrainer:
     
     def train_epoch(self, dataloader, epoch: int) -> Dict[str, float]:
         """训练一个epoch"""
-        self.spatial_module.train()
-        self.temporal_module.train()
+        # 根据冻结状态设置模式
+        if all(not p.requires_grad for p in self.spatial_module.parameters()):
+            self.spatial_module.eval()
+        else:
+            self.spatial_module.train()
+            
+        if all(not p.requires_grad for p in self.temporal_module.parameters()):
+            self.temporal_module.eval()
+        else:
+            self.temporal_module.train()
+            
         self.current_epoch = epoch
         
         epoch_metrics = []
         
         for batch_idx, batch in enumerate(dataloader):
+            # 自动处理不同阶段的训练逻辑
             step_metrics = self.training_step(batch, batch_idx)
             epoch_metrics.append(step_metrics)
             self.global_step += 1
@@ -822,8 +897,9 @@ class SequentialSpatiotemporalTrainer:
         
         # 聚合epoch指标
         avg_metrics = {}
-        for key in epoch_metrics[0].keys():
-            avg_metrics[key] = np.mean([m[key] for m in epoch_metrics])
+        if epoch_metrics:
+            for key in epoch_metrics[0].keys():
+                avg_metrics[key] = np.mean([m[key] for m in epoch_metrics])
         avg_metrics['train_loss'] = float(avg_metrics.get('total_loss', avg_metrics.get('joint_loss', 0.0)))
         return avg_metrics
     

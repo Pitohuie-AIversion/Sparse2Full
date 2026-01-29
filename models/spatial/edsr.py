@@ -50,7 +50,12 @@ class Upsampler(nn.Sequential):
 
     def __init__(self, scale: int, n_feats: int, bias: bool = True):
         m = []
-        if scale in (2, 4, 8):
+        is_power_of_two = (scale > 0) and ((scale & (scale - 1)) == 0)
+
+        if scale == 1:
+            # no upsample
+            pass
+        elif is_power_of_two:
             n = int(torch.log2(torch.tensor(scale)).item())
             for _ in range(n):
                 m.append(nn.Conv2d(n_feats, 4 * n_feats, 3, 1, 1, bias=bias))
@@ -58,18 +63,15 @@ class Upsampler(nn.Sequential):
         elif scale == 3:
             m.append(nn.Conv2d(n_feats, 9 * n_feats, 3, 1, 1, bias=bias))
             m.append(nn.PixelShuffle(3))
-        elif scale == 1:
-            # no upsample
-            pass
         else:
-            raise ValueError(f"Unsupported upscale={scale}. Use 1/2/3/4/8.")
+            raise ValueError(f"Unsupported upscale={scale}. Use power of 2 or 3.")
         super().__init__(*m)
 
 
 # -------------------------
 # EDSR main model
 # -------------------------
-@register_model(name="EDSR", aliases=["edsr"])
+@register_model(name="EDSR", aliases=["edsr", "edsrnet"])
 class EDSR(BaseModel):
     """
     EDSR baseline.
@@ -113,6 +115,7 @@ class EDSR(BaseModel):
         self.res_scale = float(res_scale)
         self.upscale = int(upscale)
         self.bias = bool(bias)
+        self.grad_checkpointing = False
 
         if add_input_residual is None:
             # restoration 常用：同通道时直接 residual learning
@@ -138,6 +141,9 @@ class EDSR(BaseModel):
 
         self._init_weights()
 
+    def set_gradient_checkpointing(self, enable: bool = True):
+        self.grad_checkpointing = enable
+
     def _init_weights(self):
         # 与你现有风格一致：轻量初始化（避免过大初值）
         for m in self.modules():
@@ -154,7 +160,34 @@ class EDSR(BaseModel):
 
         # feature extraction
         x = self.head(x)
-        res = self.body(x)
+        
+        # Body with gradient checkpointing
+        if self.grad_checkpointing and self.training:
+             from torch.utils.checkpoint import checkpoint
+             
+             # Split body into chunks
+             # 32 blocks -> 4 chunks of 8 blocks
+             num_chunks = 4
+             chunks = []
+             chunk_size = len(self.body) // num_chunks
+             if chunk_size < 1: chunk_size = 1
+             
+             # Convert Sequential to list for slicing
+             body_layers = list(self.body)
+             
+             current_x = x
+             for i in range(0, len(body_layers), chunk_size):
+                 segment = nn.Sequential(*body_layers[i:i+chunk_size])
+                 
+                 def run_segment(input_feats, s=segment):
+                     return s(input_feats)
+                     
+                 current_x = checkpoint(run_segment, current_x, use_reentrant=False)
+                 
+             res = current_x
+        else:
+             res = self.body(x)
+             
         x = x + res  # global residual in feature space
 
         # upsample if needed

@@ -2,7 +2,7 @@
 # 基于 3D Window Attention 的时空预测
 
 experiment:
-  name: "AR-ShallowWater-VideoSwin-s2025"
+  name: "AR-ShallowWater-VideoSwin-v2-s2025"
   description: "自回归预测（Video Swin Transformer）"
   device: cuda
   seed: 2025
@@ -12,7 +12,7 @@ experiment:
 device:
   accelerator: cuda
   devices: 1
-  strategy: none
+  strategy: auto
   allow_data_parallel_fallback: true
   precision: fp32
 
@@ -46,8 +46,8 @@ sequential:
     window_size: [2, 8, 8] # (T, H, W) 窗口大小
     dropout: 0.1
     use_positional_encoding: false # Swin自带相对位置编码
-    reduce_spatial: avgpool
-    reduce_size: [32, 32]
+    reduce_spatial: null
+    reduce_size: [128, 128]
     teacher_forcing_cap: 0.0
     teacher_forcing_schedule:
       enabled: false
@@ -67,17 +67,6 @@ sequential:
 
 model_wrapper:
   enabled: false
-
-model:
-  name: fno2d
-  in_channels: 1
-  out_channels: 1
-  img_size: 128
-  modes1: 12
-  modes2: 12  
-  width: 64
-  n_layers: 4
-  activation: 'gelu'
 
 data:
   data_path: "data/2D/shallow-water/2D_rdb_NA_NA.h5"
@@ -115,9 +104,9 @@ data:
   use_synthetic_data: false
   
   dataloader:
-    batch_size: 512 # Swin 显存占用较大，降低 batch_size
-    val_batch_size: 512
-    test_batch_size: 512
+    batch_size: 16 # Drastically reduced to avoid OOM
+    val_batch_size: 16
+    test_batch_size: 16
     num_workers: 8
     pin_memory: true
     persistent_workers: true
@@ -140,8 +129,8 @@ hardware:
 
 training:
   epochs: 500
-  batch_size: 512
-  gradient_accumulation_steps: 1
+  batch_size: 16
+  gradient_accumulation_steps: 4 # Increase accumulation to maintain effective batch size
   
   torch_compile: false
   torch_compile_backend: "inductor"
@@ -149,7 +138,7 @@ training:
   channels_last: true
   
   dataloader:
-    batch_size: 512
+    batch_size: 16
   rollout_training: true
   teacher_forcing_cap: 0.7
   teacher_forcing_schedule:
@@ -193,7 +182,7 @@ training:
   
   distributed:
     enabled: false
-    backend: "gloo"
+    backend: "nccl"
     init_method: "env://"
   
   gradient_clip_val: 1.0
@@ -253,7 +242,7 @@ validation:
     min_improvement: 5e-4
 
 logging:
-  experiment_name: "AR-ShallowWater-VideoSwin-s2025"
+  experiment_name: "AR-ShallowWater-VideoSwin-v2-s2025"
   version: null
   default_hp_metric: false
   log_model: false

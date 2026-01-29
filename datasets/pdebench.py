@@ -62,6 +62,11 @@ def _load_case_tensor(h5: Any, case_id: str, keys: Sequence[str]) -> torch.Tenso
             chans.append(arr)
         elif arr.ndim == 3:
             chans.append(arr[-1])
+        elif arr.ndim == 4:
+            # (T, H, W, C) -> take last time step and first channel
+            # This is a heuristic for RealDiffusionReaction which has (T, H, W, 2)
+            # We assume we want the first component (u)
+            chans.append(arr[-1, ..., 0])
         else:
             raise ValueError(f"Unsupported dataset shape for {case_id}/{k}: {arr.shape}")
     stacked = np.stack(chans, axis=0)
@@ -385,12 +390,21 @@ class PDEBenchDataModule:
 
     def setup(self, stage: Optional[str] = None) -> None:
         cfg = self.config
-        keys = list(getattr(cfg, "keys", [])) if isinstance(cfg, DictConfig) else list(cfg.get("keys", []))
-        normalize = bool(getattr(cfg, "normalize", False)) if isinstance(cfg, DictConfig) else bool(cfg.get("normalize", False))
-        image_size = getattr(cfg, "image_size", None) if isinstance(cfg, DictConfig) else cfg.get("image_size", None)
-        splits_dir = getattr(cfg, "splits_dir", None) if isinstance(cfg, DictConfig) else cfg.get("splits_dir", None)
+        # Use .get() or item access to avoid conflict with DictConfig methods like .keys()
+        if isinstance(cfg, DictConfig):
+            keys = list(cfg.get("keys", []))
+            normalize = bool(cfg.get("normalize", False))
+            image_size = cfg.get("image_size", None)
+            splits_dir = cfg.get("splits_dir", None)
+            obs_cfg_raw = cfg.get("observation")
+        else:
+            keys = list(cfg.get("keys", []))
+            normalize = bool(cfg.get("normalize", False))
+            image_size = cfg.get("image_size", None)
+            splits_dir = cfg.get("splits_dir", None)
+            obs_cfg_raw = cfg.get("observation")
 
-        obs_cfg = _parse_obs_cfg(getattr(cfg, "observation", None) if isinstance(cfg, DictConfig) else cfg.get("observation"))
+        obs_cfg = _parse_obs_cfg(obs_cfg_raw)
         mode = obs_cfg.mode
 
         if str(mode).lower() == "sr":

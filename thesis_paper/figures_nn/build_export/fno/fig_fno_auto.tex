@@ -1,0 +1,74 @@
+\documentclass[tikz, border=10mm]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{positioning, calc, arrows.meta, chains, fit, shapes, 3d}
+\input{nn_blocks.tex}
+
+\definecolor{convcolor}{rgb}{1,0.8,0.5}
+\definecolor{rescolor}{rgb}{0.8,0.8,1}
+\definecolor{poolcolor}{rgb}{1,0.5,0.5}
+\definecolor{upcolor}{rgb}{0.8,0.5,1}
+\definecolor{opcolor}{rgb}{0.5,1,0.5}
+\def\ConvColor{convcolor}
+\def\OpColor{opcolor}
+\def\ResColor{rescolor}
+
+\begin{document}
+\begin{tikzpicture}
+
+\node[io] (in) {Input};
+
+\pic[shift={(3.0 * 1.4,0,0)}] at (in.east) {RightBandedBox={
+        name=lift,
+        caption=Lift,
+        xlabel={"Width", },
+        fill=\ConvColor,
+        height=30, width=2, depth=30
+    }};
+
+    % Spectral Block Expanded: FFT -> Weights -> IFFT
+    % FFT
+    \pic[shift={(3.0 * 1.4,0,0)}] at (lift-east) {Box={
+        name=fft,
+        caption=FFT,
+        fill=\OpColor,
+        height=30, width=5, depth=30
+    }};
+
+    % Weights (Thin block)
+    \pic[shift={(1.2 * 1.4,0,0)}] at (fft-east) {Box={
+        name=spec_w,
+        caption=Weights,
+        fill=\ResColor,
+        height=30, width=1, depth=30
+    }};
+
+    % IFFT
+    \pic[shift={(1.2 * 1.4,0,0)}] at (spec_w-east) {Box={
+        name=ifft,
+        caption=IFFT,
+        fill=\OpColor,
+        height=30, width=5, depth=30
+    }};
+
+    % Residual Connection (W x)
+    \draw[skip] (lift-east) -- ++(0, 5, 0) -| (ifft-east);
+
+    \pic[shift={(3.0 * 1.4,0,0)}] at (ifft-east) {RightBandedBox={
+        name=proj,
+        caption=Proj.,
+        xlabel={"Out", },
+        fill=\ConvColor,
+        height=30, width=2, depth=30
+    }};
+
+    \node[io, right=3.0cm of proj-east] (out) {Output};
+
+\draw[arrow] (in) -- (lift-west);
+\draw[arrow] (lift-east) -- (fft-west);
+\draw[arrow] (fft-east) -- (spec_w-west);
+\draw[arrow] (spec_w-east) -- (ifft-west);
+\draw[arrow] (ifft-east) -- (proj-west);
+\draw[arrow] (proj-east) -- (out);
+
+\end{tikzpicture}
+\end{document}

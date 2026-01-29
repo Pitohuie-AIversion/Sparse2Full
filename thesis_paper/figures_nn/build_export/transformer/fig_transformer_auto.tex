@@ -1,0 +1,14 @@
+
+\documentclass[tikz, border=2mm]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{positioning, calc}
+\input{nn_blocks.tex}
+\begin{document}
+\begin{tikzpicture}[node distance=10mm]
+\node[block] (in) {Input\\$(128\times 128)$};
+\node[block, right=of in, minimum width=40mm] (model) {transformer\\Backbone};
+\node[block, right=of model] (out) {Output};
+\draw[arrow] (in) -- (model);
+\draw[arrow] (model) -- (out);
+\end{tikzpicture}
+\end{document}

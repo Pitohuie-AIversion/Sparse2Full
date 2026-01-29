@@ -394,6 +394,14 @@ def compute_enhanced_total_loss(
             if hasattr(config.loss, 'gradient_weight'):
                 w_grad = float(config.loss.gradient_weight)
     
+    # 计算自适应缩放因子 (Adaptive Loss Scaling)
+    # 物理域MSE约等于 sigma^2 * Z-score域MSE
+    # 除以方差以归一化Loss量级，解决不同数据集物理数值差异导致的Loss失衡
+    scale_factor = 1.0
+    if norm_stats is not None:
+        sigma_val = norm_stats['sigma'].to(device)
+        scale_factor = 1.0 / (sigma_val.pow(2).mean() + 1e-8)
+    
     # 重建损失（z-score域）
     rec_loss_fn = EnhancedReconstructionLoss(config.get('reconstruction', {}))
     rec_losses = rec_loss_fn(pred_z, target_z)
@@ -411,7 +419,8 @@ def compute_enhanced_total_loss(
             target_orig = target_z
         
         spec_loss_fn = AdaptiveSpectralLoss(config.get('spectral', {}))
-        spectral_loss = spec_loss_fn(pred_orig, target_orig, epoch)
+        # 应用自适应缩放
+        spectral_loss = spec_loss_fn(pred_orig, target_orig, epoch) * scale_factor
     else:
         spectral_loss = torch.tensor(0.0, device=device)
     
@@ -440,7 +449,8 @@ def compute_enhanced_total_loss(
             'task': 'SR', 'scale': 2, 'sigma': 1.0, 'kernel_size': 5, 'boundary': 'mirror'
         })
         
-        dc_loss = dc_loss_fn(pred_orig, obs_tensor, h_params, epoch)
+        # 应用自适应缩放
+        dc_loss = dc_loss_fn(pred_orig, obs_tensor, h_params, epoch) * scale_factor
     else:
         dc_loss = torch.tensor(0.0, device=device)
     

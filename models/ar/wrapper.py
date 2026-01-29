@@ -167,12 +167,21 @@ class ARWrapper(nn.Module):
         return x_packed[:, :model_in_ch, :, :]
 
     def __call__(self, x: torch.Tensor, *args: Any, **kwargs: Any):
-        if args:
-            return super().__call__(x, *args, **kwargs)
-
-        if any(k in kwargs for k in ("T_out", "teacher", "train_mode")):
+        # 智能参数解析：处理位置参数中的 teacher
+        teacher = None
+        if len(args) > 0 and isinstance(args[0], torch.Tensor):
+            # 假设第一个位置参数是 teacher/target
+            teacher = args[0]
+            # 从 args 中移除 teacher，避免重复传递
+            args = args[1:]
+        
+        # 同样检查 kwargs 中的 teacher
+        if 'teacher' in kwargs:
+            teacher = kwargs.pop('teacher')
+            
+        # 检查是否需要进行时序预测 (如果有 teacher 或 explicit T_out)
+        if teacher is not None or any(k in kwargs for k in ("T_out", "train_mode")):
             T_out = kwargs.pop("T_out", None)
-            teacher = kwargs.pop("teacher", None)
             train_mode = kwargs.pop("train_mode", self.training)
 
             x_seq = x
@@ -180,23 +189,32 @@ class ARWrapper(nn.Module):
                 x_seq = x.unsqueeze(1)
 
             if T_out is None:
-                if teacher is not None and isinstance(teacher, torch.Tensor) and teacher.dim() == 5:
-                    T_out = int(teacher.size(1))
+                if teacher is not None and isinstance(teacher, torch.Tensor):
+                    # 如果 teacher 是 5D [B, T, C, H, W]，推断 T_out
+                    if teacher.dim() == 5:
+                        T_out = int(teacher.size(1))
+                    # 如果 teacher 是 4D，可能只是单步 target，T_out=1
+                    elif teacher.dim() == 4:
+                        T_out = 1
                 elif self.T_out is not None:
                     T_out = int(self.T_out)
 
-            if T_out is None:
-                raise ValueError("T_out is required for temporal prediction")
+            # 如果推断出 T_out，且处于训练模式或有明确指令，则进行 AR 预测
+            if T_out is not None:
+                return self.autoregressive_predict(
+                    x_seq=x_seq,
+                    T_out=int(T_out),
+                    teacher=teacher,
+                    train_mode=bool(train_mode),
+                    **kwargs,
+                )
 
-            return self.autoregressive_predict(
-                x_seq=x_seq,
-                T_out=int(T_out),
-                teacher=teacher,
-                train_mode=bool(train_mode),
-                **kwargs,
-            )
-
-        return super().__call__(x)
+        # Fallback: 如果没有识别出时序意图，且没有剩余 args，则调用单帧 forward
+        if not args:
+            return super().__call__(x)
+        
+        # 如果还有其他未处理的位置参数，只能尝试透传（可能会报错，但这是用户用法的责任）
+        return super().__call__(x, *args, **kwargs)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if x.dim() != 4:

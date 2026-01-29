@@ -1,0 +1,72 @@
+\documentclass[tikz, border=10mm]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{positioning, calc, arrows.meta, chains, fit, shapes, 3d}
+\input{nn_blocks.tex}
+
+\definecolor{convcolor}{rgb}{1,0.8,0.5}
+\definecolor{rescolor}{rgb}{0.8,0.8,1}
+\definecolor{poolcolor}{rgb}{1,0.5,0.5}
+\definecolor{upcolor}{rgb}{0.8,0.5,1}
+\definecolor{opcolor}{rgb}{0.5,1,0.5}
+
+\def\ConvColor{convcolor}
+\def\ResColor{rescolor}
+\def\PoolColor{poolcolor}
+\def\UpColor{upcolor}
+\def\OpColor{opcolor}
+\def\ConvColor{convcolor}
+\def\ResColor{rescolor}
+\def\OpColor{opcolor}
+
+\begin{document}
+\begin{tikzpicture}
+
+\node[io] (in) {Input};
+
+% Encoder
+\pic[shift={(2.0 * 3.1,0,0)}] at (in.east) {RightBandedBox={
+    name=enc,
+    caption=Encoder,
+    fill=\ConvColor,
+    height=30, width=4, depth=30
+}};
+
+% Feature Grid
+\pic[shift={(2.0 * 3.1,0,0)}] at (enc-east) {Box={
+    name=grid,
+    caption=Feature\\Grid,
+    fill=\ResColor,
+    height=30, width=1, depth=30
+}};
+
+% Coordinates Input
+\node[io, below=3.0cm of in] (coords) {Coords};
+
+% Query / Sample
+\pic[shift={(0, -3, 0)}] at (grid-west) {Box={
+    name=query,
+    caption=Query\\Sample,
+    fill=\OpColor,
+    height=10, width=3, depth=10
+}};
+
+% MLP
+\pic[shift={(2.0 * 3.1,0,0)}] at (query-east) {RightBandedBox={
+    name=mlp,
+    caption=MLP,
+    fill=\ConvColor,
+    height=10, width=6, depth=10
+}};
+
+\node[io, right=2.0cm of mlp-east] (out) {RGB};
+
+% Connections
+\draw[arrow] (in) -- (enc-west);
+\draw[arrow] (enc-east) -- (grid-west);
+\draw[arrow] (coords) -- (query-west);
+\draw[arrow] (grid-south) -- (query-north);
+\draw[arrow] (query-east) -- (mlp-west);
+\draw[arrow] (mlp-east) -- (out);
+
+\end{tikzpicture}
+\end{document}

@@ -1,0 +1,146 @@
+experiment:
+  name: "AR-DR2D-SpatialOnly-EDSR-Crop"
+  description: "Spatial-Only Training: EDSR for Crop Task (Inpainting)"
+  device: cuda
+  seed: 2025
+  output_dir: "runs_drd_paper/${experiment.name}"
+
+device:
+  accelerator: cuda
+  devices: 1
+  precision: bf16-mixed
+
+ar:
+  enabled: true
+
+sequential:
+  enabled: true
+  model_type: "SequentialSpatiotemporalModel"
+  
+  # Spatial Only Training
+  spatial_pretrain_epochs: 300
+  temporal_pretrain_epochs: 0
+  num_epochs: 300
+  
+  spatial:
+    in_channels: 1
+    spatial_feature_dim: 64
+    out_channels: 1
+    img_size: [128, 128]
+    backbone_type: "edsr"
+    backbone_config:
+      n_feats: 64
+      n_resblocks: 32
+      res_scale: 0.1
+      upscale: 1
+  
+  temporal:
+    # Dummy Temporal Config (Not trained)
+    # spatial_feature_dim: 0  # <--- 这会触发 Temporal Module 内部逻辑去使用 Identity/ConvRNN 的正确初始化
+    # 但由于代码逻辑较复杂，我们直接使用 'identity' backend
+    backend: identity  # <--- 使用 Identity Backend，彻底禁用 VideoSwin
+    spatial_feature_dim: 64 # Keep config consistent
+    temporal_dim: 96
+    out_channels: 1
+    img_size: [128, 128]
+    # backend: video_swin  <--- Disabled
+    num_heads: 4
+    num_layers: 2
+    window_size: [2, 8, 8]
+    dropout: 0.1
+  
+  consistency:
+    enabled: false # No consistency needed for spatial only
+  
+  training:
+    two_stage_training: true
+    spatial_loss_weight: 1.0
+    temporal_loss_weight: 0.0 # Disable temporal loss
+    teacher_forcing_cap: 0.0
+
+data:
+  data_path: "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/data/DR2D/2D_diff-react_NA_NA.h5"
+  dataset_name: RealDiffusionReaction
+  img_size: 128
+  keys: ["data"]
+  component: u
+  use_official_format: true
+  splits_dir: splits
+  target_channels: 1
+  input_channels: 1
+  
+  # Single Frame Task
+  T_in: 1
+  T_out: 1
+  time_step_start: 0
+  time_step_end: 101   
+  time_step_stride: 10 
+  
+  observation:
+    mode: crop
+    crop:
+      size: [64, 64] # 50% Crop
+      boundary_mode: mirror
+      align_corners: false
+  
+  dataloader:
+    batch_size: 16 # Increased batch size for single frame
+    num_workers: 8
+
+training:
+  epochs: 300
+  batch_size: 16
+  gradient_accumulation_steps: 1
+  gradient_clip_val: 1.0
+
+  amp:
+    enabled: true
+    autocast_dtype: bfloat16
+  
+  degradation:
+    mode: crop
+    crop:
+      size: [64, 64]
+      boundary_mode: mirror
+      align_corners: false
+
+  loss_weights:
+    reconstruction: 1.0
+    spectral: 0.05
+    data_consistency: 1.0
+
+  optimizer:
+    name: "AdamW"
+    lr: 0.0001
+    weight_decay: 0.0001
+    
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 300
+    eta_min: 1e-6
+    warmup_epochs: 10
+
+validation:
+  check_val_every_n_epoch: 5
+  metrics:
+    - rel_l2
+    - mae
+    - psnr
+    - ssim
+
+logging:
+  experiment_name: "AR-DR2D-SpatialOnly-EDSR-Crop"
+  visualization:
+    save_samples_every_n_epochs: 50
+    num_samples_to_save: 5
+
+testing:
+  enabled: true
+  run_final_test: true
+  save_predictions: false
+  compute_detailed_metrics: true
+  batch_size: 512
+  save_visualizations: true
+  num_visualization_samples: 3
+  fast_mode: false
+  minimal_logging: false

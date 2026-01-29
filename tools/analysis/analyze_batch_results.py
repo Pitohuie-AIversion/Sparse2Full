@@ -57,16 +57,34 @@ def analyze_results(runs_dir="runs", output_file="analysis_report_ar_sw_10m.csv"
             # Adjust keys based on your actual test_results.json structure
             metrics = data.get("final_test_metrics", {})
             
+            # Try to get FLOPs and Params more robustly if model_info exists
+            model_info = data.get("model_info", {})
+            if not model_info:
+                # Fallback: check config file in directory if needed, but for now just 0
+                pass
+            
+            # Calculate inference time per sample (ms) if total test time is available
+            # Assuming standard test set size or just reporting total test time
+            # For simplicity, we report total test time or placeholder
+            test_time = data.get("test_time", 0)
+            
             row = {
                 "Model": model_name,
                 "Directory": dir_name,
-                "Params (M)": data.get("model_info", {}).get("trainable_params", 0) / 1e6 if "model_info" in data else 0, # Placeholder, need actual path
-                "MSE": metrics.get("rel_l2", 0), # Using Rel L2 as MSE proxy if MSE not explicit, or adjust
+                "Params (M)": model_info.get("trainable_params", 0) / 1e6,
+                "FLOPs (G)": model_info.get("flops", 0) / 1e9, # Assuming FLOPs in bytes/raw count
+                "Inference Time (s)": test_time, # Total test time
+                "Test Loss": metrics.get("test_loss", 0),
+                "Rel L2 (MSE)": metrics.get("rel_l2", 0),
                 "MAE": metrics.get("mae", 0),
-                "RMSE": metrics.get("rmse", 0), # Not in pconvunet example
+                "RMSE": metrics.get("rmse", 0),
                 "SSIM": metrics.get("ssim", 0),
                 "PSNR": metrics.get("psnr", 0),
-                "Test Loss": metrics.get("test_loss", 0)
+                "fRMSE (Low)": metrics.get("frmse_low", 0),
+                "fRMSE (Mid)": metrics.get("frmse_mid", 0),
+                "fRMSE (High)": metrics.get("frmse_high", 0),
+                "bRMSE (Boundary)": metrics.get("brmse", 0),
+                "Conservation Err": metrics.get("dc_error", 0)
             }
             
             results_list.append(row)

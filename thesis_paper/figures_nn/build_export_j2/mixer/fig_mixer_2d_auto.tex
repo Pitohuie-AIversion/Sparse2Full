@@ -1,0 +1,16 @@
+\documentclass[tikz, border=10mm]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{positioning, calc}
+\input{nn_blocks.tex}
+\begin{document}
+\begin{tikzpicture}[
+    node distance=1.5cm,
+    every node/.style={scale=0.8, transform shape}
+]
+\node[io] (in) {Input\\$(128\times 128)$};
+\node[nntikz_block, right=of in, minimum width=40mm] (model) { mixer\\Backbone};
+\node[io, right=of model] (out) {Output};
+\draw[arrow] (in) -- (model);
+\draw[arrow] (model) -- (out);
+\end{tikzpicture}
+\end{document}

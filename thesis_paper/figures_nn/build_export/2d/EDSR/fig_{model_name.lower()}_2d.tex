@@ -1,0 +1,138 @@
+
+\documentclass[tikz, border=10pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{positioning, chains, shapes.geometric, fit, shapes, arrows.meta, calc, backgrounds}
+
+\begin{document}
+\begin{tikzpicture}[
+    >=LaTeX, 
+    very thick,
+    node distance=0.8cm and 1.0cm,
+    arrow/.style={
+        ->,
+        very thick,
+        rounded corners=0.2cm
+    },
+    block/.style={
+        rectangle,
+        fill=gray!10,
+        rounded corners=3mm,
+        draw,
+        very thick,
+        inner sep=0.5em
+    },
+    layer/.style={
+        rectangle,
+        fill=white!10,
+        rounded corners=1mm,
+        inner xsep=0.5em,
+        inner ysep=0.5em,
+        minimum height=2.5em,
+        align=center,
+        draw,
+        very thick
+    },
+    conv/.style={
+        layer,
+        fill=orange!10,
+        draw=orange!80!black
+    },
+    relu/.style={
+        layer,
+        fill=yellow!10,
+        draw=yellow!80!black,
+        minimum height=2em
+    },
+    pool/.style={
+        layer,
+        fill=red!10,
+        draw=red!80!black
+    },
+    input/.style={ 
+        circle,
+        minimum width=2.5em,
+        draw,
+        fill=gray!20,
+        thick,
+        align=center
+    },
+    sum/.style={
+        circle,
+        draw,
+        fill=white,
+        inner sep=0pt,
+        minimum size=1em,
+        node contents={+}
+    }
+]
+
+
+    % Input
+    
+ode[input] (in) {Input\\LR};
+
+    % Head
+    
+ode[conv, right=of in] (head) {Conv\\$3\times 3$};
+    \draw[arrow] (in) -- (head);
+
+    % ResBlock Detail
+    
+ode[conv, right=1.5cm of head] (res1_c1) {Conv\\$3\times 3$};
+    
+ode[relu, right=0.5cm of res1_c1] (res1_act) {ReLU};
+    
+ode[conv, right=0.5cm of res1_act] (res1_c2) {Conv\\$3\times 3$};
+    
+    % Scaling constant
+    
+ode[circle, draw, right=0.5cm of res1_c2, inner sep=1pt] (mul) {$\times 0.1$};
+    
+    % Sum
+    
+ode[sum, right=0.5cm of mul] (sum1) {};
+
+    % ResBlock Box
+    \begin{scope}[on background layer]
+        \node[block, fit=(res1_c1) (sum1), label=above:ResBlock (Detailed)] (resblock) {};
+    \end{scope}
+
+    % Connections inside ResBlock
+    \draw[arrow] (head) -- (res1_c1);
+    \draw[arrow] (res1_c1) -- (res1_act);
+    \draw[arrow] (res1_act) -- (res1_c2);
+    \draw[arrow] (res1_c2) -- (mul);
+    \draw[arrow] (mul) -- (sum1);
+    
+    % Skip connection
+    \draw[arrow] (head) -- ++(0.5,0) |- ($(resblock.north) + (0, 0.5)$) -| (sum1.north);
+
+    % More Blocks (Abstract)
+    
+ode[right=1cm of resblock] (dots) {\huge $\dots$};
+    \draw[arrow] (sum1) -- (dots);
+
+    
+ode[block, right=1cm of dots, minimum height=3em, align=center] (resN) {ResBlock\\$\times 16$};
+    \draw[arrow] (dots) -- (resN);
+
+    % Tail
+    
+ode[conv, right=of resN] (tail) {Conv};
+    \draw[arrow] (resN) -- (tail);
+
+    % Global Skip
+    \draw[arrow] (head) -- ++(0.5,0) |- ($(resblock.south) + (0, -1.0)$) -| (tail.south);
+
+    % Upsampler
+    
+ode[layer, right=of tail, fill=purple!10] (up) {PixelShuffle\\$\times 4$};
+    \draw[arrow] (tail) -- (up);
+
+    % Output
+    
+ode[input, right=of up] (out) {Output\\HR};
+    \draw[arrow] (up) -- (out);
+
+\end{tikzpicture}
+\end{document}

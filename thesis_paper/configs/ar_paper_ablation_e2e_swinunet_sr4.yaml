@@ -1,0 +1,197 @@
+# AR训练配置文件 - Ablation E2E (End-to-End Spatiotemporal Training)
+# 对比实验：不使用空间预训练，直接从头训练时空模型
+# 验证：Sequential Spatiotemporal Training (预训练+微调) vs E2E (直接训练)
+
+experiment:
+  name: "AR-DR2D-SwinUNet-E2E-NoPretrain-SRx4"
+  description: "Ablation: E2E training of SwinUNet AR model without spatial pretraining"
+  device: cuda
+  seed: 2025
+  seeds: [2025] # Ablation仅跑1个种子即可
+  output_dir: "runs_drd_paper/${experiment.name}"
+  log_every_n_steps: 10
+
+device:
+  accelerator: cuda
+  devices: 1
+  strategy: null
+  allow_data_parallel_fallback: true
+  precision: bf16-mixed
+
+# 启用AR模式 (时空训练)
+ar:
+  enabled: true
+  eval_time_strategy: mean
+  ar_mode: true
+
+sequential:
+  enabled: false # 显式禁用序列训练逻辑
+
+data:
+  data_path: "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/data/DR2D/2D_diff-react_NA_NA.h5"
+  dataset_name: RealDiffusionReaction
+  img_size: 128
+  keys: ["data"]
+  component: u
+  use_official_format: true
+  splits_dir: splits
+  target_channels: 1
+  input_channels: 1
+  sample_limit: null
+  
+  # 时空序列设置
+  T_in: 1
+  T_out: 10  # 预测未来10帧
+  
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+  
+  time_step_start: 0
+  time_step_end: 101
+  time_step_stride: 10
+  
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+      downsample_mode: area
+      align_corners: false
+      antialias: true
+
+  input_mode: lr
+  include_coords: false
+  include_mask: false
+  include_fourier_pe: false
+  fourier_pe_bands: 4
+  normalize: true
+  augmentation:
+    enabled: false
+
+  dataloader:
+    batch_size: 16 # 序列训练显存占用大，减小 batch size
+    num_workers: 8
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 4
+
+hardware:
+  allow_tf32: true
+  memory:
+    cudnn_benchmark: true
+
+# 使用 SwinUNet 作为骨干网络
+model:
+  name: SwinUNet
+  in_channels: 1
+  out_channels: 1
+  img_size: 128
+  # SwinUNet specific params (defaults)
+  embed_dim: 96
+  depths: [2, 2, 2, 2]
+  num_heads: [3, 6, 12, 24]
+  window_size: 8
+  pretrained: false # 关键：不加载预训练权重
+
+model_budget:
+  target_params_m: 10.0
+  tolerance_m: 1.0
+  auto_tune: false
+
+training:
+  epochs: 100
+  batch_size: 16
+  gradient_accumulation_steps: 4 # 补偿 batch size 减小
+  
+  torch_compile: false
+  channels_last: true
+  
+  dataloader:
+    batch_size: 16
+    num_workers: 8
+  
+  # 课程学习：从短序列逐步过渡到长序列
+  curriculum:
+    enabled: true
+    stages:
+      - epochs: 20
+        T_out: 2
+      - epochs: 20
+        T_out: 5
+      - epochs: 60
+        T_out: 10
+
+  loss_weights:
+    reconstruction: 1.0
+    spectral: 0.5
+    data_consistency: 1.0
+    ar_loss: 1.0 # 启用 AR Loss
+  
+  validation:
+    enabled: true
+    check_val_every_n_epoch: 5
+    log_val_metrics: false
+  
+  optimizer:
+    name: "AdamW"
+    lr: 0.0005
+    weight_decay: 0.0001
+  
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 100
+    eta_min: 1e-6
+    warmup_epochs: 5
+  
+  gradient_clip_val: 1.0
+  amp:
+    enabled: true # 序列训练建议开启 AMP
+    autocast_dtype: bfloat16
+
+  checkpoint:
+    save_best: true
+    save_last: true
+    max_keep: 3
+    monitor: val_loss
+    mode: min
+    save_every_n_epochs: 20
+
+loss:
+  ar_loss:
+    weight: 1.0
+    reduction: mean
+  reconstruction:
+    weight: 1.0
+  spectral:
+    weight: 0.5
+  degradation_consistency:
+    weight: 1.0
+
+validation:
+  check_val_every_n_epoch: 5
+  use_observation: true
+  metrics: [rel_l2, mae, psnr, ssim]
+  rollout_steps: [1, 5, 10] # 验证不同步长的性能
+  convergence_criteria:
+    target_rel_l2: 0.1
+    patience_for_convergence: 10
+
+logging:
+  experiment_name: "AR-DR2D-SwinUNet-E2E-NoPretrain"
+  version: null
+  log_model: false
+  tensorboard:
+    save_dir: runs/tensorboard
+    name: ar_paper
+  visualization:
+    save_test_visualizations: true
+    num_test_samples: 2
+
+testing:
+  enabled: true
+  run_final_test: true
+  batch_size: 32
+  save_visualizations: true

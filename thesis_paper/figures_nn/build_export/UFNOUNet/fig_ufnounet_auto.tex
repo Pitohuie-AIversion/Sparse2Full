@@ -1,0 +1,96 @@
+
+\documentclass[tikz, border=2mm]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{positioning, calc, 3d}
+\input{nn_blocks.tex}
+
+\definecolor{convcolor}{rgb}{1,0.8,0.5}
+\definecolor{rescolor}{rgb}{0.8,0.8,1}
+\definecolor{poolcolor}{rgb}{1,0.5,0.5}
+\definecolor{upcolor}{rgb}{0.8,0.5,1}
+\definecolor{opcolor}{rgb}{0.5,1,0.5}
+
+\def\ConvColor{convcolor}
+\def\PoolColor{poolcolor}
+\def\UpColor{upcolor}
+\def\OpColor{opcolor}
+\def\ResColor{rescolor}
+
+\begin{document}
+\begin{tikzpicture}
+
+% Input
+\node[io] (in) {Input};
+
+% Encoder
+\pic[shift={(2.0,0,0)}] at (in.east) {RightBandedBox={
+    name=enc1,
+    caption=Enc\\1,
+    fill=\ConvColor,
+    height=40, width=2, depth=40
+}};
+
+\pic[shift={(1.5,0,0)}] at (enc1-east) {RightBandedBox={
+    name=enc2,
+    caption=Enc\\2,
+    fill=\ConvColor,
+    height=30, width=3, depth=30
+}};
+
+\pic[shift={(1.5,0,0)}] at (enc2-east) {RightBandedBox={
+    name=enc3,
+    caption=Enc\\3,
+    fill=\ConvColor,
+    height=20, width=4, depth=20
+}};
+
+% FNO Bottleneck
+\pic[shift={(2.0,0,0)}] at (enc3-east) {Box={
+    name=fno,
+    caption=FNO\\Bottle-\\neck,
+    fill=\OpColor,
+    height=15, width=6, depth=15
+}};
+
+% Decoder
+\pic[shift={(2.0,0,0)}] at (fno-east) {RightBandedBox={
+    name=dec3,
+    caption=Dec\\3,
+    fill=\UpColor,
+    height=20, width=4, depth=20
+}};
+
+\pic[shift={(1.5,0,0)}] at (dec3-east) {RightBandedBox={
+    name=dec2,
+    caption=Dec\\2,
+    fill=\UpColor,
+    height=30, width=3, depth=30
+}};
+
+\pic[shift={(1.5,0,0)}] at (dec2-east) {RightBandedBox={
+    name=dec1,
+    caption=Dec\\1,
+    fill=\UpColor,
+    height=40, width=2, depth=40
+}};
+
+% Output
+\node[io, right=2.0cm of dec1-east] (out) {Output};
+
+% Connections
+\draw[arrow] (in) -- (enc1-west);
+\draw[arrow] (enc1-east) -- (enc2-west);
+\draw[arrow] (enc2-east) -- (enc3-west);
+\draw[arrow] (enc3-east) -- (fno-west);
+\draw[arrow] (fno-east) -- (dec3-west);
+\draw[arrow] (dec3-east) -- (dec2-west);
+\draw[arrow] (dec2-east) -- (dec1-west);
+\draw[arrow] (dec1-east) -- (out);
+
+% Skips
+\draw[skip] (enc3-east) to[out=60,in=120] (dec3-west);
+\draw[skip] (enc2-east) to[out=60,in=120] (dec2-west);
+\draw[skip] (enc1-east) to[out=60,in=120] (dec1-west);
+
+\end{tikzpicture}
+\end{document}

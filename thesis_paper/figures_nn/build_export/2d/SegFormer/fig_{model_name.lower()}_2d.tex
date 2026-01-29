@@ -1,0 +1,130 @@
+
+\documentclass[tikz, border=10pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{positioning, chains, shapes.geometric, fit, shapes, arrows.meta, calc, backgrounds}
+
+\begin{document}
+\begin{tikzpicture}[
+    >=LaTeX, 
+    very thick,
+    node distance=0.8cm and 1.0cm,
+    arrow/.style={
+        ->,
+        very thick,
+        rounded corners=0.2cm
+    },
+    block/.style={
+        rectangle,
+        fill=gray!10,
+        rounded corners=3mm,
+        draw,
+        very thick,
+        inner sep=0.5em
+    },
+    layer/.style={
+        rectangle,
+        fill=white!10,
+        rounded corners=1mm,
+        inner xsep=0.5em,
+        inner ysep=0.5em,
+        minimum height=2.5em,
+        align=center,
+        draw,
+        very thick
+    },
+    conv/.style={
+        layer,
+        fill=orange!10,
+        draw=orange!80!black
+    },
+    relu/.style={
+        layer,
+        fill=yellow!10,
+        draw=yellow!80!black,
+        minimum height=2em
+    },
+    pool/.style={
+        layer,
+        fill=red!10,
+        draw=red!80!black
+    },
+    input/.style={ 
+        circle,
+        minimum width=2.5em,
+        draw,
+        fill=gray!20,
+        thick,
+        align=center
+    },
+    sum/.style={
+        circle,
+        draw,
+        fill=white,
+        inner sep=0pt,
+        minimum size=1em,
+        node contents={+}
+    }
+]
+
+
+    
+ode[input] (in) {Input};
+    
+    % Overlap Patch Embed
+    
+ode[conv, right=of in] (pe) {Overlap\\PatchEmbed\\($7\times 7, s=4$)};
+    \draw[arrow] (in) -- (pe);
+
+    % Mix Transformer Block
+    
+ode[layer, right=1.5cm of pe] (ln1) {Layer\\Norm};
+    
+    % Attention Branch
+    
+ode[layer, right=0.5cm of ln1, fill=green!10] (attn) {Efficient\\Self-Attn};
+    
+ode[sum, right=0.5cm of attn] (sum1) {};
+    
+    
+ode[layer, right=0.8cm of sum1] (ln2) {Layer\\Norm};
+    
+ode[layer, right=0.5cm of ln2, fill=orange!10] (ffn) {Mix-FFN\\($3\times 3$ DW)};
+    
+ode[sum, right=0.5cm of ffn] (sum2) {};
+
+    \begin{scope}[on background layer]
+        \node[block, fit=(ln1) (sum2), label=above:MixTransformer Block (Stage 1)] (block1) {};
+    \end{scope}
+
+    % Connections
+    \draw[arrow] (pe) -- (ln1);
+    \draw[arrow] (ln1) -- (attn);
+    \draw[arrow] (attn) -- (sum1);
+    \draw[arrow] (sum1) -- (ln2);
+    \draw[arrow] (ln2) -- (ffn);
+    \draw[arrow] (ffn) -- (sum2);
+
+    % Skips
+    \draw[arrow] (pe) -- ++(0.5,0) |- ($(ln1.north) + (0, 0.5)$) -| (sum1.north);
+    \draw[arrow] (sum1) -- ++(0.4,0) |- ($(ln2.north) + (0, 0.5)$) -| (sum2.north);
+
+    % Stages 2-4
+    
+ode[right=1cm of block1] (dots) {\huge $\dots$};
+    \draw[arrow] (sum2) -- (dots);
+
+    
+ode[block, right=1cm of dots] (stage4) {Stage 4};
+    \draw[arrow] (dots) -- (stage4);
+
+    % Head
+    
+ode[layer, right=of stage4] (head) {MLP\\Decoder};
+    
+ode[input, right=of head] (out) {Output};
+    
+    \draw[arrow] (stage4) -- (head);
+    \draw[arrow] (head) -- (out);
+
+\end{tikzpicture}
+\end{document}

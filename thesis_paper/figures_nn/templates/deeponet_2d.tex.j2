@@ -1,0 +1,72 @@
+\documentclass[tikz, border=10mm]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{positioning, calc, arrows.meta, chains, fit, shapes, backgrounds}
+\input{nn_blocks.tex}
+\begin{document}
+\begin{tikzpicture}[
+    node distance=1.5cm,
+    every node/.style={scale=0.8, transform shape}
+]
+
+% --- Branch Net (Top) ---
+% Input
+\node[io] (in_u) {Input\\$u$};
+
+% Layers (Flat layout)
+\node[conv, right=of in_u] (c1) {Conv};
+\node[conv, right=1.0cm of c1] (c2) {Conv};
+\node[pool, right=1.0cm of c2] (gap) {GAP};
+\node[res, right=1.0cm of gap] (fc) {FC};
+
+% Output of Branch
+\node[right=1.0cm of fc] (b_out) {Coeffs\\$b$};
+
+% Connections
+\draw[arrow] (in_u) -- (c1);
+\draw[arrow] (c1) -- (c2);
+\draw[arrow] (c2) -- (gap);
+\draw[arrow] (gap) -- (fc);
+\draw[arrow] (fc) -- (b_out);
+
+% Grouping Box
+\begin{scope}[on background layer]
+    \node[block, fit=(c1) (fc), label=above:Branch Net (CNN)] (branch_box) {};
+\end{scope}
+
+% --- Trunk Net (Bottom) ---
+% Input (Aligned below u)
+\node[io, below=4.0cm of in_u] (in_y) {Coords\\$y$};
+
+% Layers
+\node[res, right=of in_y] (l1) {Linear};
+\node[res, right=1.0cm of l1] (l2) {Linear};
+\node[res, right=1.0cm of l2] (l3) {Linear};
+
+% Output of Trunk
+\node[right=1.0cm of l3] (t_out_node) {Basis\\$t$};
+
+% Connections
+\draw[arrow] (in_y) -- (l1);
+\draw[arrow] (l1) -- (l2);
+\draw[arrow] (l2) -- (l3);
+\draw[arrow] (l3) -- (t_out_node);
+
+% Grouping Box
+\begin{scope}[on background layer]
+    \node[block, fit=(l1) (l3), label=below:Trunk Net (MLP)] (trunk_box) {};
+\end{scope}
+
+% --- Fusion ---
+\coordinate (mid) at ($(b_out)!0.5!(t_out_node)$);
+\node[op, right=2.0cm of mid] (dot) {Dot\\Product};
+
+% Output
+\node[io, right=of dot] (out) {Output\\$G(u)(y)$};
+
+% Fusion Connections
+\draw[arrow] (b_out) -| (dot);
+\draw[arrow] (t_out_node) -| (dot);
+\draw[arrow] (dot) -- (out);
+
+\end{tikzpicture}
+\end{document}

@@ -1,0 +1,16 @@
+\documentclass[tikz, border=10mm]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{positioning, calc}
+\input{nn_blocks.tex}
+\begin{document}
+\begin{tikzpicture}[
+    node distance={{ node_distance|default('1.5cm') }},
+    every node/.style={scale=0.8, transform shape}
+]
+\node[io] (in) {Input\\$({{ img }}\times {{ img }})$};
+\node[nntikz_block, right=of in, minimum width=40mm] (model) { {{ model_name_safe }}\\Backbone};
+\node[io, right=of model] (out) {Output};
+\draw[arrow] (in) -- (model);
+\draw[arrow] (model) -- (out);
+\end{tikzpicture}
+\end{document}

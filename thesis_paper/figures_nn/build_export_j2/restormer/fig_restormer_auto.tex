@@ -1,0 +1,195 @@
+\documentclass[tikz, border=10mm]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{positioning, calc, arrows.meta, chains, fit, shapes, 3d}
+\input{nn_blocks.tex}
+
+\definecolor{convcolor}{rgb}{1,0.8,0.5}
+\definecolor{rescolor}{rgb}{0.8,0.8,1}
+\definecolor{poolcolor}{rgb}{1,0.5,0.5}
+\definecolor{upcolor}{rgb}{0.8,0.5,1}
+\definecolor{opcolor}{rgb}{0.5,1,0.5}
+
+\def\ConvColor{convcolor}
+\def\ResColor{rescolor}
+\def\PoolColor{poolcolor}
+\def\UpColor{upcolor}
+\def\OpColor{opcolor}
+\def\ConvColor{convcolor}
+\def\PoolColor{poolcolor}
+\def\UpColor{upcolor}
+\def\OpColor{opcolor}
+
+\begin{document}
+\begin{tikzpicture}
+
+\node[io] (in) {Input};
+
+% Encoder 1
+\pic[shift={(2.0 * 1.5,0,0)}] at (in.east) {RightBandedBox={
+    name=enc1,
+    caption=Enc 1,
+    xlabel={"64", "64"},
+    fill=\ConvColor,
+    height=40, width=2, depth=40
+}};
+
+\pic[shift={(1.5 * 1.5,0,0)}] at (enc1-east) {Box={
+    name=pool1,
+    caption=Pool,
+    fill=\PoolColor,
+    height=32, width=1, depth=32
+}};
+
+% Encoder 2
+\pic[shift={(1.5 * 1.5,0,0)}] at (pool1-east) {RightBandedBox={
+    name=enc2,
+    caption=Enc 2,
+    xlabel={"128", "128"},
+    fill=\ConvColor,
+    height=32, width=3, depth=32
+}};
+
+\pic[shift={(1.5 * 1.5,0,0)}] at (enc2-east) {Box={
+    name=pool2,
+    caption=Pool,
+    fill=\PoolColor,
+    height=25, width=1, depth=25
+}};
+
+% Encoder 3
+\pic[shift={(1.5 * 1.5,0,0)}] at (pool2-east) {RightBandedBox={
+    name=enc3,
+    caption=Enc 3,
+    xlabel={"256", "256"},
+    fill=\ConvColor,
+    height=25, width=4, depth=25
+}};
+
+\pic[shift={(1.5 * 1.5,0,0)}] at (enc3-east) {Box={
+    name=pool3,
+    caption=Pool,
+    fill=\PoolColor,
+    height=16, width=1, depth=16
+}};
+
+% Encoder 4
+\pic[shift={(1.5 * 1.5,0,0)}] at (pool3-east) {RightBandedBox={
+    name=enc4,
+    caption=Enc 4,
+    xlabel={"512", "512"},
+    fill=\ConvColor,
+    height=16, width=5, depth=16
+}};
+
+\pic[shift={(1.5 * 1.5,0,0)}] at (enc4-east) {Box={
+    name=pool4,
+    caption=Pool,
+    fill=\PoolColor,
+    height=8, width=1, depth=8
+}};
+
+% Bottleneck
+\pic[shift={(1.5 * 1.5,0,0)}] at (pool4-east) {RightBandedBox={
+    name=bot,
+    caption=Bottleneck,
+    xlabel={"1024", "1024"},
+    fill=\ConvColor,
+    height=8, width=6, depth=8
+}};
+
+% Decoder 4
+\pic[shift={(1.5 * 1.5,0,0)}] at (bot-east) {Box={
+    name=up4,
+    caption=Up,
+    fill=\UpColor,
+    height=16, width=1, depth=16
+}};
+
+\pic[shift={(1.5 * 1.5,0,0)}] at (up4-east) {RightBandedBox={
+    name=dec4,
+    caption=Dec 4,
+    xlabel={"512", "512"},
+    fill=\ConvColor,
+    height=16, width=5, depth=16
+}};
+
+% Decoder 3
+\pic[shift={(1.5 * 1.5,0,0)}] at (dec4-east) {Box={
+    name=up3,
+    caption=Up,
+    fill=\UpColor,
+    height=25, width=1, depth=25
+}};
+
+\pic[shift={(1.5 * 1.5,0,0)}] at (up3-east) {RightBandedBox={
+    name=dec3,
+    caption=Dec 3,
+    xlabel={"256", "256"},
+    fill=\ConvColor,
+    height=25, width=4, depth=25
+}};
+
+% Decoder 2
+\pic[shift={(1.5 * 1.5,0,0)}] at (dec3-east) {Box={
+    name=up2,
+    caption=Up,
+    fill=\UpColor,
+    height=32, width=1, depth=32
+}};
+
+\pic[shift={(1.5 * 1.5,0,0)}] at (up2-east) {RightBandedBox={
+    name=dec2,
+    caption=Dec 2,
+    xlabel={"128", "128"},
+    fill=\ConvColor,
+    height=32, width=3, depth=32
+}};
+
+% Decoder 1
+\pic[shift={(1.5 * 1.5,0,0)}] at (dec2-east) {Box={
+    name=up1,
+    caption=Up,
+    fill=\UpColor,
+    height=40, width=1, depth=40
+}};
+
+\pic[shift={(1.5 * 1.5,0,0)}] at (up1-east) {RightBandedBox={
+    name=dec1,
+    caption=Dec 1,
+    xlabel={"64", "64"},
+    fill=\ConvColor,
+    height=40, width=2, depth=40
+}};
+
+% Output
+\node[io, right=2.0cm of dec1-east] (out) {Output};
+
+% Connections
+\draw[arrow] (in) -- (enc1-west);
+\draw[arrow] (enc1-east) -- (pool1-west);
+\draw[arrow] (pool1-east) -- (enc2-west);
+\draw[arrow] (enc2-east) -- (pool2-west);
+\draw[arrow] (pool2-east) -- (enc3-west);
+\draw[arrow] (enc3-east) -- (pool3-west);
+\draw[arrow] (pool3-east) -- (enc4-west);
+\draw[arrow] (enc4-east) -- (pool4-west);
+\draw[arrow] (pool4-east) -- (bot-west);
+
+\draw[arrow] (bot-east) -- (up4-west);
+\draw[arrow] (up4-east) -- (dec4-west);
+\draw[arrow] (dec4-east) -- (up3-west);
+\draw[arrow] (up3-east) -- (dec3-west);
+\draw[arrow] (dec3-east) -- (up2-west);
+\draw[arrow] (up2-east) -- (dec2-west);
+\draw[arrow] (dec2-east) -- (up1-west);
+\draw[arrow] (up1-east) -- (dec1-west);
+\draw[arrow] (dec1-east) -- (out);
+
+% Skip Connections
+\draw[skip] (enc4-east) -- ++(0, 3, 0) -| (dec4-north);
+\draw[skip] (enc3-east) -- ++(0, 4, 0) -| (dec3-north);
+\draw[skip] (enc2-east) -- ++(0, 5, 0) -| (dec2-north);
+\draw[skip] (enc1-east) -- ++(0, 6, 0) -| (dec1-north);
+
+\end{tikzpicture}
+\end{document}

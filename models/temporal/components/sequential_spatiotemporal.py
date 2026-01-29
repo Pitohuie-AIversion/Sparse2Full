@@ -5,7 +5,7 @@
 
 import torch
 import torch.nn as nn
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Any
 from dataclasses import dataclass
 import math
 
@@ -64,6 +64,20 @@ class SpatialFeatureExtractor(nn.Module):
                 spectral_norm=backbone_config.get('spectral_norm', True),
                 gradient_clip=backbone_config.get('gradient_clip', 1.0)
             )
+        elif backbone_type == "edsr":
+            # 使用EDSR作为空间特征提取器
+            from models.spatial.edsr import EDSR
+            self.backbone = EDSR(
+                in_channels=in_channels,
+                out_channels=feature_dim, # 输出特征维度
+                img_size=img_size[0],
+                n_feats=backbone_config.get('n_feats', 64),
+                n_resblocks=backbone_config.get('n_resblocks', 16),
+                res_scale=backbone_config.get('res_scale', 0.1),
+                upscale=backbone_config.get('upscale', 1),
+                bias=backbone_config.get('bias', True),
+                add_input_residual=backbone_config.get('add_input_residual', None)
+            )
         elif backbone_type == "simple_cnn":
             # 使用简单的CNN作为空间特征提取器
             from models.temporal.components.simple_spatial_cnn import SimpleSpatialCNN
@@ -105,8 +119,10 @@ class SpatialFeatureExtractor(nn.Module):
             # 重塑为2D进行处理
             x = x.reshape(B * T, C, H, W)
             features = self.backbone(x)
+            # 动态获取特征空间维度
+            _, _, H_feat, W_feat = features.shape
             # 重塑回时空格式
-            features = features.reshape(B, T, self.feature_dim, H, W)
+            features = features.reshape(B, T, self.feature_dim, H_feat, W_feat)
         else:
             features = self.backbone(x)
         
@@ -557,15 +573,19 @@ class TemporalPredictionModule(nn.Module):
             from models.temporal.components.video_swin import VideoSwinPredictor
             
             # 使用 effective_feature_dim 逻辑
-            effective_feature_dim = spatial_feature_dim
-            if 'backbone_config' in config and 'width' in config['backbone_config']:
-                 if config.get('backbone_type') != 'identity' and spatial_feature_dim == 0:
-                     effective_feature_dim = config['backbone_config']['width']
-            if config.get('backbone_type') == 'identity':
-                effective_feature_dim = 0
-                
+            # 注意：在forward中我们强制设置了 spatial_features = None
+            # 因此这里输入通道应该只包含 spatial_pred 的通道 (out_channels)
+            # 而不包含 spatial_feature_dim
+            # 但为了保持兼容性，我们需要确保 VideoSwin 初始化时的 in_channels 匹配实际输入
+            
+            # 修正：既然我们强制 Two-Stage 只传图像，那么 in_channels 应该等于 out_channels
+            # 但我们需要确认这是否会破坏其他使用 VideoSwin 的配置（非 Two-Stage）
+            # 目前这个类是在 SequentialSpatiotemporalModel 中使用的
+            # 而我们刚才硬编码了 spatial_features = None
+            # 所以这里必须匹配
+            
             self.video_swin_model = VideoSwinPredictor(
-                in_channels=(effective_feature_dim + out_channels),
+                in_channels=out_channels, # 只输入图像，不含特征
                 hidden_dim=temporal_dim,
                 out_channels=out_channels,
                 num_layers=num_layers,
@@ -603,6 +623,10 @@ class TemporalPredictionModule(nn.Module):
         """
         spatial_pred = spatial_results.spatial_pred
         spatial_features = spatial_results.spatial_features
+        
+        # 强制忽略潜空间特征，只使用空间模型的输出图像作为时序模型的输入
+        # 这符合 "Two Stage" 的物理意义：时序模型仅基于空间恢复后的高清图像序列进行预测
+        spatial_features = None 
         
         B = spatial_pred.shape[0]
         
@@ -871,14 +895,28 @@ class TemporalPredictionModule(nn.Module):
 class SequentialSpatiotemporalModel(nn.Module):
     """分阶段时空预测模型"""
     
-    def __init__(self, spatial_config: Dict, temporal_config: Dict, data_config: Dict, device: str = 'cuda'):
+    def __init__(self, spatial_config: Dict, temporal_config: Dict, data_config: Dict, device: str = 'cuda', **kwargs):
         super().__init__()
+        
+        # 转换为普通字典以避免OmegaConf的结构限制和副作用
+        from omegaconf import DictConfig, OmegaConf
+        if isinstance(spatial_config, DictConfig):
+            spatial_config = OmegaConf.to_container(spatial_config, resolve=True)
+        elif hasattr(spatial_config, 'items'):
+            spatial_config = dict(spatial_config)
+            
+        if isinstance(temporal_config, DictConfig):
+            temporal_config = OmegaConf.to_container(temporal_config, resolve=True)
+        elif hasattr(temporal_config, 'items'):
+            temporal_config = dict(temporal_config)
+
         # 合并配置
         self.config = {
             **spatial_config,
             **temporal_config,
             'data_config': data_config,
-            'device': device
+            'device': device,
+            **kwargs
         }
         
         # 自动将空间配置中的特征维度同步到时序配置中，防止维度不匹配
@@ -978,6 +1016,23 @@ class SequentialSpatiotemporalModel(nn.Module):
             self.teacher_prob = min(prob, cap)
         except Exception:
             self.teacher_prob = 0.0
+            
+    def get_model_info(self) -> Dict[str, Any]:
+        """获取模型信息"""
+        total_params = sum(p.numel() for p in self.parameters())
+        return {
+            "name": self.__class__.__name__,
+            "parameters": total_params,
+            "parameters_M": total_params / 1e6,
+        }
+
+    def get_memory_usage(self, batch_size: int = 1) -> Dict[str, float]:
+        """估算显存使用量"""
+        param_memory = sum(p.numel() * p.element_size() for p in self.parameters()) / 1024**2
+        return {
+            "parameters_MB": float(param_memory),
+            "total_MB": float(param_memory), # 简化估算
+        }
         
     def spatial_forward(self, x: torch.Tensor, target: Optional[torch.Tensor] = None) -> SpatialPredictionOutput:
         """仅执行空间预测"""
@@ -1001,6 +1056,7 @@ class SequentialSpatiotemporalModel(nn.Module):
         """
         B, T_in, C, H, W = x.shape
         predictions = []
+        # 使用最近的 T_in 帧作为输入窗口
         current_input = x.clone()
         
         if step_by_step:
@@ -1008,21 +1064,26 @@ class SequentialSpatiotemporalModel(nn.Module):
                 self.eval()
                 with torch.no_grad():
                     for t in range(T_out):
+                        # 如果当前输入超过了模型需要的T_in，裁剪
+                        if current_input.shape[1] > T_in:
+                            current_input = current_input[:, -T_in:]
+                            
                         outputs = self.forward(current_input)
                         # 使用当前窗口的最后一步作为下一步预测的代理
                         pred_t = outputs['final_pred'][:, -1:]
                         predictions.append(pred_t)
-                        if t < T_out - 1:
-                            current_input = torch.cat([current_input[:, 1:], pred_t], dim=1)
+                        current_input = torch.cat([current_input, pred_t], dim=1)
                     return torch.cat(predictions, dim=1)
             else:
                 self.train()
                 for t in range(T_out):
+                    if current_input.shape[1] > T_in:
+                        current_input = current_input[:, -T_in:]
+                        
                     outputs = self.forward(current_input)
                     pred_t = outputs['final_pred'][:, -1:]
                     predictions.append(pred_t)
-                    if t < T_out - 1:
-                        current_input = torch.cat([current_input[:, 1:], pred_t], dim=1)
+                    current_input = torch.cat([current_input, pred_t], dim=1)
                 return torch.cat(predictions, dim=1)
         
         else:

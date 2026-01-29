@@ -1,0 +1,125 @@
+{% include "pnn_header.tex.j2" %}
+\def\ConvColor{convcolor}
+\def\ResColor{rescolor}
+\def\OpColor{opcolor}
+\def\PoolColor{poolcolor}
+
+\begin{document}
+\begin{tikzpicture}
+
+% 1. Input Image (Branch Input)
+\node[io] (in) {Input};
+
+% 2. Branch Net (CNN Backbone)
+\pic[shift={(2.0 * {{ dist_scale|default(1.0) }},0,0)}] at (in.east) {RightBandedBox={
+    name=b_conv1,
+    caption=Branch\\Conv1,
+    xlabel={{ '{' }}"64", ""{{ '}' }},
+    zlabel=64,
+    fill=\ConvColor,
+    height=30, width=2, depth=30
+}};
+
+\pic[shift={(1.5 * {{ dist_scale|default(1.0) }},0,0)}] at (b_conv1-east) {RightBandedBox={
+    name=b_conv2,
+    caption=Branch\\Conv2,
+    xlabel={{ '{' }}"128", ""{{ '}' }},
+    zlabel=32,
+    fill=\ConvColor,
+    height=20, width=3, depth=20
+}};
+
+\pic[shift={(1.5 * {{ dist_scale|default(1.0) }},0,0)}] at (b_conv2-east) {RightBandedBox={
+    name=b_conv3,
+    caption=Branch\\Conv3,
+    xlabel={{ '{' }}"256", ""{{ '}' }},
+    zlabel=16,
+    fill=\ConvColor,
+    height=15, width=4, depth=15
+}};
+
+% Global Pooling + FC -> Coeffs
+\pic[shift={(1.5 * {{ dist_scale|default(1.0) }},0,0)}] at (b_conv3-east) {Box={
+    name=b_gap,
+    caption=GAP,
+    fill=\PoolColor,
+    height=5, width=1, depth=5
+}};
+
+\pic[shift={(1.2 * {{ dist_scale|default(1.0) }},0,0)}] at (b_gap-east) {Box={
+    name=b_vec,
+    caption=Coeffs\\$b$,
+    fill=\ResColor,
+    height=1, width=6, depth=1
+}};
+
+% 3. Trunk Net (MLP)
+% Coords input (below Branch Conv1)
+\node[io, below=8.0cm of b_conv1-west] (coords) {Coords};
+
+\pic[shift={(2.0 * {{ dist_scale|default(1.0) }},0,0)}] at (coords.east) {Box={
+    name=t_mlp1,
+    caption=Trunk\\MLP1,
+    fill=\ConvColor,
+    height=8, width=2, depth=8
+}};
+
+\pic[shift={(1.0 * {{ dist_scale|default(1.0) }},0,0)}] at (t_mlp1-east) {Box={
+    name=t_mlp2,
+    caption=Trunk\\MLP2,
+    fill=\ConvColor,
+    height=8, width=2, depth=8
+}};
+
+\pic[shift={(1.0 * {{ dist_scale|default(1.0) }},0,0)}] at (t_mlp2-east) {Box={
+    name=t_mlp3,
+    caption=Trunk\\MLP3,
+    fill=\ConvColor,
+    height=8, width=2, depth=8
+}};
+
+% Basis
+\pic[shift={(1.5 * {{ dist_scale|default(1.0) }},0,0)}] at (t_mlp3-east) {Box={
+    name=t_vec,
+    caption=Basis\\$t$,
+    fill=\ResColor,
+    height=1, width=6, depth=1
+}};
+
+% 4. Fusion (Dot Product)
+% Position fusion roughly between the ends of both branches
+\coordinate (fusion_pos) at ($(b_vec-east)!0.5!(t_vec-east) + (2.0, 0, 0)$);
+
+\pic[shift={(0,0,0)}] at (fusion_pos) {Box={
+    name=dot,
+    caption=Dot\\Product,
+    fill=\OpColor,
+    height=5, width=2, depth=5
+}};
+
+% 5. Output
+\node[io, right=1.5cm of dot-east] (out) {Output};
+
+% Connections
+% Branch
+\draw[arrow] (in) -- (b_conv1-west);
+\draw[arrow] (b_conv1-east) -- (b_conv2-west);
+\draw[arrow] (b_conv2-east) -- (b_conv3-west);
+\draw[arrow] (b_conv3-east) -- (b_gap-west);
+\draw[arrow] (b_gap-east) -- (b_vec-west);
+
+% Trunk
+\draw[arrow] (coords) -- (t_mlp1-west);
+\draw[arrow] (t_mlp1-east) -- (t_mlp2-west);
+\draw[arrow] (t_mlp2-east) -- (t_mlp3-west);
+\draw[arrow] (t_mlp3-east) -- (t_vec-west);
+
+% Fusion
+\draw[arrow] (b_vec-east) -- ++(0.5,0,0) |- (dot-west);
+\draw[arrow] (t_vec-east) -- ++(0.5,0,0) |- (dot-west);
+
+% Output
+\draw[arrow] (dot-east) -- (out);
+
+\end{tikzpicture}
+\end{document}

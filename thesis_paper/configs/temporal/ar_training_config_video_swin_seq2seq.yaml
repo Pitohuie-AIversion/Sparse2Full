@@ -1,0 +1,299 @@
+# AR训练配置文件 - Video Swin Transformer (Seq2Seq / Rollout 训练)
+# 基于 3D Window Attention 的时空预测 - 预测未来10步
+
+experiment:
+  name: "AR-ShallowWater-VideoSwin-Seq2Seq-s2025"
+  description: "自回归预测（Video Swin Transformer） - 10步滚动预测"
+  device: cuda
+  seed: 2025
+  output_dir: runs
+  log_every_n_steps: 5
+
+device:
+  accelerator: cuda
+  devices: 1
+  strategy: auto
+  allow_data_parallel_fallback: true
+  precision: fp32
+
+# 启用专用时序模型
+ar:
+  enabled: true
+
+sequential:
+  enabled: true
+  model_type: "SequentialSpatiotemporalModel"
+  spatial:
+    in_channels: 1
+    spatial_feature_dim: 0
+    out_channels: 1
+    img_size: [128, 128]
+    backbone_type: "identity"
+    backbone_config:
+      modes1: 12
+      modes2: 12
+      width: 64
+      n_layers: 4
+      activation: 'gelu'
+  temporal:
+    spatial_feature_dim: 0
+    temporal_dim: 96       # Swin 常用隐藏层维度
+    out_channels: 1
+    img_size: [128, 128]
+    backend: video_swin    # 启用 Video Swin
+    num_heads: 4
+    num_layers: 2
+    window_size: [2, 8, 8] # (T, H, W) 窗口大小
+    dropout: 0.1
+    use_positional_encoding: false # Swin自带相对位置编码
+    reduce_spatial: null
+    reduce_size: [128, 128]
+    teacher_forcing_cap: 0.0
+    teacher_forcing_schedule:
+      enabled: false
+  
+  consistency:
+    enabled: true
+    spatial_temporal_consistency: true
+    feature_consistency_weight: 0.3
+  
+  training:
+    two_stage_training: false
+    stage1_epochs: 0
+    stage2_epochs: 2000
+    spatial_loss_weight: 0.0
+    temporal_loss_weight: 1.0
+    teacher_forcing_cap: 0.2
+
+model_wrapper:
+  enabled: false
+
+data:
+  data_path: "data/2D/shallow-water/2D_rdb_NA_NA.h5"
+  dataset_name: ShallowWater
+  img_size: 128
+  channels: 1
+  keys: null
+  component: u
+  use_official_format: true
+  splits_dir: splits_sw
+  target_channels: 1
+  input_channels: 1
+  sample_limit: 30
+  
+  T_in: 30
+  T_out: 10 # 关键修改：预测未来10步
+  
+  train_ratio: 1.0
+  val_ratio: 0.1
+  test_ratio: 0.1
+  
+  time_step_start: 0
+  time_step_end: 101
+  time_step_stride: 1
+  
+  observation:
+    mode: identity
+    use_coords: false
+    use_mask: false
+  
+  normalize: true
+  augmentation:
+    enabled: false
+
+  use_synthetic_data: false
+  
+  dataloader:
+    batch_size: 8 # 进一步减小 Batch Size，因为 T_out 变大了 (10步 rollout 显存消耗大)
+    val_batch_size: 8
+    test_batch_size: 8
+    num_workers: 8
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 4
+    drop_last: false
+    shuffle: true
+    timeout: 0
+
+hardware:
+  allow_tf32: false
+  memory:
+    cudnn_benchmark: false
+  torch_threads: 96
+  mkl_threads: 96
+  omp_threads: 96
+  interop_threads: 96
+  blas_threads: 96
+  numexpr_threads: 96
+  vram_threshold: 0.98
+
+training:
+  epochs: 500
+  batch_size: 8
+  gradient_accumulation_steps: 8 # 增加累积步数以弥补小 Batch Size (8*8=64)
+  
+  torch_compile: false
+  torch_compile_backend: "inductor"
+  torch_compile_mode: "reduce-overhead"
+  channels_last: true
+  
+  dataloader:
+    batch_size: 8
+  rollout_training: true # 启用滚动训练 (AR 模式)
+  teacher_forcing_cap: 0.7
+  teacher_forcing_schedule:
+    enabled: true
+    start_epoch: 1
+    end_epoch: 20
+    start_cap: 0.7
+    end_cap: 0.4
+
+  loss_weights:
+    reconstruction: 1.0
+    spectral: 0.02
+    data_consistency: 0.0
+    derivative_consistency: 0.0
+    energy_consistency: 0.0
+
+  loss:
+    rel2_weight: 1.0
+    mae_weight: 0.1
+  
+  validation:
+    enabled: true
+    check_val_every_n_epoch: 1
+    save_val_batch_for_viz: false
+    log_val_metrics: true
+  
+  optimizer:
+    name: "AdamW"
+    lr: 0.001
+    weight_decay: 0.0001
+    betas: [0.9, 0.999]
+    eps: 1e-8
+    fused: false
+    foreach: false
+  
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 3000
+    eta_min: 1e-6
+    warmup_epochs: 10
+  
+  distributed:
+    enabled: false
+    backend: "nccl"
+    init_method: "env://"
+  
+  gradient_clip_val: 1.0
+  gradient_clip_algorithm: norm
+  
+  amp:
+    enabled: true
+    autocast_dtype: bfloat16
+  
+  curriculum:
+    enabled: false
+  
+  checkpoint:
+    save_best: true
+    save_last: true
+    max_keep: 3
+    monitor: val_loss
+    mode: min
+    save_every_n_epochs: 10
+  
+  early_stopping:
+    enabled: false
+    patience: 50
+    monitor: val_loss
+    mode: min
+    min_delta: 1e-4
+
+loss:
+  ar_loss:
+    weight: 0.0
+    reduction: mean
+  rel2_weight: 1.0
+  mae_weight: 0.0
+  spectral:
+    weight: 0.0
+  data_consistency:
+    weight: 0.0
+  
+  r2:
+    weight: 0.0
+    reduction: mean
+
+validation:
+  check_val_every_n_epoch: 5
+  use_observation: false
+  
+  metrics:
+    - rel_l2
+    - mae
+    - degradation_consistency
+  
+  rollout_steps: [1, 3, 5, 10] # 验证时也看10步
+  
+  convergence_criteria:
+    target_rel_l2: 0.3
+    patience_for_convergence: 5
+    min_improvement: 5e-4
+
+logging:
+  experiment_name: "AR-ShallowWater-VideoSwin-Seq2Seq-s2025"
+  version: null
+  default_hp_metric: false
+  log_model: false
+  performance_monitoring:
+    log_gpu_memory: false
+    log_throughput: true
+    log_batch_time: true
+  
+  tensorboard:
+    save_dir: runs/tensorboard
+    name: ar_training_temporal_video_swin_seq2seq
+    version: null
+  save_splits_snapshot: true
+  
+  visualization:
+    save_samples_every_n_epochs: 50
+    num_samples_to_save: 5
+    num_test_samples: 1
+    max_images_per_sample: 1
+    save_training_curves: true
+    save_rollout_visualization: false
+    io_debug:
+      enabled: true
+      train_every_n_steps: 50
+      val_every_n_steps: 50
+      max_batches: 1
+      max_time_steps: 4
+
+seed: 2025
+
+testing:
+  enabled: true
+  run_final_test: true
+  save_predictions: false
+  compute_detailed_metrics: false
+  
+  batch_size: 64
+  save_visualizations: true
+  num_visualization_samples: 2
+  
+  fast_mode: false
+  skip_complex_metrics: false
+  minimal_logging: false
+
+data_augmentation:
+  enable: false
+  random_rotation: 
+    enable: false
+  random_flip:
+    enable: false
+  gaussian_noise:
+    enable: false
+  normalize_per_sample: false
+  compute_statistics: false

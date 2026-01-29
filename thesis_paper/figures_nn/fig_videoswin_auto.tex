@@ -1,0 +1,65 @@
+
+\documentclass[tikz, border=2mm]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{positioning, calc, 3d}
+\input{nn_blocks.tex}
+
+\definecolor{convcolor}{rgb}{1,0.8,0.5}
+\definecolor{rescolor}{rgb}{0.8,0.8,1}
+\definecolor{poolcolor}{rgb}{1,0.5,0.5}
+\definecolor{upcolor}{rgb}{0.8,0.5,1}
+\definecolor{opcolor}{rgb}{0.5,1,0.5}
+
+\def\ConvColor{convcolor}
+\def\ResColor{rescolor}
+\def\OpColor{opcolor}
+
+\begin{document}
+\begin{tikzpicture}
+
+\node[io] (in) {Input Video\\(T x H x W)};
+
+% Patch Embed (3D Conv)
+\pic[shift={(2.5,0,0)}] at (in.east) {RightBandedBox={
+    name=pe,
+    caption=3D Patch Embed,
+    xlabel={"Dimensions"},
+    fill=\ConvColor,
+    height=30, width=4, depth=30
+}};
+
+% Swin Block 1
+\pic[shift={(2.0,0,0)}] at (pe-east) {Box={
+    name=blk1,
+    caption=Swin\\Block 1,
+    fill=\ResColor,
+    height=30, width=6, depth=30
+}};
+
+% Swin Block 2
+\pic[shift={(1.5,0,0)}] at (blk1-east) {Box={
+    name=blk2,
+    caption=Swin\\Block 2,
+    fill=\ResColor,
+    height=30, width=6, depth=30
+}};
+
+% Output Projection
+\pic[shift={(2.0,0,0)}] at (blk2-east) {RightBandedBox={
+    name=proj,
+    caption=Output\\Proj,
+    fill=\ConvColor,
+    height=30, width=2, depth=30
+}};
+
+\node[io, right=2.0cm of proj-east] (out) {Prediction};
+
+% Connections
+\draw[arrow] (in) -- (pe-west);
+\draw[arrow] (pe-east) -- (blk1-west);
+\draw[arrow] (blk1-east) -- (blk2-west);
+\draw[arrow] (blk2-east) -- (proj-west);
+\draw[arrow] (proj-east) -- (out);
+
+\end{tikzpicture}
+\end{document}

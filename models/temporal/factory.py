@@ -53,7 +53,7 @@ def create_model(model_name: str, **kwargs) -> nn.Module:
         from models.temporal.components.nar_prediction_head import NARPredictionHead
         return NARPredictionHead(**kwargs)
     elif lower == "sequentialspatiotemporal":
-        from models.temporal.components.sequential_spatiotemporal import SequentialSpatiotemporal
+        from models.temporal.components.sequential_spatiotemporal import SequentialSpatiotemporalModel as SequentialSpatiotemporal
         return SequentialSpatiotemporal(**kwargs)
     elif lower == "sequentialtrainer":
         from models.temporal.components.sequential_trainer import SequentialTrainer

@@ -1,0 +1,40 @@
+\documentclass[tikz, border=10mm]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{positioning, calc, arrows.meta, chains, fit, shapes}
+\input{nn_blocks.tex}
+\begin{document}
+\begin{tikzpicture}[
+    node distance=1.5cm,
+    every node/.style={scale=0.8, transform shape}
+]
+
+\node[io] (in) {Input};
+
+% Input Proj
+\node[conv, right=of in] (proj_in) {Input\\Proj};
+\draw[arrow] (in) -- (proj_in);
+
+% Pos Encoding
+\node[op, right=of proj_in] (pe) {Physics\\PosEnc};
+\draw[arrow] (proj_in) -- (pe);
+
+% Transformer Layers
+\node[res, right=of pe] (layer1) {Physics\\Attn};
+\node[res, right=0.5cm of layer1] (ffn1) {FFN};
+\draw[arrow] (pe) -- (layer1);
+\draw[arrow] (layer1) -- (ffn1);
+
+\node[res, right=0.5cm of ffn1] (layer2) {Physics\\Attn};
+\node[res, right=0.5cm of layer2] (ffn2) {FFN};
+\draw[arrow] (ffn1) -- (layer2);
+\draw[arrow] (layer2) -- (ffn2);
+
+% Output Proj
+\node[conv, right=of ffn2] (proj_out) {Output\\Proj};
+\draw[arrow] (ffn2) -- (proj_out);
+
+\node[io, right=of proj_out] (out) {Output};
+\draw[arrow] (proj_out) -- (out);
+
+\end{tikzpicture}
+\end{document}

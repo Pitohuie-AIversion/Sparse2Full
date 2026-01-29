@@ -1,0 +1,107 @@
+\documentclass[tikz, border=10mm]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{positioning, calc, arrows.meta, chains, fit, shapes, 3d}
+\input{nn_blocks.tex}
+
+\definecolor{convcolor}{rgb}{1,0.8,0.5}
+\definecolor{rescolor}{rgb}{0.8,0.8,1}
+\definecolor{poolcolor}{rgb}{1,0.5,0.5}
+\definecolor{upcolor}{rgb}{0.8,0.5,1}
+\definecolor{opcolor}{rgb}{0.5,1,0.5}
+
+\def\ConvColor{convcolor}
+\def\ResColor{rescolor}
+\def\PoolColor{poolcolor}
+\def\UpColor{upcolor}
+\def\OpColor{opcolor}
+\def\ConvColor{convcolor}
+\def\ResColor{rescolor}
+\def\OpColor{opcolor}
+
+\begin{document}
+\begin{tikzpicture}
+
+\node[io] (in) {Video\\Input};
+
+% 3D Patch Partition (Conv3d)
+\pic[shift={(2.0 * 3.5,0,0)}] at (in.east) {RightBandedBox={
+    name=patch,
+    caption=3D Patch\\Partition,
+    xlabel={"C=96", ""},
+    fill=\ConvColor,
+    height=20, width=4, depth=20
+}};
+
+% Stage 1: Detailed Video Swin Block
+% LN
+\pic[shift={(1.5 * 3.5,0,0)}] at (patch-east) {Box={
+    name=st1_ln1,
+    caption=LN,
+    fill=\OpColor,
+    height=20, width=1, depth=20
+}};
+
+% W-MSA 3D
+\pic[shift={(0.5 * 3.5,0,0)}] at (st1_ln1-east) {RightBandedBox={
+    name=st1_msa,
+    caption=3D\\W-MSA,
+    xlabel={"T H W", ""},
+    fill=\ResColor,
+    height=20, width=4, depth=20
+}};
+
+% LN
+\pic[shift={(0.5 * 3.5,0,0)}] at (st1_msa-east) {Box={
+    name=st1_ln2,
+    caption=LN,
+    fill=\OpColor,
+    height=20, width=1, depth=20
+}};
+
+% MLP
+\pic[shift={(0.5 * 3.5,0,0)}] at (st1_ln2-east) {RightBandedBox={
+    name=st1_mlp,
+    caption=MLP,
+    fill=\ResColor,
+    height=20, width=4, depth=20
+}};
+
+% Stage 2 (Block)
+\pic[shift={(1.5 * 3.5,0,0)}] at (st1_mlp-east) {RightBandedBox={
+    name=st2,
+    caption=Stage 2\\$\times 2$,
+    fill=\ResColor,
+    height=15, width=4, depth=15
+}};
+
+% Stage 3 (Block)
+\pic[shift={(1.5 * 3.5,0,0)}] at (st2-east) {RightBandedBox={
+    name=st3,
+    caption=Stage 3\\$\times 6$,
+    fill=\ResColor,
+    height=10, width=5, depth=10
+}};
+
+% Head
+\pic[shift={(2.0 * 3.5,0,0)}] at (st3-east) {Box={
+    name=head,
+    caption=Head,
+    fill=\ConvColor,
+    height=10, width=2, depth=10
+}};
+
+\node[io, right=1.5cm of head-east] (out) {Prediction};
+
+% Connections
+\draw[arrow] (in) -- (patch-west);
+\draw[arrow] (patch-east) -- (st1_ln1-west);
+\draw[arrow] (st1_ln1-east) -- (st1_msa-west);
+\draw[arrow] (st1_msa-east) -- (st1_ln2-west);
+\draw[arrow] (st1_ln2-east) -- (st1_mlp-west);
+\draw[arrow] (st1_mlp-east) -- (st2-west);
+\draw[arrow] (st2-east) -- (st3-west);
+\draw[arrow] (st3-east) -- (head-west);
+\draw[arrow] (head-east) -- (out);
+
+\end{tikzpicture}
+\end{document}

@@ -1,0 +1,76 @@
+
+\documentclass[tikz, border=2mm]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{positioning, calc, 3d}
+\input{nn_blocks.tex}
+
+\definecolor{convcolor}{rgb}{1,0.8,0.5}
+\definecolor{rescolor}{rgb}{0.8,0.8,1}
+\definecolor{poolcolor}{rgb}{1,0.5,0.5}
+\definecolor{upcolor}{rgb}{0.8,0.5,1}
+\definecolor{opcolor}{rgb}{0.5,1,0.5}
+
+\def\ConvColor{convcolor}
+\def\ResColor{rescolor}
+\def\OpColor{opcolor}
+
+\begin{document}
+\begin{tikzpicture}
+
+\node[io] (in) {Input};
+
+% Patch Embed
+\pic[shift={(2.0,0,0)}] at (in.east) {Box={
+    name=pe,
+    caption=Patch\\Embed,
+    fill=\ConvColor,
+    height=30, width=2, depth=30
+}};
+
+% Mixer Layer 1
+\pic[shift={(2.0,0,0)}] at (pe-east) {Box={
+    name=mix1,
+    caption=Trans. Block 1,
+    fill=\ResColor,
+    height=30, width=4, depth=30
+}};
+
+% Mixer Layer 2
+\pic[shift={(1.0,0,0)}] at (mix1-east) {Box={
+    name=mix2,
+    caption=Trans. Block 2,
+    fill=\ResColor,
+    height=30, width=4, depth=30
+}};
+
+% ...
+\node[right=0.5cm of mix2-east] (dots) {\dots};
+
+% Mixer Layer N
+\pic[shift={(1.5,0,0)}] at (dots) {Box={
+    name=mixN,
+    caption=Trans. Block N,
+    fill=\ResColor,
+    height=30, width=4, depth=30
+}};
+
+% Head
+\pic[shift={(2.0,0,0)}] at (mixN-east) {Box={
+    name=head,
+    caption=Head,
+    fill=\ConvColor,
+    height=30, width=2, depth=30
+}};
+
+\node[io, right=2.0cm of head-east] (out) {Output};
+
+\draw[arrow] (in) -- (pe-west);
+\draw[arrow] (pe-east) -- (mix1-west);
+\draw[arrow] (mix1-east) -- (mix2-west);
+\draw[arrow] (mix2-east) -- (dots);
+\draw[arrow] (dots) -- (mixN-west);
+\draw[arrow] (mixN-east) -- (head-west);
+\draw[arrow] (head-east) -- (out);
+
+\end{tikzpicture}
+\end{document}

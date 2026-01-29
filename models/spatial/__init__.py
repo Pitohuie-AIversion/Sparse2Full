@@ -24,6 +24,8 @@ from .unet import UNet
 from .unet_plus_plus import UNetPlusPlus
 from .fno2d import FNO2d
 from .ufno_unet_bottleneck import UFNOUNet
+from .edsr import EDSR
+from .sparse_attention_encoder import SparseSwinUNet
 
 # Transformer模型
 from .segformer import SegFormer
@@ -107,6 +109,8 @@ __all__ = [
     "UNetPlusPlus", 
     "FNO2d",
     "UFNOUNet",
+    "EDSR",
+    "SparseSwinUNet",
     
     # Transformer模型
     "SegFormer",

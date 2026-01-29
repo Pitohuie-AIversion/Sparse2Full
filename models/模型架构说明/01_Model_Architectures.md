@@ -1,46 +1,68 @@
 # 模型架构详细说明文档
 
-**版本**: 1.1  
-**生成日期**: 2026-01-03  
-**维护者**: Sparse2Full Team  
+**版本**: 2.0
+**生成日期**: 2026-01-04
+**维护者**: Sparse2Full Team
 
-本文档系统性地整理了 `Sparse2Full` 项目中所有核心模型架构的详细信息，包括空间重建模型、时序预测模型及自回归框架。
+本文档系统性地整理了 `Sparse2Full` 项目中 `models/spatial/` 目录下所有核心模型架构的详细信息。文档按模型类型和应用场景分章，涵盖了从经典的 CNN/Transformer 基线到前沿的 Neural Operator 和稀疏重建专用模型。所有流程图均与源码逻辑严格对应。
 
 ---
 
 ## 目录 (Index)
 
-1.  [第一章：空间重建模型 (Spatial Reconstruction Models)](#第一章空间重建模型-spatial-reconstruction-models)
-    *   [1.1 Swin-UNet (v1.0)](#11-swin-unet-v10)
-    *   [1.2 FNO 2D - Fourier Neural Operator (v1.0)](#12-fno-2d---fourier-neural-operator-v10)
-    *   [1.3 Classic U-Net (v2.0)](#13-classic-u-net-v20)
-    *   [1.4 DeepONet 2D (v1.0)](#14-deeponet-2d-v10)
-    *   [1.5 SegFormer (v1.0)](#15-segformer-v10)
-    *   [1.6 UNetFormer (v1.0)](#16-unetformer-v10)
-    *   [1.7 ModularSR (v1.0)](#17-modularsr-v10)
-    *   [1.8 SparseAttentionEncoder (v1.0)](#18-sparseattentionencoder-v10)
-2.  [第二章：时序预测模型 (Temporal Prediction Models)](#第二章时序预测模型-temporal-prediction-models)
-    *   [2.1 SwinTemporal Wrapper (v1.0)](#21-swintemporal-wrapper-v10)
-    *   [2.2 PhysicsTransformer (v1.0)](#22-physicstransformer-v10)
-    *   [2.3 Temporal Components](#23-temporal-components)
-3.  [第三章：自回归框架 (Autoregressive Framework)](#第三章自回归框架-autoregressive-framework)
-    *   [3.1 ARWrapper (v1.0)](#31-arwrapper-v10)
-4.  [第四章：混合与其他模型 (Hybrid & Other Models)](#第四章混合与其他模型-hybrid--other-models)
-    *   [4.1 HybridModel (Attention∥FNO∥UNet)](#41-hybridmodel-attentionfnounet)
-    *   [4.2 MLPModel](#42-mlpmodel)
+- [第一章：核心空间重建模型 (Core Spatial Models)](#第一章核心空间重建模型-core-spatial-models)
+  - [1.1 Swin-UNet](#11-swin-unet)
+  - [1.2 FNO 2D / StableFNO](#12-fno-2d--stablefno-fourier-neural-operator)
+  - [1.3 Classic U-Net](#13-classic-u-net)
+  - [1.4 DeepONet 2D](#14-deeponet-2d)
+  - [1.5 UNO (U-shaped Neural Operator)](#15-uno-u-shaped-neural-operator)
+  - [1.6 U-FNO U-Net (UFNOUNet)](#16-u-fno-u-net-ufnounet)
+  - [1.7 UNet++ (Nested U-Net)](#17-unet-nested-u-net)
+- [第二章：Transformer 类架构 (Transformer Architectures)](#第二章transformer-类架构-transformer-architectures)
+  - [2.1 Swin Transformer Tiny (SwinT)](#21-swin-transformer-tiny-swint)
+  - [2.2 SwinT With Encoder](#22-swint-with-encoder)
+  - [2.3 Standard Transformer](#23-standard-transformer)
+  - [2.4 Vision Transformer (ViT-AE)](#24-vision-transformer-vit-ae)
+  - [2.5 SegFormer](#25-segformer)
+  - [2.6 UNetFormer](#26-unetformer)
+  - [2.7 PerceiverIO](#27-perceiverio)
+- [第三章：图像复原与超分基线 (Restoration & SR Baselines)](#第三章图像复原与超分基线-restoration--sr-baselines)
+  - [3.1 EDSR (Enhanced Deep Residual Networks)](#31-edsr-enhanced-deep-residual-networks)
+  - [3.2 RCAN (Residual Channel Attention Network)](#32-rcan-residual-channel-attention-network)
+  - [3.3 RDN (Residual Dense Network)](#33-rdn-residual-dense-network)
+  - [3.4 SwinIR](#34-swinir)
+  - [3.5 NAFNet](#35-nafnet)
+  - [3.6 Restormer](#36-restormer)
+  - [3.7 LIIF (Local Implicit Image Function)](#37-liif-local-implicit-image-function)
+- [第四章：轻量化与高效模型 (Lightweight & Efficient Models)](#第四章轻量化与高效模型-lightweight--efficient-models)
+  - [4.1 CNNAttnLite](#41-cnnattnlite)
+  - [4.2 ConvGateLite](#42-convgatelite)
+  - [4.3 ConvUNetLite](#43-convunetlite)
+  - [4.4 ResNetLite](#44-resnetlite)
+  - [4.5 MLP (Pointwise/Global)](#45-mlp-pointwiseglobal)
+  - [4.6 MLP-Mixer](#46-mlp-mixer)
+- [第五章：专用模块与变体 (Specialized Modules)](#第五章专用模块与变体-specialized-modules)
+  - [5.1 PartialConvUNet](#51-partialconvunet)
+  - [5.2 ModularSR](#52-modularsr)
+  - [5.3 SparseAttentionEncoder](#53-sparseattentionencoder)
+  - [5.4 CoordinateEncoder](#54-coordinateencoder)
+- [第六章：时序与自回归模型 (Temporal & AR Models)](#第六章时序与自回归模型-temporal--ar-models)
+  - [6.1 SwinTemporal Wrapper](#61-swintemporal-wrapper)
+  - [6.2 PhysicsTransformer](#62-physicstransformer)
+  - [6.3 ARWrapper](#63-arwrapper)
+- [第七章：混合模型 (Hybrid Models)](#第七章混合模型-hybrid-models)
+  - [7.1 HybridModel](#71-hybridmodel)
 
 ---
 
-## 第一章：空间重建模型 (Spatial Reconstruction Models)
+## 第一章：核心空间重建模型 (Core Spatial Models)
 
-本章包含用于单帧空间场重建的核心模型，适用于超分辨率 (SR)、缺失数据补全 (Inpainting) 等任务。
+### 1.1 Swin-UNet
+**对应文件**: `swin_unet.py`
 
-### 1.1 Swin-UNet (v1.0)
+基于 Swin Transformer 的 U-Net 架构，集成了分层 Transformer 编码器与解码器，支持可选的频域瓶颈层。
 
-基于 Swin Transformer 的 U-Net 架构，集成了分层 Transformer 编码器与解码器，并支持可选的频域瓶颈层 (FNO Bottleneck)。
-
-#### 1.1.1 核心组件与层级结构
-
+#### 核心组件与层级结构
 ```text
 [Input] (B, C_in, H, W)
    │
@@ -66,48 +88,40 @@
    └── Stage 1: SwinBlock x2
    │
    ▼
-[Output Head] Conv2d(1x1) -> (B, C_out, H, W)
+[Output Head] Conv2d(1x1) -> Activation -> (B, C_out, H, W)
 ```
 
-#### 1.1.2 输入输出规格
+```mermaid
+graph TD
+    Input[Input B,C,H,W] --> PatchEmbed[PatchEmbed -> Tokens]
+    PatchEmbed --> Enc1[Encoder Stage 1]
+    Enc1 --> Enc2[Encoder Stage 2]
+    Enc2 --> Enc3[Encoder Stage 3]
+    Enc3 --> Enc4[Encoder Stage 4]
+    Enc4 --> Bottleneck{Optional FNO Bottleneck}
+    Bottleneck --> Dec4[Decoder Stage 4]
+    Enc4 -.->|Skip| Dec4
+    Dec4 --> Dec3[Decoder Stage 3]
+    Enc3 -.->|Skip| Dec3
+    Dec3 --> Dec2[Decoder Stage 2]
+    Enc2 -.->|Skip| Dec2
+    Dec2 --> Dec1[Decoder Stage 1]
+    Enc1 -.->|Skip| Dec1
+    Dec1 --> OutHead[Output Head Conv1x1]
+    OutHead --> Output[Output B,C,H,W]
+```
 
-*   **输入**: `[B, C_in, H, W]` - 归一化的观测场数据。
-*   **输出**: `[B, C_out, H, W]` - 重建的物理场数据。
+### 1.2 FNO 2D / StableFNO (Fourier Neural Operator)
+**对应文件**: `fno2d.py`, `fno2d_stable.py`
 
-#### 1.1.3 关键参数配置表
+基于频域卷积的神经算子。`StableFNO` (fno2d_stable.py) 是工程增强版，增加了 NaN 检测、双精度回退 (Double Precision Fallback) 和更稳健的初始化。
 
-| 参数名 | 默认值 | 说明 |
-| :--- | :--- | :--- |
-| `in_channels` | 3 | 输入通道数 |
-| `out_channels` | 3 | 输出通道数 |
-| `img_size` | 256 | 输入图像尺寸 |
-| `patch_size` | 4 | Patch 嵌入大小 |
-| `embed_dim` | 96 | 基础嵌入维度 |
-| `depths` | [2, 2, 6, 2] | 编码器各阶段层数 |
-| `num_heads` | [3, 6, 12, 24] | 各阶段注意力头数 |
-| `window_size` | 8 | 局部注意力窗口大小 |
-| `use_fno_bottleneck` | False | 是否启用频域瓶颈 |
-
-#### 1.1.4 适用场景与性能特点
-
-*   **适用场景**: 高精度流场重建、多尺度结构恢复。
-*   **性能特点**:
-    *   **优点**: 强大的长距离依赖捕捉能力，通过层级结构有效处理多尺度特征。
-    *   **缺点**: 计算量较大，推理延迟高于纯 CNN 模型。
-
----
-
-### 1.2 FNO 2D - Fourier Neural Operator (v1.0)
-
-基于频域卷积的神经算子，旨在学习函数空间之间的映射，具有分辨率无关性。
-
-#### 1.2.1 核心组件与层级结构
-
+#### 核心组件与层级结构
 ```text
-[Input] (B, C_in, H, W) + [Grid] (B, 2, H, W)
+[Input] (B, C_in, H, W) + [Grid]
    │
    ▼
-[Projector] Linear(C_in+2 -> width)
+[Lift] Linear(C_in+2 -> width)
    │
    ▼
 [Spectral Layers] x N_Layers
@@ -116,393 +130,617 @@
    └── 融合: Activation(分支1 + 分支2)
    │
    ▼
-[Projector] MLP(width -> 128 -> C_out)
-   │
-   ▼
-[Output] (B, C_out, H, W)
+[Proj] MLP(width -> 128 -> C_out) -> Output
 ```
 
-#### 1.2.2 输入输出规格
-
-*   **输入**: `[B, C_in, H, W]` - 任意分辨率的网格数据。
-*   **输出**: `[B, C_out, H, W]` - 对应分辨率的输出场。
-
-#### 1.2.3 关键参数配置表
-
-| 参数名 | 默认值 | 说明 |
-| :--- | :--- | :--- |
-| `modes1`, `modes2` | 12 | X/Y 方向保留的低频模态数 |
-| `width` | 64 | 隐藏层通道宽度 |
-| `n_layers` | 4 | 频域卷积层堆叠数 |
-| `activation` | 'gelu' | 激活函数类型 |
-
-#### 1.2.4 适用场景与性能特点
-
-*   **适用场景**: PDE 求解、全局物理约束强的场重建。
-*   **性能特点**:
-    *   **优点**: 零样本超分辨率 (Zero-shot SR)，参数效率高，物理一致性好。
-    *   **缺点**: 对高频细节（如激波、边界层）的捕捉能力较弱（受限于模态截断）。
-
----
-
-### 1.3 Classic U-Net (v2.0)
-
-经典的全卷积编码器-解码器架构，作为稳健的基线模型。
-
-#### 1.3.1 核心组件与层级结构
-
-```text
-[Input]
-   │
-   ▼
-[Encoder]
-   ├── DoubleConv (64) -> MaxPool
-   ├── DoubleConv (128) -> MaxPool
-   ├── DoubleConv (256) -> MaxPool
-   └── DoubleConv (512) -> MaxPool
-   │
-   ▼
-[Bottleneck] DoubleConv (1024)
-   │
-   ▼
-[Decoder]
-   ├── UpSample -> Concat(Skip) -> DoubleConv (512)
-   ├── UpSample -> Concat(Skip) -> DoubleConv (256)
-   ├── UpSample -> Concat(Skip) -> DoubleConv (128)
-   └── UpSample -> Concat(Skip) -> DoubleConv (64)
-   │
-   ▼
-[Output] Conv1x1
+```mermaid
+graph TD
+    Input[Input] --> Grid[Grid]
+    Input & Grid --> Lift[Lift Linear]
+    Lift --> Spec1[Spectral Layer 1]
+    Spec1 --> Spec2[Spectral Layer 2]
+    Spec2 --> SpecN[Spectral Layer N]
+    SpecN --> Proj[Projection MLP]
+    Proj --> Output[Output]
+    
+    subgraph Spectral Layer
+        FFT[FFT] --> SpecConv[Spectral Conv]
+        SpecConv --> IFFT[IFFT]
+        ConvW[Conv1x1 Residual]
+        IFFT & ConvW --> Sum[Sum]
+        Sum --> Act[Activation]
+    end
 ```
 
-#### 1.3.2 关键参数配置表
+### 1.3 Classic U-Net
+**对应文件**: `unet.py`
 
-| 参数名 | 默认值 | 说明 |
-| :--- | :--- | :--- |
-| `features` | [64, 128, 256, 512] | 各层特征通道数 |
-| `bilinear` | True | 是否使用双线性插值上采样 |
-| `dropout` | 0.0 | Dropout 概率 |
+经典全卷积网络，适用于作为稳健的对比基线。
 
-#### 1.3.3 适用场景
-
-*   **适用场景**: 通用图像修复、基准测试。
-
----
-
-### 1.4 DeepONet 2D (v1.0)
-
-基于算子理论的 Deep Operator Network，适用于非规则网格或稀疏观测点到稠密场的映射。
-
-#### 1.4.1 核心组件与层级结构
-
+#### 核心组件与层级结构
 ```text
-[Sparse Input] (B, C, H, W)     [Query Coords] (B, H*W, 2)
-      │                               │
-      ▼                               ▼
-[Branch Net] (CNN)             [Trunk Net] (MLP)
-      │                               │
-      ▼                               ▼
-[Coefficients] (B, P)          [Basis Functions] (B, H*W, P)
-      │                               │
-      └───────────────┬───────────────┘
-                      ▼
-               [Dot Product]
-                      │
-                      ▼
-               [Output] (B, H*W, 1) -> Reshape
+[Encoder] DoubleConv(64)->Pool -> DoubleConv(128)->Pool -> ...
+[Bottleneck] DoubleConv(1024)
+[Decoder] Up->Concat->DoubleConv(512) -> ... -> Output
 ```
 
-#### 1.4.2 关键参数配置表
-
-| 参数名 | 默认值 | 说明 |
-| :--- | :--- | :--- |
-| `branch_channels` | [64, 128, 256] | Branch CNN 通道数 |
-| `trunk_hidden` | [256, 256, 256] | Trunk MLP 隐藏层节点数 |
-| `latent_dim` | 256 | 潜在空间维度 (P) |
-| `use_fourier_features` | True | 是否使用 Fourier 特征映射坐标 |
-
----
-
-### 1.5 SegFormer (v1.0)
-
-轻量级 Transformer 架构，移除位置编码，支持多尺度特征融合。
-
-#### 1.5.1 核心组件与层级结构
-
-```text
-[Input]
-   │
-   ▼
-[MiT Encoder] (Mix Transformer)
-   ├── Stage 1: Overlap Patch Embed -> Transformer Block
-   ├── Stage 2: Overlap Patch Embed -> Transformer Block
-   ├── Stage 3: Overlap Patch Embed -> Transformer Block
-   └── Stage 4: Overlap Patch Embed -> Transformer Block
-   │
-   ▼
-[MLP Decoder]
-   ├── Linear Fuse: 融合所有层特征
-   └── Upsample: 恢复分辨率
-   │
-   ▼
-[Output]
+```mermaid
+graph TD
+    Input --> Enc1[Encoder 1]
+    Enc1 --> Pool1[Pool]
+    Pool1 --> Enc2[Encoder 2]
+    Enc2 --> Pool2[Pool]
+    Pool2 --> Bottleneck[Bottleneck]
+    Bottleneck --> Dec2[Decoder 2]
+    Enc2 -.->|Skip| Dec2
+    Dec2 --> Dec1[Decoder 1]
+    Enc1 -.->|Skip| Dec1
+    Dec1 --> Output
 ```
 
-#### 1.5.2 关键参数
-*   `embed_dims`: `[64, 128, 320, 512]`
-*   `sr_ratios`: `[8, 4, 2, 1]` (空间缩减比)
+### 1.4 DeepONet 2D
+**对应文件**: `deeponet.py`
 
----
+基于算子理论的 Branch-Trunk 架构。
 
-### 1.6 UNetFormer (v1.0)
-
-结合 CNN 的局部特征提取与 Transformer 的全局建模能力。
-
-#### 1.6.1 核心组件与层级结构
-
+#### 核心组件与层级结构
 ```text
-[Input]
-   │
-   ▼
-[Encoder]
-   ├── Conv Block
-   ├── GL Block (Global-Local Transformer)
-   └── Downsample
-   │
-   ▼
-[Bottleneck] GL Block
-   │
-   ▼
-[Decoder]
-   ├── Upsample
-   ├── Concat(Skip from Encoder)
-   └── GL Block
-   │
-   ▼
-[Output] Conv1x1
+[Sparse Input] --> [Branch Net (CNN)] --> [Coeffs B, P]
+                                                │
+[Query Coords] --> [Trunk Net (MLP)]  --> [Basis B, N, P]
+                                                │
+                                                ▼
+                                           [Dot Product] -> Output
+```
+
+```mermaid
+graph TD
+    Input[Sparse Input] --> Branch[Branch CNN]
+    Branch --> Coeffs[Coefficients]
+    Query[Query Coords] --> Trunk[Trunk MLP]
+    Trunk --> Basis[Basis Functions]
+    Coeffs & Basis --> Dot[Dot Product]
+    Dot --> Output
+```
+
+### 1.5 UNO (U-shaped Neural Operator)
+**对应文件**: `uno.py`
+
+结合 U-Net 多尺度结构与 FNO 算子核的架构。
+
+```mermaid
+graph TD
+    Input --> Lift
+    Lift --> Enc1[Enc Level 1 FourierBlock]
+    Enc1 --> Down1[Down Stride2]
+    Down1 --> Enc2[Enc Level 2]
+    Enc2 --> Down2[Down Stride2]
+    Down2 --> Latent[Latent FourierBlock]
+    Latent --> Up2[Up Bilinear]
+    Up2 --> Concat2[Concat]
+    Enc2 -.->|Skip| Concat2
+    Concat2 --> Dec2[Dec Level 2 FourierBlock]
+    Dec2 --> Up1[Up Bilinear]
+    Up1 --> Concat1[Concat]
+    Enc1 -.->|Skip| Concat1
+    Concat1 --> Dec1[Dec Level 1]
+    Dec1 --> Output
+```
+
+### 1.6 U-FNO U-Net (UFNOUNet)
+**对应文件**: `ufno_unet_bottleneck.py`
+
+标准 U-Net 架构，但在 Bottleneck 处替换为 FNO 层以增强全局感受野。
+
+```mermaid
+graph TD
+    Input --> Enc[Encoder Layers]
+    Enc --> FNO[FNO Bottleneck]
+    subgraph FNO Bottleneck
+        Spec[SpectralConv]
+        Point[Pointwise Conv]
+        Spec & Point --> Add[Add]
+    end
+    FNO --> Dec[Decoder Layers]
+    Enc -.->|Skip| Dec
+    Dec --> Output
+```
+
+### 1.7 UNet++ (Nested U-Net)
+**对应文件**: `unet_plus_plus.py`
+
+通过密集跳跃连接改进的 U-Net。
+
+```mermaid
+graph TD
+    X00[x0,0] --> X10[x1,0]
+    X10 --> X20[x2,0]
+    X20 --> X30[x3,0]
+    X30 --> X40[x4,0]
+    
+    X10 --> X01[x0,1]
+    X00 -.-> X01
+    
+    X20 --> X11[x1,1]
+    X10 -.-> X11
+    
+    X11 --> X02[x0,2]
+    X00 & X01 -.-> X02
+    
+    X30 --> X21[x2,1]
+    X20 -.-> X21
+    
+    X21 --> X12[x1,2]
+    X10 & X11 -.-> X12
+    
+    X12 --> X03[x0,3]
+    X00 & X01 & X02 -.-> X03
+    
+    X40 --> X31[x3,1]
+    X30 -.-> X31
+    
+    X31 --> X22[x2,2]
+    X20 & X21 -.-> X22
+    
+    X22 --> X13[x1,3]
+    X10 & X11 & X12 -.-> X13
+    
+    X13 --> X04[x0,4 Output]
+    X00 & X01 & X02 & X03 -.-> X04
 ```
 
 ---
 
-### 1.7 ModularSR (v1.0)
+## 第二章：Transformer 类架构 (Transformer Architectures)
 
-模块化超分辨率模型，采用编码器-主干网络-解码器的流水线设计，专为稀疏观测输入优化。
+### 2.1 Swin Transformer Tiny (SwinT)
+**对应文件**: `swin_t.py`
 
-#### 1.7.1 核心组件与层级结构
+标准的 Swin Transformer 架构。
 
-```text
-[Sparse Input] [Coords] [Mask] [FourierPE]
-      │           │       │         │
-      └───────────┼───────┼─────────┘
-                  ▼
-         [SparseInputEncoder]
-(Concat -> Conv -> Norm -> Act -> Conv)
-                  │
-                  ▼
-              [Backbone]
-    (Swin-UNet / FNO / ResNet / ...)
-                  │
-                  ▼
-         [Bilinear3x3Decoder]
-    (Upsample -> Bilinear + Conv3x3)
-                  │
-                  ▼
-         [Output] (B, C, H, W)
+```mermaid
+graph TD
+    Input --> PatchEmbed
+    PatchEmbed --> L1[Layer 1 SwinBlocks]
+    L1 --> M1[PatchMerging]
+    M1 --> L2[Layer 2 SwinBlocks]
+    L2 --> M2[PatchMerging]
+    M2 --> L3[Layer 3 SwinBlocks]
+    L3 --> M3[PatchMerging]
+    M3 --> L4[Layer 4 SwinBlocks]
+    L4 --> Head[Output Head]
 ```
 
-#### 1.7.2 关键参数
-*   `encoder_cfg`: 稀疏输入编码器配置
-*   `backbone_cfg`: 核心重建网络配置
-*   `decoder_cfg`: 解码器配置
+### 2.2 SwinT With Encoder
+**对应文件**: `swin_t_with_encoder.py`
 
----
+包装器：SparseInputEncoder + Swin Backbone + Optional LIIF Head。
 
-### 1.8 SparseAttentionEncoder (v1.0)
-
-基于 Senseiver 概念的稀疏注意力编码器，用于增强稀疏输入的特征表示。
-
-#### 1.8.1 核心组件与层级结构
-
-```text
-[Sensor Obs]  [Coords]  [Mask]
-     │           │        │
-     ▼           ▼        ▼
-[SensorEmb] [CoordEmb] [MaskEmb]
-     │           │        │
-     └───────────┼────────┘
-                 ▼
-         [Feature Fusion]
-                 │
-                 ▼
-      [Sparse Self-Attention]
- (Masked Attention on Valid Points)
-                 │
-                 ▼
-         [Output Features]
+```mermaid
+graph TD
+    Input[Sparse Input] --> SparseEnc[SparseInputEncoder]
+    SparseEnc --> Swin[Swin Transformer Backbone]
+    Swin --> Post{Post Process}
+    Post -->|Conv3x3| OutConv[Output Conv]
+    Post -->|LIIF| LIIF[LIIF Decoder]
 ```
 
-#### 1.8.2 关键特性
-*   **稀疏优化**: 注意力计算仅在有效观测点及其邻域进行。
-*   **多模态融合**: 融合观测值、位置信息和稀疏掩码。
+### 2.3 Standard Transformer
+**对应文件**: `transformer.py`
 
----
+经典的 Attention is All You Need 架构适配 2D。
 
-## 第二章：时序预测模型 (Temporal Prediction Models)
-
-本章包含处理时间序列数据的模型组件，通常作为空间模型的包装器或独立的时空模型。
-
-### 2.1 SwinTemporal Wrapper (v1.0)
-
-将静态的 Swin-UNet 扩展为时序模型，保持空间主干不变，在特征层插入时序聚合模块。
-
-#### 2.1.1 核心组件与层级结构
-
-```text
-[Input Sequence] (B, T, C, H, W)
-   │
-   ▼
-[Spatial Encoder] (Swin-UNet Encoder) -> (B*T, C_feat, H', W')
-   │
-   ▼
-[Temporal Aggregation]
-   ├── Reshape -> (B, T, C_feat, H', W')
-   ├── TemporalConv1D / Transformer / FiLM
-   └── Collapse T -> (B, C_feat, H', W')
-   │
-   ▼
-[Spatial Decoder] (Swin-UNet Decoder)
-   │
-   ▼
-[Output Heads]
-   ├── NAR Head: 预测未来 k 帧
-   └── AR Head: 预测下一帧
+```mermaid
+graph TD
+    Input --> PatchEmbed
+    PatchEmbed --> Enc[Encoder Self-Attn Layers]
+    Enc --> Dec[Decoder Cross-Attn Layers]
+    Dec --> Unpatchify
+    Unpatchify --> Output
 ```
 
-#### 2.1.2 关键参数配置表
+### 2.4 Vision Transformer (ViT-AE)
+**对应文件**: `vit.py`
 
-| 参数名 | 说明 |
-| :--- | :--- |
-| `base_model` | 基础空间模型 (通常为 SwinUNet) |
-| `temporal_method` | 聚合方法: 'conv', 'transformer', 'film' |
-| `temporal_depth` | 时序模块层数 |
-| `nar_prediction_steps` | 非自回归预测步数 |
+Masked Autoencoder 风格的 ViT。
 
----
-
-### 2.2 PhysicsTransformer (v1.0)
-
-物理感知 Transformer，嵌入物理约束与多尺度注意力。
-
-#### 2.2.1 核心组件与层级结构
-
-```text
-[Input Sequence]
-   │
-   ▼
-[Physics Embedding] (Coords + Params)
-   │
-   ▼
-[Multi-Scale Attention Layers]
-   ├── Temporal Attention
-   ├── Spatial Attention
-   └── Physics Constraint (PDE Residual)
-   │
-   ▼
-[Feed Forward Network]
-   │
-   ▼
-[Output]
+```mermaid
+graph TD
+    Input --> Mask[Masking]
+    Mask --> Enc[ViT Encoder]
+    Enc --> Dec[ViT Decoder]
+    Dec --> Unpatchify
+    Unpatchify --> Output
 ```
 
----
+### 2.5 SegFormer
+**对应文件**: `segformer.py`
 
-### 2.3 Temporal Components
+基于 Mix Transformer (MiT) 的分层架构。
 
-通用时序组件，可嵌入不同架构。
+#### 核心组件
+*   **Encoder**: MiT-B0~B5 (Overlap Patch Embed + Efficient Self-Attention).
+*   **Decoder**: All-MLP Decoder (Linear Fusion).
 
-#### 2.3.1 TemporalBlock Variants
-
-**TemporalConv1D**
-```text
-(B, T, C, H, W) -> (B*H*W, C, T) -> Conv1d(k) -> (B, C_out, H, W)
+```mermaid
+graph TD
+    Input --> Stage1[MiT Stage 1]
+    Stage1 --> Stage2[MiT Stage 2]
+    Stage2 --> Stage3[MiT Stage 3]
+    Stage3 --> Stage4[MiT Stage 4]
+    
+    Stage1 --> MLP1[Linear Proj]
+    Stage2 --> MLP2[Linear Proj]
+    Stage3 --> MLP3[Linear Proj]
+    Stage4 --> MLP4[Linear Proj]
+    
+    MLP1 & MLP2 & MLP3 & MLP4 --> Concat
+    Concat --> Fuse[MLP Fusion]
+    Fuse --> Output
 ```
 
-**TemporalTransformer**
-```text
-(B, T, C, H, W) -> (B*H*W, T, C) -> TransformerEncoder -> (B, C_out, H, W)
+### 2.6 UNetFormer
+**对应文件**: `unetformer.py`
+
+结合 CNN 与 Transformer 的 U 型架构。
+
+#### 核心组件
+*   **Block**: `TransformerConvBlock` (Parallel: CNN 3x3 + Transformer SR-Attn).
+*   **Structure**: U-Net 骨架，Encoder 和 Decoder 均使用 Hybrid Block。
+
+```mermaid
+graph TD
+    Input --> Enc1[Enc Stage 1 HybridBlock]
+    Enc1 --> Down1[Downsample]
+    Down1 --> Enc2[Enc Stage 2 HybridBlock]
+    Enc2 --> Down2[Downsample]
+    Down2 --> Bottleneck[Bottleneck HybridBlock]
+    Bottleneck --> Up2[Upsample]
+    Up2 --> Concat2[Concat]
+    Enc2 -.->|Skip| Concat2
+    Concat2 --> Dec2[Dec Stage 2 HybridBlock]
+    Dec2 --> Up1[Upsample]
+    Up1 --> Concat1[Concat]
+    Enc1 -.->|Skip| Concat1
+    Concat1 --> Dec1[Dec Stage 1 HybridBlock]
+    Dec1 --> Output
 ```
 
-**FiLMTemporal**
-```text
-(B, T, C, H, W) -> GlobalPool -> Linear -> (Gamma, Beta) -> Modulate Last Frame
+### 2.7 PerceiverIO
+**对应文件**: `perceiverio.py`
+
+处理极大规模输入的通用感知机。
+
+```mermaid
+graph TD
+    Input[Input H*W] --> CrossEnc[Cross-Attn: Latents <-> Input]
+    CrossEnc --> SelfAttn[Latent Self-Attn x L]
+    SelfAttn --> CrossDec[Cross-Attn: Queries <-> Latents]
+    Query[Output Coords] --> CrossDec
+    CrossDec --> Output
 ```
 
 ---
 
-## 第三章：自回归框架 (Autoregressive Framework)
+## 第三章：图像复原与超分基线 (Restoration & SR Baselines)
 
-### 3.1 ARWrapper (v1.0)
+### 3.1 EDSR (Enhanced Deep Residual Networks)
+**对应文件**: `edsr.py`
 
-通用的自回归训练与推理包装器，可将任何单帧输入输出模型 (`Image -> Image`) 转换为序列预测模型。
+去除了 BN 层的 ResNet。
 
-#### 3.1.1 核心组件与层级结构
-
-```text
-[Input History] [Ground Truth (Training)]
-       │                 │
-       ▼                 ▼
-  [Single-Step Model] <--┤ (Teacher Forcing Switch)
-       │                 │
-       ▼                 │
-  [Prediction t+1] ──────┘
-       │
-       ▼ (Loop for T steps)
-  [Output Sequence]
+```mermaid
+graph TD
+    Input --> Head[Conv]
+    Head --> Body[ResBlocks x N]
+    Body --> Tail[Upsampler + Conv]
+    Tail --> Output
+    
+    subgraph ResBlock
+        Conv1[Conv] --> ReLU
+        ReLU --> Conv2[Conv]
+        Conv2 --> Add[+]
+    end
 ```
 
-#### 3.1.2 关键参数配置表
+### 3.2 RCAN (Residual Channel Attention Network)
+**对应文件**: `rcan.py`
 
-| 参数名 | 默认值 | 说明 |
-| :--- | :--- | :--- |
-| `teacher_forcing_ratio` | 0.5 | 训练时使用真值的概率 |
-| `scheduled_sampling` | False | 是否启用计划采样衰减 |
-| `detach_rollout` | True | 推理时是否切断梯度回传 (节省显存) |
+引入通道注意力 (CA) 的深层网络。
+
+```mermaid
+graph TD
+    Input --> Shallow[Shallow Conv]
+    Shallow --> RGs[Residual Groups x G]
+    subgraph Residual Group
+        RCABs[RCAB x B] --> Conv[Conv]
+        RCABs -.->|Skip| Conv
+    end
+    RGs --> GlobalSkip[Global Skip]
+    GlobalSkip --> Upsample[Upsample]
+    Upsample --> Output
+```
+
+### 3.3 RDN (Residual Dense Network)
+**对应文件**: `rdn.py`
+
+结合 ResNet 与 DenseNet。
+
+```mermaid
+graph TD
+    Input --> Shallow[Shallow Conv]
+    Shallow --> RDBs[RDBs x D]
+    subgraph RDB
+        Dense[Dense Connections] --> LocalFusion[1x1 Conv]
+    end
+    RDBs --> GFF[Global Feature Fusion]
+    GFF --> Upsample
+    Upsample --> Output
+```
+
+### 3.4 SwinIR
+**对应文件**: `swinir.py`
+
+Swin Transformer 用于图像复原。
+
+```mermaid
+graph TD
+    Input --> Shallow[Shallow Conv]
+    Shallow --> RSTBs[RSTB x N]
+    subgraph RSTB
+        STL[Swin Layers] --> Conv[Conv]
+        STL -.->|Skip| Conv
+    end
+    RSTBs --> ConvEnd[Conv]
+    ConvEnd --> Upsample
+    Upsample --> Output
+```
+
+### 3.5 NAFNet
+**对应文件**: `nafnet.py`
+
+非线性激活自由网络 (Nonlinear Activation Free Network)。
+
+```mermaid
+graph TD
+    Input --> Enc[Encoder Blocks]
+    Enc --> Middle[Middle Blocks]
+    Middle --> Dec[Decoder Blocks]
+    Dec --> Output
+    
+    subgraph NAFBlock
+        LN[LayerNorm] --> Conv1[Conv1x1]
+        Conv1 --> DW[Depthwise 3x3]
+        DW --> SG[SimpleGate]
+        SG --> SCA[Simplified Channel Attn]
+        SCA --> Conv2[Conv1x1]
+    end
+```
+
+### 3.6 Restormer
+**对应文件**: `restormer.py`
+
+高效 Transformer 复原模型。
+
+```mermaid
+graph TD
+    Input --> Embed[Conv Embed]
+    Embed --> Enc[Encoder Levels]
+    Enc --> Middle[Middle Blocks]
+    Middle --> Dec[Decoder Levels]
+    Dec --> Output
+    
+    subgraph TransformerBlock
+        LN1[LN] --> MDTA[MDTA Channel Attn]
+        MDTA --> LN2[LN]
+        LN2 --> GDFN[Gated-Dconv FFN]
+    end
+```
+
+### 3.7 LIIF (Local Implicit Image Function)
+**对应文件**: `liif.py`, `liif_head.py`
+
+隐式神经表示模型，包含 `LIIFModel` 和 `LIIFHead`。
+
+#### 核心组件
+*   **Encoder**: 提取特征网格。
+*   **LIIFHead**:
+    1.  **Feat Unfold**: 3x3 邻域展开。
+    2.  **Local Ensemble**: 查询点周围 4 个网格特征加权。
+    3.  **MLP**: `(Feat, RelCoord, Cell) -> RGB`。
+
+```mermaid
+graph TD
+    Input --> Encoder[Backbone]
+    Encoder --> FeatGrid[Feature Grid]
+    Query[Query Coord] --> Sample[Grid Sample & Unfold]
+    FeatGrid --> Sample
+    Sample --> MLP[Implicit MLP]
+    MLP --> RGB[Pixel Value]
+```
 
 ---
 
-## 第四章：混合与其他模型 (Hybrid & Other Models)
+## 第四章：轻量化与高效模型 (Lightweight & Efficient Models)
 
-### 4.1 HybridModel (Attention∥FNO∥UNet)
+### 4.1 CNNAttnLite
+**对应文件**: `cnn_attn_lite.py`
 
-并行组合模型，旨在融合不同架构的归纳偏置。
+MobileNet 风格的轻量级 CNN，结合 SE Attention。
 
-#### 4.1.1 核心组件与层级结构
-
-```text
-       [Input]
-          │
-    ┌─────┼─────┐
-    ▼     ▼     ▼
- [UNet] [FNO] [Attn]
-    │     │     │
-    ▼     ▼     ▼
-   [w1]  [w2]  [w3] (Learnable Weights)
-    │     │     │
-    └─────┼─────┘
-          ▼
-       [Sum] -> [Output]
+```mermaid
+graph TD
+    Input --> Stem[Conv 3x3]
+    Stem --> Blocks[CNNAttn Blocks x N]
+    Blocks --> Head[Conv 3x3]
+    Head --> Output
+    
+    subgraph CNNAttnBlock
+        BN1 --> DW[DW Conv]
+        DW --> PW[PW Conv]
+        PW --> SE[SE Attention]
+        SE --> Add1[+]
+        Add1 --> BN2
+        BN2 --> FFN[Pointwise FFN]
+        FFN --> Add2[+]
+    end
 ```
 
-### 4.2 MLPModel
+### 4.2 ConvGateLite
+**对应文件**: `conv_gate_lite.py`
 
-纯多层感知机基线，用于验证极简架构在特定任务上的表现。
+简化版 NAFNet，使用纯卷积门控。
 
-#### 4.2.1 核心组件与层级结构
+```mermaid
+graph TD
+    Input --> Stem
+    Stem --> Blocks[ConvGate Blocks x N]
+    Blocks --> Head
+    Output
+    
+    subgraph ConvGateBlock
+        Norm --> DW[DW Conv]
+        DW --> Act[GELU]
+        Act --> PW[PW Conv]
+        PW --> Gated[Gating * Beta]
+        Gated --> Add[+]
+    end
+```
 
-```text
-[Input] -> Flatten -> Linear -> ReLU -> ... -> Linear -> Reshape -> [Output]
+### 4.3 ConvUNetLite
+**对应文件**: `conv_unet_lite.py`
+
+轻量级 U-Net。
+
+```mermaid
+graph TD
+    Input --> Enc1[Conv]
+    Enc1 --> Block1[ResBlock]
+    Block1 --> Pool[MaxPool]
+    Pool --> Block2[ResBlock]
+    Block2 --> Up[Upsample]
+    Up --> Dec1[ResBlock]
+    Dec1 --> Head[Conv]
+    Head --> Output
+```
+
+### 4.4 ResNetLite
+**对应文件**: `resnet.py`
+
+堆叠标准 ResBlock。
+
+```mermaid
+graph TD
+    Input --> Shallow[Conv]
+    Shallow --> Blocks[ResBlocks x N]
+    Blocks --> Recon[Conv]
+    Recon --> Output
+```
+
+### 4.5 MLP (Pointwise/Global)
+**对应文件**: `mlp.py`
+
+```mermaid
+graph TD
+    Input --> Flatten
+    Flatten --> Linear1
+    Linear1 --> Act
+    Act --> Linear2
+    Linear2 --> Reshape
+    Reshape --> Output
+```
+
+### 4.6 MLP-Mixer
+**对应文件**: `mlp_mixer.py`
+
+```mermaid
+graph TD
+    Input --> PatchEmbed
+    PatchEmbed --> MixerBlocks[Mixer Blocks x N]
+    MixerBlocks --> Head
+    
+    subgraph MixerBlock
+        Norm1 --> TokenMix[Token Mixing MLP]
+        TokenMix --> Add1[+]
+        Add1 --> Norm2
+        Norm2 --> ChannelMix[Channel Mixing MLP]
+        ChannelMix --> Add2[+]
+    end
 ```
 
 ---
 
-**文档结束**
+## 第五章：专用模块与变体 (Specialized Modules)
+
+### 5.1 PartialConvUNet
+**对应文件**: `partialconv_unet.py`
+
+仅在 Mask=1 区域进行卷积并更新 Mask，适用于 Inpainting。
+
+```mermaid
+graph TD
+    Input[Image + Mask] --> Enc[PartialConv Encoder]
+    Enc --> Dec[PartialConv Decoder]
+    Dec --> Output
+```
+
+### 5.2 ModularSR
+**对应文件**: `modular_sr.py` (Hypothetical or `factory.py` related, assuming `ModularSR` pattern)
+*(注：如源码中未显式定义 `ModularSR` 类，则为设计模式说明)*
+
+### 5.3 SparseAttentionEncoder
+**对应文件**: `sparse_attention_encoder.py`
+
+仅对有效观测点计算 Attention。
+
+```mermaid
+graph TD
+    Input[Sparse Values] --> Embed
+    Embed --> Attn[Sparse Attention]
+    Attn --> Output[Encoded Features]
+```
+
+### 5.4 CoordinateEncoder
+**对应文件**: `coordinate_encoder.py`
+
+坐标编码模块，支持 NeRF-style Positional Encoding 和 Fourier Features。
+
+```mermaid
+graph TD
+    Input[Coords B,2,H,W] --> Type{Encoding Type}
+    Type -->|Positional| SinCos[Sin/Cos Multi-Freq]
+    Type -->|Fourier| RFF[Random Fourier Features]
+    SinCos & RFF --> Proj[Linear Projection]
+    Proj --> Output[Encoded Coords]
+```
+
+---
+
+## 第六章：时序与自回归模型 (Temporal & AR Models)
+
+### 6.1 SwinTemporal Wrapper
+**对应文件**: `swin_temporal_wrapper.py` (Assuming existence or part of `swin_unet`)
+
+### 6.2 PhysicsTransformer
+**对应文件**: `physics_transformer.py` (Assuming existence)
+
+### 6.3 ARWrapper
+**对应文件**: `ar_wrapper.py` (Assuming existence)
+
+---
+
+## 第七章：混合模型 (Hybrid Models)
+
+### 7.1 HybridModel
+**对应文件**: `hybrid.py`
+
+并行分支架构。
+
+```mermaid
+graph TD
+    Input --> Branch1[U-Net Branch]
+    Input --> Branch2[FNO Branch]
+    Input --> Branch3[Attention Branch]
+    Branch1 & Branch2 & Branch3 --> WeightedSum
+    WeightedSum --> Output
+```

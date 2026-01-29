@@ -1,0 +1,56 @@
+
+\documentclass[tikz, border=10mm]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{positioning, calc, arrows.meta, chains, fit, shapes}
+\input{nn_blocks.tex}
+\begin{document}
+\begin{tikzpicture}[
+    node distance=1.5cm,
+    every node/.style={scale=0.8, transform shape}
+]
+
+\node[io] (in) {Video\\Input};
+
+% 3D Patch Partition
+\node[conv, right=of in] (patch) {3D Patch\\Partition};
+\draw[arrow] (in) -- (patch);
+
+% Stage 1
+\node[nntikz_block, right=of patch, label=below:Stage 1 ($\times 2$)] (st1) {
+    \begin{tikzpicture}
+        \node[op] (ln1) {LN};
+        \node[res, right=0.3cm of ln1] (msa) {3D\\W-MSA};
+        \node[op, right=0.3cm of msa] (ln2) {LN};
+        \node[res, right=0.3cm of ln2] (mlp) {MLP};
+        \draw[arrow] (ln1) -- (msa);
+        \draw[arrow] (msa) -- (ln2);
+        \draw[arrow] (ln2) -- (mlp);
+    \end{tikzpicture}
+};
+\draw[arrow] (patch) -- (st1);
+
+% Stage 2
+\node[nntikz_block, right=of st1, label=below:Stage 2 ($\times 2$)] (st2) {
+    \begin{tikzpicture}
+        \node[res] (blk2) {Swin3D\\Block};
+    \end{tikzpicture}
+};
+\draw[arrow] (st1) -- (st2);
+
+% Stage 3
+\node[nntikz_block, right=of st2, label=below:Stage 3 ($\times 6$)] (st3) {
+    \begin{tikzpicture}
+        \node[res] (blk3) {Swin3D\\Block};
+    \end{tikzpicture}
+};
+\draw[arrow] (st2) -- (st3);
+
+% Head
+\node[conv, right=of st3] (head) {Head};
+\draw[arrow] (st3) -- (head);
+
+\node[io, right=of head] (out) {Output};
+\draw[arrow] (head) -- (out);
+
+\end{tikzpicture}
+\end{document}

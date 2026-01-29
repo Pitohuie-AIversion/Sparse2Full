@@ -7,7 +7,7 @@ experiment:
   device: cuda
   seed: 2025
   seeds: [2025, 2026, 2027]
-  output_dir: "runs_drd/${experiment.name}"
+  output_dir: "runs_drd_paper/${experiment.name}"
   log_every_n_steps: 10
 
 # 设备与并行（DDP）
@@ -213,9 +213,9 @@ loss:
     weight: 1.0
     # 使用默认重建（Rel-L2 + 0.1×MAE）作为论文基线
   spectral:
-    weight: 0.5
+    weight: 0.05
   degradation_consistency:
-    weight: 1.0
+    weight: 0.1
   gradient_weight: 0.0
 
 # 验证配置 - Debug模式简化

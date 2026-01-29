@@ -59,27 +59,41 @@ class RunsSummarizer:
             if not exp_dir.is_dir():
                 continue
             
-            # 解析实验名称
-            exp_name = exp_dir.name
-            method_name, seed = self._parse_experiment_name(exp_name)
-            
-            if method_name is None:
-                print(f"Skipping {exp_name}: cannot parse method name")
-                continue
-            
-            # 查找结果文件
-            results_file = exp_dir / "metrics_summary.json"
-            config_file = exp_dir / "config_merged.yaml"
-            
-            if not results_file.exists():
-                print(f"Skipping {exp_name}: no metrics_summary.json found")
-                continue
-            
             try:
-                # 加载结果
-                with open(results_file, 'r') as f:
-                    metrics = json.load(f)
+                # 解析实验名称
+                exp_name = exp_dir.name
+                method_name, seed = self._parse_experiment_name(exp_name)
                 
+                if method_name is None:
+                    print(f"Skipping {exp_name}: cannot parse method name")
+                    continue
+                
+                # 查找结果文件
+                results_file = exp_dir / "metrics_summary.json"
+                test_results_file = exp_dir / "test_results.json"
+                config_file = exp_dir / "config_merged.yaml"
+                
+                metrics = None
+                if results_file.exists():
+                    with open(results_file, 'r') as f:
+                        metrics = json.load(f)
+                elif test_results_file.exists():
+                    # 兼容 test_results.json
+                    with open(test_results_file, 'r') as f:
+                        loaded_data = json.load(f)
+                        # 如果包含 final_test_metrics，提取出来作为主要指标
+                        if 'final_test_metrics' in loaded_data:
+                            metrics = loaded_data['final_test_metrics']
+                            # 可以选择性地添加其他顶层字段，如 test_time
+                            if 'test_time' in loaded_data:
+                                metrics['test_time'] = loaded_data['test_time']
+                        else:
+                            metrics = loaded_data
+                
+                if metrics is None:
+                    print(f"Skipping {exp_name}: no metrics_summary.json or test_results.json found")
+                    continue
+                    
                 # 加载配置
                 config = None
                 if config_file.exists():
@@ -94,9 +108,9 @@ class RunsSummarizer:
                 self.all_results[method_name][seed] = metrics
                 
                 print(f"Loaded {exp_name}: {method_name} (seed {seed})")
-                
+                    
             except Exception as e:
-                print(f"Error loading {exp_name}: {e}")
+                print(f"Error loading {exp_dir.name}: {e}")
                 continue
         
         print(f"Collected results for {len(self.all_results)} methods")
@@ -106,8 +120,10 @@ class RunsSummarizer:
     def _parse_experiment_name(self, exp_name: str) -> Tuple[Optional[str], Optional[int]]:
         """解析实验名称
         
-        期望格式: <task>-<data>-<res>-<model>-<keyhyper>-<seed>-<date>
-        例如: SRx4-DR2D-256-SwinFNO_w8d2262_m16-s2025-20251011
+        支持多种格式:
+        1. 标准格式: <task>-<data>-<res>-<model>-<keyhyper>-<seed>-<date>
+        2. 消融格式: <ablation_name>-<seed>-<date>
+        3. 目录名直接解析: 如果目录结构如 A0_RecOnly，尝试查找内部 config 或 metrics
         
         Args:
             exp_name: 实验名称
@@ -116,10 +132,8 @@ class RunsSummarizer:
             method_name: 方法名称
             seed: 随机种子
         """
+        # 尝试标准解析 (s<数字>)
         parts = exp_name.split('-')
-        
-        if len(parts) < 6:
-            return None, None
         
         try:
             # 查找种子部分（格式为 s<数字>）
@@ -131,19 +145,24 @@ class RunsSummarizer:
                     seed_idx = i
                     break
             
-            if seed_part is None:
-                return None, None
-            
-            seed = int(seed_part[1:])
-            
-            # 方法名称是除了种子和日期之外的部分
-            method_parts = parts[:seed_idx] + parts[seed_idx+1:-1]  # 排除日期
-            method_name = '-'.join(method_parts)
-            
-            return method_name, seed
-            
+            if seed_part is not None:
+                seed = int(seed_part[1:])
+                # 方法名称是除了种子和日期之外的部分
+                method_parts = parts[:seed_idx]
+                # 如果后面还有部分（除了日期），也加进去（除非是日期）
+                if seed_idx + 1 < len(parts) and not (len(parts[seed_idx+1]) == 8 and parts[seed_idx+1].isdigit()):
+                     method_parts.extend(parts[seed_idx+1:])
+                
+                method_name = '-'.join(method_parts)
+                return method_name, seed
+                
         except (ValueError, IndexError):
-            return None, None
+            pass
+
+        # 如果标准解析失败，尝试简易解析 (假设是消融实验目录名，且没有种子信息)
+        # 这种情况下，我们假设种子是默认的 2025，方法名就是目录名
+        # 这对于 runs_3loss_ablation/A0_RecOnly 这种结构是必要的
+        return exp_name, 2025
     
     def aggregate_results(self) -> Dict[str, Dict[str, Dict[str, float]]]:
         """聚合所有方法的结果

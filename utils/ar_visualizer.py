@@ -187,12 +187,16 @@ class ARTrainingVisualizer:
             print("⚠️ 未找到归一化统计信息，AR可视化使用z-score域数据")
         
         # 统一处理5D输入 [B, T, C, H, W] -> 4D [T, C, H, W]
-        if is_tensor and len(target_seq.shape) == 5:
-            input_frame_t = input_seq[0, -1]
+        # 我们总是取 batch 中的第一个样本进行可视化
+        if len(target_seq.shape) == 5:
+            input_frame_t = input_seq[0]
             target_frames_t = target_seq[0]
             pred_frames_t = pred_seq[0]
-        elif is_tensor and len(target_seq.shape) == 4:
-            input_frame_t = input_seq[0]
+        elif len(target_seq.shape) == 4:
+            # 兼容 4D 输入: [B, C, H, W] (视为 Batch) 或 [T, C, H, W] (视为 Sequence)
+            # 这里 ar_visualizer 默认偏向 [B, C, H, W] 语义，但在 AR 任务中常传入 [T, C, H, W]
+            # 如果传入的是 Tensor 且 dimension=4，通常 AR 脚本会传入 [T, C, H, W]
+            input_frame_t = input_seq[0] if len(input_seq.shape) > 3 else input_seq
             target_frames_t = target_seq[0] if len(target_seq.shape) == 4 else target_seq
             pred_frames_t = pred_seq[0] if len(pred_seq.shape) == 4 else pred_seq
         elif len(input_seq.shape) == 4:  # [B, C, H, W] - 旧格式兼容
@@ -210,6 +214,11 @@ class ARTrainingVisualizer:
             pred_frames_t = torch.as_tensor(pred_frames_t)
         
         # 确保维度正确 - 处理多通道情况
+        # 对于输入 input_frame_t，它可能是 [T_in, C, H, W] 或 [C, H, W]
+        # 如果是序列，我们只展示最后一帧作为观测
+        if len(input_frame_t.shape) == 4: # [T, C, H, W]
+             input_frame_t = input_frame_t[-1] # 取最后一帧
+        
         if len(input_frame_t.shape) == 3:
             # 对于3D输入 [C, H, W]，取第一个通道 [H, W]
             if input_frame_t.shape[0] >= 1:
@@ -237,6 +246,7 @@ class ARTrainingVisualizer:
 
         obs_frame = None
         if h_params is not None:
+            # 如果有退化参数，基于GT的第一帧生成观测
             gt0 = target_frames_t[0]
             # 统一为 [B,C,H,W]
             if gt0.ndim == 2:  # [H,W]
@@ -255,6 +265,7 @@ class ARTrainingVisualizer:
         else:
             obs_frame = input_frame
         
+        # 确定需要可视化的时间步数 T_out
         T_out = min(target_frames.shape[0], pred_frames.shape[0])
         
         # 计算统一的数值范围（基于百分位数避免异常值影响）
@@ -267,60 +278,66 @@ class ARTrainingVisualizer:
         vmax = np.percentile(all_values, 98)  # 98%分位数
         
         # 创建更合理的布局：时间序列可视化
+        # 限制最大列数，如果 T_out 很大，可以分行或截断，这里按 max_time_cols 截断
         n_cols = min(T_out, self.max_time_cols)
-        fig = plt.figure(figsize=(4 * n_cols + 1, 10))
+        
+        # 修正：确保图表足够大以容纳所有子图
+        fig = plt.figure(figsize=(4 * n_cols + 2, 12)) # 增加宽度给colorbar
         
         # 创建网格布局，为colorbar预留右侧空间
-        gs = fig.add_gridspec(3, n_cols + 1, width_ratios=[1] * n_cols + [0.05], wspace=0.05, hspace=0.15)
+        gs = fig.add_gridspec(3, n_cols + 1, width_ratios=[1] * n_cols + [0.05], wspace=0.1, hspace=0.2)
         
         title_suffix = f"sample={str(sample_idx)} " if sample_idx is not None else ""
-        fig.suptitle(f'AR Predictions - {title_suffix}Timestep {timestep_idx}', fontsize=16, fontweight='bold', y=0.95)
+        fig.suptitle(f'AR Predictions Sequence - {title_suffix}', fontsize=16, fontweight='bold', y=0.98)
         
-        # 使用H(GT)作为观测输入展示（与训练一致的SR降采样）
-        # 若提供norm_stats且需要反归一化，已在上文完成；这里对GT应用H并展示首列
-        # 构建H参数的说明：由训练脚本统一配置，包含scale/sigma/kernel/boundary/interp
-        # 这里仅用于可视化，不做数值更改
+        # 逐时间步绘制
         for t in range(n_cols):
+            # 第一行：Observed (仅在 t=0 显示，或者每列都显示相同的 Obs 以便对比)
+            # 为了美观，第一行我们在 t=0 显示 H(GT) 观测，后续列留白或显示 t 时刻的 GT 观测（如果是动态观测）
+            # 这里我们假设初始观测是静态的或只关注初始条件，所以在 t=0 绘制 Obs
+            
             if t == 0:
                 obs_2d = self._ensure_2d_for_imshow(obs_frame)
                 ax_input = fig.add_subplot(gs[0, t])
                 im1 = ax_input.imshow(obs_2d, cmap='RdBu_r', aspect='equal', vmin=vmin, vmax=vmax)
-                ax_input.set_title(f'Observed H(GT) [{obs_2d.shape[0]}×{obs_2d.shape[1]}]', fontsize=10, fontweight='bold')
+                ax_input.set_title(f'Observed H(x_0)\n[{obs_2d.shape[0]}×{obs_2d.shape[1]}]', fontsize=10, fontweight='bold')
                 ax_input.set_xticks([])
                 ax_input.set_yticks([])
             else:
+                # 后续列留白，或者可以显示 input_seq 的演化（如果有）
                 ax_input = fig.add_subplot(gs[0, t])
                 ax_input.axis('off')
             
-            # 真实值
+            # 第二行：Ground Truth
             target_2d = self._ensure_2d_for_imshow(target_frames[t])
             ax_target = fig.add_subplot(gs[1, t])
             im2 = ax_target.imshow(target_2d, cmap='RdBu_r', aspect='equal', vmin=vmin, vmax=vmax)
-            ax_target.set_title(f'Ground Truth (t={t+1}) [{target_2d.shape[0]}×{target_2d.shape[1]}]', fontsize=10, fontweight='bold')
+            ax_target.set_title(f'GT (t={t+1})\n[{target_2d.shape[0]}×{target_2d.shape[1]}]', fontsize=10, fontweight='bold')
             ax_target.set_xticks([])
             ax_target.set_yticks([])
             
-            # 预测值
+            # 第三行：Prediction
             pred_2d = self._ensure_2d_for_imshow(pred_frames[t])
             ax_pred = fig.add_subplot(gs[2, t])
             im3 = ax_pred.imshow(pred_2d, cmap='RdBu_r', aspect='equal', vmin=vmin, vmax=vmax)
-            ax_pred.set_title(f'Prediction (t={t+1}) [{pred_2d.shape[0]}×{pred_2d.shape[1]}]', fontsize=10, fontweight='bold')
+            ax_pred.set_title(f'Pred (t={t+1})\n[{pred_2d.shape[0]}×{pred_2d.shape[1]}]', fontsize=10, fontweight='bold')
             ax_pred.set_xticks([])
             ax_pred.set_yticks([])
         
-        # 添加统一的颜色条 - 在最右侧
-        cbar = fig.colorbar(im2, cax=fig.add_subplot(gs[:, -1]), orientation='vertical')
+        # 添加统一的颜色条 - 在最右侧，跨越所有行
+        cbar_ax = fig.add_subplot(gs[:, -1])
+        cbar = fig.colorbar(im2, cax=cbar_ax, orientation='vertical')
         cbar.set_label('Value', fontsize=12, fontweight='bold')
         cbar.ax.tick_params(labelsize=10)
         
         plt.tight_layout()
-        save_path = self.vis_dir / "predictions" / f"{save_name}_t{timestep_idx}.{self.image_format}"
+        save_path = self.vis_dir / "predictions" / f"{save_name}_sequence.{self.image_format}"
         final_path = self._save_with_suffix(save_path, fig)
         if self.image_format != 'png':
-            png_path = self.vis_dir / "predictions" / f"{save_name}_t{timestep_idx}.png"
+            png_path = self.vis_dir / "predictions" / f"{save_name}_sequence.png"
             fig.savefig(png_path, dpi=300, bbox_inches='tight', pad_inches=0.1, format='png')
         plt.close(fig)
-        print(f"✅ AR prediction visualization saved: {final_path}")
+        print(f"✅ AR prediction sequence visualization saved: {final_path}")
 
     def visualize_single_frame(self, obs: torch.Tensor, gt: torch.Tensor, pred: torch.Tensor,
                                 save_name: str = "seq_last_frame", norm_stats: dict = None):
@@ -381,6 +398,21 @@ class ARTrainingVisualizer:
         obs_v = (obs0 * std_val + mean_val).detach().cpu().numpy()
         gt_v = (gt0 * std_val + mean_val).detach().cpu().numpy()
         pr_v = (pr0 * std_val + mean_val).detach().cpu().numpy()
+        
+        # Auto-resize if shapes mismatch (e.g. SR task: gt/pred are HR, obs is LR)
+        if gt_v.shape != pr_v.shape:
+             print(f"⚠️ Visualization shape mismatch: GT {gt_v.shape} vs Pred {pr_v.shape}. Resizing Pred to match GT.")
+             from skimage.transform import resize
+             # Assuming (H, W) or (C, H, W)
+             if pr_v.ndim == 2:
+                 pr_v = resize(pr_v, gt_v.shape, order=1, preserve_range=True, anti_aliasing=False)
+             else:
+                 # (C, H, W) -> transpose to (H, W, C) for resize -> transpose back
+                 pr_v_t = pr_v.transpose(1, 2, 0)
+                 gt_v_t = gt_v.transpose(1, 2, 0)
+                 pr_v_resized = resize(pr_v_t, gt_v_t.shape, order=1, preserve_range=True, anti_aliasing=False)
+                 pr_v = pr_v_resized.transpose(2, 0, 1)
+
         err_v = np.abs(gt_v - pr_v)
         vals = np.concatenate([obs_v.flatten(), gt_v.flatten(), pr_v.flatten()])
         vmin = float(np.percentile(vals, 2))
@@ -514,10 +546,38 @@ class ARTrainingVisualizer:
             else:
                 obs0 = self._ensure_2d_for_imshow(gt0)
 
-        gt0 = self._ensure_2d_for_imshow(gt0)
-        pred0 = self._ensure_2d_for_imshow(pred0)
-        err0 = np.abs(gt0 - pred0)
-
+        # 2. 转换并确保形状一致
+        gt_v = gt0.detach().cpu().numpy()
+        pred_v = pred0.detach().cpu().numpy()
+        obs_v = obs0
+        
+        # 确保是2D (但这里如果是多通道，squeeze可能会失败或不当)
+        if gt_v.ndim > 2 and gt_v.shape[0] == 1: gt_v = gt_v.squeeze()
+        if pred_v.ndim > 2 and pred_v.shape[0] == 1: pred_v = pred_v.squeeze()
+        if obs_v.ndim > 2 and obs_v.shape[0] == 1: obs_v = obs_v.squeeze()
+        
+        # Auto-resize if shapes mismatch
+        if gt_v.shape != pred_v.shape:
+            print(f"⚠️ Obs/GT/Pred/Error shape mismatch: GT {gt_v.shape} vs Pred {pred_v.shape}. Resizing Pred to match GT.")
+            from skimage.transform import resize
+            # Assuming (H, W) or (C, H, W)
+            if pred_v.ndim == 2:
+                pred_v = resize(pred_v, gt_v.shape, order=1, preserve_range=True, anti_aliasing=False)
+            else:
+                # (C, H, W) -> transpose to (H, W, C) for resize -> transpose back
+                pr_v_t = pred_v.transpose(1, 2, 0)
+                gt_v_t = gt_v.transpose(1, 2, 0)
+                pr_v_resized = resize(pr_v_t, gt_v_t.shape, order=1, preserve_range=True, anti_aliasing=False)
+                pred_v = pr_v_resized.transpose(2, 0, 1)
+            
+        err_v = np.abs(gt_v - pred_v)
+        
+        # 传递处理后的numpy数组给ensure_2d_for_imshow，而不是原始Tensor
+        gt0 = self._ensure_2d_for_imshow(gt_v)
+        pred0 = self._ensure_2d_for_imshow(pred_v)
+        obs0 = self._ensure_2d_for_imshow(obs_v)
+        err0 = self._ensure_2d_for_imshow(err_v)
+        
         # 统一色标范围基于百分位
         vals = np.concatenate([obs0.flatten(), gt0.flatten(), pred0.flatten()])
         vmin = float(np.percentile(vals, 2))
@@ -594,6 +654,32 @@ class ARTrainingVisualizer:
         T_out = min(target_seq.shape[0], pred_seq.shape[0])
         
         # 计算误差（在真实数据尺度上）
+        # Auto-resize if shapes mismatch
+        if target_seq.shape != pred_seq.shape:
+             print(f"⚠️ Error analysis shape mismatch: Target {target_seq.shape} vs Pred {pred_seq.shape}. Resizing Pred.")
+             from skimage.transform import resize
+             # Target: [T, C, H, W]
+             # We resize pred_seq to match target_seq
+             # resize expects [H, W, C] or similar, so we process frame by frame or use n-dim resize
+             
+             # Safest way: iterate over T
+             new_pred = np.zeros_like(target_seq)
+             for t in range(min(target_seq.shape[0], pred_seq.shape[0])):
+                 tgt_t = target_seq[t] # [C, H, W]
+                 pred_t = pred_seq[t]  # [C, H, W] usually, or mismatch
+                 
+                 if tgt_t.shape != pred_t.shape:
+                     if pred_t.ndim == 3: # [C, H, W]
+                         pred_t_tr = pred_t.transpose(1, 2, 0) # [H, W, C]
+                         tgt_t_tr = tgt_t.transpose(1, 2, 0)
+                         resized = resize(pred_t_tr, tgt_t_tr.shape, order=1, preserve_range=True, anti_aliasing=False)
+                         new_pred[t] = resized.transpose(2, 0, 1)
+                     else: # [H, W] or other
+                         new_pred[t] = resize(pred_t, tgt_t.shape, order=1, preserve_range=True, anti_aliasing=False)
+                 else:
+                     new_pred[t] = pred_t
+             pred_seq = new_pred
+             
         errors = np.abs(target_seq - pred_seq)
         
         # 创建误差分析图
@@ -886,6 +972,84 @@ class ARTrainingVisualizer:
         plt.close()
         
         print(f"✅ Temporal analysis visualization saved: {save_path}")
+
+    def plot_obs_gt_pred_err_horizontal(self, obs, gt, pred, save_path=None, num_samples=4, crop_params=None):
+        """
+        Plot Obs | GT | Pred | Error horizontally for multiple samples.
+        Compatible with the fallback logic in train_real_data_ar.py.
+        """
+        import matplotlib.pyplot as plt
+        import numpy as np
+        
+        # Ensure inputs are numpy arrays
+        if hasattr(obs, 'detach'): obs = obs.detach().cpu().numpy()
+        if hasattr(gt, 'detach'): gt = gt.detach().cpu().numpy()
+        if hasattr(pred, 'detach'): pred = pred.detach().cpu().numpy()
+        
+        # Calculate error
+        err = np.abs(gt - pred)
+        
+        # If obs looks like full image (Canvas Mode), try to mask it for visualization if crop_params provided
+        if crop_params is not None and obs.shape == gt.shape:
+            # Try to infer crop box from crop_params or just trust the obs
+            # If obs has constant value regions, it's likely already masked
+            pass
+            
+        n = min(obs.shape[0], num_samples)
+        
+        for i in range(n):
+            obs_img = self._ensure_2d_for_imshow(obs[i])
+            gt_img = self._ensure_2d_for_imshow(gt[i])
+            pr_img = self._ensure_2d_for_imshow(pred[i])
+            er_img = self._ensure_2d_for_imshow(err[i])
+            
+            # Unified color range for physical values
+            vmin_phys = float(min(np.min(obs_img), np.min(gt_img), np.min(pr_img)))
+            vmax_phys = float(max(np.max(obs_img), np.max(gt_img), np.max(pr_img)))
+            
+            # Symmetric range for error
+            max_err = float(np.max(er_img))
+            
+            fig = plt.figure(figsize=(16, 4))
+            gs = fig.add_gridspec(1, 5, width_ratios=[1, 1, 1, 1, 0.05], wspace=0.05)
+            
+            # Obs
+            ax0 = fig.add_subplot(gs[0])
+            im0 = ax0.imshow(obs_img, cmap="viridis", vmin=vmin_phys, vmax=vmax_phys)
+            ax0.set_title("Obs", fontsize=11, fontweight='bold')
+            ax0.axis('off')
+            
+            # GT
+            ax1 = fig.add_subplot(gs[1])
+            im1 = ax1.imshow(gt_img, cmap="viridis", vmin=vmin_phys, vmax=vmax_phys)
+            ax1.set_title("GT", fontsize=11, fontweight='bold')
+            ax1.axis('off')
+            
+            # Pred
+            ax2 = fig.add_subplot(gs[2])
+            im2 = ax2.imshow(pr_img, cmap="viridis", vmin=vmin_phys, vmax=vmax_phys)
+            ax2.set_title("Pred", fontsize=11, fontweight='bold')
+            ax2.axis('off')
+            
+            # Error
+            ax3 = fig.add_subplot(gs[3])
+            im3 = ax3.imshow(er_img, cmap="coolwarm", vmin=0, vmax=max_err) # Error is absolute, so 0 to max
+            ax3.set_title("Error", fontsize=11, fontweight='bold')
+            ax3.axis('off')
+            
+            # Colorbar
+            cbar = fig.colorbar(im0, cax=fig.add_subplot(gs[4]), orientation='vertical')
+            cbar.set_label('Physical Value', fontsize=10)
+            
+            # Save
+            if save_path:
+                p = Path(save_path)
+                p_sample = p.parent / f"{p.stem}_{i:03d}{p.suffix}"
+                self._save_with_suffix(p_sample, fig)
+                
+            plt.close(fig)
+            
+        return save_path
 
     def create_boundary_and_frequency_metrics(self, pred_seq: torch.Tensor, target_seq: torch.Tensor,
                                               save_name: str = "diagnostics", band_width: int = 16):

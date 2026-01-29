@@ -395,17 +395,17 @@ def compute_total_loss(
     w_dc = 0.0
     w_grad = 0.0
 
-    has_train_loss_weights = hasattr(config, 'train') and hasattr(config.train, 'loss_weights')
+    has_train_loss_weights = hasattr(config, 'training') and hasattr(config.training, 'loss_weights')
     if has_train_loss_weights:
         try:
-            if hasattr(config.train.loss_weights, 'reconstruction'):
-                w_rec = float(config.train.loss_weights.reconstruction)
-            if hasattr(config.train.loss_weights, 'spectral'):
-                w_spec = float(config.train.loss_weights.spectral)
-            if hasattr(config.train.loss_weights, 'data_consistency'):
-                w_dc = float(config.train.loss_weights.data_consistency)
-            if hasattr(config.train.loss_weights, 'gradient'):
-                w_grad = float(getattr(config.train.loss_weights, 'gradient', 0.0))
+            if hasattr(config.training.loss_weights, 'reconstruction'):
+                w_rec = float(config.training.loss_weights.reconstruction)
+            if hasattr(config.training.loss_weights, 'spectral'):
+                w_spec = float(config.training.loss_weights.spectral)
+            if hasattr(config.training.loss_weights, 'data_consistency'):
+                w_dc = float(config.training.loss_weights.data_consistency)
+            if hasattr(config.training.loss_weights, 'gradient'):
+                w_grad = float(getattr(config.training.loss_weights, 'gradient', 0.0))
         except Exception:
             pass
     elif hasattr(config, 'loss'):
@@ -594,9 +594,18 @@ def _compute_spectral_loss(
         pred_fft_low = pred_fft[:, :low_freq_modes_int, :low_freq_modes_int]
         target_fft_low = target_fft[:, :low_freq_modes_int, :low_freq_modes_int]
         
-        # 计算频谱损失（使用L2损失）
-        spectral_loss_c = F.mse_loss(torch.nan_to_num(pred_fft_low.real), torch.nan_to_num(target_fft_low.real)) + \
-                         F.mse_loss(torch.nan_to_num(pred_fft_low.imag), torch.nan_to_num(target_fft_low.imag))
+        # 计算频谱损失（使用相对L2损失）
+        # ||F_pred - F_target||^2 / (||F_target||^2 + eps)
+        diff_real = torch.nan_to_num(pred_fft_low.real) - torch.nan_to_num(target_fft_low.real)
+        diff_imag = torch.nan_to_num(pred_fft_low.imag) - torch.nan_to_num(target_fft_low.imag)
+        
+        target_real = torch.nan_to_num(target_fft_low.real)
+        target_imag = torch.nan_to_num(target_fft_low.imag)
+        
+        diff_sq = diff_real**2 + diff_imag**2
+        target_sq = target_real**2 + target_imag**2 + 1e-8
+        
+        spectral_loss_c = diff_sq.sum() / target_sq.sum()
         
         spectral_losses.append(spectral_loss_c)
     
@@ -992,45 +1001,60 @@ def compute_ar_total_loss(
         pass
     B, T, C, H, W = pred_seq.shape
     
-    # 获取损失权重
-    if hasattr(config.loss, 'rel2_weight'):
-        w_rel2 = config.loss.rel2_weight
-    else:
-        w_rel2 = 1.0
-    
-    if hasattr(config.loss, 'mae_weight'):
-        w_mae = config.loss.mae_weight
-    else:
-        w_mae = 0.1
-    
-    # 频谱损失权重（统一从 config.loss.spectral.weight 读取）
-    if hasattr(config, 'loss'):
-        if hasattr(config.loss, 'spectral') and hasattr(config.loss.spectral, 'weight'):
-            w_spec = float(config.loss.spectral.weight)
-        elif hasattr(config.loss, 'spectral') and isinstance(config.loss.spectral, (int, float)):
-            w_spec = float(config.loss.spectral)
-        else:
-            w_spec = 0.0
-    else:
-        w_spec = 0.0
-
-    # DC损失权重（统一从 config.loss.data_consistency 或 degradation_consistency 读取）
+    # -------------------------------------------------------------------------
+    # 统一权重读取逻辑 (优先 training.loss_weights > loss.*)
+    # -------------------------------------------------------------------------
+    w_rec_scale = 1.0  # 全局重建权重缩放
+    w_spec = 0.0
     w_dc = 0.0
+    
+    # 1. 尝试从 training.loss_weights 读取
+    has_train_weights = hasattr(config, 'training') and hasattr(config.training, 'loss_weights')
+    if has_train_weights:
+        lw = config.training.loss_weights
+        w_rec_scale = float(getattr(lw, 'reconstruction', 1.0))
+        w_spec = float(getattr(lw, 'spectral', 0.0))
+        # 兼容 data_consistency 和 degradation_consistency
+        w_dc = float(getattr(lw, 'data_consistency', getattr(lw, 'degradation_consistency', 0.0)))
+    
+    # 2. 如果未在 training 中定义，回退到 loss.* (兼容旧配置)
+    else:
+        if hasattr(config, 'loss'):
+            # Spectral
+            if hasattr(config.loss, 'spectral'):
+                if hasattr(config.loss.spectral, 'weight'):
+                    w_spec = float(config.loss.spectral.weight)
+                elif isinstance(config.loss.spectral, (int, float)):
+                    w_spec = float(config.loss.spectral)
+            
+            # DC
+            if hasattr(config.loss, 'data_consistency'):
+                if hasattr(config.loss.data_consistency, 'weight'):
+                    w_dc = float(config.loss.data_consistency.weight)
+                elif isinstance(config.loss.data_consistency, (int, float)):
+                    w_dc = float(config.loss.data_consistency)
+            elif hasattr(config.loss, 'degradation_consistency'):
+                if hasattr(config.loss.degradation_consistency, 'weight'):
+                    w_dc = float(config.loss.degradation_consistency.weight)
+                elif isinstance(config.loss.degradation_consistency, (int, float)):
+                    w_dc = float(config.loss.degradation_consistency)
+            
+            # Reconstruction scale
+            if hasattr(config.loss, 'reconstruction'):
+                if hasattr(config.loss.reconstruction, 'weight'):
+                    w_rec_scale = float(config.loss.reconstruction.weight)
+                elif isinstance(config.loss.reconstruction, (int, float)):
+                    w_rec_scale = float(config.loss.reconstruction)
+
+    # DEBUG: 打印最终权重
+    # print(f"[DEBUG] Weights - Rec: {w_rec_scale}, Spec: {w_spec}, DC: {w_dc}")
+
+    # 内部重建分量权重 (保持原样，从 loss.* 读取)
+    w_rel2 = 1.0
+    w_mae = 0.1
     if hasattr(config, 'loss'):
-        if hasattr(config.loss, 'data_consistency') and hasattr(config.loss.data_consistency, 'weight'):
-            try:
-                w_dc = float(config.loss.data_consistency.weight)
-            except Exception:
-                w_dc = 0.0
-        elif hasattr(config.loss, 'degradation_consistency') and hasattr(config.loss.degradation_consistency, 'weight'):
-            try:
-                w_dc = float(config.loss.degradation_consistency.weight)
-            except Exception:
-                w_dc = 0.0
-        elif hasattr(config.loss, 'data_consistency') and isinstance(config.loss.data_consistency, (int, float)):
-            w_dc = float(config.loss.data_consistency)
-        elif hasattr(config.loss, 'degradation_consistency') and isinstance(config.loss.degradation_consistency, (int, float)):
-            w_dc = float(config.loss.degradation_consistency)
+        w_rel2 = float(getattr(config.loss, 'rel2_weight', 1.0))
+        w_mae = float(getattr(config.loss, 'mae_weight', 0.1))
     
     pred_z = torch.nan_to_num(pred_seq, nan=0.0, posinf=1e6, neginf=-1e6)
     target_z = torch.nan_to_num(gt_seq, nan=0.0, posinf=1e6, neginf=-1e6)
@@ -1081,6 +1105,8 @@ def compute_ar_total_loss(
         w_energy = 0.0
     reconstruction_loss = w_rel2 * rel2_loss + w_mae * mae_loss + w_deriv * derivative_consistency + w_energy * energy_consistency
     reconstruction_loss = torch.nan_to_num(reconstruction_loss, nan=0.0, posinf=1e6, neginf=1e6)
+    # Apply global reconstruction scale (from training.loss_weights.reconstruction)
+    reconstruction_loss = w_rec_scale * reconstruction_loss
     losses['reconstruction_loss'] = reconstruction_loss
     losses['rel2_loss'] = rel2_loss
     losses['mae_loss'] = mae_loss

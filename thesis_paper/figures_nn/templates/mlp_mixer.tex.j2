@@ -1,0 +1,65 @@
+{% include "pnn_header.tex.j2" %}
+\def\ConvColor{convcolor}
+\def\ResColor{rescolor}
+\def\OpColor{opcolor}
+
+\begin{document}
+\begin{tikzpicture}
+
+\node[io] (in) {Input};
+
+% Patch Embed
+\pic[shift={(2.0 * {{ dist_scale|default(1.0) }},0,0)}] at (in.east) {Box={
+    name=pe,
+    caption=Patch\\Embed,
+    fill=\ConvColor,
+    height=30, width=2, depth=30
+}};
+
+% Mixer Layer 1
+\pic[shift={(2.0 * {{ dist_scale|default(1.0) }},0,0)}] at (pe-east) {Box={
+    name=mix1,
+    caption={{ layer_type }} 1,
+    fill=\ResColor,
+    height=30, width=4, depth=30
+}};
+
+% Mixer Layer 2
+\pic[shift={(1.0 * {{ dist_scale|default(1.0) }},0,0)}] at (mix1-east) {Box={
+    name=mix2,
+    caption={{ layer_type }} 2,
+    fill=\ResColor,
+    height=30, width=4, depth=30
+}};
+
+% ...
+\node[right=0.5cm of mix2-east] (dots) {\dots};
+
+% Mixer Layer N
+\pic[shift={(1.5 * {{ dist_scale|default(1.0) }},0,0)}] at (dots) {Box={
+    name=mixN,
+    caption={{ layer_type }} N,
+    fill=\ResColor,
+    height=30, width=4, depth=30
+}};
+
+% Head
+\pic[shift={(2.0 * {{ dist_scale|default(1.0) }},0,0)}] at (mixN-east) {Box={
+    name=head,
+    caption=Head,
+    fill=\ConvColor,
+    height=30, width=2, depth=30
+}};
+
+\node[io, right=2.0cm of head-east] (out) {Output};
+
+\draw[arrow] (in) -- (pe-west);
+\draw[arrow] (pe-east) -- (mix1-west);
+\draw[arrow] (mix1-east) -- (mix2-west);
+\draw[arrow] (mix2-east) -- (dots);
+\draw[arrow] (dots) -- (mixN-west);
+\draw[arrow] (mixN-east) -- (head-west);
+\draw[arrow] (head-east) -- (out);
+
+\end{tikzpicture}
+\end{document}

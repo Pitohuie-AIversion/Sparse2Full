@@ -1,0 +1,278 @@
+# AR训练配置文件 - Extreme Mismatch Experiment (UNet, Spatial Only)
+# 基于 ar_paper_mismatch_spatial_unet_sr4.yaml 修改
+# 验证：极端不匹配！训练退化算子 (Sigma=3.0) vs 验证观测算子 (Sigma=1.0)
+# 预期：性能崩塌更严重
+
+experiment:
+  name: "AR-DR2D-UNet-SRx4-Mismatch-Sigma3.0"
+  description: "Extreme Mismatch experiment (UNet): Training sigma=3.0 vs Validation sigma=1.0"
+  device: cuda
+  seed: 2025
+  seeds: [2025]
+  output_dir: "runs_drd_paper/${experiment.name}"
+  log_every_n_steps: 10
+
+# 设备与并行（DDP）
+device:
+  accelerator: cuda
+  devices: 1
+  strategy: null
+  allow_data_parallel_fallback: true
+  precision: bf16-mixed
+
+# 显式禁用AR时序，改为空间-only模式
+ar:
+  enabled: false
+  eval_time_strategy: mean
+
+sequential:
+  enabled: false
+
+# 数据配置
+data:
+  data_path: "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/data/DR2D/2D_diff-react_NA_NA.h5"
+  dataset_name: RealDiffusionReaction
+  img_size: 128
+  keys: ["data"]
+  component: u
+  use_official_format: true
+  splits_dir: splits
+  target_channels: 1
+  input_channels: 1
+  sample_limit: null
+  
+  # AR特定配置
+  T_in: 1
+  T_out: 1
+  
+  # 数据集分割配置
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+  
+  # 时间步配置
+  time_step_start: 0
+  time_step_end: 101
+  time_step_stride: 10
+  
+  # 观测配置 (Ground Truth / Validation) -> Sigma = 1.0
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+      downsample_mode: area
+      align_corners: false
+      antialias: true
+
+  input_mode: lr
+  include_coords: false
+  include_mask: false
+  include_fourier_pe: false
+  fourier_pe_bands: 4
+  
+  # 预处理
+  normalize: true
+  augmentation:
+    enabled: false
+    flip_prob: 0.0
+    rotate_prob: 0.0
+    noise_std: 0.0
+
+  # 数据加载器
+  dataloader:
+    batch_size: 96
+    val_batch_size: 96
+    test_batch_size: 96
+    num_workers: 12
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 6
+    drop_last: true
+    shuffle: true
+    timeout: 60
+
+hardware:
+  allow_tf32: true
+  memory:
+    cudnn_benchmark: true
+
+# 替换为 UNet 模型
+model:
+  name: UNet
+  in_channels: 1
+  out_channels: 1
+  img_size: 128
+  # UNet specific params
+  bilinear: true
+  base_c: 64
+
+model_budget:
+  target_params_m: 10.0
+  tolerance_m: 1.0
+  auto_tune: false
+
+# 训练配置
+training:
+  # Extreme Mismatched Degradation -> Sigma = 3.0
+  degradation:
+    mode: sr
+    sr:
+      scale_factor: 4
+      blur_sigma: 3.0  # <--- Extreme Mismatch here
+      blur_kernel_size: 7  # 增加 kernel size 以容纳更大的 sigma
+      boundary_mode: mirror
+      downsample_mode: area
+      align_corners: false
+      antialias: true
+
+  epochs: 100
+  batch_size: 96
+  gradient_accumulation_steps: 1
+  
+  torch_compile: false
+  torch_compile_backend: "inductor"
+  torch_compile_mode: "reduce-overhead"
+  channels_last: true
+  
+  dataloader:
+    batch_size: 96
+    num_workers: 12
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 6
+
+  loss_weights:
+    reconstruction: 1.0
+    spectral: 0.5
+    data_consistency: 1.0
+  
+  validation:
+    enabled: true
+    check_val_every_n_epoch: 5
+    save_val_batch_for_viz: false
+    log_val_metrics: false
+  
+  optimizer:
+    name: "AdamW"
+    lr: 0.0005
+    weight_decay: 0.0001
+    betas: [0.9, 0.999]
+    eps: 1e-8
+    fused: false
+    foreach: false
+  
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 1000
+    eta_min: 1e-6
+    warmup_epochs: 10
+  
+  gradient_clip_val: 1.0
+  gradient_clip_algorithm: norm
+  
+  amp:
+    enabled: false
+    autocast_dtype: bfloat16
+  
+  curriculum:
+    enabled: false
+    stages: []
+  
+  checkpoint:
+    save_best: true
+    save_last: true
+    max_keep: 5
+    monitor: val_loss
+    mode: min
+    save_every_n_epochs: 50
+  
+  early_stopping:
+    enabled: false
+    patience: 200
+    monitor: val_loss
+    mode: min
+    min_delta: 1e-6
+
+# AR损失配置
+loss:
+  ar_loss:
+    weight: 0.0
+    reduction: mean
+  
+  reconstruction:
+    weight: 1.0
+  spectral:
+    weight: 0.05
+  degradation_consistency:
+    weight: 0.1
+  gradient_weight: 0.0
+
+# 验证配置
+validation:
+  check_val_every_n_epoch: 5
+  use_observation: true
+  
+  metrics:
+    - rel_l2
+    - mae
+    - psnr
+    - ssim
+  rollout_steps: [1]
+  
+  convergence_criteria:
+    target_rel_l2: 0.1
+    patience_for_convergence: 10
+    min_improvement: 1e-4
+
+logging:
+  experiment_name: "AR-DR2D-UNet-Mismatch-Sigma3.0"
+  version: null
+  default_hp_metric: false
+  log_model: false
+  
+  performance_monitoring:
+    log_gpu_memory: true
+    log_throughput: true
+    log_batch_time: true
+  
+  tensorboard:
+    save_dir: runs/tensorboard
+    name: ar_paper
+    version: null
+  
+  visualization:
+    save_test_visualizations: true
+    save_samples_every_n_epochs: 50
+    num_samples_to_save: 5
+    save_training_curves: true
+    save_rollout_visualization: false
+    num_test_samples: 3
+
+testing:
+  enabled: true
+  run_final_test: true
+  save_predictions: false
+  compute_detailed_metrics: true
+  batch_size: 512
+  save_visualizations: true
+  num_visualization_samples: 3
+  fast_mode: false
+  minimal_logging: false
+
+data_augmentation:
+  enable: false
+  random_rotation: 
+    enable: false
+    degrees: [-5, 5]
+  random_flip:
+    enable: false
+    horizontal: 0.5
+    vertical: 0.3
+  gaussian_noise:
+    enable: false
+    std: 0.01
+  normalize_per_sample: false
+  compute_statistics: false

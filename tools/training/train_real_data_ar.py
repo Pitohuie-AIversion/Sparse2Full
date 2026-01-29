@@ -74,6 +74,7 @@ sys.path.insert(0, str(training_dir))
 from datasets.real_diffusion_reaction_dataset import (
     RealDiffusionReactionDataModule,
 )
+from datasets.darcy_flow_dataset import DarcyFlowDataModule
 from models.spatial import SwinUNet
 from models.temporal import ARWrapper
 from ops.degradation import apply_degradation_operator
@@ -1088,8 +1089,16 @@ class RealDataARTrainer:
         self.using_synthetic = False
         self.using_dm = True
 
-        self.logger.info("初始化 RealDiffusionReactionDataModule (唯一合法 Dataset)...")
-        self.data_module = RealDiffusionReactionDataModule(self.config)
+        dataset_name = self._cfg_select('data.dataset_name', default='RealDiffusionReaction')
+        self.logger.info(f"使用数据集: {dataset_name}")
+
+        if dataset_name == 'darcy_flow':
+            self.logger.info("初始化 DarcyFlowDataModule...")
+            self.data_module = DarcyFlowDataModule(self.config)
+        else:
+            self.logger.info("初始化 RealDiffusionReactionDataModule (默认)...")
+            self.data_module = RealDiffusionReactionDataModule(self.config)
+            
         self.data_module.setup()
 
     def _setup_synthetic_data(self):
@@ -1245,7 +1254,14 @@ class RealDataARTrainer:
 
             if mode == 'sr':
                 sr_sub = obs_cfg.get('sr', {}) if isinstance(obs_cfg.get('sr', {}), dict) else {}
-                scale = obs_cfg.get('scale_factor', sr_sub.get('scale_factor', 2))
+                # 优先查找 'scale'，其次 'scale_factor'，最后是 sr 子字典中的配置
+                scale = obs_cfg.get('scale', obs_cfg.get('scale_factor', sr_sub.get('scale_factor', 2)))
+                # 确保 scale 是 int
+                try:
+                    scale = int(scale)
+                except Exception:
+                    scale = 2
+                
                 sigma = obs_cfg.get('blur_sigma', sr_sub.get('blur_sigma', 1.0))
                 kernel_size = obs_cfg.get('kernel_size', sr_sub.get('blur_kernel_size', 5))
                 boundary = boundary if boundary is not None else sr_sub.get('boundary_mode', 'mirror')
@@ -1258,16 +1274,24 @@ class RealDataARTrainer:
                 self.observation_op = lambda x: apply_degradation_operator(x, {
                     'task': 'SR', 'scale': scale, 'sigma': sigma, 'kernel_size': kernel_size, 'boundary': boundary
                 })
+                self.logger.info(f"✅ 观测算子初始化 (SR): scale={scale}, sigma={sigma}")
             elif mode == 'crop':
                 crop_sub = obs_cfg.get('crop', {}) if isinstance(obs_cfg.get('crop', {}), dict) else {}
-                crop_size = obs_cfg.get('crop_size', crop_sub.get('crop_size', None))
+                # 修复: 同时支持 'crop_size' 和 'size' 键名
+                crop_size = obs_cfg.get('crop_size', crop_sub.get('crop_size', crop_sub.get('size', None)))
+                
+                # degradation.py 期望 crop_size 为列表/元组 [h, w]
+                deg_crop_size = crop_size
+                if crop_size is not None and not isinstance(crop_size, (list, tuple)):
+                     deg_crop_size = [crop_size, crop_size]
+
                 crop_box = obs_cfg.get('crop_box', crop_sub.get('crop_box', None))
                 boundary = boundary if boundary is not None else crop_sub.get('boundary_mode', 'mirror')
                 self.h_params = {
-                    'task': 'Crop', 'crop_size': crop_size, 'crop_box': crop_box, 'boundary': boundary
+                    'task': 'Crop', 'crop_size': deg_crop_size, 'crop_box': crop_box, 'boundary': boundary
                 }
                 self.observation_op = lambda x: apply_degradation_operator(x, {
-                    'task': 'Crop', 'crop_size': crop_size, 'crop_box': crop_box, 'boundary': boundary
+                    'task': 'Crop', 'crop_size': deg_crop_size, 'crop_box': crop_box, 'boundary': boundary
                 })
             elif mode == 'identity':
                 self.h_params = {'task': 'Identity', 'boundary': boundary}
@@ -1277,6 +1301,69 @@ class RealDataARTrainer:
 
             if self.h_params:
                 self.logger.info(f"✅ 观测算子配置: {self.h_params}")
+
+        # 设置训练专用退化算子 (支持 Mismatch Experiment)
+        self.training_degradation_op = self.observation_op  # 默认与观测算子一致
+        
+        # 尝试从 training.degradation 读取独立配置
+        train_deg_cfg = getattr(self.config, 'training', {}).get('degradation', None)
+        if train_deg_cfg is not None:
+            try:
+                if isinstance(train_deg_cfg, DictConfig):
+                    train_deg_cfg = OmegaConf.to_container(train_deg_cfg, resolve=True)
+                
+                if isinstance(train_deg_cfg, dict):
+                    self.logger.info(f"🔧 发现独立训练退化配置: {train_deg_cfg}")
+                    # 复用 apply_degradation_operator 逻辑
+                    mode_raw = train_deg_cfg.get('mode', 'sr')
+                    mode = str(mode_raw[0] if isinstance(mode_raw, (list, tuple)) else mode_raw).lower()
+                    boundary = train_deg_cfg.get('boundary', train_deg_cfg.get('boundary_mode', 'mirror'))
+                    
+                    if mode == 'sr':
+                        sr_sub = train_deg_cfg.get('sr', {}) if isinstance(train_deg_cfg.get('sr', {}), dict) else {}
+                        # 优先查找 'scale'，其次 'scale_factor'，最后是 sr 子字典中的配置
+                        scale = train_deg_cfg.get('scale', train_deg_cfg.get('scale_factor', sr_sub.get('scale_factor', 2)))
+                        sigma = train_deg_cfg.get('blur_sigma', sr_sub.get('blur_sigma', 1.0))
+                        kernel_size = train_deg_cfg.get('kernel_size', sr_sub.get('blur_kernel_size', 5))
+                        boundary = boundary if boundary is not None else sr_sub.get('boundary_mode', 'mirror')
+                        
+                        # 确保 scale 是 int
+                        try:
+                            scale = int(scale)
+                        except Exception:
+                            scale = 2
+                            
+                        self.logger.info(f"🔧 SR退化配置解析: raw_scale={train_deg_cfg.get('scale')}, raw_scale_factor={train_deg_cfg.get('scale_factor')}, resolved_scale={scale}")
+
+                        # training_degradation_op 构造
+                        self.training_degradation_op = lambda x: apply_degradation_operator(x, {
+                            'task': 'SR', 'scale': scale, 'sigma': sigma, 'kernel_size': kernel_size, 'boundary': boundary
+                        })
+                        self.logger.info(f"✅ 训练退化算子已重写 (SR): sigma={sigma}, scale={scale}")
+                    elif mode == 'crop':
+                        # 类似的 Crop 逻辑...
+                        crop_sub = train_deg_cfg.get('crop', {}) if isinstance(train_deg_cfg.get('crop', {}), dict) else {}
+                        # 修复: 同时支持 'crop_size' 和 'size' 键名
+                        crop_size = train_deg_cfg.get('crop_size', crop_sub.get('crop_size', crop_sub.get('size', None)))
+                        
+                        # degradation.py 期望 crop_size 为列表/元组 [h, w]
+                        deg_crop_size = crop_size
+                        if crop_size is not None and not isinstance(crop_size, (list, tuple)):
+                             deg_crop_size = [crop_size, crop_size]
+
+                        crop_box = train_deg_cfg.get('crop_box', crop_sub.get('crop_box', None))
+                        boundary = boundary if boundary is not None else crop_sub.get('boundary_mode', 'mirror')
+                        self.training_degradation_op = lambda x: apply_degradation_operator(x, {
+                            'task': 'Crop', 'crop_size': deg_crop_size, 'crop_box': crop_box, 'boundary': boundary
+                        })
+                        self.logger.info(f"✅ 训练退化算子已重写 (Crop): size={crop_size}")
+                    elif mode == 'identity':
+                        self.training_degradation_op = nn.Identity()
+                        self.logger.info(f"✅ 训练退化算子已重写 (Identity)")
+            except Exception as e:
+                self.logger.warning(f"⚠️ 初始化训练退化算子失败，回退到默认观测算子: {e}")
+                self.training_degradation_op = self.observation_op
+
 
     def _setup_norm_stats(self):
         """内部函数：设置归一化统计量（优先级：缓存文件 > DataModule > 现场计算 > 默认）"""
@@ -2176,9 +2263,13 @@ class RealDataARTrainer:
 
             # 添加通用参数
             additional_params = {}
-            for key in ['embed_dim', 'num_heads', 'depths', 'mlp_ratio', 'drop_rate',
+            
+            # 1. 优先处理标准参数列表
+            standard_keys = ['embed_dim', 'num_heads', 'depths', 'mlp_ratio', 'drop_rate',
                        'attn_drop_rate', 'drop_path_rate', 'patch_size', 'window_size',
-                       'use_checkpoint', 'use_sdpa', 'sdpa_kernel']:
+                       'use_checkpoint', 'use_sdpa', 'sdpa_kernel']
+            
+            for key in standard_keys:
                 try:
                     value = self._cfg_select(f'model.{key}', default=None)
                     if value is not None:
@@ -2192,6 +2283,19 @@ class RealDataARTrainer:
                             additional_params[key] = value
                 except Exception:
                     pass
+            
+            # 2. 补充其他未被包含的模型参数 (支持 EDSR, RDN 等自定义参数)
+            if hasattr(self.config, 'model'):
+                for key, value in self.config.model.items():
+                    if key not in model_config and key not in additional_params and key not in ['name', 'type', 'architecture', 'sequential', 'ar_config']:
+                        # 简单的类型转换尝试
+                        if hasattr(value, '__iter__') and not isinstance(value, str):
+                             try:
+                                 additional_params[key] = list(value)
+                             except:
+                                 additional_params[key] = value
+                        else:
+                             additional_params[key] = value
 
             # 添加LIIF相关参数
             if self.use_liif_decoder or (hasattr(self.config.model, 'use_liif_decoder') and self.config.model.use_liif_decoder):
@@ -2426,10 +2530,42 @@ class RealDataARTrainer:
 
             # 计算参数量与记录FLOPs/推理延迟（单次采样）
             model_for_params = self.model.module if hasattr(self.model, 'module') else self.model
-            total_params = sum(p.numel() for p in model_for_params.parameters())
-            trainable_params = sum(p.numel() for p in model_for_params.parameters() if p.requires_grad)
+            
+            # 详细打印分模块参数量
+            self.logger.info("-" * 50)
+            self.logger.info("📊 模型参数分布 (Parameter Breakdown):")
+            
+            total_params = 0
+            trainable_params = 0
+            
+            # 1. 如果是分阶段模型 (SequentialSpatiotemporalModel)
+            if hasattr(model_for_params, 'spatial_module') and hasattr(model_for_params, 'temporal_module'):
+                # 空间模块
+                spatial_p = sum(p.numel() for p in model_for_params.spatial_module.parameters())
+                spatial_trainable = sum(p.numel() for p in model_for_params.spatial_module.parameters() if p.requires_grad)
+                self.logger.info(f"  🔹 [Spatial Module]: {spatial_p:,} params (Trainable: {spatial_trainable:,})")
+                
+                # 时序模块
+                temporal_p = sum(p.numel() for p in model_for_params.temporal_module.parameters())
+                temporal_trainable = sum(p.numel() for p in model_for_params.temporal_module.parameters() if p.requires_grad)
+                self.logger.info(f"  🔹 [Temporal Module]: {temporal_p:,} params (Trainable: {temporal_trainable:,})")
+                
+                total_params = spatial_p + temporal_p
+                trainable_params = spatial_trainable + temporal_trainable
+                
+            else:
+                # 2. 如果是普通模型，尝试打印第一层子模块
+                for name, child in model_for_params.named_children():
+                    child_p = sum(p.numel() for p in child.parameters())
+                    child_trainable = sum(p.numel() for p in child.parameters() if p.requires_grad)
+                    self.logger.info(f"  🔹 [{name}]: {child_p:,} params")
+                
+                total_params = sum(p.numel() for p in model_for_params.parameters())
+                trainable_params = sum(p.numel() for p in model_for_params.parameters() if p.requires_grad)
 
-            self.logger.info(f"✅ 模型参数量: {total_params:,} (可训练: {trainable_params:,})")
+            self.logger.info("-" * 50)
+            self.logger.info(f"✅ 总参数量 (Total): {total_params:,} (可训练: {trainable_params:,})")
+            self.logger.info("-" * 50)
 
             # -----------------------------------------------------------
             # 严格参数限制检查 (Strict Parameter Budget Check)
@@ -2969,6 +3105,21 @@ class RealDataARTrainer:
                         lo = mid + 4
                     else:
                         hi = mid - 4
+            elif 'edsr' in name_l:
+                # EDSR tuning: Scale n_feats
+                base = int(model_config.get('n_feats', 64))
+                lo, hi = 8, 512
+                for _ in range(15):
+                    mid = int(((lo + hi) // 2) // 4 * 4)
+                    cfg = {**model_config, 'n_feats': max(16, mid)}
+                    pc = build(cfg)
+                    err = abs(pc - target)
+                    if err < best_err:
+                        best, best_err = cfg, err
+                    if pc < target:
+                        lo = mid + 4
+                    else:
+                        hi = mid - 4
             else:
                 pc = build(model_config)
                 if pc == 0:
@@ -2980,6 +3131,9 @@ class RealDataARTrainer:
                 elif 'width' in model_config:
                     val = int(max(16, int(model_config['width'] * scale) // 8 * 8))
                     best = {**model_config, 'width': val}
+                elif 'n_feats' in model_config:
+                    val = int(max(16, int(model_config['n_feats'] * scale) // 4 * 4))
+                    best = {**model_config, 'n_feats': val}
                 else:
                     best = model_config
             final_pc = build(best)
@@ -3237,6 +3391,7 @@ class RealDataARTrainer:
         self.setup_sequential_trainers()
 
         self.logger.info(f"分阶段模型设置完成: {type(self.sequential_model).__name__}")
+        self.logger.info(f"模型结构详情:\n{self.sequential_model}")
         self.logger.info(f"模型参数量: {sum(p.numel() for p in self.sequential_model.parameters()):,}")
 
     def setup_sequential_trainers(self):
@@ -3477,13 +3632,23 @@ class RealDataARTrainer:
             model_to_load = self.get_model()
             if hasattr(model_to_load, 'module'):
                 model_to_load = model_to_load.module
+            
+            # 预处理 state_dict：移除 'module.' 前缀（处理 DDP 保存的检查点）
+            state_dict = checkpoint['model_state_dict']
+            new_state_dict = {}
+            for k, v in state_dict.items():
+                if k.startswith('module.'):
+                    new_state_dict[k[7:]] = v
+                else:
+                    new_state_dict[k] = v
+            
             try:
-                model_to_load.load_state_dict(checkpoint['model_state_dict'], strict=True)
+                model_to_load.load_state_dict(new_state_dict, strict=True)
             except RuntimeError as e:
                 self.logger.warning(f"严格模式加载失败: {e}")
                 self.logger.info("尝试非严格模式加载...")
                 model_state = model_to_load.state_dict()
-                checkpoint_state = checkpoint['model_state_dict']
+                checkpoint_state = new_state_dict
                 filtered_state = {}
                 for key, value in checkpoint_state.items():
                     if key in model_state:
@@ -3515,7 +3680,15 @@ class RealDataARTrainer:
             # 加载训练状态
             self.current_epoch = checkpoint.get('epoch', 0)
             self.best_val_loss = checkpoint.get('best_val_loss', float('inf'))
-            self.training_history = checkpoint.get('training_history', self.training_history)
+            
+            # 安全加载 training_history
+            if 'training_history' in checkpoint:
+                self.training_history = checkpoint['training_history']
+            elif not hasattr(self, 'training_history'):
+                self.training_history = {
+                    'train_losses': [], 'val_losses': [], 'val_metrics': [],
+                    'learning_rates': [], 'epochs': [], 'curriculum_stages': []
+                }
 
             self.logger.info(f"✅ Successfully loaded checkpoint: {checkpoint_path}")
             self.logger.info(f"Restored to epoch {self.current_epoch}, best val loss: {self.best_val_loss:.6f}")
@@ -3599,7 +3772,9 @@ class RealDataARTrainer:
                         viz_path = viz.plot_obs_gt_pred_err_horizontal(
                             obs_denorm, gt_denorm, pred_denorm,
                             save_path=str(out_dir_runs / f"epoch_{epoch:04d}_sample.png"),
-                            num_samples=min(4, input_seq.size(0))
+                            num_samples=min(4, input_seq.size(0)),
+                            # 传递 crop_params 
+                            crop_params=getattr(self.cfg.data.observation, 'crop', None)
                         )
                         # 复制到paper_package
                         import shutil
@@ -4323,133 +4498,57 @@ class RealDataARTrainer:
         self.logger.error(f"堆栈:\n{traceback.format_exc()}")
         return False  # 默认不恢复，除非是明确的OOM
 
-    def _apply_crop_training(self, target_hr: torch.Tensor, input_lr: torch.Tensor, crop_config: DictConfig) -> tuple[torch.Tensor, torch.Tensor]:
-        """应用随机裁剪并生成对应的低分辨率输入
+    def _apply_random_masking(self, target_hr: torch.Tensor, crop_config: DictConfig) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """应用随机掩码（Crop & Pad）生成稀疏观测
         
         Args:
             target_hr: 高分辨率目标序列 [B, T, C, H, W]
-            input_lr: 低分辨率输入序列 [B, T, C, H_lr, W_lr] (或 HR)
             crop_config: 裁剪配置
             
         Returns:
-            (patches_hr, patches_lr) 均为 [B*N, T, C, h, w]
+            inputs_sparse: [B*N, T, C, H, W] (稀疏观测)
+            targets_dense: [B*N, T, C, H, W] (全图目标)
+            masks: [B*N, T, C, H, W] (掩码, 1为观测区域, 0为缺失)
         """
+        # 维度兼容性修复：如果输入是4D [B, C, H, W]，扩展为 [B, 1, C, H, W]
+        if target_hr.dim() == 4:
+            target_hr = target_hr.unsqueeze(1)
+            
         B, T, C, H, W = target_hr.shape
         crop_size = int(crop_config.size)
         n_patches = int(crop_config.patches_per_image)
         
-        # 确定 scale_factor 用于同步裁剪
-        scale_factor = 1
-        if self.observation_op is not None and hasattr(self.observation_op, 'scale'):
-             # 确保 scale 是有效的整数
-             try:
-                 scale_factor = int(self.observation_op.scale)
-             except Exception:
-                 scale_factor = 1
-        
-        # 检查是否可以进行同步裁剪
-        # 要求: input_lr 是 LR，且尺寸符合 scale 关系
-        _, _, _, H_in, W_in = input_lr.shape
-        can_sync_crop = False
-        if H_in * scale_factor == H and W_in * scale_factor == W:
-            can_sync_crop = True
-        elif H_in == H and W_in == W:
-            # 输入也是 HR，说明 Dataset 没做 SR (或者 scale=1)
-            # 这种情况下，我们需要自己做 degradation (退回到原来的逻辑)
-            can_sync_crop = False
-            scale_factor = 1 # 这种情况下 crop 坐标不需要缩放，但在 degradation 时会缩放
-        else:
-            # 尺寸对不上，无法同步裁剪，只能退回到 "Crop then Degrade"
-            can_sync_crop = False
-
-        if crop_size > H or crop_size > W:
-            # 图像太小，使用全图
-            patches_hr = target_hr.repeat_interleave(n_patches, dim=0)
-            if can_sync_crop:
-                 patches_lr = input_lr.repeat_interleave(n_patches, dim=0)
-            else:
-                 # 重新生成 LR
-                 patches_hr_flat = patches_hr.reshape(-1, C, H, W)
-                 with torch.no_grad():
-                     if self.observation_op is not None:
-                         patches_lr_flat = self.observation_op(patches_hr_flat)
-                     else:
-                         patches_lr_flat = patches_hr_flat
-                 patches_lr = patches_lr_flat.reshape(patches_hr.shape[0], T, C, patches_lr_flat.shape[-2], patches_lr_flat.shape[-1])
-            return patches_hr, patches_lr
-            
-        patches_hr_list = []
-        patches_lr_list = []
+        inputs_list = []
+        targets_list = []
+        masks_list = []
         
         for _ in range(n_patches):
-            # 为了同步裁剪，我们需要生成符合 grid 对齐的坐标
-            # 随机起点必须是 scale_factor 的倍数
+            # 为了效率，整个Batch使用相同的随机裁剪位置
+            h_start = torch.randint(0, H - crop_size + 1, (1,)).item()
+            w_start = torch.randint(0, W - crop_size + 1, (1,)).item()
             
-            # 有效的起始范围
-            max_h = H - crop_size
-            max_w = W - crop_size
+            mask = torch.zeros_like(target_hr)
+            mask[..., h_start:h_start+crop_size, w_start:w_start+crop_size] = 1.0
             
-            if max_h < 0 or max_w < 0:
-                 continue # Should not happen given check above
+            input_sparse = target_hr * mask
             
-            # 生成随机起点 (单个值应用到整个Batch，增加效率)
-            # 我们在 [0, max_h/scale] 范围内生成，然后乘 scale
-            
-            if can_sync_crop and scale_factor > 1:
-                # 确保 HR 坐标是 scale 的倍数
-                h_steps = max_h // scale_factor
-                w_steps = max_w // scale_factor
-                
-                h_start_base = torch.randint(0, h_steps + 1, (1,)).item()
-                w_start_base = torch.randint(0, w_steps + 1, (1,)).item()
-                
-                h_start = h_start_base * scale_factor
-                w_start = w_start_base * scale_factor
-                
-                # LR 坐标
-                h_start_lr = h_start_base
-                w_start_lr = w_start_base
-                crop_size_lr = crop_size // scale_factor
-                
-                patch_hr = target_hr[..., h_start:h_start+crop_size, w_start:w_start+crop_size]
-                patch_lr = input_lr[..., h_start_lr:h_start_lr+crop_size_lr, w_start_lr:w_start_lr+crop_size_lr]
-                
-                patches_hr_list.append(patch_hr)
-                patches_lr_list.append(patch_lr)
-            
-            else:
-                # 无法同步裁剪 (Input是HR 或 尺寸不匹配)，只能 Crop HR 然后降质
-                h_start = torch.randint(0, max_h + 1, (1,)).item()
-                w_start = torch.randint(0, max_w + 1, (1,)).item()
-                
-                patch_hr = target_hr[..., h_start:h_start+crop_size, w_start:w_start+crop_size]
-                patches_hr_list.append(patch_hr)
-                
-                # 这种情况下 LR patch 需要稍后生成
+            inputs_list.append(input_sparse)
+            targets_list.append(target_hr)
+            masks_list.append(mask)
         
-        # 堆叠
-        patches_hr = torch.stack(patches_hr_list, dim=1).reshape(-1, T, C, crop_size, crop_size)
+        inputs = torch.cat(inputs_list, dim=0)
+        targets = torch.cat(targets_list, dim=0)
+        masks = torch.cat(masks_list, dim=0)
         
-        if can_sync_crop and scale_factor > 1:
-             patches_lr = torch.stack(patches_lr_list, dim=1).reshape(-1, T, C, crop_size // scale_factor, crop_size // scale_factor)
-        else:
-             # 生成 LR 输入 (Crop then Degrade)
-             B_new = patches_hr.shape[0]
-             patches_hr_flat = patches_hr.reshape(-1, C, crop_size, crop_size)
-             
-             with torch.no_grad():
-                 if self.observation_op is not None:
-                     patches_lr_flat = self.observation_op(patches_hr_flat)
-                 else:
-                     patches_lr_flat = patches_hr_flat
-             
-             h_lr, w_lr = patches_lr_flat.shape[-2:]
-             patches_lr = patches_lr_flat.reshape(B_new, T, C, h_lr, w_lr)
-
-        return patches_hr, patches_lr
+        return inputs, targets, masks
 
     def train_epoch(self, epoch: int) -> float:
         """训练一个epoch"""
+        # [紧急修复] Test Only 模式拦截
+        if self.config.get('testing', {}).get('test_only', False):
+            self.logger.info("🛑 检测到 Test Only 模式，跳过 train_epoch")
+            return 0.0
+
         model_to_train = self.get_model()
         model_to_train.train()
         total_loss = 0.0
@@ -4596,12 +4695,12 @@ class RealDataARTrainer:
                 input_seq = batch['input_sequence'].to(self.device, non_blocking=True)  # [B, T_in, C, H, W]
                 target_seq = batch['target_sequence'].to(self.device, non_blocking=True)  # [B, T_out, C, H, W]
                 
-                # Crop训练逻辑
+                # Crop训练逻辑 (Masking)
                 crop_cfg = getattr(getattr(self.config, 'training', None), 'crop', None)
+                masks_seq = None
                 if crop_cfg and getattr(crop_cfg, 'enabled', False):
-                    # 使用裁剪生成新的 input_seq (LR) 和 target_seq (HR)
-                    # 传入 input_seq (LR) 以尝试同步裁剪，避免重复计算 SR
-                    target_seq, input_seq = self._apply_crop_training(target_seq, input_seq, crop_cfg)
+                    # 使用随机掩码生成 input_seq (Sparse) 和 target_seq (Dense)
+                    input_seq, target_seq, masks_seq = self._apply_random_masking(target_seq, crop_cfg)
                     # 强制清空 observed_lr_sequence，防止后续逻辑误用全图LR
                     if isinstance(batch, dict):
                         batch['observed_lr_sequence'] = None
@@ -4663,6 +4762,9 @@ class RealDataARTrainer:
                                     pass
                             else:
                                 x_single = input_seq[:, 0]
+                                # Apply training degradation if available (e.g. for SR/Crop)
+                                if hasattr(self, 'training_degradation_op') and self.training_degradation_op is not None:
+                                    x_single = self.training_degradation_op(x_single)
                                 # baseline模式下拼接HR坐标与掩码（如存在）
                                 try:
                                     if ('coords_sequence' in batch) and (batch['coords_sequence'] is not None):
@@ -4725,7 +4827,10 @@ class RealDataARTrainer:
                             target_single = target_seq[:, 0]
                             # 优先使用dataset返回的observed_lr_sequence（已降质）
                             observation_single = None
-                            if isinstance(batch, dict) and ('observed_lr_sequence' in batch) and (batch['observed_lr_sequence'] is not None):
+                            if masks_seq is not None:
+                                # 如果是随机Mask训练，input_seq[:,0] 就是观测值
+                                observation_single = input_seq[:, 0]
+                            elif isinstance(batch, dict) and ('observed_lr_sequence' in batch) and (batch['observed_lr_sequence'] is not None):
                                 obs_lr_seq = batch['observed_lr_sequence']
                                 if obs_lr_seq.dim() == 5: # [B, T, C, H, W]
                                     observation_single = obs_lr_seq[:, 0]
@@ -4736,7 +4841,7 @@ class RealDataARTrainer:
                             pred_obs_single = None
                             baseline_single = None
                             try:
-                                if hasattr(self, 'observation_op') and self.observation_op is not None and hasattr(self, 'norm_stats') and self.norm_stats is not None:
+                                if hasattr(self, 'norm_stats') and self.norm_stats is not None:
                                     m = self.norm_stats.get('data_mean', self.norm_stats.get('u_mean', torch.tensor(0.0)))
                                     s = self.norm_stats.get('data_std', self.norm_stats.get('u_std', torch.tensor(1.0)))
                                     mean_t = torch.as_tensor(m, device=self.device).reshape(1, -1, 1, 1)
@@ -4744,13 +4849,22 @@ class RealDataARTrainer:
 
                                     # 反归一化 Pred
                                     pred_orig = y_single * std_t + mean_t
-                                    # 应用观测算子 H(Pred)
-                                    pred_obs_single = self.observation_op(pred_orig)
-
-                                    # 生成 Baseline = H(GT)
                                     # 反归一化 GT
                                     gt_orig = target_single * std_t + mean_t
-                                    baseline_single = self.observation_op(gt_orig)
+                                    
+                                    # 应用观测算子 H(Pred) (Mismatch Experiment: 使用 training_degradation_op)
+                                    if masks_seq is not None:
+                                        # 如果有掩码，直接应用掩码
+                                        mask_single = masks_seq[:, 0]
+                                        pred_obs_single = pred_orig * mask_single
+                                        baseline_single = gt_orig * mask_single
+                                    elif hasattr(self, 'training_degradation_op') and self.training_degradation_op is not None:
+                                        pred_obs_single = self.training_degradation_op(pred_orig)
+                                        baseline_single = self.training_degradation_op(gt_orig)
+                                    elif hasattr(self, 'observation_op') and self.observation_op is not None:
+                                        # 回退逻辑
+                                        pred_obs_single = self.observation_op(pred_orig)
+                                        baseline_single = self.observation_op(gt_orig)
                             except Exception:
                                 pred_obs_single = None
                                 baseline_single = None
@@ -4849,6 +4963,9 @@ class RealDataARTrainer:
                                     pass
                             else:
                                 x_single = input_seq[:, 0]
+                                # Apply training degradation if available
+                                if hasattr(self, 'training_degradation_op') and self.training_degradation_op is not None:
+                                    x_single = self.training_degradation_op(x_single)
                                 try:
                                     if ('coords_sequence' in batch) and (batch['coords_sequence'] is not None):
                                         coords_hr = batch['coords_sequence'][:, 0]
@@ -4951,7 +5068,7 @@ class RealDataARTrainer:
                     pred_obs_seq = None
                     # 仅使用 Trainer 中的观测算子生成观测数据
                     try:
-                        if hasattr(self, 'observation_op') and self.observation_op is not None and hasattr(self, 'norm_stats') and self.norm_stats is not None:
+                        if hasattr(self, 'training_degradation_op') and self.training_degradation_op is not None and hasattr(self, 'norm_stats') and self.norm_stats is not None:
                             B, T, C, H, W = target_seq.shape
                             # 使用完整通道的统计量
                             m = self.norm_stats['mean'].to(self.device)
@@ -4960,14 +5077,33 @@ class RealDataARTrainer:
                             mean_t = m.reshape(1, 1, -1, 1, 1)
                             std_t = s.reshape(1, 1, -1, 1, 1)
 
-                            # 生成 observation_seq (GT -> H -> Obs)
+                            # 生成 observation_seq (GT -> Degradation -> Obs)
+                            gt_orig = target_seq * std_t + mean_t
+                            gt_flat = gt_orig.reshape(B * T, C, H, W)
+                            
+                            # Mismatch Experiment: 使用 training_degradation_op
+                            obs_flat = self.training_degradation_op(gt_flat)
+                            oh, ow = obs_flat.shape[-2:]
+                            observation_seq = obs_flat.reshape(B, T, C, oh, ow)
+
+                            # 生成 pred_obs (Degradation(Pred)) 用于 DC Loss
+                            if pred_seq.dim() == 5:
+                                pred_orig = pred_seq * std_t + mean_t
+                                pred_flat = pred_orig.reshape(B * T, C, H, W)
+                                pred_obs_flat = self.training_degradation_op(pred_flat)
+                                pred_obs_seq = pred_obs_flat.reshape(B, T, C, oh, ow)
+                        # 回退兼容旧代码 (若未初始化 training_degradation_op)
+                        elif hasattr(self, 'observation_op') and self.observation_op is not None and hasattr(self, 'norm_stats') and self.norm_stats is not None:
+                            B, T, C, H, W = target_seq.shape
+                            m = self.norm_stats['mean'].to(self.device)
+                            s = self.norm_stats['std'].to(self.device)
+                            mean_t = m.reshape(1, 1, -1, 1, 1)
+                            std_t = s.reshape(1, 1, -1, 1, 1)
                             gt_orig = target_seq * std_t + mean_t
                             gt_flat = gt_orig.reshape(B * T, C, H, W)
                             obs_flat = self.observation_op(gt_flat)
                             oh, ow = obs_flat.shape[-2:]
                             observation_seq = obs_flat.reshape(B, T, C, oh, ow)
-
-                            # 生成 pred_obs (H(Pred)) 用于 DC Loss
                             if pred_seq.dim() == 5:
                                 pred_orig = pred_seq * std_t + mean_t
                                 pred_flat = pred_orig.reshape(B * T, C, H, W)
@@ -5305,6 +5441,66 @@ class RealDataARTrainer:
             self.logger.warning("⚠️ test_loader不存在或为None，跳过测试评估")
             return {'test_loss': 0.0, 'test_metrics': {}}
 
+        # -----------------------------------------------------------
+        # [Bug Fix] DDP State Dict Key Mismatch Handling
+        # -----------------------------------------------------------
+        # 在测试开始前，确保模型权重正确加载。
+        # 如果模型当前在DDP包装下（key有 module. 前缀），但checkpoint没有（或相反），会导致加载失败。
+        # 虽然 load_checkpoint 已经尝试处理，但为了双重保险，这里进行一次运行时检查。
+        # 特别是针对 "加载了 0/70 个参数" 的情况。
+        
+        try:
+            # 获取模型参数
+            model_params = dict(model_to_test.named_parameters())
+            # 尝试获取检查点中的state_dict（如果 self.best_model_path 存在）
+            ckpt_path = self.best_model_path if hasattr(self, 'best_model_path') and self.best_model_path and self.best_model_path.exists() else None
+            
+            if ckpt_path:
+                self.logger.info(f"🔍 验证模型权重加载状态: {ckpt_path}")
+                checkpoint = torch.load(ckpt_path, map_location='cpu')
+                state_dict = checkpoint.get('model_state_dict', checkpoint)
+                
+                # 检查key是否匹配（module. 前缀）
+                model_keys = set(model_params.keys())
+                ckpt_keys = set(state_dict.keys())
+                
+                # 情况1: 模型有module.，ckpt没有 -> 需要在ckpt加module. 或 模型去module.
+                # 情况2: 模型无module.，ckpt有 -> 需要去ckpt的module.
+                
+                has_module_model = any(k.startswith('module.') for k in model_keys)
+                has_module_ckpt = any(k.startswith('module.') for k in ckpt_keys)
+                
+                if has_module_model != has_module_ckpt:
+                    self.logger.warning(f"⚠️ 发现 DDP 前缀不匹配: Model(module={has_module_model}) vs Ckpt(module={has_module_ckpt})")
+                    self.logger.warning("🔄 尝试重新加载权重以修复前缀问题...")
+                    
+                    new_state_dict = {}
+                    if has_module_model and not has_module_ckpt:
+                        # 模型有module，ckpt没有 -> 给ckpt加
+                        for k, v in state_dict.items():
+                            new_state_dict[f"module.{k}"] = v
+                    elif not has_module_model and has_module_ckpt:
+                        # 模型无module，ckpt有 -> 去掉ckpt的module
+                        for k, v in state_dict.items():
+                            new_state_dict[k.replace('module.', '')] = v
+                    
+                    # 重新加载
+                missing, unexpected = model_to_test.load_state_dict(new_state_dict, strict=False)
+                # 计算加载成功的参数数量
+                loaded_params = len(new_state_dict) - len(missing)
+                total_params = len(new_state_dict)
+                self.logger.info(f"✅ 重新加载完成: missing={len(missing)}, unexpected={len(unexpected)}, loaded={loaded_params}/{total_params}")
+                
+                # 如果missing全是module前缀差异导致的，其实是加载成功的
+                if len(missing) > 0:
+                     self.logger.warning(f"Missing keys: {missing[:5]}...")
+            else:
+                self.logger.info("✅ DDP前缀匹配，无需特殊处理")
+
+        except Exception as e:
+            self.logger.warning(f"⚠️ 权重验证过程中出错 (不影响继续测试): {e}")
+            pass
+            
         total_loss = 0.0
         all_metrics = []
         num_batches = len(self.test_loader)
@@ -5315,10 +5511,37 @@ class RealDataARTrainer:
                 is_primary = (not dist.is_available()) or (not dist.is_initialized()) or (dist.get_rank() == 0)
             except Exception:
                 is_primary = True
-            for batch_idx, batch in enumerate(tqdm(self.test_loader, desc="Testing", leave=False) if is_primary else self.test_loader):
+            
+            # 使用 tqdm 显示进度
+            iterator = self.test_loader
+            if is_primary:
+                iterator = tqdm(self.test_loader, desc="Testing", leave=False)
+                
+            for batch_idx, batch in enumerate(iterator):
                 # 移动数据到设备
                 input_seq = batch['input_sequence'].to(self.device)
                 target_seq = batch['target_sequence'].to(self.device)
+
+                # [Patch] 应用随机掩码（如果配置启用）- 确保测试集与训练任务一致
+                crop_cfg = getattr(getattr(self.config, 'training', None), 'crop', None)
+                masks_seq = None
+                if crop_cfg and getattr(crop_cfg, 'enabled', False):
+                    # 测试阶段强制 patches_per_image=1
+                    from omegaconf import OmegaConf
+                    if OmegaConf.is_config(crop_cfg):
+                        test_crop_cfg = OmegaConf.to_container(crop_cfg, resolve=True)
+                    else:
+                        test_crop_cfg = crop_cfg.copy() if hasattr(crop_cfg, 'copy') else crop_cfg
+                    if isinstance(test_crop_cfg, dict):
+                        test_crop_cfg['patches_per_image'] = 1
+                        test_crop_cfg = OmegaConf.create(test_crop_cfg)
+                    
+                    input_seq, target_seq, masks_seq = self._apply_random_masking(target_seq, test_crop_cfg)
+                    
+                    if isinstance(batch, dict):
+                         batch['input_sequence'] = input_seq
+                         batch['observed_lr_sequence'] = None
+                         batch['mask_sequence'] = masks_seq
 
                 # 模型预测（测试时不使用teacher forcing），输出长度与目标序列一致
                 test_T_out = target_seq.shape[1]
@@ -5352,6 +5575,11 @@ class RealDataARTrainer:
                                 pass
                         else:
                             x_single = input_seq[:, 0]
+                            # Apply degradation (Validation)
+                            if hasattr(self, 'training_degradation_op') and self.training_degradation_op is not None:
+                                x_single = self.training_degradation_op(x_single)
+                            elif hasattr(self, 'observation_op') and self.observation_op is not None:
+                                x_single = self.observation_op(x_single)
                             try:
                                 if ('coords_sequence' in batch) and (batch['coords_sequence'] is not None):
                                     coords_hr = batch['coords_sequence'][:, 0]
@@ -5421,7 +5649,7 @@ class RealDataARTrainer:
                             obs_last = observation_seq[:, -1]
                         elif observation_seq.dim() == 4:
                             obs_last = observation_seq
-
+                        
                         baseline_seq = observation_seq
                         baseline_last = obs_last
 
@@ -5448,33 +5676,37 @@ class RealDataARTrainer:
                         if pred_obs_seq is not None:
                             self.logger.info(f"  Pred Obs: {pred_obs_seq.shape}")
 
+                    # [Fix] 传递 crop_params
                     try:
-                        image_size = target_seq.shape[-2:]
-                        batch_metrics_dict = compute_all_metrics(
-                            pred_seq, target_seq,
-                            obs_data=obs_data,
-                            norm_stats=self.norm_stats,
-                            image_size=image_size,
-                            include_freq_metrics=True
-                        )
+                        crop_params = getattr(self.config.data.observation, 'crop', None)
+                    except Exception:
+                        crop_params = None
 
-                        batch_metrics = {}
-                        for k, v in batch_metrics_dict.items():
-                            if isinstance(v, torch.Tensor):
-                                batch_metrics[k] = float(v.mean().item())
-                            else:
-                                batch_metrics[k] = float(v)
-                        batch_metrics['rel_l2_domain'] = 'zscore'
+                    image_size = target_seq.shape[-2:]
+                    batch_metrics_dict = compute_all_metrics(
+                        pred_seq, target_seq,
+                        obs_data=obs_data,
+                        norm_stats=self.norm_stats,
+                        image_size=image_size,
+                        include_freq_metrics=True,
+                        crop_params=crop_params
+                    )
 
-                    except Exception as e:
-                        self.logger.error(f"compute_all_metrics failed in test. Pred shape: {pred_seq.shape}, Target shape: {target_seq.shape}")
-                        self.logger.error(f"Error details: {e}")
-                        raise e
+                    batch_metrics = {}
+                    for k, v in batch_metrics_dict.items():
+                        if isinstance(v, torch.Tensor):
+                            batch_metrics[k] = float(v.mean().item())
+                        else:
+                            batch_metrics[k] = float(v)
+                    batch_metrics['rel_l2_domain'] = 'zscore'
 
                     all_metrics.append(batch_metrics)
-                except Exception as metrics_error:
-                    self.logger.error(f"指标计算失败 batch {batch_idx}: {metrics_error}")
-                    raise metrics_error
+
+                except Exception as e:
+                    self.logger.error(f"compute_all_metrics failed in test. Pred shape: {pred_seq.shape}, Target shape: {target_seq.shape}")
+                    self.logger.error(f"Error details: {e}")
+                    raise e
+
 
         # 聚合指标
         avg_loss = total_loss / max(1, num_batches)
@@ -5578,6 +5810,31 @@ class RealDataARTrainer:
                 input_seq = batch['input_sequence'].to(self.device, non_blocking=True)  # [B, T_in, C, H, W]
                 target_seq = batch['target_sequence'].to(self.device, non_blocking=True)  # [B, T_out, C, H, W]
 
+                # [Patch] 应用随机掩码（如果配置启用）- 确保验证集与训练任务一致
+                crop_cfg = getattr(getattr(self.config, 'training', None), 'crop', None)
+                masks_seq = None
+                if crop_cfg and getattr(crop_cfg, 'enabled', False):
+                    # 验证阶段强制 patches_per_image=1 以节省显存
+                    from omegaconf import OmegaConf
+                    if OmegaConf.is_config(crop_cfg):
+                        val_crop_cfg = OmegaConf.to_container(crop_cfg, resolve=True)
+                    else:
+                        val_crop_cfg = crop_cfg.copy() if hasattr(crop_cfg, 'copy') else crop_cfg
+                    if isinstance(val_crop_cfg, dict):
+                        val_crop_cfg['patches_per_image'] = 1
+                        val_crop_cfg = OmegaConf.create(val_crop_cfg) # Wrap back for getattr access in _apply
+                    
+                    input_seq, target_seq, masks_seq = self._apply_random_masking(target_seq, val_crop_cfg)
+                    
+                    if isinstance(batch, dict):
+                         batch['input_sequence'] = input_seq
+                         # batch['target_sequence'] = target_seq 
+                         batch['observed_lr_sequence'] = None
+                         batch['mask_sequence'] = masks_seq
+                         # 确保 sample_batch 更新，以便 create_visualizations 使用正确的输入
+                         if batch_idx == num_batches - 1:
+                             sample_batch = batch
+
                 # 根据课程学习调整目标序列长度
                 if target_seq.shape[1] > current_T_out:
                     target_seq = target_seq[:, :current_T_out]
@@ -5621,6 +5878,11 @@ class RealDataARTrainer:
                                 pass
                         else:
                             x_single = input_seq[:, 0]
+                            # Apply degradation (Testing)
+                            if hasattr(self, 'training_degradation_op') and self.training_degradation_op is not None:
+                                x_single = self.training_degradation_op(x_single)
+                            elif hasattr(self, 'observation_op') and self.observation_op is not None:
+                                x_single = self.observation_op(x_single)
                             try:
                                 if ('coords_sequence' in batch) and (batch['coords_sequence'] is not None):
                                     coords_hr = batch['coords_sequence'][:, 0]
@@ -5693,7 +5955,13 @@ class RealDataARTrainer:
                         else:
                             # 统一使用teacher forcing以避免T_out不匹配
                             out = model(input_seq, target_seq)
-                            pred_seq = out['final_pred']
+                            
+                            # 兼容性处理：ARWrapper 可能直接返回 Tensor
+                            if isinstance(out, dict):
+                                pred_seq = out['final_pred']
+                            else:
+                                pred_seq = out
+                            
                             pred_seq_tf = pred_seq
 
                         # 计算观测序列与预测观测（用于DC Loss）
@@ -5827,7 +6095,9 @@ class RealDataARTrainer:
                         loss_components_list.append({
                             'reconstruction_loss': float(base_loss.item()) if torch.is_tensor(base_loss) else float(base_loss),
                             'rel_l2': add_rel,
-                            'mae': add_mae
+                            'mae': add_mae,
+                            'dc_loss': float(losses.get('dc_loss', 0.0)) if torch.is_tensor(losses.get('dc_loss', 0.0)) else float(losses.get('dc_loss', 0.0)),
+                            'spectral_loss': float(losses.get('spectral_loss', 0.0)) if torch.is_tensor(losses.get('spectral_loss', 0.0)) else float(losses.get('spectral_loss', 0.0))
                         })
                         try:
                             d = torch.sqrt((target_seq**2).sum(dim=(2,3,4))).mean(dim=1)
@@ -5951,6 +6221,13 @@ class RealDataARTrainer:
                     vals = [d.get(k) for d in loss_components_list if d.get(k) is not None]
                     if vals:
                         final_metrics[k] = float(np.mean(vals))
+                
+                # 显式记录验证集的 DC 和 Spectral 损失到 TensorBoard
+                if hasattr(self, 'writer') and self.writer is not None:
+                    if 'dc_loss' in final_metrics:
+                        self.writer.add_scalar('Val/DC', final_metrics['dc_loss'], self.global_step)
+                    if 'spectral_loss' in final_metrics:
+                        self.writer.add_scalar('Val/Spec', final_metrics['spectral_loss'], self.global_step)
             except Exception:
                 pass
 
@@ -6183,6 +6460,11 @@ class RealDataARTrainer:
             # 初始化AR可视化器
             ar_visualizer = ARTrainingVisualizer(str(test_viz_dir))
             h_params = self.h_params
+            
+            # Force re-parse if Crop task has no crop_size (fix for bad h_params init)
+            if h_params and h_params.get('task') == 'Crop' and h_params.get('crop_size') is None:
+                h_params = None
+                
             if h_params is None:
                 try:
                     obs_cfg = getattr(self.config, 'observation', None)
@@ -6201,7 +6483,12 @@ class RealDataARTrainer:
                         boundary = obs_cfg.get('boundary', obs_cfg.get('boundary_mode', 'mirror'))
                         if mode == 'sr':
                             sr_sub = obs_cfg.get('sr', {}) if isinstance(obs_cfg.get('sr', {}), dict) else {}
-                            scale = obs_cfg.get('scale_factor', sr_sub.get('scale_factor', 2))
+                            # 优先查找 'scale'，其次 'scale_factor'，最后是 sr 子字典中的配置
+                            scale = obs_cfg.get('scale', obs_cfg.get('scale_factor', sr_sub.get('scale_factor', 2)))
+                            try:
+                                scale = int(scale)
+                            except Exception:
+                                scale = 2
                             sigma = obs_cfg.get('blur_sigma', sr_sub.get('blur_sigma', 1.0))
                             kernel_size = obs_cfg.get('kernel_size', sr_sub.get('blur_kernel_size', 5))
                             boundary = boundary if boundary is not None else sr_sub.get('boundary_mode', 'mirror')
@@ -6216,7 +6503,20 @@ class RealDataARTrainer:
                             }
                         elif mode == 'crop':
                             crop_sub = obs_cfg.get('crop', {}) if isinstance(obs_cfg.get('crop', {}), dict) else {}
-                            crop_size = obs_cfg.get('crop_size', crop_sub.get('crop_size', None))
+                            # Fix: Try 'size' if 'crop_size' is None (as seen in config)
+                            crop_size = obs_cfg.get('crop_size', crop_sub.get('crop_size', crop_sub.get('size', None)))
+                            
+                            # Force extraction from OmegaConf if needed
+                            if crop_size is None and 'crop' in obs_cfg:
+                                try:
+                                    c = obs_cfg['crop']
+                                    if 'size' in c: crop_size = c['size']
+                                except: pass
+                                
+                            # Ensure crop_size is a list for degradation.py compatibility
+                            if crop_size is not None and not isinstance(crop_size, (list, tuple)):
+                                crop_size = [crop_size, crop_size]
+                                
                             crop_box = obs_cfg.get('crop_box', crop_sub.get('crop_box', None))
                             boundary = boundary if boundary is not None else crop_sub.get('boundary_mode', 'mirror')
                             h_params = {
@@ -6258,6 +6558,28 @@ class RealDataARTrainer:
                     # 优先使用SR观测作为可视化的输入帧，确保与训练退化一致
                     target_seq = batch['target_sequence'].to(self.device)
 
+                    # [Patch] 应用随机掩码（如果配置启用）- 确保可视化与训练一致
+                    crop_cfg = getattr(getattr(self.config, 'training', None), 'crop', None)
+                    masks_seq = None
+                    if crop_cfg and getattr(crop_cfg, 'enabled', False):
+                        # 测试阶段强制 patches_per_image=1
+                        from omegaconf import OmegaConf
+                        if OmegaConf.is_config(crop_cfg):
+                            viz_crop_cfg = OmegaConf.to_container(crop_cfg, resolve=True)
+                        else:
+                            viz_crop_cfg = crop_cfg.copy() if hasattr(crop_cfg, 'copy') else crop_cfg
+                        if isinstance(viz_crop_cfg, dict):
+                            viz_crop_cfg['patches_per_image'] = 1
+                            viz_crop_cfg = OmegaConf.create(viz_crop_cfg)
+                        
+                        input_seq, target_seq, masks_seq = self._apply_random_masking(target_seq, viz_crop_cfg)
+                        
+                        if isinstance(batch, dict):
+                             batch['input_sequence'] = input_seq
+                             batch['observed_lr_sequence'] = None
+                             batch['mask_sequence'] = masks_seq
+                             batch['observation_sequence'] = input_seq
+
                     # 原始输入序列（可能是高分辨率或已退化回升尺寸的序列）
                     input_seq_raw = batch.get('input_sequence', None)
                     if input_seq_raw is not None:
@@ -6277,24 +6599,34 @@ class RealDataARTrainer:
                             if obs.dim() == 5:
                                 input_seq_vis = obs.to(self.device)
                             else:
-                                # 将非时序观测扩展为时序长度，使用最后一帧重复
-                                t_in = input_seq_raw.shape[0] if input_seq_raw is not None and input_seq_raw.dim() >= 1 else 1
+                                # 将非时序观测扩展为时序长度
+                                # 获取 Batch Size 和 Time Steps
+                                B = input_seq_raw.shape[0] if input_seq_raw is not None and input_seq_raw.dim() >= 1 else 1
+                                T_in = input_seq_raw.shape[1] if input_seq_raw is not None and input_seq_raw.dim() >= 2 else 1
+                                
                                 if obs.dim() == 4:  # [B, C, H, W]
-                                    obs = obs[0]  # 取第一个样本
-                                if obs.dim() == 3:  # [C, H, W]
-                                    obs = obs.unsqueeze(0).repeat(t_in, 1, 1, 1)  # [T_in, C, H, W]
+                                    # 扩展时间维度: [B, C, H, W] -> [B, T_in, C, H, W]
+                                    obs = obs.unsqueeze(1).repeat(1, T_in, 1, 1, 1)
+                                elif obs.dim() == 3:  # [C, H, W]
+                                    # 扩展Batch和Time: [C, H, W] -> [B, T_in, C, H, W]
+                                    obs = obs.unsqueeze(0).unsqueeze(0).repeat(B, T_in, 1, 1, 1)
+                                    
                                 input_seq_vis = obs.to(self.device)
                         # 3) 使用baseline（可能为上采样后的SR观测）
                         elif 'baseline' in batch and batch['baseline'] is not None:
                             base = batch['baseline']
-                            t_in = input_seq_raw.shape[0] if input_seq_raw is not None and input_seq_raw.dim() >= 1 else 1
+                            B = input_seq_raw.shape[0] if input_seq_raw is not None and input_seq_raw.dim() >= 1 else 1
+                            T_in = input_seq_raw.shape[1] if input_seq_raw is not None and input_seq_raw.dim() >= 2 else 1
+                            
                             if base.dim() == 5:
                                 input_seq_vis = base.to(self.device)
                             else:
                                 if base.dim() == 4:  # [B, C, H, W]
-                                    base = base[0]
-                                if base.dim() == 3:  # [C, H, W]
-                                    base = base.unsqueeze(0).repeat(t_in, 1, 1, 1)
+                                    # [B, C, H, W] -> [B, T_in, C, H, W]
+                                    base = base.unsqueeze(1).repeat(1, T_in, 1, 1, 1)
+                                elif base.dim() == 3:  # [C, H, W]
+                                    # [C, H, W] -> [B, T_in, C, H, W]
+                                    base = base.unsqueeze(0).unsqueeze(0).repeat(B, T_in, 1, 1, 1)
                                 else:
                                     # 处理 [T_in*C, H, W] 的flatten格式（来自某些时序数据集）
                                     if base.dim() == 3 and input_seq_raw is not None and input_seq_raw.dim() == 4:
@@ -6316,9 +6648,50 @@ class RealDataARTrainer:
                         input_seq_vis = input_seq_raw
 
                     # 模型前向使用4D输入
-                    input_seq = input_seq_raw
+                    # FIX: Use input_seq_vis (which contains the correct observation/degraded input) instead of raw input
+                    # Prioritize 'observation' directly from batch to avoid any ambiguity
+                    if 'observation' in batch and batch['observation'] is not None:
+                        input_seq = batch['observation'].to(self.device)
+                    elif input_seq_vis is not None:
+                        input_seq = input_seq_vis
+                    else:
+                        input_seq = input_seq_raw
+                    
                     if input_seq is not None and input_seq.dim() == 5:
                         input_seq = input_seq[:, 0]
+
+                    # Debug: Print input shape to log
+                    if batch_idx == 0:
+                        self.logger.info(f"🔍 Test Visualization Input Shape: {input_seq.shape if input_seq is not None else 'None'}")
+                        # Print batch keys and shapes for debugging
+                        if isinstance(batch, dict):
+                            keys_info = {k: str(v.shape) if isinstance(v, torch.Tensor) else 'N/A' for k, v in batch.items()}
+                            self.logger.info(f"📦 Batch Keys: {keys_info}")
+
+                    # Safety: If model expects LR input but we got HR input (same size as target), downsample it!
+                    # This prevents OOM when EDSR (scale 32) receives 128x128 input and tries to output 4096x4096
+                    model = self.get_model()
+                    upscale = getattr(model, 'upscale', None)
+                    if upscale is None:
+                        upscale = getattr(getattr(model, 'module', None), 'upscale', None)
+                    if upscale is None:
+                        try:
+                            upscale = int(self._cfg_select('model.upscale', default=1))
+                        except:
+                            upscale = 1
+                    upscale = int(upscale)
+                    
+                    if batch_idx == 0:
+                        self.logger.info(f"🔍 Detected model upscale: {upscale}")
+
+                    if upscale > 1 and input_seq is not None:
+                        # Check if input resolution matches target resolution
+                        if input_seq.shape[-1] == target_seq.shape[-1] and input_seq.shape[-2] == target_seq.shape[-2]:
+                             self.logger.warning(f"⚠️ Input shape {input_seq.shape} matches target shape {target_seq.shape} but model upscale is {upscale}. Downsampling input to avoid OOM!")
+                             input_seq = torch.nn.functional.interpolate(input_seq, scale_factor=1.0/upscale, mode='area')
+                             self.logger.info(f"⬇️ Downsampled input to {input_seq.shape}")
+
+
 
                     # 获取当前T_out
                     current_T_out = target_seq.shape[1]
@@ -6394,113 +6767,99 @@ class RealDataARTrainer:
 
                     # 1. 预测可视化（顺序模型与AR分别处理）
                     self.ensure_norm_stats()
-                    if hasattr(self.get_model(), 'autoregressive_predict'):
-                        # 使用TemporalVisualizer处理5D时序数据，更健壮
-                        try:
-                            from utils.temporal_visualization import TemporalVisualizer
-                            temporal_viz = TemporalVisualizer(save_dir=self.vis_dir)
-
-                            # 生成时序序列对比图（遵循每样本图片上限）
-                            if images_generated < max_images_per_sample:
-                                temporal_viz.plot_sequence_comparison(
-                                    predictions=sample_pred,
-                                    targets=sample_target,
-                                    save_name=f"{sample_name}_sequence_comparison",
-                                    norm_stats=self.norm_stats
-                                )
-                                images_generated += 1
-                            # 生成误差演化图（遵循每样本图片上限）
-                            if images_generated < max_images_per_sample:
-                                temporal_viz.plot_error_evolution(
-                                    predictions=sample_pred,
-                                    targets=sample_target,
-                                    save_name=f"{sample_name}_error_evolution",
-                                    norm_stats=self.norm_stats
-                                )
-                                images_generated += 1
-                            # 生成空间误差热力图（遵循每样本图片上限）
-                            if images_generated < max_images_per_sample:
-                                temporal_viz.plot_spatial_error_heatmap(
-                                    predictions=sample_pred,
-                                    targets=sample_target,
-                                    save_name=f"{sample_name}_spatial_error",
-                                    norm_stats=self.norm_stats
-                                )
-                                images_generated += 1
-
-                        except Exception as e:
-                            self.logger.warning(f"TemporalVisualizer failed: {e}, falling back to AR visualizer")
-                            # 降级使用AR可视化器，确保维度正确处理
-                            try:
-                                # 正确处理5D到4D的转换
-                                input_frame = sample_input[0, -1]  # [C, H, W]
-                                target_frames = sample_target[0]   # [T, C, H, W]
-                                pred_frames = sample_pred[0]       # [T, C, H, W]
-                                if images_generated < max_images_per_sample:
-                                    ar_visualizer.visualize_ar_predictions(
-                                        input_frame, target_frames, pred_frames,
-                                        save_name=f"{sample_name}_ar_predictions",
-                                        norm_stats=self.norm_stats,
-                                        sample_idx=(sample_key if sample_key is not None else int(test_samples_visualized + 1)),
-                                        timestep_idx=(start_time if start_time is not None else int(self._cfg_select('data.time_step_start', default=0)))
-                                    )
-                                    images_generated += 1
-                            except Exception as e2:
-                                self.logger.warning(f"AR visualizer also failed: {e2}")
-                    else:
-                        # 顺序模型：可视化最后一步的 Obs/GT/Pred，避免序列图与形状不一致
-                        if images_generated < max_images_per_sample:
-                            try:
-                                obs = sample_input[:, -1]
-                                gt = sample_target[:, -1]
-                                pr = sample_pred[:, -1]
-                                last_pred_np = pr
-                                last_tgt_np = gt
-                                last_obs_np = obs
-                                ar_visualizer.visualize_single_frame(obs, gt, pr,
-                                    save_name=f"{sample_name}_seq_last_frame",
-                                    norm_stats=self.norm_stats)
-                                images_generated += 1
-                            except Exception:
-                                pass
-
-                    # 2. 误差分析（先对齐时间长度与空间维度）
-                    self.ensure_norm_stats()
+                    
+                    # 总是使用AR可视化器，因为它现在支持序列可视化
+                    # 正确处理5D到4D的转换 (传递完整5D Tensor给visualize_ar_predictions)
                     try:
-                        tgt = sample_target
-                        pred = sample_pred
-                        # 对齐T
-                        T_tgt = tgt.shape[1]
-                        T_pred = pred.shape[1]
-                        if T_pred != T_tgt:
-                            if T_pred > T_tgt:
-                                pred = pred[:, :T_tgt]
-                            else:
-                                pred = np.concatenate([pred, pred[:, -1:].repeat(T_tgt - T_pred, axis=1)], axis=1)
-                        # 对齐H,W
-                        H_t, W_t = tgt.shape[-2], tgt.shape[-1]
-                        H_p, W_p = pred.shape[-2], pred.shape[-1]
-                        if (not error_done) and (images_generated < max_images_per_sample):
-                            if (H_p != H_t) or (W_p != W_t):
-                                ar_visualizer.create_error_analysis(
-                                    tgt[:, -1:], pred[:, -1:],
-                                    save_name=f"{sample_name}_error_analysis_last",
-                                    norm_stats=self.norm_stats)
+                        # 序列可视化（整体）
+                        if len(sample_target.shape) >= 4:
+                            ar_visualizer.visualize_ar_predictions(
+                                sample_input, sample_target, sample_pred,
+                                timestep_idx=0,
+                                save_name=f'{sample_name}',
+                                norm_stats=self.norm_stats,
+                                h_params=h_params,
+                                sample_idx=sample_key
+                            )
+                            images_generated += 1
+                        
+                        # 单帧和误差分析 (使用最后一帧)
+                        if current_T_out > 0:
+                            last_idx = current_T_out - 1
+                            ar_visualizer.visualize_single_frame(
+                                sample_input[0, -1] if sample_input.ndim == 5 else sample_input[0], 
+                                sample_target[0, last_idx], 
+                                sample_pred[0, last_idx],
+                                save_name=f'{sample_name}_seq_last_frame',
+                                norm_stats=self.norm_stats
+                            )
+                            images_generated += 1
+                            
+                        # 2. 四宫格对比图 (Obs | GT | Pred | Error)
+                        # 生成前3个时间步的对比图
+                        for t in range(min(3, current_T_out)):
+                            ar_visualizer.visualize_obs_gt_pred_error(
+                                sample_target, sample_pred,
+                                timestep_idx=t,
+                                save_name=f'{sample_name}_obs_gt_pred_error',
+                                norm_stats=self.norm_stats,
+                                h_params=h_params,
+                                sample_idx=sample_key,
+                                # observation_seq=sample_input  <-- Removed to force re-generation using h_params
+                            )
+                            images_generated += 1
+                        
+                        # 3. 误差分析
+                        ar_visualizer.create_error_analysis(
+                            sample_target, sample_pred,
+                            save_name=f'{sample_name}_error_analysis',
+                            norm_stats=self.norm_stats
+                        )
+                        images_generated += 1
+                        
+                    except Exception as e:
+                        self.logger.warning(f"AR visualizer failed: {e}")
+                        import traceback
+                        self.logger.warning(traceback.format_exc())
+                    else:
+                        # 顺序模型/普通模型：统一使用 AR 序列可视化
+                        try:
+                            # 序列可视化（整体）
+                            if len(sample_target.shape) >= 4:
+                                ar_visualizer.visualize_ar_predictions(
+                                    sample_input, sample_target, sample_pred,
+                                    timestep_idx=0,
+                                    save_name=f'{sample_name}',
+                                    norm_stats=self.norm_stats,
+                                    h_params=h_params,
+                                    sample_idx=sample_key
+                                )
                                 images_generated += 1
-                                error_done = True
-                            else:
-                                ar_visualizer.create_error_analysis(
-                                    tgt, pred,
-                                    save_name=f"{sample_name}_error_analysis",
-                                    norm_stats=self.norm_stats)
+                            
+                            # 单帧和误差分析 (使用最后一帧)
+                            if current_T_out > 0:
+                                last_idx = current_T_out - 1
+                                ar_visualizer.visualize_single_frame(
+                                    sample_input[0, -1] if sample_input.ndim == 5 else sample_input[0], 
+                                    sample_target[0, last_idx], 
+                                    sample_pred[0, last_idx],
+                                    save_name=f'{sample_name}_seq_last_frame',
+                                    norm_stats=self.norm_stats
+                                )
                                 images_generated += 1
-                                error_done = True
-                            if images_generated >= max_images_per_sample:
-                                test_samples_visualized += 1
-                                if test_samples_visualized >= max_test_samples:
-                                    break
-                    except Exception:
-                        pass
+                                
+                            # 误差分析
+                            ar_visualizer.create_error_analysis(
+                                sample_target, sample_pred,
+                                save_name=f'{sample_name}_error_analysis',
+                                norm_stats=self.norm_stats
+                            )
+                            images_generated += 1
+                            
+                        except Exception as e:
+                            self.logger.warning(f"Sequence visualization failed: {e}")
+                            import traceback
+                            self.logger.warning(traceback.format_exc())
 
                     if images_generated < max_images_per_sample:
                         try:
@@ -6512,16 +6871,35 @@ class RealDataARTrainer:
                                     obs_seq = sample['observed_lr_sequence']
                             except Exception:
                                 obs_seq = None
-                            ar_visualizer.visualize_obs_gt_pred_error(
-                                sample_target, sample_pred,
-                                save_name=f"{sample_name}_obs_gt_pred_error",
-                                norm_stats=self.norm_stats,
-                                h_params=h_params,
-                                timestep_idx=(start_time if start_time is not None else int(self._cfg_select('data.time_step_start', default=0))),
-                                sample_idx=(sample_key if sample_key is not None else int(test_samples_visualized + 1)),
-                                observation_seq=obs_seq
-                            )
-                            images_generated += 1
+                            # Visualize multiple key timesteps (0, 20, 50, 70, etc.)
+                            base_start_time = (start_time if start_time is not None else int(self._cfg_select('data.time_step_start', default=0)))
+                            # Define timesteps to visualize (relative to sequence start)
+                            # t=0 is always visualized (start_time)
+                            # We also want t=20, t=50, t=70 if available
+                            vis_steps = [0, 20, 50, 70]
+                            # Add start_time if not 0 (though usually it's 0)
+                            if base_start_time != 0 and base_start_time not in vis_steps:
+                                vis_steps.insert(0, base_start_time)
+                            
+                            for t_idx in vis_steps:
+                                # Check if t_idx is within the sequence length
+                                if t_idx < current_T_out:
+                                    try:
+                                        ar_visualizer.visualize_obs_gt_pred_error(
+                                            sample_target, sample_pred,
+                                            save_name=f"{sample_name}_obs_gt_pred_error_t{t_idx}",
+                                            norm_stats=self.norm_stats,
+                                            h_params=h_params,
+                                            timestep_idx=t_idx,
+                                            sample_idx=(sample_key if sample_key is not None else int(test_samples_visualized + 1)),
+                                            observation_seq=obs_seq
+                                        )
+                                        # Only count as generated image once per sample to avoid hitting limit too early
+                                        if t_idx == 0:
+                                            images_generated += 1
+                                    except Exception as _obs_err:
+                                        self.logger.warning(f"Obs/GT/Pred/Error visualization failed for t={t_idx}: {_obs_err}")
+                            
                             test_samples_visualized += 1
                             if test_samples_visualized >= max_test_samples:
                                 break
@@ -6922,14 +7300,21 @@ class RealDataARTrainer:
             if input_seq.dim() == 5:
                 # 尝试推断是否需要降维
                 is_seq_model = hasattr(model, 'temporal_forward') or hasattr(model, 'autoregressive_predict') or \
-                               (hasattr(model, 'is_temporal') and model.is_temporal)
+                               (hasattr(model, 'is_temporal') and model.is_temporal) or \
+                               (hasattr(model, '_unified_interface') and model._unified_interface) # ARWrapper 标志
+                
                 if not is_seq_model:
                     # 假设是空间模型，只取第一帧 [B, T, C, H, W] -> [B, C, H, W]
-                    # 注意：如果模型需要多帧拼接（如 T_in>1），这里简化处理可能不准确，
-                    # 但作为 smoke test，跑通一次前向即可。
                     model_input = input_seq[:, 0]
-                    # 如果需要拼接坐标等，这里暂略，假设模型能处理纯图像或会在内部报错提示
-            
+                else:
+                    # 如果是序列模型（如 ARWrapper），它可能需要 T_out 等参数
+                    # 尝试调用 autoregressive_predict 或者 forward
+                    if hasattr(model, 'autoregressive_predict'):
+                        # 这是一个 smoke test，我们手动构建一次 forward 调用
+                        # 为了避免 forward(x) 抛出 4D input error，我们直接用单帧输入测试基本通路
+                        # 或者显式调用 autoregressive_predict
+                        pass # 保持 model_input 为 5D，但下面调用可能需要 trick
+
             # 使用混合精度上下文
             amp_cfg = getattr(getattr(self.config, 'training', None), 'amp', None)
             amp_enabled = bool(getattr(amp_cfg, 'enabled', False)) if amp_cfg is not None else False
@@ -6938,9 +7323,22 @@ class RealDataARTrainer:
             with autocast(device_type=self.device.type, dtype=autocast_dtype, enabled=amp_enabled):
                 # 简单调用，不涉及复杂逻辑
                 try:
-                    out = model(model_input, target_seq)
+                    # 针对 ARWrapper 特殊处理：如果是 5D 输入，forward 会报错
+                    if hasattr(model, '_unified_interface') and model._unified_interface and model_input.dim() == 5:
+                        # 方案A: 仅测试单帧 forward 能力
+                        out = model(model_input[:, 0])
+                        target_to_compare = target_seq[:, 0]
+                        # 方案B: 如果非要测序列，需调用 autoregressive_predict
+                        # out = model.autoregressive_predict(model_input, T_out=2, teacher=target_seq[:,:2])
+                    else:
+                        out = model(model_input, target_seq)
                 except TypeError:
-                    out = model(model_input)
+                    # 再次尝试单参数调用
+                    if hasattr(model, '_unified_interface') and model._unified_interface and model_input.dim() == 5:
+                         out = model(model_input[:, 0])
+                         target_to_compare = target_seq[:, 0]
+                    else:
+                         out = model(model_input)
                 
                 # Loss
                 from ops.losses import rel_l2
@@ -7546,9 +7944,9 @@ def main():
     parser.add_argument("--target-params-m", type=float, default=None, help="目标参数量(百万)，如10.0")
     parser.add_argument("--tolerance-m", type=float, default=0.5, help="参数量容差(百万)")
     parser.add_argument("--use_liif_decoder", action="store_true", help="强制启用LIIF解码器增强坐标消费")
-    parser.add_argument("--test-only", action="store_true", help="Only run test using checkpoint and exit")
+    parser.add_argument("--test-only", "--test_only", dest="test_only", action="store_true", help="Only run test using checkpoint and exit")
     parser.add_argument("--mode", type=str, default="train", choices=["train", "test"], help="运行模式: train 或 test (默认 train)")
-    parser.add_argument("--ckpt", type=str, default="best", help="测试模式下加载的检查点: best/last/PATH (默认 best)")
+    parser.add_argument("--ckpt", "--ckpt_path", dest="ckpt", type=str, default="best", help="测试模式下加载的检查点: best/last/PATH (默认 best)")
 
     # 使用 parse_known_args 允许接收 Hydra 风格的 overrides (key=value)
     args, unknown = parser.parse_known_args()

@@ -207,6 +207,7 @@ $$
 \mathcal{L}= \mathcal{L}_{\mathrm{rec}}+\lambda_{\mathrm{spec}}\mathcal{L}_{\mathrm{spec}}+\lambda_{\mathrm{dc}}\mathcal{L}_{\mathrm{dc}},
 $$
 
+
 其中：
 
 - $\mathcal{L}_{\mathrm{rec}}$：重建损失（原值域或统一尺度域）；
@@ -217,68 +218,46 @@ $$
 
 ---
 
-## 1.7 创新点与主要贡献（面向硕士论文审查口径）
+## 1.7 创新点与主要贡献
 
-1. **提出“评测口径一致性优先”的方法论框架**：将 $H$ 作为观测口径的唯一入口，并要求训练端 $DC$ 镜像复用 $H$ 的实现与参数，从机制上消除训练/评测断裂。  
-2. **构建兼顾重建与口径一致性的目标函数**：通过显式口径一致性项推动 $H_{\mathrm{err}}$ 与 $\mathrm{Rel\text{-}L2}$ 协同改善。  
-3. **设计分阶段时空顺序训练策略（Sequential Training Strategy）**：针对时空耦合模型训练难点，提出“空间预训练 $\to$ 时序预训练 $\to$ 联合微调”的递进式策略，结合 Teacher Forcing Decay 有效提升了长时预测的稳定性。
-4. **形成可复现、可审计的评测协议**：多随机种子统计与显著性检验，并同步报告资源四项（参数量、计算量、显存峰值、推断延迟），提升对比结论的工程可信度。  
-5. **配套材料产出与失败案例归档**：输出指标主表、显著性报告、代表案例与失败类型分析，为后续章节实验复核与讨论提供证据链。
+本文的主要贡献在于提出并验证了一套面向稀疏观测的“评测口径一致性优先”时空场重建框架，解决了当前 AI4Science 研究中普遍存在的训练退化与评测口径断裂问题。具体创新点如下：
+
+1.  **提出“统一观测算子（Unified Observation Operator）”方法论框架**：
+    本文首次将观测算子 $H$ 确立为数据生成与模型评测的唯一逻辑入口，并强制训练端的退化算子 $DC$ 在实现细节（插值核、抗混叠预滤、边界策略、对齐规则）上与 $H$ 保持严格镜像。这一设计从根本上消除了隐性域偏差，确保了实验结论在真实观测口径下的可复现性与工程可落地性。
+
+2.  **构建兼顾物理一致性与观测一致性的三元损失函数**：
+    针对稀疏重建中的不适定性，设计了由重建损失、低频谱一致性损失与原值域观测一致性损失构成的复合目标函数。通过显式约束 $H(\hat{u})$ 与真实观测 $y$ 的一致性，实现了数学逼近误差（Rel-L2）与评测口径误差（$H_{\mathrm{err}}$）的协同下降，有效规避了“纸面指标高、实际部署差”的过拟合风险。
+
+3.  **设计基于课程学习的序列化时空训练策略（Sequential Spatiotemporal Training）**：
+    克服了时空联合模型直接训练难以收敛至全局最优的难题。提出“空间重构预训练 $\to$ 时序演化预训练 $\to$ 时空联合微调”的递进式策略，结合 Teacher Forcing Decay 机制，显著提升了模型在长时预测任务中的稳定性与累积误差控制能力。
+
+4.  **建立可审计、可复现的科学计算评测协议**：
+    制定了包含多随机种子统计、显著性检验（Paired t-test）、资源成本四项（Params/FLOPs/VRAM/Latency）及失败案例归档的标准化评测流程。基于 PDEBench 的广泛实验验证了该协议的有效性，为领域内相关研究提供了可参照的严谨范式。
 
 ---
 
 ## 1.8 论文结构安排
 
-- 第2章：相关工作综述与问题定位；  
-- 第3章：观测口径统一的数学形式化、模型接口与损失设计；  
-- 第4章：一致性与鲁棒性分析（含混叠与边界因素讨论）；  
-- 第5章：算法实现与关键工程细节（观测算子实现、训练流程、统计脚本）；  
-- 第6章：实验设置、主结果、消融与显著性检验、资源成本报告；  
-- 第7章：现象对应验证（跨分辨率、跨网格敏感性等）；  
-- 第8章：讨论与局限；  
-- 第9章：结论与展望。
+- **第2章：相关工作综述**：系统回顾反问题、PINN、神经算子等相关领域进展，并对现有方法的局限性进行批判性分析。
+- **第3章：方法论与数学建模**：详细阐述统一观测算子的定义、序列化训练策略及三元损失函数的数学形式。
+- **第4章：实验设置与评测协议**：介绍数据集、基线模型、评价指标体系及实验环境配置。
+- **第5章：结果与分析**：展示在不同 PDE 场景下的重建性能，包括定量指标与定性可视化。
+- **第6章：消融实验与机理分析**：验证各核心组件（如损失项、训练策略）的有效性。
+- **第7章：泛化性与鲁棒性验证**：探究模型在跨分辨率、跨网格及不同稀疏度下的表现。
+- **第8章：讨论与局限性**：深入分析物理一致性（如能量谱）、失败案例及方法的边界。
+- **第9章：结论与展望**：总结全文工作并展望未来研究方向。
 
 ---
 
 ## 1.9 研究伦理与合规
 
-本文遵循研究生论文对学术规范与工程合规的要求：
-
-- 数据与代码遵循可公开许可或仅在授权范围内使用；
-- 结果汇报遵循可复核原则（配置快照、环境指纹、统计协议）；
-- 失败案例不隐去，采用类型化归档与可操作改进建议支持后续工作。
+本文遵循研究生学位论文的学术规范与工程合规要求：
+- **数据合规**：仅使用公开许可数据集（如 PDEBench），并在文中明确引用来源与许可协议。
+- **可复现性**：所有实验均提供配置快照（YAML）、环境指纹与随机种子，确保结果可被独立复现。
+- **学术诚信**：如实报告实验结果，包括失败案例与局限性，不进行选择性展示。
 
 ---
 
 ## 1.10 本章小结
 
-本章从稀疏观测的工程现实出发，阐明时空场重建在多类应用中的共性需求与关键困难，并以反问题/数据同化的统一视角强调“观测口径”在可部署与可审计中的核心地位。结合 PINN 与算子学习（FNO、DeepONet、Physics-informed DeepONet）等代表性方法，本章指出训练口径与评测口径不一致会引发可复现性与可部署性风险。围绕该风险，本文提出“评测口径一致性优先”的研究路线，给出统一指标体系与损失设计，并说明评测协议与材料产出链路，为后续章节的方法、实现与实验奠定基础。
-
----
-
-## 关键术语表（本章口径）
-
-| 术语 | 定义 |
-|---|---|
-| 观测算子 $H$ | 数据侧采样/退化口径（预滤、插值、对齐、边界等实现细节的集合） |
-| 训练退化 $DC$ | 训练端复用的观测算子实例，与 $H$ 同实现同参数 |
-| $H_{\mathrm{err}}$ | $\lVert H(\hat{u})-y\rVert_2$，评测口径一致性误差 |
-| Rel-L2 | $\lVert \hat{u}-u\rVert_2/\lVert u\rVert_2$，重建相对误差 |
-| 抗混叠 | 下采样前低通预滤，降低混叠风险；缩小时常用面积插值等策略 |
-| 低频谱一致性 | 仅比较低频 Fourier 模态以约束大尺度结构一致性 |
-
----
-
-## 参考文献（APA 示例；全文建议统一一种格式）
-
-1. Raissi, M., Perdikaris, P., & Karniadakis, G. E. (2019). Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations. *Journal of Computational Physics, 378*, 686–707. https://doi.org/10.1016/j.jcp.2018.10.045  
-2. Li, Z., Kovachki, N., Azizzadenesheli, K., Liu, B., Bhattacharya, K., Stuart, A., & Anandkumar, A. (2021). Fourier Neural Operator for Parametric Partial Differential Equations. *International Conference on Learning Representations (ICLR)*.  
-3. Lu, L., Jin, P., Pang, G., Zhang, Z., & Karniadakis, G. E. (2021). Learning nonlinear operators via DeepONet based on the universal approximation theorem of operators. *Nature Machine Intelligence, 3*, 218–229. https://doi.org/10.1038/s42256-021-00302-5  
-4. Wang, S., Wang, H., & Perdikaris, P. (2021). Learning the solution operator of parametric partial differential equations with physics-informed DeepONets. *Science Advances, 7*(40), eabi8605. https://doi.org/10.1126/sciadv.abi8605  
-5. Kovachki, N., Li, Z., Liu, B., Azizzadenesheli, K., Bhattacharya, K., Stuart, A., & Anandkumar, A. (2023). Neural Operator: Learning Maps Between Function Spaces with Applications to PDEs. *Journal of Machine Learning Research, 24*(89), 1–97.  
-6. Bartolucci, F., de Bézenac, E., Raonić, B., Molinaro, R., Mishra, S., & Alaifari, R. (2023). Representation Equivalent Neural Operators: a Framework for Alias-free Operator Learning. *arXiv:2305.19913*.  
-7. Tarantola, A. (2005). *Inverse Problem Theory and Methods for Model Parameter Estimation*. SIAM. https://doi.org/10.1137/1.9780898717921  
-8. Evensen, G. (2009). *Data Assimilation: The Ensemble Kalman Filter*. Springer.  
-9. Candès, E. J., Romberg, J., & Tao, T. (2006). Robust uncertainty principles: Exact signal reconstruction from highly incomplete frequency information. *IEEE Transactions on Information Theory, 52*(2), 489–509. https://doi.org/10.1109/TIT.2005.862083  
-10. OpenCV Documentation. (n.d.). *Geometric Image Transformations / resize*. https://docs.opencv.org/  
-11. OpenCV Documentation. (n.d.). *Smoothing Images / GaussianBlur*. https://docs.opencv.org/  
+本章从稀疏观测时空场重建的工程需求出发，指出了当前研究中存在的“训练-评测口径断裂”这一关键问题。在综述了科学机器学习相关进展的基础上，提出了“评测口径一致性优先”的研究思路。确立了以统一观测算子为核心、序列化训练为手段、三元损失为约束的技术路线，并明确了本文的主要贡献与论文结构。这为后续章节的展开奠定了坚实的方法论基础。  

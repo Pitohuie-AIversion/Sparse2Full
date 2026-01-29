@@ -1,0 +1,78 @@
+graph TD
+    %% 定义样式
+    classDef data fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef process fill:#fff3e0,stroke:#ff6f00,stroke-width:2px;
+    classDef loss fill:#ffebee,stroke:#b71c1c,stroke-width:2px,stroke-dasharray: 5 5;
+    classDef stage fill:#f3e5f5,stroke:#4a148c,stroke-width:2px;
+
+    %% 模块 A: 观测生成 (统一口径)
+    subgraph A_Observation ["(a) 统一观测生成 (Unified Observation)"]
+        direction TB
+        GT[真实场 u]:::data -->|抗混叠预滤 Gaussian| H_Op{观测算子 H}:::process
+        H_Op -->|插值/裁剪/边界处理| Obs[稀疏观测 y]:::data
+        Noise(噪声 n) --> Obs
+    end
+
+    %% 模块 B: 序列化训练 (课程学习)
+    subgraph B_Training ["(b) 序列化时空训练 (Sequential Training)"]
+        direction TB
+        
+        %% Stage 1
+        subgraph S1 ["阶段一: 空间预训练"]
+            SpatialNet[空间编码器/解码器]:::stage
+            SpatialNet --"输入: y"--> Feat_S[空间特征]
+            Feat_S --> Rec_S[单帧重建]:::data
+        end
+        
+        %% Stage 2
+        subgraph S2 ["阶段二: 时序预训练"]
+            TempNet[时序演化模块]:::stage
+            Feat_S -.->|"Teacher Forcing"| TempNet
+            TempNet --> Feat_T[演化特征]
+        end
+        
+        %% Stage 3
+        subgraph S3 ["阶段三: 联合微调"]
+            JointNet[时空联合模型]:::stage
+            Obs --"自回归滚动输入"--> JointNet
+            JointNet --> Pred_Final[最终预测 û]:::data
+        end
+        
+        Rec_S -.->|"参数初始化"| JointNet
+        Feat_T -.->|"参数初始化"| JointNet
+    end
+
+    %% 模块 C: 三元一致性损失
+    subgraph C_Loss ["(c) 三元一致性损失 (Triple Consistency Loss)"]
+        Pred_Final -->|FFT| Pred_Spec[预测频谱]
+        GT -->|FFT| GT_Spec[真值频谱]
+        
+        L_rec(L_rec: 重建误差):::loss
+        L_spec(L_spec: 低频一致性):::loss
+        L_dc(L_dc: 观测一致性):::loss
+        
+        Pred_Final -.-> L_rec
+        GT -.-> L_rec
+        
+        Pred_Spec -.-> L_spec
+        GT_Spec -.-> L_spec
+        
+        Pred_Final -->|复用算子 DC ≡ H| Pred_Obs[重采样观测 H(û)]:::process
+        Pred_Obs -.-> L_dc
+        Obs -.-> L_dc
+    end
+
+    %% 模块 D: 物理评估
+    subgraph D_Eval ["(d) 物理评估 (Physical Evaluation)"]
+        Eval_1[Rel-L2 数学精度]
+        Eval_2[H_err 口径误差]
+        Eval_3[能量谱/守恒律检验]
+        
+        Pred_Final --> Eval_1 & Eval_2 & Eval_3
+    end
+
+    %% 连接关系
+    Obs --> S1
+    A_Observation --> B_Training
+    B_Training --> C_Loss
+    C_Loss --> D_Eval

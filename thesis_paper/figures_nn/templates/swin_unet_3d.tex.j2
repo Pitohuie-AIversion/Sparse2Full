@@ -1,0 +1,185 @@
+{% include "pnn_header.tex.j2" %}
+{% set e1 = embed_dim %}
+{% set e2 = embed_dim * 2 %}
+{% set e4 = embed_dim * 4 %}
+
+\begin{document}
+\begin{tikzpicture}
+
+\node[io] (in) {Input};
+
+% Encoder 1: Patch Embed + Swin Block (Detailed)
+\pic[shift={(3.0 * {{ dist_scale|default(1.0) }},0,0)}] at (in.east) {RightBandedBox={
+    name=pe,
+    caption=Patch\\Embed,
+    fill=\ConvColor,
+    height=40, width=2, depth=40
+}};
+
+% Detailed Swin Block 1
+% LN
+\pic[shift={(2.0 * {{ dist_scale|default(1.0) }},0,0)}] at (pe-east) {Box={
+    name=enc1_ln1,
+    caption=LN,
+    fill=\OpColor,
+    height=40, width=1, depth=40
+}};
+
+% W-MSA
+\pic[shift={(1.5 * {{ dist_scale|default(1.0) }},0,0)}] at (enc1_ln1-east) {RightBandedBox={
+    name=enc1_msa,
+    caption=W-MSA,
+    xlabel={{ '{' }}"{{ e1 }}", ""{{ '}' }},
+    fill=\ResColor,
+    height=40, width=4, depth=40
+}};
+
+% LN
+\pic[shift={(1.5 * {{ dist_scale|default(1.0) }},0,0)}] at (enc1_msa-east) {Box={
+    name=enc1_ln2,
+    caption=LN,
+    fill=\OpColor,
+    height=40, width=1, depth=40
+}};
+
+% MLP
+\pic[shift={(1.5 * {{ dist_scale|default(1.0) }},0,0)}] at (enc1_ln2-east) {RightBandedBox={
+    name=enc1_mlp,
+    caption=MLP,
+    fill=\ResColor,
+    height=40, width=4, depth=40
+}};
+
+% Patch Merge
+\pic[shift={(2.5 * {{ dist_scale|default(1.0) }},0,0)}] at (enc1_mlp-east) {Box={
+    name=merge1,
+    caption=Patch\\Merge,
+    fill=\PoolColor,
+    height=20, width=2, depth=20
+}};
+
+% Encoder 2
+\pic[shift={(2.5 * {{ dist_scale|default(1.0) }},0,0)}] at (merge1-east) {RightBandedBox={
+    name=enc2,
+    caption=Swin\\Block\\$\times 2$,
+    xlabel={{ '{' }}"{{ e2 }}", ""{{ '}' }},
+    fill=\ResColor,
+    height=20, width=4, depth=20
+}};
+
+\pic[shift={(2.5 * {{ dist_scale|default(1.0) }},0,0)}] at (enc2-east) {Box={
+    name=merge2,
+    caption=Patch\\Merge,
+    fill=\PoolColor,
+    height=10, width=2, depth=10
+}};
+
+% Bottleneck
+\pic[shift={(2.5 * {{ dist_scale|default(1.0) }},0,0)}] at (merge2-east) {RightBandedBox={
+    name=bot,
+    caption=Bottle-\\neck,
+    xlabel={{ '{' }}"{{ e4 }}", ""{{ '}' }},
+    fill=\ResColor,
+    height=10, width=6, depth=10
+}};
+
+% Decoder
+% Patch Expand 2
+\pic[shift={(2.5 * {{ dist_scale|default(1.0) }},0,0)}] at (bot-east) {Box={
+    name=expand2,
+    caption=Patch\\Expand,
+    fill=\UpColor,
+    height=20, width=2, depth=20
+}};
+
+% Concat/Fuse
+\pic[shift={(1.5 * {{ dist_scale|default(1.0) }},0,0)}] at (expand2-east) {Box={
+    name=fuse2,
+    caption=Fuse,
+    fill=\OpColor,
+    height=20, width=1, depth=20
+}};
+
+\pic[shift={(1.5 * {{ dist_scale|default(1.0) }},0,0)}] at (fuse2-east) {RightBandedBox={
+    name=dec2,
+    caption=Swin\\Block,
+    xlabel={{ '{' }}"{{ e2 }}", ""{{ '}' }},
+    fill=\ResColor,
+    height=20, width=4, depth=20
+}};
+
+% Patch Expand 1
+\pic[shift={(2.5 * {{ dist_scale|default(1.0) }},0,0)}] at (dec2-east) {Box={
+    name=expand1,
+    caption=Patch\\Expand,
+    fill=\UpColor,
+    height=40, width=2, depth=40
+}};
+
+% Fuse 1
+\pic[shift={(1.5 * {{ dist_scale|default(1.0) }},0,0)}] at (expand1-east) {Box={
+    name=fuse1,
+    caption=Fuse,
+    fill=\OpColor,
+    height=40, width=1, depth=40
+}};
+
+% Detailed Decoder Block 1
+% LN
+\pic[shift={(1.5 * {{ dist_scale|default(1.0) }},0,0)}] at (fuse1-east) {Box={
+    name=dec1_ln1,
+    fill=\OpColor,
+    height=40, width=1, depth=40
+}};
+% W-MSA
+\pic[shift={(1.5 * {{ dist_scale|default(1.0) }},0,0)}] at (dec1_ln1-east) {RightBandedBox={
+    name=dec1_msa,
+    caption=W-MSA,
+    fill=\ResColor,
+    height=40, width=4, depth=40
+}};
+% LN
+\pic[shift={(1.5 * {{ dist_scale|default(1.0) }},0,0)}] at (dec1_msa-east) {Box={
+    name=dec1_ln2,
+    fill=\OpColor,
+    height=40, width=1, depth=40
+}};
+% MLP
+\pic[shift={(1.5 * {{ dist_scale|default(1.0) }},0,0)}] at (dec1_ln2-east) {RightBandedBox={
+    name=dec1_mlp,
+    caption=MLP,
+    fill=\ResColor,
+    height=40, width=4, depth=40
+}};
+
+% Output
+\node[io, right=2.0cm of dec1_mlp-east] (out) {Output};
+
+% Connections
+\draw[arrow] (in) -- (pe-west);
+\draw[arrow] (pe-east) -- (enc1_ln1-west);
+\draw[arrow] (enc1_ln1-east) -- (enc1_msa-west);
+\draw[arrow] (enc1_msa-east) -- (enc1_ln2-west);
+\draw[arrow] (enc1_ln2-east) -- (enc1_mlp-west);
+\draw[arrow] (enc1_mlp-east) -- (merge1-west);
+\draw[arrow] (merge1-east) -- (enc2-west);
+\draw[arrow] (enc2-east) -- (merge2-west);
+\draw[arrow] (merge2-east) -- (bot-west);
+
+\draw[arrow] (bot-east) -- (expand2-west);
+\draw[arrow] (expand2-east) -- (fuse2-west);
+\draw[arrow] (fuse2-east) -- (dec2-west);
+\draw[arrow] (dec2-east) -- (expand1-west);
+\draw[arrow] (expand1-east) -- (fuse1-west);
+\draw[arrow] (fuse1-east) -- (dec1_ln1-west);
+\draw[arrow] (dec1_ln1-east) -- (dec1_msa-west);
+\draw[arrow] (dec1_msa-east) -- (dec1_ln2-west);
+\draw[arrow] (dec1_ln2-east) -- (dec1_mlp-west);
+\draw[arrow] (dec1_mlp-east) -- (out);
+
+% Skip Connections
+\draw[skip] (enc2-east) -- ++(0, 3, 0) -| (fuse2-north);
+\draw[skip] (enc1_mlp-east) -- ++(0, 4, 0) -| (fuse1-north);
+
+\end{tikzpicture}
+\end{document}

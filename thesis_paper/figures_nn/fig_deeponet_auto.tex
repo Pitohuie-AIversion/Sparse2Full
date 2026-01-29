@@ -1,0 +1,75 @@
+
+\documentclass[tikz, border=2mm]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{positioning, calc, 3d}
+\input{nn_blocks.tex}
+
+\definecolor{convcolor}{rgb}{1,0.8,0.5}
+\definecolor{rescolor}{rgb}{0.8,0.8,1}
+\definecolor{poolcolor}{rgb}{1,0.5,0.5}
+\definecolor{upcolor}{rgb}{0.8,0.5,1}
+\definecolor{opcolor}{rgb}{0.5,1,0.5}
+
+\def\ConvColor{convcolor}
+\def\ResColor{rescolor}
+\def\OpColor{opcolor}
+
+\begin{document}
+\begin{tikzpicture}
+
+% Branch Net
+\node[io] (in_u) {Input u};
+
+\pic[shift={(2.0,0,0)}] at (in_u.east) {RightBandedBox={
+    name=branch,
+    caption=Branch\\Net,
+    fill=\ConvColor,
+    height=15, width=6, depth=15
+}};
+
+\pic[shift={(1.0,0,0)}] at (branch-east) {Box={
+    name=b_vec,
+    caption=$b_k$,
+    fill=\ResColor,
+    height=1, width=4, depth=1
+}};
+
+% Trunk Net
+\node[io, below=3.0cm of in_u] (in_y) {Coords y};
+
+\pic[shift={(2.0,0,0)}] at (in_y.east) {RightBandedBox={
+    name=trunk,
+    caption=Trunk\\Net,
+    fill=\ConvColor,
+    height=10, width=6, depth=10
+}};
+
+\pic[shift={(1.0,0,0)}] at (trunk-east) {Box={
+    name=t_vec,
+    caption=$t_k$,
+    fill=\ResColor,
+    height=1, width=4, depth=1
+}};
+
+% Dot Product
+\pic[shift={(2.0, 1.5, 0)}] at (t_vec-east) {Box={
+    name=dot,
+    caption=Dot\\Product,
+    fill=\OpColor,
+    height=4, width=4, depth=4
+}};
+
+\node[io, right=2.0cm of dot-east] (out) {G(u)(y)};
+
+% Connections
+\draw[arrow] (in_u) -- (branch-west);
+\draw[arrow] (branch-east) -- (b_vec-west);
+\draw[arrow] (in_y) -- (trunk-west);
+\draw[arrow] (trunk-east) -- (t_vec-west);
+
+\draw[arrow] (b_vec-east) -| (dot-north);
+\draw[arrow] (t_vec-east) -| (dot-south);
+\draw[arrow] (dot-east) -- (out);
+
+\end{tikzpicture}
+\end{document}

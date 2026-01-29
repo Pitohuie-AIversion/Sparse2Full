@@ -1,0 +1,140 @@
+# AR训练配置文件 - Spatial Only for Crop Task
+# 基于 ar_paper_consistent_spatial_sr4_2D_diff_react_NA_NA.yaml 
+# 适配 Crop 任务 (Inpainting)
+
+experiment:
+  name: "AR-DR2D-SpatialOnly-EDSR-Crop-Refined"
+  description: "Spatial-Only Training: EDSR for Crop Task (Reference Style)"
+  device: cuda
+  seed: 2025
+  seeds: [2025, 2026, 2027]
+  output_dir: "runs_drd_paper/${experiment.name}"
+  log_every_n_steps: 10
+
+device:
+  accelerator: cuda
+  devices: 1
+  precision: bf16-mixed
+
+# 显式禁用AR时序，改为空间-only模式 (完全参考 Reference)
+ar:
+  enabled: false
+  eval_time_strategy: mean
+
+sequential:
+  enabled: false
+
+data:
+  data_path: "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/data/DR2D/2D_diff-react_NA_NA.h5"
+  dataset_name: RealDiffusionReaction
+  img_size: 128
+  keys: ["data"]
+  component: u
+  use_official_format: true
+  splits_dir: splits
+  target_channels: 1
+  input_channels: 1
+  sample_limit: null
+  
+  # 单帧任务
+  T_in: 1
+  T_out: 1
+  
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+  
+  time_step_start: 0
+  time_step_end: 101   
+  time_step_stride: 10 
+  
+  # Crop 观测配置
+  observation:
+    mode: crop
+    crop:
+      size: [64, 64] # 50% Crop
+      boundary_mode: mirror
+      align_corners: false
+  
+  input_mode: lr
+  include_coords: false
+  include_mask: false
+  
+  dataloader:
+    batch_size: 16
+    val_batch_size: 16
+    test_batch_size: 16
+    num_workers: 8
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 2
+
+model:
+  name: EDSR
+  in_channels: 1
+  out_channels: 1
+  img_size: 128
+  n_feats: 64
+  n_resblocks: 32 # 保持 Crop 实验所需的深网络
+  res_scale: 0.1
+  upscale: 1
+
+training:
+  # Crop 退化配置
+  degradation:
+    mode: crop
+    crop:
+      size: [64, 64]
+      boundary_mode: mirror
+      align_corners: false
+
+  epochs: 300
+  batch_size: 16
+  gradient_accumulation_steps: 1
+  gradient_clip_val: 1.0
+  
+  amp:
+    enabled: true
+    autocast_dtype: bfloat16
+  
+  loss_weights:
+    reconstruction: 1.0
+    spectral: 0.05
+    data_consistency: 1.0
+  
+  optimizer:
+    name: "AdamW"
+    lr: 0.0001
+    weight_decay: 0.0001
+    
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 300
+    eta_min: 1e-6
+    warmup_epochs: 10
+
+validation:
+  check_val_every_n_epoch: 5
+  use_observation: true
+  metrics:
+    - rel_l2
+    - mae
+    - psnr
+    - ssim
+
+logging:
+  experiment_name: "AR-DR2D-SpatialOnly-EDSR-Crop-Refined"
+  visualization:
+    save_samples_every_n_epochs: 50
+    num_samples_to_save: 5
+
+testing:
+  enabled: true
+  run_final_test: true
+  save_predictions: false
+  compute_detailed_metrics: true
+  batch_size: 512
+  save_visualizations: true
+  num_visualization_samples: 3
+  fast_mode: false
+  minimal_logging: false

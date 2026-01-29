@@ -1,0 +1,39 @@
+{% include "pnn_header.tex.j2" %}
+\def\ConvColor{convcolor}
+\def\ResColor{rescolor}
+\def\OpColor{opcolor}
+
+\begin{document}
+\begin{tikzpicture}
+
+\node[io] (in) {Input Seq};
+
+% Stage 1: Spatial
+\pic[shift={(2.5 * {{ dist_scale|default(1.0) }},0,0)}] at (in.east) {RightBandedBox={
+    name=spatial,
+    caption=Spatial\\Module,
+    xlabel={"Extract", },
+    fill=\ConvColor,
+    height=30, width=6, depth=30
+}};
+
+% Intermediate
+\node[below=0.5cm of spatial-south] (inter) {Spatial Features + Preds};
+
+% Stage 2: Temporal
+\pic[shift={(2.5 * {{ dist_scale|default(1.0) }},0,0)}] at (spatial-east) {RightBandedBox={
+    name=temporal,
+    caption=Temporal\\Module,
+    xlabel={"Predict", },
+    fill=\ResColor,
+    height=30, width=6, depth=30
+}};
+
+\node[io, right=2.5cm of temporal-east] (out) {Final Pred};
+
+\draw[arrow] (in) -- (spatial-west);
+\draw[arrow] (spatial-east) -- (temporal-west);
+\draw[arrow] (temporal-east) -- (out);
+
+\end{tikzpicture}
+\end{document}

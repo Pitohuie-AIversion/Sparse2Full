@@ -1,0 +1,296 @@
+# AR训练配置文件
+# 基于之前成功的配置，适配当前环境
+
+experiment:
+  name: "AR-DarcyFlow-EDSR-SRx4-beta1.0"
+  description: "DarcyFlow beta1.0 Super-Resolution"
+  device: cuda
+  seed: 2025
+  seeds: [2025, 2026, 2027]
+  output_dir: "runs_darcy/${experiment.name}"
+  log_every_n_steps: 10
+
+# 设备与并行（DDP）
+device:
+  accelerator: cuda
+  devices: 2
+  strategy: ddp
+  allow_data_parallel_fallback: true
+  precision: bf16-mixed
+
+# 显式禁用AR时序，改为空间-only模式
+ar:
+  enabled: false
+  eval_time_strategy: mean  # 评估策略：mean (平均) 或 last (仅最后一步)
+
+sequential:
+  enabled: false
+
+# 注：已存在logging段，保持单一logging配置，避免重复键
+
+# 数据配置
+data:
+  data_path: "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/data/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5"
+  dataset_name: darcy_flow
+  img_size: 128  # 匹配模型期望分辨率
+  keys: ["tensor"]
+  # component: u        # DarcyFlow不需要component选择
+  use_official_format: true
+  # splits_dir: splits  # 禁用 split 文件，使用 train_ratio=0.8 全量训练
+  target_channels: 1  # tensor
+  input_channels: 1   # nu
+  sample_limit: null  # 使用全量数据集：保持为 null 或删除该键
+  
+  # AR特定配置
+  T_in: 1      # 输入时间步数
+  T_out: 1     # 纯空间预测：仅预测单帧
+  
+  # 数据集分割配置 - Debug模式：大幅减少测试集
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1  # Debug模式：仅10%用于测试
+  
+  # 时间步配置 (DarcyFlow是稳态方程，通常没有时间步概念，但保持配置兼容)
+  time_step_start: 0
+  time_step_end: 1
+  time_step_stride: 1
+  
+  # 观测配置 - 降采样输入
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+      downsample_mode: area
+      align_corners: false
+      antialias: true
+
+  input_mode: lr
+  include_coords: false
+  include_mask: false
+  include_fourier_pe: false
+  fourier_pe_bands: 4
+  
+  # 预处理
+  normalize: true
+  augmentation:
+    enabled: false
+    flip_prob: 0.0
+    rotate_prob: 0.0
+    noise_std: 0.0
+
+  # 数据加载器（优化I/O避免阻塞）
+  dataloader:
+    batch_size: 160  # 根据 L40 (46GB) 计算的安全值: ~30GB 显存占用 (65%)
+    val_batch_size: 160
+    test_batch_size: 160
+    num_workers: 12
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 6
+    drop_last: true
+    shuffle: true
+    timeout: 60
+    # 删除不兼容字段，交由训练脚本条件设置
+  
+  
+hardware:
+  allow_tf32: true
+  memory:
+    cudnn_benchmark: true
+
+
+model:
+  name: EDSR
+  in_channels: 1
+  out_channels: 1
+  img_size: 128
+  n_feats: 64
+  n_resblocks: 16
+  res_scale: 0.1
+  upscale: 1
+
+model_budget:
+  target_params_m: 10.0
+  tolerance_m: 1.0
+  auto_tune: false
+
+# 训练配置 - 长跑训练
+training:
+  epochs: 300
+  batch_size: 160
+  gradient_accumulation_steps: 1
+  
+  # PyTorch编译优化配置（可提升15-30%性能）
+  torch_compile: false  # SwinUNet禁用torch.compile避免CUDA图覆盖错误
+  torch_compile_backend: "inductor"  # 使用inductor后端（推荐）
+  torch_compile_mode: "reduce-overhead"  # 减少开销模式，避免autotune延迟
+  channels_last: true  # 启用channels_last内存格式优化卷积性能
+  
+  # 简化训练配置 - 移除冗余优化
+  dataloader:
+    batch_size: 160
+    num_workers: 12
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 6
+
+  loss_weights:
+    reconstruction: 1.0
+    spectral: 0.5
+    data_consistency: 1.0
+  
+  # 最小验证配置
+  validation:
+    enabled: true
+    check_val_every_n_epoch: 5
+    save_val_batch_for_viz: false
+    log_val_metrics: false  # 禁用验证日志减少开销
+  
+  # 简化优化器配置
+  optimizer:
+    name: "AdamW"
+    lr: 0.0005
+    weight_decay: 0.0001  # 减少权重衰减
+    betas: [0.9, 0.999]
+    eps: 1e-8
+    fused: false  # 禁用融合优化器避免兼容性问题
+    foreach: false
+  
+  # 简化调度器
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 1000
+    eta_min: 1e-6
+    warmup_epochs: 10
+  
+  # 基本训练设置
+  gradient_clip_val: 1.0
+  gradient_clip_algorithm: norm
+  
+  # 最小AMP配置
+  amp:
+    enabled: false
+    autocast_dtype: bfloat16
+  
+  # 课程学习配置 - 长期训练阶段
+  curriculum:
+    enabled: false  # 禁用课程学习，保持空间-only
+    stages: []
+  
+  # 检查点 - 长期训练优化
+  checkpoint:
+    save_best: true
+    save_last: true
+    max_keep: 5  # 长期训练保留更多检查点
+    monitor: val_loss
+    mode: min
+    save_every_n_epochs: 50  # 长跑训练降低频率，减少I/O
+  
+  # 早停 - 长期训练配置
+  early_stopping:
+    enabled: false  # 禁用早停，完整运行设定的epochs
+    patience: 200  # 长期训练增加耐心值
+    monitor: val_loss
+    mode: min
+    min_delta: 1e-6
+
+# AR损失配置
+loss:
+  # AR特定损失
+  ar_loss:
+    weight: 0.0  # 禁用AR时序损失，空间-only
+    reduction: mean
+  
+  # 辅助损失
+  reconstruction:
+    weight: 1.0
+    # 使用默认重建（Rel-L2 + 0.1×MAE）作为论文基线
+  spectral:
+    weight: 0.5
+  degradation_consistency:
+    weight: 1.0
+  gradient_weight: 0.0
+
+# 验证配置 - Debug模式简化
+validation:
+  check_val_every_n_epoch: 5
+  use_observation: true
+  
+  metrics:
+    - rel_l2  # Debug模式：仅保留核心指标
+    - mae
+    - psnr
+    - ssim
+  # AR特定验证 - Debug模式简化
+  rollout_steps: [1]  # 空间-only：仅验证单步
+  
+  convergence_criteria:
+    target_rel_l2: 0.1
+    patience_for_convergence: 10
+    min_improvement: 1e-4
+
+# 设备配置（统一在前文 device 段配置，避免重复键）
+
+# 日志配置 - 5000epoch长期训练监控
+logging:
+  experiment_name: "AR-DarcyFlow-EDSR-SRx4-beta1.0"
+  version: null
+  default_hp_metric: false
+  log_model: false  # Debug模式：不保存模型日志
+  
+  # 性能监控 - Debug模式简化
+  performance_monitoring:
+    log_gpu_memory: true
+    log_throughput: true
+    log_batch_time: true
+  
+  tensorboard:
+    save_dir: runs/tensorboard
+    name: ar_paper
+    version: null
+  
+  visualization:
+    save_test_visualizations: true
+    save_samples_every_n_epochs: 50
+    num_samples_to_save: 5
+    save_training_curves: true
+    save_rollout_visualization: false
+    num_test_samples: 3
+
+ 
+
+testing:
+  enabled: true
+  run_final_test: true
+  save_predictions: false
+  compute_detailed_metrics: true
+  
+  # 测试时的特殊设置 - 大幅提升速度
+  batch_size: 512
+  save_visualizations: true
+  num_visualization_samples: 3
+  
+  # 快速测试模式
+  fast_mode: false
+  minimal_logging: false
+
+# 数据增强配置 - Debug模式关闭
+data_augmentation:
+  enable: false  # Debug模式：关闭数据增强加速训练
+  # CPU密集型增强操作
+  random_rotation: 
+    enable: false
+    degrees: [-5, 5]
+  random_flip:
+    enable: false
+    horizontal: 0.5
+    vertical: 0.3
+  gaussian_noise:
+    enable: false
+    std: 0.01
+  # 数值计算密集型操作
+  normalize_per_sample: false  # Debug模式：关闭逐样本归一化
+  compute_statistics: false    # Debug模式：关闭统计计算

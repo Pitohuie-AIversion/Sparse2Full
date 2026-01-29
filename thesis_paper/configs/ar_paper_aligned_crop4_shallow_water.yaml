@@ -2,12 +2,12 @@
 # 基于之前成功的配置，适配当前环境
 
 experiment:
-  name: "AR-DR2D-EDSR-SRx4-10M-300ep"
-  description: "正式训练 - EDSR Crop训练 (ShallowWater SRx4)"
+  name: "AR-DR2D-EDSR-CropMask-10M-300ep"
+  description: "正式训练 - EDSR Random Crop Masking (Sparse Observation)"
   device: cuda
   seed: 2025
   seeds: [2025, 2026, 2027]
-  output_dir: run_sw_4x
+  output_dir: run_sw_crop/${experiment.name}
   log_every_n_steps: 10
 
 # 设备与并行（DDP）
@@ -59,15 +59,9 @@ data:
   
   # 观测配置 - 降采样输入
   observation:
-    mode: SR
-    sr:
-      scale_factor: 4
-      blur_sigma: 1.0
-      blur_kernel_size: 5
-      boundary_mode: mirror
-      downsample_mode: area
-      align_corners: false
-      antialias: true
+    mode: Crop
+    crop_size: [128, 128] # For dataset consistency (if used)
+    boundary: zero
 
   input_mode: lr
   include_coords: false
@@ -87,9 +81,9 @@ data:
   
   # 数据加载器（优化I/O避免阻塞）
   dataloader:
-    batch_size: 96
-    val_batch_size: 96
-    test_batch_size: 96
+    batch_size: 32
+    val_batch_size: 32
+    test_batch_size: 32
     num_workers: 12
     pin_memory: true
     persistent_workers: true
@@ -115,7 +109,7 @@ model:
   n_feats: 64
   n_resblocks: 16
   res_scale: 0.1
-  upscale: 4
+  upscale: 1
   add_input_residual: true
 
 model_budget:
@@ -126,8 +120,8 @@ model_budget:
 # 训练配置 - 长跑训练
 training:
   epochs: 300
-  batch_size: 96
-  gradient_accumulation_steps: 1
+  batch_size: 32
+  gradient_accumulation_steps: 3
   
   # Crop训练配置
   crop:
@@ -143,7 +137,7 @@ training:
   
   # 简化训练配置 - 移除冗余优化
   dataloader:
-    batch_size: 96
+    batch_size: 32
     num_workers: 12
     pin_memory: true
     persistent_workers: true
@@ -248,7 +242,7 @@ validation:
 
 # 日志配置 - 5000epoch长期训练监控
 logging:
-  experiment_name: "AR-DR2D-EDSR-SRx4-10M-300ep"
+  experiment_name: "AR-DR2D-EDSR-CropMask-10M-300ep"
   version: null
   default_hp_metric: false
   log_model: false  # Debug模式：不保存模型日志

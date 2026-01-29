@@ -1,0 +1,28 @@
+\documentclass[tikz, border=10mm]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{positioning, calc, arrows.meta, chains, fit, shapes}
+\input{nn_blocks.tex}
+\begin{document}
+\begin{tikzpicture}[
+    node distance=1.5cm,
+    every node/.style={scale=0.8, transform shape}
+]
+
+\node[io] (in) {Input Seq};
+
+% Stage 1: Spatial
+\node[nntikz_block, right=of in, minimum height=2cm] (spatial) {Spatial\\Module\\(Extract)};
+\draw[arrow] (in) -- (spatial);
+
+% Intermediate
+\node[below=0.5cm of spatial] (inter) {Spatial Features};
+
+% Stage 2: Temporal
+\node[nntikz_block, right=of spatial, minimum height=2cm] (temporal) {Temporal\\Module\\(Predict)};
+\draw[arrow] (spatial) -- (temporal);
+
+\node[io, right=of temporal] (out) {Final Pred};
+\draw[arrow] (temporal) -- (out);
+
+\end{tikzpicture}
+\end{document}

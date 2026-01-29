@@ -1,0 +1,89 @@
+{% include "pnn_header.tex.j2" %}
+\begin{document}
+\begin{tikzpicture}
+
+\node[io] (in) {Input};
+
+    % Patch Embed
+    \pic[shift={(3.0 * {{ dist_scale|default(1.0) }},0,0)}] at (in.east) {Box={
+        name=embed,
+        caption=Patch\\Embed,
+        fill=\ConvColor,
+        height=40, width=2, depth=40
+    }};
+
+    % Stage 1 (Detailed: Norm-Attn-Norm-MLP)
+    \pic[shift={(2.5 * {{ dist_scale|default(1.0) }},0,0)}] at (embed-east) {Box={
+        name=st1_ln1,
+        caption=LN,
+        fill=\OpColor,
+        height=40, width=1, depth=40
+    }};
+
+    \pic[shift={(1.0 * {{ dist_scale|default(1.0) }},0,0)}] at (st1_ln1-east) {Box={
+        name=st1_msa,
+        caption={{ '{' }}W-MSA\\{{ embed_dim }}D\\{{ num_heads[0] }}H{{ '}' }},
+        fill=\ResColor,
+        height=40, width=3, depth=40
+    }};
+
+    \pic[shift={(1.0 * {{ dist_scale|default(1.0) }},0,0)}] at (st1_msa-east) {Box={
+        name=st1_ln2,
+        caption=LN,
+        fill=\OpColor,
+        height=40, width=1, depth=40
+    }};
+
+    \pic[shift={(1.0 * {{ dist_scale|default(1.0) }},0,0)}] at (st1_ln2-east) {Box={
+        name=st1_mlp,
+        caption=MLP,
+        fill=\ResColor,
+        height=40, width=3, depth=40
+    }};
+    
+    % Label for Stage 1 blocks
+    \node[above=0.5cm of st1_msa-north] {Stage 1 $\times {{ depths[0] }}$};
+
+    % Stage 2 (Simplified)
+    \pic[shift={(2.5 * {{ dist_scale|default(1.0) }},0,0)}] at (st1_mlp-east) {Box={
+        name=st2,
+        caption={{ '{' }}Stage 2\\$\times {{ depths[1] }}${{ '}' }},
+        fill=\ResColor,
+        height=20, width=3, depth=20
+    }};
+
+    \pic[shift={(2.5 * {{ dist_scale|default(1.0) }},0,0)}] at (st2-east) {Box={
+        name=st3,
+        caption={{ '{' }}Stage 3\\$\times {{ depths[2] }}${{ '}' }},
+        fill=\ResColor,
+        height=10, width=4, depth=10
+    }};
+
+    \pic[shift={(2.5 * {{ dist_scale|default(1.0) }},0,0)}] at (st3-east) {Box={
+        name=st4,
+        caption={{ '{' }}Stage 4\\$\times {{ depths[3] }}${{ '}' }},
+        fill=\ResColor,
+        height=5, width=5, depth=5
+    }};
+
+    % Head
+    \pic[shift={(3.0 * {{ dist_scale|default(1.0) }},0,0)}] at (st4-east) {Box={
+        name=head,
+        caption=Head,
+        fill=\ConvColor,
+        height=10, width=2, depth=10
+    }};
+
+    % Connections
+    \draw[arrow] (in) -- (embed-west);
+    \draw[arrow] (embed-east) -- (st1_ln1-west);
+    \draw[arrow] (st1_ln1-east) -- (st1_msa-west);
+    \draw[arrow] (st1_msa-east) -- (st1_ln2-west);
+    \draw[arrow] (st1_ln2-east) -- (st1_mlp-west);
+    \draw[arrow] (st1_mlp-east) -- (st2-west);
+    \draw[arrow] (st2-east) -- (st3-west);
+    \draw[arrow] (st3-east) -- (st4-west);
+    \draw[arrow] (st4-east) -- (head-west);
+
+\end{tikzpicture}
+\end{document}

@@ -274,6 +274,23 @@ class VideoSwinPredictor(nn.Module):
         if x.dim() == 5:
             # Assumes [B, T, C, H, W] -> permute to [B, C, T, H, W]
             x = x.permute(0, 2, 1, 3, 4).contiguous()
+        elif x.dim() == 4:
+            # Assumes [B, T, C, H*W] or [B, C, H, W] ?
+            # Given the context of SequentialSpatiotemporalModel, it's likely [B, C, H, W] (T=1 squeeze)
+            # or [B, T, H, W] (C=1 squeeze)
+            # Let's print shape for debugging
+            print(f"DEBUG: VideoSwin received 4D input: {x.shape}")
+            # Try to handle common cases
+            if x.shape[1] == self.in_channels:
+                 # [B, C, H, W] -> [B, C, 1, H, W]
+                 x = x.unsqueeze(2)
+            else:
+                 # Maybe [B, T, H, W] where C=1?
+                 # If in_channels == 1
+                 if self.in_channels == 1:
+                      x = x.unsqueeze(1) # [B, 1, T, H, W] -> [B, C, T, H, W]
+                 else:
+                      raise ValueError(f"Ambiguous 4D input shape {x.shape} for in_channels={self.in_channels}")
             
         B, C, T, H, W = x.shape
         

@@ -1,0 +1,113 @@
+% nn_blocks.tex
+% Defines styles for neural network blocks using TikZ
+% Now supports Hybrid 2D/3D Visualization with PlotNeuralNet
+
+% --- PlotNeuralNet Integration ---
+% We assume Ball.sty, Box.sty, RightBandedBox.sty are in the same directory
+\usepackage{Ball}
+\usepackage{Box}
+\usepackage{RightBandedBox}
+
+% PlotNeuralNet Init Definitions (from init.tex)
+\usetikzlibrary{quotes,arrows.meta}
+\usetikzlibrary{positioning}
+\def\edgecolor{rgb:blue,4;red,1;green,4;black,3}
+\newcommand{\midarrow}{\tikz \draw[-Stealth,line width =0.8mm,draw=\edgecolor] (-0.3,0) -- ++(0.3,0);}
+
+% Define PlotNeuralNet Colors (Standard Palette)
+\definecolor{ConvColor}{rgb}{0.98,0.81,0.69}  % Apricot/Orange
+\definecolor{ConvReluColor}{rgb}{0.98,0.81,0.69}
+\definecolor{PoolColor}{rgb}{0.8,0.33,0.33}   % Redish
+\definecolor{UnpoolColor}{rgb}{0.6,0.7,0.9}   % Blueish
+\definecolor{FcColor}{rgb}{0.6,0.2,0.8}       % Purple
+\definecolor{FcReluColor}{rgb}{0.6,0.2,0.8}
+\definecolor{SoftmaxColor}{rgb}{0.9,0.9,0.6}  % Yellowish
+\definecolor{SumColor}{rgb}{0.9,0.9,0.9}      % Gray
+
+% Custom colors for our specific blocks
+\definecolor{ResBlockColor}{rgb}{0.85,0.92,1.0} % Light Blue
+\definecolor{EmbedColor}{rgb}{0.95,0.95,0.8}    % Light Yellow
+\definecolor{TransColor}{rgb}{0.8,0.9,0.8}      % Light Green
+
+% --- 2D Node Styles (Standard TikZ) ---
+\tikzset{
+    % General Block Style
+    block/.style={
+        rectangle,
+        draw=black!80,
+        fill=white,
+        minimum height=3em,
+        minimum width=3em,
+        align=center,
+        rounded corners=2pt,
+        thick,
+        drop shadow={opacity=0.2, shadow xshift=1mm, shadow yshift=-1mm}
+    },
+    % Convolution Layer (2D Fallback)
+    conv/.style={
+        block,
+        fill=orange!20,
+        draw=orange!80!black
+    },
+    % Residual Block / Layer (2D Fallback)
+    res/.style={
+        block,
+        fill=blue!10,
+        draw=blue!80!black,
+        dashed
+    },
+    % Pooling / Downsampling (2D Fallback)
+    pool/.style={
+        block,
+        fill=red!10,
+        draw=red!80!black
+    },
+    % Upsampling / PixelShuffle
+    up/.style={
+        block,
+        fill=purple!10,
+        draw=purple!80!black
+    },
+    % Operation / Feature Map
+    op/.style={
+        block,
+        fill=green!10,
+        draw=green!80!black
+    },
+    % Summation Node
+    sum/.style={
+        circle,
+        draw=black!80,
+        fill=black!10,
+        inner sep=0pt,
+        minimum size=6mm,
+        thick
+    },
+    % Input/Output Nodes
+    io/.style={
+        block,
+        fill=gray!10,
+        draw=black!80,
+        minimum width=4em
+    },
+    % Connection Arrow
+    arrow/.style={
+        ->,
+        >=stealth,
+        thick,
+        draw=black!70
+    },
+    % Skip Connection Line
+    skip/.style={
+        ->,
+        >=stealth,
+        thick,
+        draw=blue!60,
+        dashed,
+        rounded corners=5pt
+    }
+}
+
+% Define drop shadow library usage if not already loaded globally
+\usetikzlibrary{shadows}
+\usetikzlibrary{3d}

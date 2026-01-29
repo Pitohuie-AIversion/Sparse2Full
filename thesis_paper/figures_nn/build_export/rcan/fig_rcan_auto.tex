@@ -1,0 +1,111 @@
+\documentclass[tikz, border=10mm]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{positioning, calc, arrows.meta, chains, fit, shapes, 3d}
+\input{nn_blocks.tex}
+
+\definecolor{convcolor}{rgb}{1,0.8,0.5}
+\definecolor{rescolor}{rgb}{0.8,0.8,1}
+\definecolor{poolcolor}{rgb}{1,0.5,0.5}
+\definecolor{upcolor}{rgb}{0.8,0.5,1}
+\definecolor{opcolor}{rgb}{0.5,1,0.5}
+\def\ConvColor{convcolor}
+\def\ResColor{rescolor}
+\def\UpColor{upcolor}
+\def\OpColor{opcolor}
+
+\begin{document}
+\begin{tikzpicture}
+
+% 1. Input (2D Node)
+    \node[io] (in) {Input\\LR};
+
+    % 2. Head (3D Conv)
+    \path (in.east) ++(3.0,0,0) coordinate (head_pos);
+
+    \pic[shift={(3.0,0,0)}] at (in.east) {RightBandedBox={
+        name=head,
+        caption=Head,
+        xlabel={ {1, 64} },
+        zlabel=,
+        fill=\ConvColor,
+        height=20, width=2, depth=20
+    }};
+
+    % 3. Body (ResBlocks)
+    % Detailed ResBlock 1
+    \pic[shift={(3.5,0,0)}] at (head-east) {RightBandedBox={
+        name=res1_conv1,
+        caption=Conv\\1,
+        xlabel={ {64, } },
+        zlabel=,
+        fill=\ConvColor,
+        height=20, width=2, depth=20
+    }};
+
+    \pic[shift={(1.2,0,0)}] at (res1_conv1-east) {Box={
+        name=res1_relu,
+        caption=ReLU,
+        fill=\OpColor,
+        height=15, width=1, depth=15
+    }};
+
+    \pic[shift={(1.2,0,0)}] at (res1_relu-east) {RightBandedBox={
+        name=res1_conv2,
+        caption=Conv\\2,
+        xlabel={ {64, } },
+        zlabel=,
+        fill=\ConvColor,
+        height=20, width=2, depth=20
+    }};
+
+    % Skip connection for ResBlock 1 (Increased height to avoid overlap)
+    \draw[skip] (head-east) -- ++(0, 4, 0) -| (res1_conv2-east);
+
+    \pic[shift={(2.5,0,0)}] at (res1_conv2-east) {Box={
+        name=res2,
+        caption=RCAB\\2,
+        fill=\ResColor,
+        height=20, width=4, depth=20
+    }};
+
+    \pic[shift={(2.0,0,0)}] at (res2-east) {Box={
+        name=res16,
+        caption=RCAB\\16,
+        fill=\ResColor,
+        height=20, width=4, depth=20
+    }};
+
+    % 4. Tail (3D Conv)
+    \pic[shift={(3.0,0,0)}] at (res16-east) {RightBandedBox={
+        name=tail,
+        caption=Tail,
+        xlabel={ {64, 1} },
+        zlabel=,
+        fill=\ConvColor,
+        height=20, width=2, depth=20
+    }};
+
+    % 5. Upsampler (3D Block)
+    \pic[shift={(3.0,0,0)}] at (tail-east) {Box={
+        name=up,
+        caption=Upsamp-\\ler,
+        fill=\UpColor,
+        height=30, width=5, depth=30
+    }};
+
+    % 6. Output (2D Node)
+    \node[io, right=3.5cm of up-east] (out) {Output\\HR};
+
+% Connections
+\draw[arrow] (in) -- (head-west);
+\draw[arrow] (head-east) -- (res1_conv1-west);
+\draw[arrow] (res1_conv1-east) -- (res1_relu-west);
+\draw[arrow] (res1_relu-east) -- (res1_conv2-west);
+\draw[arrow] (res1_conv2-east) -- (res2-west);
+\draw[arrow] (res2-east) -- (res16-west);
+\draw[arrow] (res16-east) -- (tail-west);
+\draw[arrow] (tail-east) -- (up-west);
+\draw[arrow] (up-east) -- (out);
+
+\end{tikzpicture}
+\end{document}

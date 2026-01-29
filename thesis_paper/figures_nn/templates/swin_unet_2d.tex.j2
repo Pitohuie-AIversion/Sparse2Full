@@ -1,0 +1,67 @@
+\documentclass[tikz, border=10mm]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{positioning, calc, arrows.meta, chains, fit, shapes}
+\input{nn_blocks.tex}
+\begin{document}
+\begin{tikzpicture}[
+    node distance={{ node_distance|default('1.5cm') }},
+    every node/.style={scale=0.8, transform shape}
+]
+
+\node[io] (in) {Input};
+\node[conv, right=of in] (pe) {Patch\\Embed};
+
+% Encoder
+\node[nntikz_block, right=of pe, label=below:Stage 1] (st1) {
+    \begin{tikzpicture}
+        \node[res] (sw1) {Swin\\Block};
+        \node[pool, right=0.3cm of sw1] (pm1) {Patch\\Merge};
+        \draw[arrow] (sw1) -- (pm1);
+    \end{tikzpicture}
+};
+
+\node[nntikz_block, right=of st1, label=below:Stage 2] (st2) {
+    \begin{tikzpicture}
+        \node[res] (sw2) {Swin\\Block};
+        \node[pool, right=0.3cm of sw2] (pm2) {Patch\\Merge};
+        \draw[arrow] (sw2) -- (pm2);
+    \end{tikzpicture}
+};
+
+% Bottleneck
+\node[res, right=of st2] (bot) {Bottle-\\neck};
+
+% Decoder
+\node[nntikz_block, right=of bot, label=below:Stage 3] (st3) {
+    \begin{tikzpicture}
+        \node[up] (pe2) {Patch\\Expand};
+        \node[res, right=0.3cm of pe2] (sw3) {Swin\\Block};
+        \draw[arrow] (pe2) -- (sw3);
+    \end{tikzpicture}
+};
+
+\node[nntikz_block, right=of st3, label=below:Stage 4] (st4) {
+    \begin{tikzpicture}
+        \node[up] (pe1) {Patch\\Expand};
+        \node[res, right=0.3cm of pe1] (sw4) {Swin\\Block};
+        \draw[arrow] (pe1) -- (sw4);
+    \end{tikzpicture}
+};
+
+\node[io, right=of st4] (out) {Output};
+
+% Main Flow
+\draw[arrow] (in) -- (pe);
+\draw[arrow] (pe) -- (st1);
+\draw[arrow] (st1) -- (st2);
+\draw[arrow] (st2) -- (bot);
+\draw[arrow] (bot) -- (st3);
+\draw[arrow] (st3) -- (st4);
+\draw[arrow] (st4) -- (out);
+
+% Skips
+\draw[skip] (st2) to[bend left=30] (st3);
+\draw[skip] (st1) to[bend left=30] (st4);
+
+\end{tikzpicture}
+\end{document}

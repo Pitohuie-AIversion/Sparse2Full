@@ -1,0 +1,146 @@
+
+\documentclass[tikz, border=10pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{positioning, chains, shapes.geometric, fit, shapes, arrows.meta, calc, backgrounds}
+
+\begin{document}
+\begin{tikzpicture}[
+    >=LaTeX, 
+    very thick,
+    node distance=0.8cm and 1.0cm,
+    arrow/.style={
+        ->,
+        very thick,
+        rounded corners=0.2cm
+    },
+    block/.style={
+        rectangle,
+        fill=gray!10,
+        rounded corners=3mm,
+        draw,
+        very thick,
+        inner sep=0.5em
+    },
+    layer/.style={
+        rectangle,
+        fill=white!10,
+        rounded corners=1mm,
+        inner xsep=0.5em,
+        inner ysep=0.5em,
+        minimum height=2.5em,
+        align=center,
+        draw,
+        very thick
+    },
+    conv/.style={
+        layer,
+        fill=orange!10,
+        draw=orange!80!black
+    },
+    relu/.style={
+        layer,
+        fill=yellow!10,
+        draw=yellow!80!black,
+        minimum height=2em
+    },
+    pool/.style={
+        layer,
+        fill=red!10,
+        draw=red!80!black
+    },
+    input/.style={ 
+        circle,
+        minimum width=2.5em,
+        draw,
+        fill=gray!20,
+        thick,
+        align=center
+    },
+    sum/.style={
+        circle,
+        draw,
+        fill=white,
+        inner sep=0pt,
+        minimum size=1em,
+        node contents={+}
+    }
+]
+
+
+    % Input
+    
+ode[input] (in) {Input};
+
+    % Encoder 1 (Detailed)
+    
+ode[conv, right=of in] (enc1_c1) {Conv\\$3\times 3$};
+    
+ode[relu, right=0.3cm of enc1_c1] (enc1_r1) {ReLU};
+    
+ode[conv, right=0.3cm of enc1_r1] (enc1_c2) {Conv\\$3\times 3$};
+    
+ode[relu, right=0.3cm of enc1_c2] (enc1_r2) {ReLU};
+    
+    \begin{scope}[on background layer]
+        \node[block, fit=(enc1_c1) (enc1_r2), label=above:Encoder 1] (enc1) {};
+    \end{scope}
+    
+    \draw[arrow] (in) -- (enc1_c1);
+    \draw[arrow] (enc1_c1) -- (enc1_r1);
+    \draw[arrow] (enc1_r1) -- (enc1_c2);
+    \draw[arrow] (enc1_c2) -- (enc1_r2);
+
+    % Pool 1
+    
+ode[pool, below=1cm of enc1] (pool1) {MaxPool};
+    \draw[arrow] (enc1_r2.east) -| (pool1.north);
+
+    % Encoder 2
+    
+ode[layer, below=1cm of pool1] (enc2) {DoubleConv\\(Enc 2)};
+    \draw[arrow] (pool1) -- (enc2);
+
+    % Bottleneck
+    
+ode[pool, below=1cm of enc2] (pool2) {MaxPool};
+    \draw[arrow] (enc2) -- (pool2);
+    
+    
+ode[layer, below=1cm of pool2, fill=blue!10] (bot) {Bottleneck\\DoubleConv};
+    \draw[arrow] (pool2) -- (bot);
+
+    % Decoder 2
+    
+ode[layer, right=3cm of bot, fill=green!10] (up2) {UpConv};
+    
+ode[layer, above=1cm of up2] (dec2) {DoubleConv\\(Dec 2)};
+    
+    \draw[arrow] (bot) -- (up2);
+    \draw[arrow] (up2) -- (dec2);
+
+    % Skip Connection 2
+    \draw[arrow, dashed] (enc2.east) -- node[above]{Concat} (dec2.west);
+
+    % Decoder 1
+    
+ode[layer, above=1cm of dec2, fill=green!10] (up1) {UpConv};
+    
+ode[layer, above=1cm of up1] (dec1) {DoubleConv\\(Dec 1)};
+    
+    \draw[arrow] (dec2) -- (up1);
+    \draw[arrow] (up1) -- (dec1);
+
+    % Skip Connection 1
+    \draw[arrow, dashed] (enc1.east) -| (dec1.south west);
+
+    % Output
+    
+ode[conv, right=of dec1] (out_conv) {Conv\\$1\times 1$};
+    
+ode[input, right=of out_conv] (out) {Output};
+    
+    \draw[arrow] (dec1) -- (out_conv);
+    \draw[arrow] (out_conv) -- (out);
+
+\end{tikzpicture}
+\end{document}

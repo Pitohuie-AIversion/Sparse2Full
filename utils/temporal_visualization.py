@@ -98,8 +98,8 @@ class TemporalVisualizer:
             axes = axes.reshape(-1, 1)
         
         # 计算全局颜色范围
-        vmin = min(pred_np.min(), target_np.min())
-        vmax = max(pred_np.max(), target_np.max())
+        vmin = float(np.nanmin([np.nanmin(pred_np), np.nanmin(target_np)]))
+        vmax = float(np.nanmax([np.nanmax(pred_np), np.nanmax(target_np)]))
         norm = Normalize(vmin=vmin, vmax=vmax)
         
         for i, t in enumerate(time_steps):

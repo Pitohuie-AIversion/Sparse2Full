@@ -1,0 +1,176 @@
+experiment:
+  name: "AR-DR2D-Stage3-Joint-VideoSwin-SRx4"
+  description: "Stage 3 Joint Fine-tuning: EDSR + VideoSwin with AR Consistency"
+  device: cuda
+  seed: 2025
+  output_dir: "runs_drd_paper/${experiment.name}"
+
+device:
+  accelerator: cuda
+  devices: 1
+  precision: bf16-mixed
+
+ar:
+  enabled: true
+
+sequential:
+  enabled: true
+  model_type: "SequentialSpatiotemporalModel"
+  
+  # Stage 3: Joint Fine-tuning
+  # Spatial (0) -> Temporal (0) -> Joint (50)
+  spatial_pretrain_epochs: 0
+  temporal_pretrain_epochs: 0
+  num_epochs: 50
+  
+  # Load weights from Stage 2
+  # NOTE: User needs to ensure this path exists after Stage 2 finishes
+  # Path: runs_drd_paper/AR-DR2D-Stage2-VideoSwin-SRx4/best.ckpt
+  
+  spatial:
+    in_channels: 1
+    spatial_feature_dim: 64
+    out_channels: 1
+    img_size: [128, 128]
+    backbone_type: "edsr"
+    backbone_config:
+      n_feats: 64
+      n_resblocks: 32
+      res_scale: 0.1
+      upscale: 1
+    # Unfreeze spatial for joint fine-tuning
+    freeze: false
+  
+  temporal:
+    spatial_feature_dim: 64
+    temporal_dim: 96
+    out_channels: 1
+    img_size: [128, 128]
+    backend: video_swin
+    num_heads: 4
+    num_layers: 2
+    window_size: [2, 8, 8]
+    dropout: 0.1
+    # Load Stage 2 checkpoint
+    pretrained_path: "runs_drd_paper/AR-DR2D-Stage2-VideoSwin-SRx4/best.ckpt"
+  
+  consistency:
+    enabled: true
+  
+  training:
+    two_stage_training: true
+    spatial_loss_weight: 0.5   # Reduced spatial weight
+    temporal_loss_weight: 1.0
+    consistency_loss_weight: 0.5
+    dc_loss_weight: 1.0
+    
+    # Curriculum for Teacher Forcing
+    teacher_forcing_cap: 0.3
+    teacher_forcing_decay: 0.95
+    
+    # Advanced AR Losses (Derivative & Energy)
+    loss_weights:
+      reconstruction: 1.0
+      spectral: 0.5
+      data_consistency: 1.0
+      derivative_consistency: 0.2  # Enable Derivative Loss
+      energy_consistency: 0.1      # Enable Energy Loss
+
+data:
+  data_path: "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/data/DR2D/2D_diff-react_NA_NA.h5"
+  dataset_name: RealDiffusionReaction
+  img_size: 128
+  keys: ["data"]
+  component: u
+  use_official_format: true
+  splits_dir: splits
+  target_channels: 1
+  input_channels: 1
+  
+  # Sequence length for AR training
+  T_in: 10
+  T_out: 10  # Long-term prediction training
+  
+  # Time step config
+  time_step_start: 0
+  time_step_end: 101   
+  time_step_stride: 10 
+  
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+      downsample_mode: area
+      align_corners: false
+      antialias: true
+  
+  dataloader:
+    batch_size: 2  # Reduced batch size for long sequence (T=10)
+    num_workers: 8
+
+training:
+  epochs: 50
+  batch_size: 2
+  gradient_accumulation_steps: 6 # Equivalent batch size = 12
+  gradient_clip_val: 1.0
+
+  amp:
+    enabled: true
+    autocast_dtype: bfloat16
+  
+  degradation:
+    mode: sr
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+      downsample_mode: area
+      align_corners: false
+      antialias: true
+
+  loss_weights:
+    reconstruction: 1.0
+    spectral: 0.5
+    data_consistency: 1.0
+    derivative_consistency: 0.2
+    energy_consistency: 0.1
+
+  optimizer:
+    name: "AdamW"
+    lr: 0.0001 # Lower LR for fine-tuning
+    weight_decay: 0.0001
+    
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 50
+    eta_min: 1e-7
+    warmup_epochs: 5
+
+validation:
+  check_val_every_n_epoch: 2
+  metrics:
+    - rel_l2
+    - mae
+    - psnr
+    - ssim
+
+logging:
+  experiment_name: "AR-DR2D-Stage3-Joint-VideoSwin-SRx4"
+  visualization:
+    save_samples_every_n_epochs: 10
+    num_samples_to_save: 5
+
+testing:
+  enabled: true
+  run_final_test: true
+  save_predictions: false
+  compute_detailed_metrics: true
+  batch_size: 256
+  save_visualizations: true
+  num_visualization_samples: 3
+  fast_mode: false
+  minimal_logging: false
