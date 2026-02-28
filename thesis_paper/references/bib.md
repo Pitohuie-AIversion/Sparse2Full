@@ -1,211 +1,95 @@
-# 论文写作检查清单
+[1] RAISSI M, PERDIKARIS P, KARNIADAKIS G E. Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations[J]. Journal of Computational Physics, 2019, 378:686-707.
 
-## 写作前准备
-- [ ] 确定论文结构和大纲
-- [ ] 收集所有实验数据和结果
-- [ ] 准备图表和可视化材料
-- [ ] 整理参考文献
+[2] WANG S, YU X, PERDIKARIS P. When and why PINNs fail to train: A neural tangent kernel perspective[J]. Journal of Computational Physics, 2022, 449:110768.
 
-## 各章节写作检查
+[3] WANG S, TENG Y, PERDIKARIS P. Respecting causality is all you need for training physics-informed neural networks[EB/OL]. arXiv:2203.07404, 2022[2026-01-26].
 
-### 摘要 (Abstract)
-- [ ] 研究背景介绍清晰
-- [ ] 主要贡献突出
-- [ ] 关键结果数据完整
-- [ ] 创新点明确
-- [ ] 语言简洁准确
+[4] EVENSEN G. The ensemble Kalman filter: theoretical formulation and practical implementation[J]. Ocean Dynamics, 2003, 53:343-367.
 
-### 第1章 绪论
-- [ ] 研究背景充分
-- [ ] 问题定义明确
-- [ ] 研究意义阐述清楚
-- [ ] 国内外研究现状
-- [ ] 论文主要内容
-- [ ] 创新点总结
-- [ ] 论文结构安排
+[5] EVERSON R, SIROVICH L. Karhunen–Loève procedure for gappy data[J]. Journal of the Optical Society of America A, 1995, 12(8):1657-1664.
 
-### 第2章 相关工作
-- [ ] 流场重建方法综述完整
-- [ ] 稀疏观测技术综述
-- [ ] 时空建模方法综述
-- [ ] 现有方法对比分析
-- [ ] 研究空白识别
-- [ ] 本文方法定位清晰
+[6] LI Z, KOVACHKI N B, AZIZZADENESHELI K, et al. Fourier neural operator for parametric partial differential equations[C]//Proceedings of the International Conference on Learning Representations (ICLR 2021). [S.l.]:[出版者不祥], 2021.
 
-### 第3章 方法论
-- [ ] 问题数学建模准确
-- [ ] 观测算子设计合理
-- [ ] 网络架构描述清楚
-- [ ] 损失函数设计完整
-- [ ] 算法流程清晰
-- [ ] 复杂度分析
+[7] LU L, JIN P, PANG G, et al. Learning nonlinear operators via DeepONet based on the universal approximation theorem of operators[J]. Nature Machine Intelligence, 2021, 3(3):218-229.
 
-### 第4章 理论分析
-- [ ] 收敛性证明完整
-- [ ] 泛化能力分析
-- [ ] 观测一致性理论
-- [ ] 稳定性分析
-- [ ] 计算复杂度分析
-- [ ] 理论贡献突出
+[8] BARTOLUCCI F, DE BÉZENAC E, RAONIĆ B, et al. Representation equivalent neural operators: A framework for alias-free operator learning[C]//Advances in Neural Information Processing Systems 37 (NeurIPS 2023). [S.l.]:Curran Associates, Inc., 2023.
 
-### 第5章 算法设计
-- [ ] 整体算法框架
-- [ ] 关键组件实现
-- [ ] 超参数设置
-- [ ] 优化策略
-- [ ] 伪代码清晰
-- [ ] 实现细节
+[9] TAKAMOTO M, PRADITIA T, BORTOLATO G, et al. PDEBench: An extensive benchmark for scientific machine learning[C]//Advances in Neural Information Processing Systems 35 (NeurIPS 2022): Datasets and Benchmarks Track. [S.l.]:Curran Associates, Inc., 2022.
 
-### 第6章 实验结果
-- [ ] 实验设置完整
-- [ ] 数据集介绍充分
-- [ ] 评估指标合理
-- [ ] 主实验结果完整
-- [ ] 对比实验充分
-- [ ] 消融实验详细
-- [ ] 可视化分析深入
-- [ ] 统计显著性验证
- - [ ] 报告 ≥3 种子 `均值±标准差`
- - [ ] 资源成本四项：`Params/FLOPs(@256²)/显存峰值/推理延迟`
- - [ ] 指标包含：`Rel-L2、MAE、PSNR、SSIM、fRMSE-low/mid/high、bRMSE、cRMSE、||H(ŷ)−y||`
- - [ ] DC/H 一致性通过 `tools/check_dc_equivalence.py`
+[10] TAKAMOTO M, PRADITIA T, BORTOLATO G, et al. PDEBench datasets[EB/OL]. DaRUS Data Repository, 2022[2026-01-26]. DOI:10.18419/darus-2986.
 
-### 第7章 理论验证
-- [ ] 理论预测验证
-- [ ] 收敛性验证
-- [ ] 泛化能力验证
-- [ ] 稳定性验证
-- [ ] 计算效率验证
-- [ ] 理论实验一致性
- - [ ] 同一 YAML+种子重现实验，指标方差 ≤ `1e-4`
+[11] RAHAMAN N, BARATIN A, ARPIT D, et al. On the spectral bias of neural networks[C]//Proceedings of the 36th International Conference on Machine Learning (ICML 2019). Proceedings of Machine Learning Research, 2019, 97:5301-5310.
 
-### 第8章 讨论
-- [ ] 方法优势分析
-- [ ] 局限性讨论
-- [ ] 适用条件说明
-- [ ] 未来工作展望
-- [ ] 应用前景分析
+[12] TANCIK M, SRINIVASAN P P, MILDENHALL B, et al. Fourier features let networks learn high frequency functions in low dimensional domains[C]//Advances in Neural Information Processing Systems 33 (NeurIPS 2020). [S.l.]:Curran Associates, Inc., 2020.
 
-### 第9章 结论
-- [ ] 研究成果总结
-- [ ] 创新点回顾
-- [ ] 理论贡献强调
-- [ ] 实践价值阐述
-- [ ] 未来研究方向
+[13] SHI X, CHEN Z, WANG H, et al. Convolutional LSTM network: A machine learning approach for precipitation nowcasting[C]//Advances in Neural Information Processing Systems 28 (NIPS 2015). [S.l.]:MIT Press, 2015:802-810.
 
-## 格式和语言检查
+[14] LIU Y, CAI Z, XU Z. Multi-scale deep neural network (MscaleDNN) for solving Poisson–Boltzmann equation in a molecular region[J]. Communications in Computational Physics, 2020, 28(5):1718-1740.
 
-### 格式要求
-- [ ] 页边距符合要求
-- [ ] 字体大小统一
-- [ ] 行间距正确
-- [ ] 图表编号规范
-- [ ] 参考文献格式统一
-- [ ] 页码连续
-- [ ] 目录完整
- - [ ] 训练配置快照存在：`runs/<exp>/config_merged.yaml`
- - [ ] 环境指纹记录：`runs/<exp>/env_fingerprint.json`
- - [ ] `paper_package/` 目录完整（主表/显著性/图/脚本）
+[15] OPENCV. Interpolation methods[EB/OL]. OpenCV, [2026-01-26].
 
-### 语言质量
-- [ ] 语法正确
-- [ ] 用词准确
-- [ ] 句式多样
-- [ ] 逻辑清晰
-- [ ] 表达简洁
-- [ ] 避免重复
-- [ ] 科技术语规范
+[16] OPENCV. Gaussian filter (GaussianBlur)[EB/OL]. OpenCV Documentation, [2026-01-26].
+## 第3章引用插入建议（按小节）
 
-### 图表质量
-- [ ] 图表清晰可读
-- [ ] 坐标轴标签完整
-- [ ] 图例说明清楚
-- [ ] 标题描述准确
-- [ ] 图表大小合适
-- [ ] 颜色使用合理
-- [ ] 矢量图格式
+- 3.1（问题定义/逆问题范式：观测一致性 + 正则/先验）
+  在“argmin ||H(u)-y|| + R(u)”附近插入：[1][2]
 
-## 学术规范检查
+- 3.2.1（SR口径：先低通再降采样；INTER_AREA 缩小时更合适）
+  在“抗混叠原则”“固定采用 INTER_AREA 插值”附近插入：[8][9]
 
-### 引用规范
-- [ ] 所有引用都有参考文献
-- [ ] 引用格式统一
-- [ ] 直接引用标注清楚
-- [ ] 间接引用说明完整
-- [ ] 参考文献信息准确
-- [ ] 网络资源引用规范
+- 3.2.2（Crop口径：中心对齐、patch倍数、边界/对齐显式声明）
+  口径写法属于工程规范性表述，可不强制引用；如需要“裁剪/对齐导致伪影”的依据，可在第2章放文献更合适（第3章可只保留实现规范）
 
-### 原创性检查
-- [ ] 避免抄袭
-- [ ] 正确引用他人工作
-- [ ] 区分自己工作和他人工作
-- [ ] 图表数据来源说明
-- [ ] 代码引用说明
-- [ ] 数据集使用声明
- - [ ] 模型与算子来源/许可在 `paper_package/data_cards/` 与 LICENSE/NOTICE 中声明
+- 3.4.1（Fourier 特征编码）
+  在“Fourier 特征编码”首次出现处插入：[4]
 
-### 学术诚信
-- [ ] 数据真实可靠
-- [ ] 实验可重复
-- [ ] 结果准确无误
-- [ ] 不夸大研究成果
-- [ ] 承认研究局限性
-- [ ] 利益冲突声明
- - [ ] `H` 与 `DC` 一致性在论文口径与实验脚本中明确
+- 3.5.2（频谱偏置与谱域约束动机）
+  在“频谱偏置”“低频更易学，高频更难稳定学习”的动机处插入：[3]
+  如果还要补充“用谱域损失/频域约束常用于重建类任务”，可选加：[7]
 
-## 最终检查
+- 3.4.2 / 训练策略（三阶段、Teacher Forcing、Teacher Forcing Decay、Exposure Bias）
+  在“Teacher Forcing”“逐步减少真值引导/衰减”处插入：[5]
+  在“Exposure Bias/滚动推理误差累积”处插入：[6]
 
-### 内容完整性
-- [ ] 所有章节完整
-- [ ] 逻辑连贯
-- [ ] 前后一致
-- [ ] 结论支撑充分
-- [ ] 创新点突出
-- [ ] 贡献明确
-
-### 技术检查
-- [ ] 公式编号连续
-- [ ] 图表引用正确
-- [ ] 参考文献完整
-- [ ] 附录内容适当
-- [ ] 致谢部分
-- [ ] 作者简介
- - [ ] 观测生成口径：`GaussianBlur$σ,k=5$+INTER_AREA downsample×s`、Crop 对齐策略明确
- - [ ] 模型接口统一：`__init__$in_ch, out_ch, img_size, *_kwargs$`；`forward(x)->y`
- - [ ] 解码优先“`双线性 + 3×3`”，避免棋盘格
-
-### 提交准备
-- [ ] 文件格式正确
-- [ ] 命名规范
-- [ ] 版本确认
-- [ ] 备份保存
-- [ ] 查重通过
-- [ ] 导师审阅
+- 3.3（DC ≡ H、阻断式审计）
+  这一条属于论文的自定义方法论与工程机制，通常不要求外文献；除非你要强调“可审计性/可复现协议”，那更适合在第6章评测协议里集中引用（例如可复现实验实践类文献/指南）
 
 ---
 
-## 写作建议
+## 第3章参考文献（建议清单，可直接并入总参考文献表）
 
-### 写作顺序建议
-1. 先写方法论和实验部分（有具体数据）
-2. 再写理论分析（有实验验证）
-3. 接着写相关工作（了解研究现状后）
-4. 然后写绪论（全局把握后）
-5. 最后写摘要和结论（全部完成后）
+[1] KAIPIO J, SOMERSALO E. Statistical and Computational Inverse Problems[M]. New York: Springer, 2005.
 
-### 时间管理
-- 预留充足时间修改
-- 分阶段完成
-- 定期与导师沟通
-- 及时收集反馈
-- 保持写作节奏
+[2] VOGEL C R. Computational Methods for Inverse Problems[M]. Philadelphia: Society for Industrial and Applied Mathematics (SIAM), 2002.
 
-### 质量把控
-- 多次修改完善
-- 同行评议
-- 语言润色
-- 格式统一
-- 细节检查
+[3] RAHAMAN N, BARATIN A, ARPIT D, et al. On the Spectral Bias of Neural Networks[J]. Proceedings of Machine Learning Research, 2019.
 
----
-*最后更新：2025年*
+[4] TANCIK M, SRINIVASAN P P, MILDENHALL B, et al. Fourier Features Let Networks Learn High Frequency Functions in Low Dimensional Domains[C]//Advances in Neural Information Processing Systems (NeurIPS). 2020.
+
+[5] BENGIO S, VINYALS O, JAITLY N, et al. Scheduled Sampling for Sequence Prediction with Recurrent Neural Networks[C]//Advances in Neural Information Processing Systems (NeurIPS). 2015.
+
+[6] RANZATO M, CHOPRA S, AULI M, et al. Sequence Level Training with Recurrent Neural Networks[C]//International Conference on Learning Representations (ICLR). 2016.
+
+[7] (可选) 频域损失/频率聚焦类：如果第6章会做频谱指标与消融，这里再补更合适；第3章可先不放。
+
+[8] OpenCV. Resizing and Rescaling Images with OpenCV[EB/OL]. [2026-01-26]. https://opencv.org/blog/resizing-and-rescaling-images-with-opencv/
+
+[9] OpenCV Documentation. Smoothing Images (Gaussian Blur)[EB/OL]. [2026-01-26]. https://docs.opencv.org/4.x/d4/d13/tutorial_py_filtering.html
+第4章建议补齐的引用文献（按你给的“大连海事大学格式”示例）
+
+下列条目用于第4章的“欠定逆问题/正则化、课程学习/Teacher Forcing、频谱偏置”等位置；其中 arXiv 预印本按“电子文献”类型给出，便于你从第1章开始统一补齐。
+
+逆问题/正则化（建议放在 4.0 或 4.1）
+[1] KAIPIO J, SOMERSALO E. Statistical and Computational Inverse Problems[M]. New York: Springer, 2005.
+[2] VOGEL C R. Computational Methods for Inverse Problems[M]. Philadelphia: SIAM, 2002.
+
+算子范数/Lipschitz 基础（建议放在 4.2.1）
+[3] KREYSZIG E. Introductory Functional Analysis with Applications[M]. New York: Wiley, 1978.
+
+课程学习与 Teacher Forcing/Exposure Bias（建议放在 4.5）
+[4] BENGIO Y, LOURADOUR J, COLLOBERT R, et al. Curriculum learning[C]//Proceedings of the 26th Annual International Conference on Machine Learning (ICML). New York: ACM, 2009.
+[5] BENGIO S, VINYALS O, JAITLY N, et al. Scheduled Sampling for Sequence Prediction with Recurrent Neural Networks[EB/OL]. (2015-06-10)[2026-01-26]. arXiv:1506.03099.
+[6] LAMB A M, GOYAL A G, ZHANG Y, et al. Professor Forcing: A New Algorithm for Training Recurrent Networks[EB/OL]. (2016-10-28)[2026-01-26]. arXiv:1610.09038.
+
+频谱偏置（建议放在 4.4 第3点）
+[7] RAHAMAN N, BARATIN A, ARPIT D, et al. On the Spectral Bias of Neural Networks[EB/OL]. (2018-06-22)[2026-01-26]. arXiv:1806.08734.

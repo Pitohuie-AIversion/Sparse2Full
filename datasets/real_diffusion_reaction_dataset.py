@@ -466,9 +466,9 @@ class RealDiffusionReactionDataModule(pl.LightningDataModule):
         dl_cfg = getattr(config.data, 'dataloader', DictConfig({}))
         
         # 数据加载器配置（先给出安全默认值，然后在下方用dl_cfg覆盖）
-        self.batch_size = config.training.get('batch_size', 8)
+        self.batch_size = getattr(config, 'training', DictConfig({})).get('batch_size', 8)
         self.val_batch_size = getattr(dl_cfg, 'val_batch_size', self.batch_size)
-        self.test_batch_size = config.testing.get('batch_size', 1)
+        self.test_batch_size = getattr(config, 'testing', DictConfig({})).get('batch_size', 1)
         self.num_workers = getattr(dl_cfg, 'num_workers', getattr(config.hardware, 'num_workers', 4))
         self.pin_memory = getattr(dl_cfg, 'pin_memory', getattr(config.hardware, 'pin_memory', True))
         self.persistent_workers = getattr(dl_cfg, 'persistent_workers', True)

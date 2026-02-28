@@ -253,25 +253,39 @@ GENERATOR_REGISTRY = {
     'ufno': ('ufno_3d.tex.j2', 'ufno_2d.tex.j2'),
     'u-fno': ('ufno_3d.tex.j2', 'ufno_2d.tex.j2'),
     
-    'fno': ('fno_3d.tex.j2', 'generic_2d.tex.j2'),
-    'segformer': ('segformer.tex.j2', 'generic_2d.tex.j2'),
+    'fno': ('fno_3d.tex.j2', 'edsr.tex.j2'),
+    'segformer': ('segformer.tex.j2', 'swin_unet_2d.tex.j2'),
     
     'videoswin': ('videoswin_3d.tex.j2', 'videoswin_2d.tex.j2'),
     'convlstm': ('convlstm_3d.tex.j2', 'convlstm_2d.tex.j2'),
     'physics': ('physics_transformer_3d.tex.j2', 'physics_transformer_2d.tex.j2'),
     'sequential': ('sequential_3d.tex.j2', 'sequential_2d.tex.j2'),
     
-    'swin': ('swint.tex.j2', 'generic_2d.tex.j2'),
-    'swint': ('swint.tex.j2', 'generic_2d.tex.j2'),
+    'swin': ('swint.tex.j2', 'edsr.tex.j2'),
+    'swint': ('swint.tex.j2', 'edsr.tex.j2'),
     
     'hybrid': ('hybrid.tex.j2', 'generic_2d.tex.j2'),
-    'liif': ('liif.tex.j2', 'generic_2d.tex.j2'),
+    'liif': ('liif.tex.j2', 'edsr.tex.j2'),
     
-    'mlp': ('mlp_mixer.tex.j2', 'generic_2d.tex.j2'),
-    'mixer': ('mlp_mixer.tex.j2', 'generic_2d.tex.j2'),
-    'mlp_mixer': ('mlp_mixer.tex.j2', 'generic_2d.tex.j2'),
+    'mlp': ('mlp_mixer.tex.j2', 'edsr.tex.j2'),
+    'mixer': ('mlp_mixer.tex.j2', 'edsr.tex.j2'),
+    'mlp_mixer': ('mlp_mixer.tex.j2', 'edsr.tex.j2'),
     
     'deeponet': ('deeponet_3d.tex.j2', 'deeponet_2d.tex.j2'),
+    
+    # Extra models
+    'perceiverio': ('mlp_mixer.tex.j2', 'edsr.tex.j2'),
+    'cnn_attn_lite': ('edsr.tex.j2', 'edsr.tex.j2'),
+    'conv_gate_lite': ('edsr.tex.j2', 'edsr.tex.j2'),
+    'unet_plus_plus': ('unet_3d.tex.j2', 'unet_2d.tex.j2'),
+    'partialconv_unet': ('unet_3d.tex.j2', 'unet_2d.tex.j2'),
+    
+    # Missing models
+    'uno': ('ufno_3d.tex.j2', 'ufno_2d.tex.j2'),
+    'sparse_swin_unet': ('swin_unet_3d.tex.j2', 'swin_unet_2d.tex.j2'),
+    'conv_unet_lite': ('unet_3d.tex.j2', 'unet_2d.tex.j2'),
+    'resnet_lite': ('edsr.tex.j2', 'edsr.tex.j2'),
+    'swin_temporal': ('videoswin_3d.tex.j2', 'videoswin_2d.tex.j2'),
 }
 
 def get_generator(model_key, dimension='3d'):
@@ -393,6 +407,11 @@ def process_model(model_name: str, args, report_data):
              info['num_heads'] = model.num_heads
         if hasattr(model, 'features') and isinstance(model.features, (list, tuple)):
              info['features'] = model.features
+        
+        # Auto-generate features if missing (for UNet templates)
+        if 'features' not in info:
+            base = info.get('embed_dim', info.get('n_feats', 64))
+            info['features'] = [base * (2**i) for i in range(5)]
         
         # Specific overrides
         model_key = model_name.lower()

@@ -208,7 +208,7 @@ def _apply_crop_degradation(x: torch.Tensor, params: Dict) -> torch.Tensor:
         target_h = int(_extract_scalar(crop_size[0], 0))
         target_w = int(_extract_scalar(crop_size[1], 0))
 
-    crop_mode = str(params.get("crop_mode", "topleft")).lower()
+    crop_mode = str(params.get("crop_mode", "center")).lower()
 
     crop_box = params.get("crop_box")
     if crop_box is not None:
@@ -250,7 +250,14 @@ def _apply_crop_degradation(x: torch.Tensor, params: Dict) -> torch.Tensor:
             return canvas
             
         # Default: Top-Left Crop
-        canvas[:, :, :target_h, :target_w] = x[:, :, :target_h, :target_w]
+        if crop_mode == "topleft":
+            canvas[:, :, :target_h, :target_w] = x[:, :, :target_h, :target_w]
+            return canvas
+            
+        # Fallback to center if unknown mode
+        hs = (h - target_h) // 2
+        ws = (w - target_w) // 2
+        canvas[:, :, hs : hs + target_h, ws : ws + target_w] = x[:, :, hs : hs + target_h, ws : ws + target_w]
         return canvas
 
     return _pad_to_size(x, target_h, target_w, boundary)
@@ -307,7 +314,11 @@ def apply_degradation_operator(x: torch.Tensor, params: Dict) -> torch.Tensor:
             # Relaxed check: allow 1 pixel mismatch due to padding/cropping logic differences
             h_diff = abs(y.shape[-2] - target_obs.shape[-2])
             w_diff = abs(y.shape[-1] - target_obs.shape[-1])
-            if h_diff > 1 or w_diff > 1:
+            
+            # Special case for Crop (Inpainting): Input and Output shape are same as target
+            if t in {"crop", "cropping", "crop_reconstruction"} and h_diff == 0 and w_diff == 0:
+                pass # Perfect match, do nothing
+            elif h_diff > 1 or w_diff > 1:
                 msg = (f"Degradation Operator Validation Failed: Shape mismatch.\n"
                        f"  Task: {task}\n"
                        f"  Input shape: {x.shape}\n"
@@ -315,7 +326,7 @@ def apply_degradation_operator(x: torch.Tensor, params: Dict) -> torch.Tensor:
                        f"  Target (y) shape: {target_obs.shape}\n"
                        f"  H(x) must match target observation dimensions.")
                 # For SR task, if shapes don't match, try to interpolate to match target
-                if task.lower() in {"sr", "super_resolution"} and target_obs.shape[-2:] != y.shape[-2:]:
+                if t in {"sr", "super_resolution", "srx2", "srx4", "srx8"} and target_obs.shape[-2:] != y.shape[-2:]:
                      y = F.interpolate(y, size=target_obs.shape[-2:], mode='area')
                 else:
                      raise ValueError(msg)

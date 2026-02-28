@@ -1,273 +1,160 @@
-ar:
-  enabled: true
-data:
-  T_in: 16
-  T_out: 4
-  augmentation:
-    enabled: false
-  channels: 1
-  component: u
-  data_path: /share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/data/DR2D/2D_diff-react_NA_NA.h5
-  dataloader:
-    batch_size: 32
-    drop_last: false
-    num_workers: 8
-    persistent_workers: true
-    pin_memory: true
-    prefetch_factor: 4
-    shuffle: true
-    test_batch_size: 32
-    timeout: 0
-    val_batch_size: 32
-  dataset_name: RealDiffusionReaction
-  img_size: 128
-  input_channels: 1
-  keys:
-  - data
-  normalize: true
-  observation:
-    mode: identity
-    use_coords: false
-    use_mask: false
-  sample_limit: 1000
-  splits_dir: splits
-  target_channels: 1
-  test_ratio: 0.1
-  time_step_end: 101
-  time_step_start: 0
-  time_step_stride: 1
-  train_ratio: 1.0
-  use_official_format: true
-  use_synthetic_data: false
-  val_ratio: 0.1
-  max_samples: 512
-data_augmentation:
-  compute_statistics: false
-  enable: false
-  gaussian_noise:
-    enable: false
-  normalize_per_sample: false
-  random_flip:
-    enable: false
-  random_rotation:
-    enable: false
+experiment:
+  name: AR-DR2D-Stage3-VideoSwin-SRx4-JointFineTune-model_unknown-s2025-20260226
+  description: 'Stage 3 Joint Fine-tuning: Unfreeze both spatial and temporal modules'
+  device: cuda
+  seed: 2025
+  output_dir: runs_drd_paper/${experiment.name}
+  precision: bf16-mixed
 device:
   accelerator: cuda
-  allow_data_parallel_fallback: true
   devices: 2
-  precision: fp32
-  strategy: ddp
-experiment:
-  description: 'Horizontal comparison: VideoSwin on DR2D (Aligned with ConvLSTM)'
-  device: cuda
-  log_every_n_steps: 5
-  name: AR-DR2D-VideoSwin-HorizontalComparison-s2025-model_unknown-20260128
-  output_dir: runs
-  seed: 2025
   precision: bf16-mixed
-hardware:
-  allow_tf32: false
-  blas_threads: 96
-  interop_threads: 96
-  memory:
-    cudnn_benchmark: false
-  mkl_threads: 96
-  numexpr_threads: 96
-  omp_threads: 96
-  torch_threads: 96
-  vram_threshold: 0.98
-  num_workers: 0
-  pin_memory: false
-  persistent_workers: false
-logging:
-  default_hp_metric: false
-  experiment_name: AR-DR2D-VideoSwin-HorizontalComparison-s2025
-  log_model: false
-  performance_monitoring:
-    log_batch_time: true
-    log_gpu_memory: false
-    log_throughput: true
-  save_splits_snapshot: true
-  tensorboard:
-    name: ar_training_videoswin_dr2d
-    save_dir: runs/tensorboard
-    version: null
-  version: null
-  visualization:
-    io_debug:
-      enabled: true
-      max_batches: 1
-      max_time_steps: 4
-      train_every_n_steps: 50
-      val_every_n_steps: 50
-    max_images_per_sample: 1
-    num_samples_to_save: 5
-    num_test_samples: 1
-    save_rollout_visualization: false
-    save_samples_every_n_epochs: 50
-    save_training_curves: true
-loss:
-  ar_loss:
-    reduction: mean
-    weight: 0.0
-  data_consistency:
-    weight: 0.0
-  mae_weight: 0.0
-  r2:
-    reduction: mean
-    weight: 0.0
-  rel2_weight: 1.0
-  spectral:
-    weight: 0.0
-model_wrapper:
-  enabled: false
-seed: 2025
+ar:
+  enabled: true
 sequential:
-  consistency:
-    enabled: true
-    feature_consistency_weight: 0.3
-    spatial_temporal_consistency: true
   enabled: true
   model_type: SequentialSpatiotemporalModel
+  spatial_pretrain_epochs: 0
+  temporal_pretrain_epochs: 0
+  num_epochs: 100
   spatial:
-    backbone_config:
-      activation: gelu
-      modes1: 12
-      modes2: 12
-      n_layers: 4
-      width: 64
-    backbone_type: identity
-    img_size:
-    - 128
-    - 128
     in_channels: 1
+    spatial_feature_dim: 64
     out_channels: 1
-    spatial_feature_dim: 0
-  temporal:
-    backend: video_swin
-    dropout: 0.1
-    hidden_dim: 96
     img_size:
     - 128
     - 128
+    backbone_type: edsr
+    backbone_config:
+      n_feats: 64
+      n_resblocks: 32
+      res_scale: 0.1
+      upscale: 1
+    pretrained_path: runs_drd_paper/AR-DR2D-Stage1-EDSR-SRx4-model_EDSR-s2025-20260116/best.ckpt
+    freeze: false
+  temporal:
+    spatial_feature_dim: 64
+    temporal_dim: 96
+    out_channels: 1
+    img_size:
+    - 128
+    - 128
+    backend: video_swin
     num_heads: 4
     num_layers: 2
-    out_channels: 1
-    reduce_size:
-    - 128
-    - 128
-    reduce_spatial: null
-    spatial_feature_dim: 0
-    teacher_forcing_cap: 0.0
-    teacher_forcing_schedule:
-      enabled: false
-    temporal_dim: 96
-    use_positional_encoding: false
     window_size:
     - 2
-    - 7
-    - 7
+    - 8
+    - 8
+    dropout: 0.1
+    pretrained_path: runs_drd_paper/AR-DR2D-Stage2-VideoSwin-SRx4-model_unknown-s2025-20260116/best.ckpt
+  consistency:
+    enabled: true
   training:
-    spatial_loss_weight: 0.0
-    stage1_epochs: 0
-    stage2_epochs: 2000
-    teacher_forcing_cap: 0.2
-    temporal_loss_weight: 1.0
     two_stage_training: false
-testing:
-  batch_size: 32
-  compute_detailed_metrics: false
-  enabled: true
-  fast_mode: false
-  minimal_logging: false
-  num_visualization_samples: 2
-  run_final_test: true
-  save_predictions: false
-  save_visualizations: true
-  skip_complex_metrics: false
-training:
-  amp:
-    autocast_dtype: bfloat16
-    enabled: true
-  batch_size: 32
-  channels_last: true
-  checkpoint:
-    max_keep: 3
-    mode: min
-    monitor: val_loss
-    save_best: true
-    save_every_n_epochs: 10
-    save_last: true
-  curriculum:
-    enabled: false
+    spatial_loss_weight: 1.0
+    temporal_loss_weight: 1.0
+    teacher_forcing_cap: 0.0
+data:
+  data_path: /share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/data/DR2D/2D_diff-react_NA_NA.h5
+  dataset_name: RealDiffusionReaction
+  img_size: 128
+  keys:
+  - data
+  component: u
+  use_official_format: true
+  splits_dir: splits
+  target_channels: 1
+  input_channels: 1
+  T_in: 10
+  T_out: 1
+  time_step_start: 0
+  time_step_end: 101
+  time_step_stride: 10
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+      downsample_mode: area
+      align_corners: false
+      antialias: true
   dataloader:
-    batch_size: 32
-  distributed:
-    backend: nccl
-    enabled: false
-    init_method: env://
-  early_stopping:
-    enabled: false
-    min_delta: 0.0001
-    mode: min
-    monitor: val_loss
-    patience: 50
-  epochs: 200
-  gradient_accumulation_steps: 1
-  gradient_clip_algorithm: norm
+    batch_size: 8
+    num_workers: 8
+    val_batch_size: 8
+    test_batch_size: 1
+    pin_memory: false
+    persistent_workers: true
+    prefetch_factor: 2
+    drop_last: true
+    shuffle: true
+  max_samples: 512
+training:
+  epochs: 100
+  batch_size: 8
+  gradient_accumulation_steps: 3
   gradient_clip_val: 1.0
-  loss:
-    mae_weight: 0.1
-    rel2_weight: 1.0
+  amp:
+    enabled: true
+    autocast_dtype: bfloat16
+  degradation:
+    mode: sr
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+      downsample_mode: area
+      align_corners: false
+      antialias: true
   loss_weights:
-    data_consistency: 0.0
-    derivative_consistency: 0.0
-    energy_consistency: 0.0
     reconstruction: 1.0
-    spectral: 0.02
+    spectral: 0.5
+    data_consistency: 1.0
   optimizer:
-    betas:
-    - 0.9
-    - 0.999
-    eps: 1.0e-08
-    foreach: false
-    fused: false
-    lr: 0.001
     name: AdamW
+    lr: 5.0e-05
     weight_decay: 0.0001
-  rollout_training: true
   scheduler:
-    T_max: 200
-    eta_min: 1.0e-06
     name: CosineAnnealingLR
+    T_max: 100
+    eta_min: 1.0e-07
     warmup_epochs: 5
-  teacher_forcing_cap: 0.7
-  teacher_forcing_schedule:
+  early_stopping:
     enabled: true
-    end_cap: 0.4
-    end_epoch: 20
-    start_cap: 0.7
-    start_epoch: 1
-  torch_compile: false
-  torch_compile_backend: inductor
-  torch_compile_mode: reduce-overhead
-  validation:
-    check_val_every_n_epoch: 1
-    enabled: true
-    log_val_metrics: true
-    save_val_batch_for_viz: false
+    patience: 20
+    min_delta: 1.0e-05
+    monitor: val_loss
+  checkpoint:
+    save_last: true
+    save_best: true
+    save_every_n_epochs: 0
+    max_keep: 2
 validation:
   check_val_every_n_epoch: 5
-  convergence_criteria:
-    min_improvement: 0.0005
-    patience_for_convergence: 5
-    target_rel_l2: 0.3
   metrics:
   - rel_l2
   - mae
-  - degradation_consistency
-  rollout_steps:
-  - 1
-  - 3
-  - 5
-  use_observation: false
+  - psnr
+  - ssim
+logging:
+  experiment_name: AR-DR2D-Stage3-VideoSwin-SRx4-JointFineTune
+  visualization:
+    save_samples_every_n_epochs: 20
+    num_samples_to_save: 5
+testing:
+  enabled: true
+  run_final_test: true
+  save_predictions: false
+  compute_detailed_metrics: true
+  batch_size: 512
+  save_visualizations: true
+  num_visualization_samples: 3
+hardware:
+  num_workers: 0
+  pin_memory: false
+  persistent_workers: false
+  allow_tf32: true

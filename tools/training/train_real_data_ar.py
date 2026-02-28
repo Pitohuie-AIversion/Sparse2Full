@@ -723,15 +723,28 @@ class RealDataARTrainer:
             # 未知设备类型，保守回退到cpu
             normalized = 'cpu'
 
-        if normalized == 'cuda' and torch.cuda.is_available():
-            try:
-                vis = os.environ.get('CUDA_VISIBLE_DEVICES')
-                if vis is not None and len(vis.strip()) > 0:
-                    self.device = torch.device('cuda:0')
-                else:
+        print(f"DEBUG: normalized={normalized}, cuda_avail={torch.cuda.is_available()}, device_count={torch.cuda.device_count()}")
+        import os
+        print(f"DEBUG: CUDA_VISIBLE_DEVICES={os.environ.get('CUDA_VISIBLE_DEVICES')}")
+
+        if normalized == 'cuda':
+            if torch.cuda.is_available():
+                try:
+                    vis = os.environ.get('CUDA_VISIBLE_DEVICES')
+                    if vis is not None and len(vis.strip()) > 0:
+                        self.device = torch.device('cuda:0')
+                    else:
+                        self.device = torch.device('cuda')
+                except Exception:
                     self.device = torch.device('cuda')
-            except Exception:
-                self.device = torch.device('cuda')
+            else:
+                print("⚠️ [Critical] Config requested CUDA but torch.cuda.is_available() is False!")
+                try:
+                    torch.cuda.init()
+                except Exception as e:
+                    print(f"❌ CUDA Init Error: {e}")
+                # Fallback to CPU but warn loudly
+                self.device = torch.device('cpu')
         elif normalized == 'mps' and hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
             self.device = torch.device('mps')
         else:
@@ -2285,17 +2298,18 @@ class RealDataARTrainer:
                     pass
             
             # 2. 补充其他未被包含的模型参数 (支持 EDSR, RDN 等自定义参数)
-            if hasattr(self.config, 'model'):
-                for key, value in self.config.model.items():
-                    if key not in model_config and key not in additional_params and key not in ['name', 'type', 'architecture', 'sequential', 'ar_config']:
-                        # 简单的类型转换尝试
-                        if hasattr(value, '__iter__') and not isinstance(value, str):
-                             try:
-                                 additional_params[key] = list(value)
-                             except:
+            if hasattr(self.config, 'model') and not isinstance(self.config.model, str):
+                if hasattr(self.config.model, 'items'):
+                    for key, value in self.config.model.items():
+                        if key not in model_config and key not in additional_params and key not in ['name', 'type', 'architecture', 'sequential', 'ar_config']:
+                            # 简单的类型转换尝试
+                            if hasattr(value, '__iter__') and not isinstance(value, str):
+                                 try:
+                                     additional_params[key] = list(value)
+                                 except:
+                                     additional_params[key] = value
+                            else:
                                  additional_params[key] = value
-                        else:
-                             additional_params[key] = value
 
             # 添加LIIF相关参数
             if self.use_liif_decoder or (hasattr(self.config.model, 'use_liif_decoder') and self.config.model.use_liif_decoder):
@@ -4515,8 +4529,28 @@ class RealDataARTrainer:
             target_hr = target_hr.unsqueeze(1)
             
         B, T, C, H, W = target_hr.shape
-        crop_size = int(crop_config.size)
-        n_patches = int(crop_config.patches_per_image)
+        try:
+            crop_size = int(crop_config.size)
+        except TypeError:
+            # Handle ListConfig/list case by taking the first element
+            if isinstance(crop_config.size, (list, tuple)) or hasattr(crop_config.size, '__iter__'):
+                crop_size = int(crop_config.size[0])
+            else:
+                # Fallback: try parsing string representation
+                import ast
+                try:
+                    val = ast.literal_eval(str(crop_config.size))
+                    if isinstance(val, (list, tuple)):
+                        crop_size = int(val[0])
+                    else:
+                        crop_size = int(val)
+                except Exception:
+                    raise TypeError(f"Cannot convert crop_config.size ({type(crop_config.size)}: {crop_config.size}) to int")
+
+        try:
+            n_patches = int(crop_config.patches_per_image)
+        except TypeError:
+             n_patches = 1
         
         inputs_list = []
         targets_list = []
@@ -4704,6 +4738,8 @@ class RealDataARTrainer:
                     # 强制清空 observed_lr_sequence，防止后续逻辑误用全图LR
                     if isinstance(batch, dict):
                         batch['observed_lr_sequence'] = None
+                        # 将生成的 masks_seq 放回 batch，以便后续逻辑（如拼接）能使用
+                        batch['mask_sequence'] = masks_seq
                 
                 data_end = time.perf_counter()
 
@@ -4779,6 +4815,9 @@ class RealDataARTrainer:
                                 except Exception:
                                     pass
                                 try:
+                                    # Debug info
+                                    # self.logger.info(f"DEBUG: x_single shape: {x_single.shape}")
+                                    
                                     exp_in = int(getattr(self.config.model, 'in_channels', x_single.shape[1]))
                                     if x_single.shape[1] > exp_in:
                                         x_single = x_single[:, :exp_in]
@@ -4786,8 +4825,42 @@ class RealDataARTrainer:
                                         pad = exp_in - x_single.shape[1]
                                         zeros = torch.zeros(x_single.size(0), pad, x_single.size(2), x_single.size(3), dtype=x_single.dtype, device=x_single.device)
                                         x_single = torch.cat([x_single, zeros], dim=1)
-                                except Exception:
+                                        # self.logger.info(f"DEBUG: Padded x_single to {x_single.shape} (Config based)")
+                                        
+                                    # 自动适配输入通道数（Model based）- Double check
+                                    raw_model = model.module if hasattr(model, 'module') else model
+                                    if hasattr(raw_model, 'in_channels'):
+                                        expected_in = raw_model.in_channels
+                                        current_in = x_single.shape[1]
+                                        if current_in < expected_in:
+                                            pad_c = expected_in - current_in
+                                            # Pad with zeros: [B, pad_c, H, W]
+                                            padding = torch.zeros(x_single.size(0), pad_c, x_single.size(2), x_single.size(3), 
+                                                                  device=x_single.device, dtype=x_single.dtype)
+                                            x_single = torch.cat([x_single, padding], dim=1)
+                                            # self.logger.info(f"DEBUG: Padded x_single to {x_single.shape} (Model based)")
+                                except Exception as e:
+                                    print(f"❌ Error in input padding: {e}")
                                     pass
+                            
+                            # 最终形状检查，如果还是不对，打印警告
+                            if hasattr(model, 'module') and hasattr(model.module, 'in_channels'):
+                                exp_c = model.module.in_channels
+                                if x_single.shape[1] != exp_c:
+                                    # 强制填充
+                                    pad_c = exp_c - x_single.shape[1]
+                                    if pad_c > 0:
+                                        padding = torch.zeros(x_single.size(0), pad_c, x_single.size(2), x_single.size(3), device=x_single.device, dtype=x_single.dtype)
+                                        x_single = torch.cat([x_single, padding], dim=1)
+                            elif hasattr(model, 'in_channels'):
+                                exp_c = model.in_channels
+                                if x_single.shape[1] != exp_c:
+                                    # 强制填充
+                                    pad_c = exp_c - x_single.shape[1]
+                                    if pad_c > 0:
+                                        padding = torch.zeros(x_single.size(0), pad_c, x_single.size(2), x_single.size(3), device=x_single.device, dtype=x_single.dtype)
+                                        x_single = torch.cat([x_single, padding], dim=1)
+
                             if hasattr(model, 'spatial_forward'):
                                 spatial_output = model.spatial_forward(x_single)
                                 y_single = spatial_output.spatial_pred
@@ -5026,13 +5099,53 @@ class RealDataARTrainer:
                             # 初始化pred_seq用于后续序列损失计算（空间-only模式）
                             pred_seq = y_single.unsqueeze(1)
                         else:
+                            # 针对裸空间模型（如UNet）适配 5D -> 4D 及通道 Padding
+                            # 注意：input_seq是5D [B, T, C, H, W]
+                            model_input = input_seq
+                            is_raw_spatial = False
+                            
+                            # 启发式判断：如果不是 ARWrapper/SequenceModel，且输入是 5D
+                            if input_seq.dim() == 5:
+                                raw_m = model.module if hasattr(model, 'module') else model
+                                # 检查是否有序列处理方法
+                                has_seq_method = hasattr(raw_m, 'autoregressive_predict') or \
+                                                 hasattr(raw_m, 'temporal_forward') or \
+                                                 (hasattr(raw_m, 'is_temporal') and raw_m.is_temporal)
+                                
+                                if not has_seq_method:
+                                    # 假设是单帧模型，只取第一帧
+                                    model_input = input_seq[:, 0]
+                                    is_raw_spatial = True
+                                    
+                                    # [Fix] Apply degradation during training if available
+                                    # This ensures the model sees masked/degraded input instead of full GT
+                                    if hasattr(self, 'training_degradation_op') and self.training_degradation_op is not None:
+                                        model_input = self.training_degradation_op(model_input)
+                                    elif hasattr(self, 'observation_op') and self.observation_op is not None:
+                                        model_input = self.observation_op(model_input)
+                                    
+                                    # 自动适配输入通道数
+                                    if hasattr(raw_m, 'in_channels'):
+                                        exp_in = raw_m.in_channels
+                                        if model_input.shape[1] < exp_in:
+                                            pad_c = exp_in - model_input.shape[1]
+                                            padding = torch.zeros(model_input.size(0), pad_c, model_input.size(2), model_input.size(3), 
+                                                                  device=model_input.device, dtype=model_input.dtype)
+                                            model_input = torch.cat([model_input, padding], dim=1)
+
                             # 尝试自适应调用 forward
                             try:
-                                # 尝试带有 T_out 的调用 (针对 ARWrapper 等)
-                                out = model(input_seq, current_T_out, target_seq)
+                                if is_raw_spatial:
+                                    out = model(model_input)
+                                else:
+                                    # 尝试带有 T_out 的调用 (针对 ARWrapper 等)
+                                    out = model(input_seq, current_T_out, target_seq)
                             except TypeError:
                                 # 回退到标准调用 (针对 SequentialSpatiotemporalModel 等)
-                                out = model(input_seq, target_seq)
+                                if is_raw_spatial:
+                                    out = model(model_input)
+                                else:
+                                    out = model(input_seq, target_seq)
                                 
                             if isinstance(out, dict) and 'final_pred' in out:
                                 pred_seq = out['final_pred']
@@ -5559,7 +5672,38 @@ class RealDataARTrainer:
                         if hasattr(model, 'autoregressive_predict'):
                             pred_seq = model.autoregressive_predict(input_seq, test_T_out, teacher=None, train_mode=False)
                         else:
-                            pred_seq = model(input_seq, test_T_out)
+                            # [Fix] Apply degradation for raw spatial models in AR test path
+                            model_input = input_seq
+                            if not hasattr(model, 'spatial_forward') and not hasattr(model, 'temporal_forward'):
+                                # Assume raw spatial model taking one frame
+                                x_single = input_seq[:, 0]
+                                if hasattr(self, 'training_degradation_op') and self.training_degradation_op is not None:
+                                    x_single = self.training_degradation_op(x_single)
+                                elif hasattr(self, 'observation_op') and self.observation_op is not None:
+                                    x_single = self.observation_op(x_single)
+                                
+                                # Use degraded input for prediction
+                                # Note: This only works if model expects single frame. 
+                                # If model expects sequence, we need more complex logic, but for UNet scan it's single frame.
+                                model_input = x_single
+                                
+                                # Handle channel padding if needed (copy from below)
+                                raw_model = model.module if hasattr(model, 'module') else model
+                                if hasattr(raw_model, 'in_channels'):
+                                    expected_in = raw_model.in_channels
+                                    current_in = model_input.shape[1]
+                                    if current_in < expected_in:
+                                        pad_c = expected_in - current_in
+                                        padding = torch.zeros(model_input.size(0), pad_c, model_input.size(2), model_input.size(3), 
+                                                              device=model_input.device, dtype=model_input.dtype)
+                                        model_input = torch.cat([model_input, padding], dim=1)
+                                
+                                pred_seq = model(model_input, test_T_out) if 'test_T_out' in model.forward.__code__.co_varnames else model(model_input)
+                                # Ensure 5D output
+                                if pred_seq.dim() == 4:
+                                    pred_seq = pred_seq.unsqueeze(1)
+                            else:
+                                pred_seq = model(input_seq, test_T_out)
                     else:
                         if isinstance(batch, dict) and ('observed_lr_sequence' in batch) and (batch['observed_lr_sequence'] is not None):
                             lr_seq = batch['observed_lr_sequence']
@@ -5598,7 +5742,29 @@ class RealDataARTrainer:
                                 x_single = x_single.to(device=device, dtype=dtype)
                             except Exception:
                                 pass
+                            
+                            # 自动适配输入通道数
+                            raw_model = model.module if hasattr(model, 'module') else model
+                            if hasattr(raw_model, 'in_channels'):
+                                expected_in = raw_model.in_channels
+                                current_in = x_single.shape[1]
+                                if current_in < expected_in:
+                                    pad_c = expected_in - current_in
+                                    padding = torch.zeros(x_single.size(0), pad_c, x_single.size(2), x_single.size(3), 
+                                                          device=x_single.device, dtype=x_single.dtype)
+                                    x_single = torch.cat([x_single, padding], dim=1)
+
                             y_single = model(x_single)
+                        
+                        # [Patch] Auto-interpolate for UNet SR in Test
+                        if y_single.shape[-2:] != target_seq.shape[-2:]:
+                            y_single = torch.nn.functional.interpolate(
+                                y_single,
+                                size=target_seq.shape[-2:],
+                                mode='bilinear',
+                                align_corners=False
+                            )
+                        
                         pred_seq = y_single[:, None]
 
                 # 计算损失（与训练/验证口径一致：Rel-L2 + MAE）
@@ -5878,7 +6044,7 @@ class RealDataARTrainer:
                                 pass
                         else:
                             x_single = input_seq[:, 0]
-                            # Apply degradation (Testing)
+                            # Apply degradation (Validation/Testing - Spatial Only)
                             if hasattr(self, 'training_degradation_op') and self.training_degradation_op is not None:
                                 x_single = self.training_degradation_op(x_single)
                             elif hasattr(self, 'observation_op') and self.observation_op is not None:
@@ -5914,8 +6080,28 @@ class RealDataARTrainer:
                                 x_single = x_single.to(device=device, dtype=dtype)
                             except Exception:
                                 pass
+                            
+                            # 自动适配输入通道数
+                            raw_model = model.module if hasattr(model, 'module') else model
+                            if hasattr(raw_model, 'in_channels'):
+                                expected_in = raw_model.in_channels
+                                current_in = x_single.shape[1]
+                                if current_in < expected_in:
+                                    pad_c = expected_in - current_in
+                                    padding = torch.zeros(x_single.size(0), pad_c, x_single.size(2), x_single.size(3), 
+                                                          device=x_single.device, dtype=x_single.dtype)
+                                    x_single = torch.cat([x_single, padding], dim=1)
+
                             y_single = model(x_single)
                         target_single = target_seq[:, 0]
+                        # [Patch] Auto-interpolate if output size mismatches target (for UNet SR)
+                        if y_single.shape[-2:] != target_single.shape[-2:]:
+                            y_single = torch.nn.functional.interpolate(
+                                y_single,
+                                size=target_single.shape[-2:],
+                                mode='bilinear',
+                                align_corners=False
+                            )
                         obs_data_single = {
                             'observation': None,
                             'baseline': x_single,
@@ -5954,13 +6140,49 @@ class RealDataARTrainer:
                             pred_seq_tf = pred_seq
                         else:
                             # 统一使用teacher forcing以避免T_out不匹配
-                            out = model(input_seq, target_seq)
+                            
+                            # 针对裸空间模型（如UNet）适配 5D -> 4D 及通道 Padding
+                            # 注意：input_seq是5D [B, T, C, H, W]
+                            model_input = input_seq
+                            is_raw_spatial = False
+                            
+                            if input_seq.dim() == 5:
+                                raw_m = model.module if hasattr(model, 'module') else model
+                                has_seq_method = hasattr(raw_m, 'autoregressive_predict') or \
+                                                 hasattr(raw_m, 'temporal_forward') or \
+                                                 (hasattr(raw_m, 'is_temporal') and raw_m.is_temporal)
+                                
+                                if not has_seq_method:
+                                    model_input = input_seq[:, 0]
+                                    is_raw_spatial = True
+                                    
+                                    # [Fix] Apply degradation for raw spatial models in AR path
+                                    if hasattr(self, 'training_degradation_op') and self.training_degradation_op is not None:
+                                        model_input = self.training_degradation_op(model_input)
+                                    elif hasattr(self, 'observation_op') and self.observation_op is not None:
+                                        model_input = self.observation_op(model_input)
+                                    
+                                    if hasattr(raw_m, 'in_channels'):
+                                        exp_in = raw_m.in_channels
+                                        if model_input.shape[1] < exp_in:
+                                            pad_c = exp_in - model_input.shape[1]
+                                            padding = torch.zeros(model_input.size(0), pad_c, model_input.size(2), model_input.size(3), 
+                                                                  device=model_input.device, dtype=model_input.dtype)
+                                            model_input = torch.cat([model_input, padding], dim=1)
+
+                            if is_raw_spatial:
+                                out = model(model_input)
+                            else:
+                                out = model(input_seq, target_seq)
                             
                             # 兼容性处理：ARWrapper 可能直接返回 Tensor
                             if isinstance(out, dict):
                                 pred_seq = out['final_pred']
                             else:
                                 pred_seq = out
+                            
+                            if pred_seq.dim() == 4:
+                                pred_seq = pred_seq.unsqueeze(1)
                             
                             pred_seq_tf = pred_seq
 
@@ -6046,41 +6268,36 @@ class RealDataARTrainer:
                         try:
                             eval_strategy = 'mean'
                             try:
+                                # New consolidated eval logic
                                 if hasattr(self.config, 'ar') and hasattr(self.config.ar, 'eval_time_strategy'):
                                     eval_strategy = str(self.config.ar.eval_time_strategy).lower()
-                            except Exception:
-                                pass
+                                else:
+                                    eval_strategy = 'mean'
 
-                            p_eval = pred_seq
-                            t_eval = target_seq
-                            if eval_strategy == 'last':
-                                p_eval = pred_seq[:, -1:]
-                                t_eval = target_seq[:, -1:]
+                                p_eval = pred_seq
+                                t_eval = target_seq
+                                if eval_strategy == 'last':
+                                    p_eval = pred_seq[:, -1:]
+                                    t_eval = target_seq[:, -1:]
 
-                            base_loss = losses.get('reconstruction_loss', None)
-                            if base_loss is None or not torch.is_tensor(base_loss):
                                 from ops.losses import l1_mae, rel_l2
                                 base_rel = rel_l2(p_eval, t_eval)
                                 base_mae = l1_mae(p_eval, t_eval)
-                                base_loss = base_rel + base_mae
+                                
+                                # Always use recomputed metrics for consistent reporting
                                 add_rel = base_rel.item()
                                 add_mae = base_mae.item()
-                            else:
-                                # Note: 'losses' from compute_ar_total_loss might be computed on full sequence
-                                # If we want strict 'last' eval, we should recompute rel/mae here
-                                if eval_strategy == 'last':
-                                     from ops.losses import l1_mae, rel_l2
-                                     base_rel = rel_l2(p_eval, t_eval)
-                                     base_mae = l1_mae(p_eval, t_eval)
-                                     add_rel = base_rel.item()
-                                     add_mae = base_mae.item()
-                                     # Optional: recompute base_loss if it was purely recon loss
-                                     # But if it contains other terms (spectral, dc), we might keep them or recompute.
-                                     # For simplicity, if we switch to 'last', we use the recomputed metrics for reporting,
-                                     # and if base_loss was just recon, we update it.
-                                     # If base_loss had other components, we might be inconsistent.
-                                     # Let's assume for validation 'last', we care about the metrics on the last frame.
+                                
+                                # Update base_loss if it was missing or if we want to reflect the eval strategy
+                                base_loss = losses.get('reconstruction_loss', None)
+                                if base_loss is None or not torch.is_tensor(base_loss):
                                      base_loss = base_rel + base_mae
+                                
+                            except Exception as _eval_err:
+                                self.logger.warning(f"Metric calc failed: {_eval_err}")
+                                add_rel = 0.0
+                                add_mae = 0.0
+                                if 'base_loss' not in locals(): base_loss = torch.tensor(0.0, device=self.device)
                                 else:
                                      add_rel = float(losses.get('rel2_loss', float('nan')))
                                      add_mae = float(losses.get('mae_loss', float('nan')))
@@ -6234,6 +6451,14 @@ class RealDataARTrainer:
         final_metrics['val_loss'] = avg_loss_nar
         final_metrics['val_loss_nar'] = avg_loss_nar
         final_metrics['val_loss_tf'] = avg_loss_tf
+
+        # If fallback re-evaluation was triggered (e.g. no loss_components_list), 
+        # ensure we still have rel_l2 and mae in final_metrics if possible.
+        if 'rel_l2' not in final_metrics and 'add_rel' in locals():
+             final_metrics['rel_l2'] = add_rel
+        if 'mae' not in final_metrics and 'add_mae' in locals():
+             final_metrics['mae'] = add_mae
+
         try:
             if denom_vals and err_vals:
                 import numpy as _np
@@ -6657,8 +6882,8 @@ class RealDataARTrainer:
                     else:
                         input_seq = input_seq_raw
                     
-                    if input_seq is not None and input_seq.dim() == 5:
-                        input_seq = input_seq[:, 0]
+                    # if input_seq is not None and input_seq.dim() == 5:
+                    #     input_seq = input_seq[:, 0]
 
                     # Debug: Print input shape to log
                     if batch_idx == 0:
@@ -6688,90 +6913,94 @@ class RealDataARTrainer:
                         # Check if input resolution matches target resolution
                         if input_seq.shape[-1] == target_seq.shape[-1] and input_seq.shape[-2] == target_seq.shape[-2]:
                              self.logger.warning(f"⚠️ Input shape {input_seq.shape} matches target shape {target_seq.shape} but model upscale is {upscale}. Downsampling input to avoid OOM!")
-                             input_seq = torch.nn.functional.interpolate(input_seq, scale_factor=1.0/upscale, mode='area')
+                             if input_seq.dim() == 5:
+                                 # 5D: [B, T, C, H, W] -> flatten T -> interpolate -> reshape
+                                 B, T, C, H, W = input_seq.shape
+                                 input_seq_flat = input_seq.view(B*T, C, H, W)
+                                 input_seq_flat = torch.nn.functional.interpolate(input_seq_flat, scale_factor=1.0/upscale, mode='area')
+                                 _, _, H_new, W_new = input_seq_flat.shape
+                                 input_seq = input_seq_flat.view(B, T, C, H_new, W_new)
+                             else:
+                                 input_seq = torch.nn.functional.interpolate(input_seq, scale_factor=1.0/upscale, mode='area')
                              self.logger.info(f"⬇️ Downsampled input to {input_seq.shape}")
 
 
 
-                    # 获取当前T_out
-                    current_T_out = target_seq.shape[1]
+                    # 预测
+                    images_generated = 0
+                    try:
+                        sample_name = f"test_sample_{batch_idx}"
+                        sample_key = int(test_samples_visualized + 1)
+                        
+                        # 确保输入在设备上
+                        if input_seq is not None:
+                            input_seq = input_seq.to(self.device)
+                        
+                        # 1. 序列预测 (AR Forward)
+                        # 检查模型类型
+                        model = self.get_model()
+                        if hasattr(model, 'spatial_forward') and hasattr(model, 'temporal_forward'):
+                            # Sequential Model
+                            mo_out = model(input_seq, target_seq) # TF
+                            pred_seq = mo_out['final_pred']
+                        else:
+                            # Standard Model
+                            # 自动适配输入通道数
+                            raw_model = model.module if hasattr(model, 'module') else model
+                            
+                            # 针对裸空间模型（如UNet）适配 5D -> 4D 及通道 Padding
+                            # 注意：input_seq是5D [B, T, C, H, W]
+                            model_input = input_seq
+                            is_raw_spatial = False
+                            
+                            if input_seq.dim() == 5:
+                                has_seq_method = hasattr(raw_model, 'autoregressive_predict') or \
+                                                 hasattr(raw_model, 'temporal_forward') or \
+                                                 (hasattr(raw_model, 'is_temporal') and raw_model.is_temporal)
+                                
+                                if not has_seq_method:
+                                    model_input = input_seq[:, 0]
+                                    is_raw_spatial = True
+                                    
+                                    if hasattr(raw_model, 'in_channels'):
+                                        exp_in = raw_model.in_channels
+                                        if model_input.shape[1] < exp_in:
+                                            pad_c = exp_in - model_input.shape[1]
+                                            padding = torch.zeros(model_input.size(0), pad_c, model_input.size(2), model_input.size(3), 
+                                                                  device=model_input.device, dtype=model_input.dtype)
+                                            model_input = torch.cat([model_input, padding], dim=1)
 
-                    if hasattr(self.get_model(), 'autoregressive_predict'):
-                        pred_seq = self.get_model().autoregressive_predict(input_seq, T_out=current_T_out, teacher=None, train_mode=False)
-                    else:
-                        y = self.get_model()(input_seq)
-                        if isinstance(y, dict) and ('final_pred' in y):
-                            pred_seq = y['final_pred']
-                        elif isinstance(y, torch.Tensor):
-                            # Align to [B, T_out, C, H, W]
-                            pred_seq = y
+                            if is_raw_spatial:
+                                out = model(model_input)
+                            else:
+                                out = model(input_seq, target_seq) # TF
+
+                            if isinstance(out, dict):
+                                pred_seq = out['final_pred']
+                            else:
+                                pred_seq = out
+                                
                             if pred_seq.dim() == 4:
                                 pred_seq = pred_seq.unsqueeze(1)
-                        else:
-                            # Fallback: use the first tensor-like value
-                            try:
-                                pred_seq = list(y.values())[0]
-                                if isinstance(pred_seq, torch.Tensor) and pred_seq.dim() == 4:
-                                    pred_seq = pred_seq.unsqueeze(1)
-                            except Exception:
-                                pred_seq = target_seq.clone()
 
-                    # 转换为numpy数组用于可视化
-                    input_np = input_seq_vis.cpu().numpy()
-                    target_np = target_seq.cpu().numpy()
-                    pred_np = pred_seq.cpu().numpy()
-
-                    metrics_list = []
-                    last_pred_np = None
-                    last_tgt_np = None
-                    images_generated = 0
-                    error_done = False
-                    batch_size = input_np.shape[0]
-                    samples_to_take = int(min(batch_size, max_test_samples - test_samples_visualized))
-                    for sample_idx in range(samples_to_take):
-                        # 从批次元信息读取真实 sample 与时间信息
-                        try:
-                            batch_meta = batch  # 原始tensor批次
-                            sample_key = None
-                            start_time = None
-                            time_indices = None
-                            if isinstance(batch_meta, dict):
-                                # 与 DataLoader 字段对应
-                                if 'sample_key' in batch_meta:
-                                    sk = batch_meta['sample_key']
-                                    sample_key = (sk[sample_idx] if hasattr(sk, '__getitem__') else sk)
-                                if 'start_time' in batch_meta:
-                                    st = batch_meta['start_time']
-                                    start_time = int(st[sample_idx]) if hasattr(st, '__getitem__') else int(st)
-                                if 'time_indices' in batch_meta:
-                                    ti = batch_meta['time_indices']
-                                    time_indices = (ti[sample_idx] if hasattr(ti, '__getitem__') else ti)
-                            # 统一使用 sample_key 作为前缀
-                            sample_name = f"sample_{str(sample_key) if sample_key is not None else (test_samples_visualized + 1)}"
-                        except Exception:
-                            sample_name = f"test_sample_{test_samples_visualized + 1}"
-
-                        # 提取单个样本
-                        sample_input = input_np[sample_idx:sample_idx+1]  # [1, T_in, C, H, W]
-                        sample_target = target_np[sample_idx:sample_idx+1]  # [1, T_out, C, H, W]
-                        sample_pred = pred_np[sample_idx:sample_idx+1]  # [1, T_out, C, H, W]
-
-                        if images_generated >= max_images_per_sample:
-                            break
-                        if images_generated == 0:
-                            self.logger.info(f"📊 Generating visualization for test sample {test_samples_visualized + 1}...")
-
-                    # 若当前批次无需可视化样本，则跳过后续生成逻辑，避免重复生成同一个样本的图
-                    if samples_to_take <= 0:
-                        continue
-
-                    # 1. 预测可视化（顺序模型与AR分别处理）
-                    self.ensure_norm_stats()
-                    
-                    # 总是使用AR可视化器，因为它现在支持序列可视化
-                    # 正确处理5D到4D的转换 (传递完整5D Tensor给visualize_ar_predictions)
-                    try:
-                        # 序列可视化（整体）
+                        # [Patch] Auto-interpolate if output size mismatches target (for UNet SR in Test)
+                        if pred_seq.shape[-2:] != target_seq.shape[-2:]:
+                             # If sequence length matches
+                             if pred_seq.shape[1] == target_seq.shape[1]:
+                                 B, T, C, H, W = target_seq.shape
+                                 pred_seq = pred_seq.flatten(0, 1)
+                                 pred_seq = torch.nn.functional.interpolate(pred_seq, size=(H, W), mode='bilinear', align_corners=False)
+                                 pred_seq = pred_seq.view(B, T, C, H, W)
+                             else:
+                                 # Fallback: interpolate last frame only
+                                 pass
+                                 
+                        sample_input = input_seq.detach().cpu()
+                        sample_target = target_seq.detach().cpu()
+                        sample_pred = pred_seq.detach().cpu()
+                        current_T_out = sample_target.shape[1]
+                        
+                        # 1. 整体序列可视化 (Gif)
                         if len(sample_target.shape) >= 4:
                             ar_visualizer.visualize_ar_predictions(
                                 sample_input, sample_target, sample_pred,
@@ -6821,6 +7050,252 @@ class RealDataARTrainer:
                         self.logger.warning(f"AR visualizer failed: {e}")
                         import traceback
                         self.logger.warning(traceback.format_exc())
+                    else:
+                        # 顺序模型/普通模型：统一使用 AR 序列可视化
+                        try:
+                            # 序列可视化（整体）
+                            if len(sample_target.shape) >= 4:
+                                ar_visualizer.visualize_ar_predictions(
+                                    sample_input, sample_target, sample_pred,
+                                    timestep_idx=0,
+                                    save_name=f'{sample_name}',
+                                    norm_stats=self.norm_stats,
+                                    h_params=h_params,
+                                    sample_idx=sample_key
+                                )
+                                images_generated += 1
+                            
+                            # 单帧和误差分析 (使用最后一帧)
+                            if current_T_out > 0:
+                                last_idx = current_T_out - 1
+                                ar_visualizer.visualize_single_frame(
+                                    sample_input[0, -1] if sample_input.ndim == 5 else sample_input[0], 
+                                    sample_target[0, last_idx], 
+                                    sample_pred[0, last_idx],
+                                    save_name=f'{sample_name}_seq_last_frame',
+                                    norm_stats=self.norm_stats
+                                )
+                                images_generated += 1
+                                
+                            # 误差分析
+                            ar_visualizer.create_error_analysis(
+                                sample_target, sample_pred,
+                                save_name=f'{sample_name}_error_analysis',
+                                norm_stats=self.norm_stats
+                            )
+                            images_generated += 1
+                            
+                        except Exception as e:
+                            self.logger.warning(f"Sequence visualization failed: {e}")
+                            import traceback
+                            self.logger.warning(traceback.format_exc())
+
+                    if images_generated < max_images_per_sample:
+                        try:
+                            obs_seq = None
+                            try:
+                                if ('observation_sequence' in sample) and (sample['observation_sequence'] is not None):
+                                    obs_seq = sample['observation_sequence']
+                                elif ('observed_lr_sequence' in sample) and (sample['observed_lr_sequence'] is not None):
+                                    obs_seq = sample['observed_lr_sequence']
+                            except Exception:
+                                obs_seq = None
+                            # Visualize multiple key timesteps (0, 20, 50, 70, etc.)
+                            base_start_time = (start_time if start_time is not None else int(self._cfg_select('data.time_step_start', default=0)))
+                            # Define timesteps to visualize (relative to sequence start)
+                            # t=0 is always visualized (start_time)
+                            # We also want t=20, t=50, t=70 if available
+                            vis_steps = [0, 20, 50, 70]
+                            # Add start_time if not 0 (though usually it's 0)
+                            if base_start_time != 0 and base_start_time not in vis_steps:
+                                vis_steps.insert(0, base_start_time)
+                            
+                            for t_idx in vis_steps:
+                                # Check if t_idx is within the sequence length
+                                if t_idx < current_T_out:
+                                    try:
+                                        ar_visualizer.visualize_obs_gt_pred_error(
+                                            sample_target, sample_pred,
+                                            save_name=f"{sample_name}_obs_gt_pred_error_t{t_idx}",
+                                            norm_stats=self.norm_stats,
+                                            h_params=h_params,
+                                            timestep_idx=t_idx,
+                                            sample_idx=(sample_key if sample_key is not None else int(test_samples_visualized + 1)),
+                                            observation_seq=obs_seq
+                                        )
+                                        # Only count as generated image once per sample to avoid hitting limit too early
+                                        if t_idx == 0:
+                                            images_generated += 1
+                                    except Exception as _obs_err:
+                                        self.logger.warning(f"Obs/GT/Pred/Error visualization failed for t={t_idx}: {_obs_err}")
+                            
+                            test_samples_visualized += 1
+                            if test_samples_visualized >= max_test_samples:
+                                break
+                        except Exception as _obs_err:
+                            self.logger.warning(f"Obs/GT/Pred/Error visualization failed: {_obs_err}")
+
+                    # 3. 时间分析（仅当T一致）
+                    self.ensure_norm_stats()
+                    try:
+                        if (images_generated < max_images_per_sample) and (sample_pred.shape[1] == sample_target.shape[1]):
+                            ar_visualizer.create_temporal_analysis(
+                                sample_pred, sample_target,
+                                save_name=f"{sample_name}_temporal_analysis",
+                                norm_stats=self.norm_stats)
+                            images_generated += 1
+                            if images_generated >= max_images_per_sample:
+                                test_samples_visualized += 1
+                                if test_samples_visualized >= max_test_samples:
+                                    break
+                        else:
+                            # 回退：仅分析最后帧（不做时序分析）
+                            pass
+                    except Exception:
+                        pass
+
+                    # 4. 边界带误差与频域RMSE诊断
+                    try:
+                        if images_generated < max_images_per_sample:
+                            ar_visualizer.create_boundary_and_frequency_metrics(
+                                sample_pred, sample_target,
+                                save_name=f"{sample_name}_boundary_frequency_metrics",
+                                band_width=16
+                            )
+                            images_generated += 1
+                            if images_generated >= max_images_per_sample:
+                                test_samples_visualized += 1
+                                if test_samples_visualized >= max_test_samples:
+                                    break
+                    except Exception:
+                        pass
+
+                        try:
+                            import numpy as np
+                            self.ensure_norm_stats()
+                            pred_last = sample_pred[:, -1]
+                            tgt_last = sample_target[:, -1]
+                            diff = pred_last - tgt_last
+                            rel_l2 = np.linalg.norm(diff) / (np.linalg.norm(tgt_last) + 1e-8)
+                            mae = float(np.mean(np.abs(diff)))
+                            mse = float(np.mean(diff ** 2))
+                            psnr = float(20.0 * np.log10(1.0 / (np.sqrt(mse) + 1e-8)))
+                            metrics_list.append({
+                                'sample': int(test_samples_visualized + 1),
+                                'rel_l2': float(rel_l2),
+                                'mae': float(mae),
+                                'mse': float(mse),
+                                'psnr': float(psnr)
+                            })
+                        except Exception as _metrics_err:
+                            self.logger.warning(f"Metrics collection failed for {sample_name}: {_metrics_err}")
+
+                        test_samples_visualized += 1
+
+                        if test_samples_visualized >= max_test_samples:
+                            break
+                    
+                    # 定义 input_np 以解决后续 NameError
+                    input_np = input_seq.detach().cpu().numpy()
+                    target_np = target_seq.detach().cpu().numpy()
+                    pred_np = pred_seq.detach().cpu().numpy()
+                    
+                    batch_size = input_np.shape[0]
+                    samples_to_take = int(min(batch_size, max_test_samples - test_samples_visualized))
+                    # 若当前批次无需可视化样本，则跳过后续生成逻辑，避免重复生成同一个样本的图
+                    if samples_to_take <= 0:
+                        continue
+
+                    # 将 batch 数据迁移到循环内处理，因为每次循环处理一个样本
+                    for sample_idx in range(samples_to_take):
+                        # 从批次元信息读取真实 sample 与时间信息
+                        try:
+                            batch_meta = batch  # 原始tensor批次
+                            sample_key = None
+                            start_time = None
+                            time_indices = None
+                            if isinstance(batch_meta, dict):
+                                # 与 DataLoader 字段对应
+                                if 'sample_key' in batch_meta:
+                                    sk = batch_meta['sample_key']
+                                    sample_key = (sk[sample_idx] if hasattr(sk, '__getitem__') else sk)
+                                if 'start_time' in batch_meta:
+                                    st = batch_meta['start_time']
+                                    start_time = int(st[sample_idx]) if hasattr(st, '__getitem__') else int(st)
+                                if 'time_indices' in batch_meta:
+                                    ti = batch_meta['time_indices']
+                                    time_indices = (ti[sample_idx] if hasattr(ti, '__getitem__') else ti)
+                            # 统一使用 sample_key 作为前缀
+                            sample_name = f"sample_{str(sample_key) if sample_key is not None else (test_samples_visualized + 1)}"
+                        except Exception:
+                            sample_name = f"test_sample_{test_samples_visualized + 1}"
+
+                        # 提取单个样本
+                        sample_input = input_np[sample_idx:sample_idx+1]  # [1, T_in, C, H, W]
+                        sample_target = target_np[sample_idx:sample_idx+1]  # [1, T_out, C, H, W]
+                        sample_pred = pred_np[sample_idx:sample_idx+1]  # [1, T_out, C, H, W]
+
+                        if images_generated >= max_images_per_sample:
+                            break
+                        if images_generated == 0:
+                            self.logger.info(f"📊 Generating visualization for test sample {test_samples_visualized + 1}...")
+
+                        # 1. 预测可视化（顺序模型与AR分别处理）
+                        self.ensure_norm_stats()
+                        
+                        # 总是使用AR可视化器，因为它现在支持序列可视化
+                        # 正确处理5D到4D的转换 (传递完整5D Tensor给visualize_ar_predictions)
+                        try:
+                            # 序列可视化（整体）
+                            if len(sample_target.shape) >= 4:
+                                ar_visualizer.visualize_ar_predictions(
+                                    sample_input, sample_target, sample_pred,
+                                    timestep_idx=0,
+                                    save_name=f'{sample_name}',
+                                    norm_stats=self.norm_stats,
+                                    h_params=h_params,
+                                    sample_idx=sample_key
+                                )
+                                images_generated += 1
+                            
+                            # 单帧和误差分析 (使用最后一帧)
+                            if current_T_out > 0:
+                                last_idx = current_T_out - 1
+                                ar_visualizer.visualize_single_frame(
+                                    sample_input[0, -1] if sample_input.ndim == 5 else sample_input[0], 
+                                    sample_target[0, last_idx], 
+                                    sample_pred[0, last_idx],
+                                    save_name=f'{sample_name}_seq_last_frame',
+                                    norm_stats=self.norm_stats
+                                )
+                                images_generated += 1
+                                
+                            # 2. 四宫格对比图 (Obs | GT | Pred | Error)
+                            # 生成前3个时间步的对比图
+                            for t in range(min(3, current_T_out)):
+                                ar_visualizer.visualize_obs_gt_pred_error(
+                                    sample_target, sample_pred,
+                                    timestep_idx=t,
+                                    save_name=f'{sample_name}_obs_gt_pred_error',
+                                    norm_stats=self.norm_stats,
+                                    h_params=h_params,
+                                    sample_idx=sample_key,
+                                    # observation_seq=sample_input  <-- Removed to force re-generation using h_params
+                                )
+                                images_generated += 1
+                            
+                            # 3. 误差分析
+                            ar_visualizer.create_error_analysis(
+                                sample_target, sample_pred,
+                                save_name=f'{sample_name}_error_analysis',
+                                norm_stats=self.norm_stats
+                            )
+                            images_generated += 1
+                            
+                        except Exception as e:
+                            self.logger.warning(f"AR visualizer failed: {e}")
+                            import traceback
+                            self.logger.warning(traceback.format_exc())
                     else:
                         # 顺序模型/普通模型：统一使用 AR 序列可视化
                         try:
@@ -7306,6 +7781,22 @@ class RealDataARTrainer:
                 if not is_seq_model:
                     # 假设是空间模型，只取第一帧 [B, T, C, H, W] -> [B, C, H, W]
                     model_input = input_seq[:, 0]
+                    
+                    # 自动适配输入通道数（模拟 train_epoch 中的 concat 逻辑）
+                    raw_model = model.module if hasattr(model, 'module') else model
+                    if hasattr(raw_model, 'in_channels'):
+                        expected_in = raw_model.in_channels
+                    else:
+                        expected_in = model_input.shape[1]
+
+                    current_in = model_input.shape[1]
+                    if current_in < expected_in:
+                        pad_c = expected_in - current_in
+                        # Pad with zeros: [B, pad_c, H, W]
+                        padding = torch.zeros(model_input.size(0), pad_c, model_input.size(2), model_input.size(3), 
+                                              device=model_input.device, dtype=model_input.dtype)
+                        model_input = torch.cat([model_input, padding], dim=1)
+                        # self.logger.info(f"SmokeTest: Auto-padded input from {current_in} to {expected_in} channels")
                 else:
                     # 如果是序列模型（如 ARWrapper），它可能需要 T_out 等参数
                     # 尝试调用 autoregressive_predict 或者 forward

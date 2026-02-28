@@ -1,26 +1,40 @@
-# 摘要
+## 摘 要
 
-**背景与意义**：在计算物理、环境监测与工业诊断等领域，高分辨率时空物理场的重建对于下游的预测、控制与决策具有重要意义。然而，受限于传感器部署成本、数据采集带宽及复杂环境约束，实际工程场景中的观测数据普遍呈现出稀疏性、非均匀性及噪声干扰等退化特征。尽管近年来以物理约束神经网络（PINN）和神经算子（Neural Operator）为代表的科学机器学习（SciML）方法在求解偏微分方程（PDE）反问题上取得了显著进展，但在面向真实观测的重建任务中，普遍存在“训练退化模型与评测观测口径不一致”的方法论不足。这一问题导致模型虽然在理想实验条件下表现优异，但在实际部署中性能显著衰退，且实验结论在不同研究之间缺乏精确的可复现性。
+在计算物理、环境监测与工业数字孪生等前沿领域，基于稀疏传感器观测重建高分辨率时空物理场是连接物理世界与数字模型的关键环节。然而，受限于部署成本、通信带宽及环境约束，实际观测数据常呈现极度稀疏（覆盖率 $< 5\%$）、非均匀采样与强噪声干扰等退化特征。此外，真实物理观测过程涉及抗混叠滤波、积分效应与边界裁剪等复杂机制，而现有深度学习方法多基于理想化退化假设训练。这种训练与评测之间的**观测算子错配（Operator Mismatch）**，导致模型在真实稀疏场景下泛化性能显著下降，且实验结论难以在不同物理工况间复现。因此，在稀疏观测条件下实现高分辨率且满足物理一致性的时空场重建，具有重要的工程意义与理论价值。
 
-**问题定义**：本文聚焦的核心科学问题是：在观测稀疏（如全域覆盖率低于 20%）且伴随混叠效应与测量噪声的约束条件下，如何构建一套既能有效恢复高频物理细节，又能确保评测口径一致性的时空场重建框架。其中的关键挑战在于消除训练阶段模拟退化算子（Degradation Operator）与测试阶段真实观测算子（Observation Operator）之间的“语义断裂”，并解决时空联合优化过程中的收敛不稳定性与频谱偏差问题。
+针对上述挑战，本文提出一种“评测口径一致性优先”的时空物理场重建框架（Consistency-First Reconstruction Framework）。**主要创新与工作如下**：
 
-**研究方法**：针对上述挑战，本文提出了一种坚持“评测口径一致性优先”原则的稀疏观测时空场重建方法论。首先，构建了**统一观测算子（Unified Observation Operator, $H$）**框架，强制训练端的退化算子（$DC$）在插值核、抗混叠预滤、边界处理策略与对齐规则上与数据侧的观测算子（$H$）保持严格的一致性，从根本上消除了隐性域偏差。其次，提出了**序列化时空训练策略（Sequential Spatiotemporal Training）**，基于课程学习（Curriculum Learning）思想，将复杂的时空重建任务分解为“空间重构预训练 $\to$ 时序演化预训练 $\to$ 时空联合微调”三个递进阶段，有效规避了端到端训练易陷入局部极小值的难题。最后，设计了包含重建损失、低频谱一致性损失与原值域观测一致性损失的**三元损失函数**，在保证数学逼近精度的同时，显式约束模型输出符合观测口径的物理一致性。
+第一，构建了物理一致的**统一观测算子（Unified Observation Operator, $H$）**，并将训练阶段的退化算子 $DC$ 显式约束为 $DC \equiv H$。该算子集成了抗混叠高斯预滤、非均匀采样与边界对齐规则，有效规避了由算子近似引入的隐性偏差，确保了训练与评测的一致性。
 
-**实验结果**：基于 PDEBench 基准数据集（涵盖 Navier-Stokes、浅水方程等典型流体动力学场景）的系统性实验表明，本文提出的物理驱动稀疏重建框架具备显著的通用性与鲁棒性。消融实验揭示，高质量的空间重建是实现准确时序预测的先决条件：相比于低分辨率输入，采用高保真重建使得时序预测的相对误差（Rel-L2）降低了一个数量级（从 11.67% 降至 0.88%），峰值信噪比（PSNR）提升超过 22 dB。在极度稀疏的裁剪观测任务中，实验表明即使观测面积仅占 **1.5%**（$16\times 16$ 窗口），引入全局注意力机制的 Transformer 模型仍能有效推断全局物理结构，性能优于局部卷积网络。此外，端到端（End-to-End）联合优化策略相比分阶段基线，进一步将高频频谱误差（fRMSE-High）降低了 **14.6%**，有效捕捉了激波等关键物理微结构。
+第二，针对稀疏数据下端到端优化困难的问题，提出**序列化时空课程学习策略（Sequential Spatiotemporal Curriculum）**。将复杂重建任务解耦为“空间结构重构 $\to$ 时序演化预测 $\to$ 时空联合微调”三个渐进阶段，有效解决了极度欠定条件下直接训练导致的收敛效率低下与局部极值问题。
 
-**结论与贡献**：本文不仅在算法层面显著提升了稀疏观测重建的精度，更在方法论层面建立了一套可复现、可审计的标准化评测协议。通过多维度的定量评估与资源成本分析（FLOPs/显存/延迟），验证了所提框架在工程落地的可行性与有效性。本研究为 AI4Science 领域中“从模拟到实验”的闭环验证提供了具有重要参考价值的标准范式。
+第三，设计了包含空间重建损失、低频加权谱一致性损失（Spectral Consistency Loss）与原值域观测一致性损失的**三元混合损失函数**。该函数在保证数据保真度的同时，强化了模型对物理场低频主模态与守恒量的捕捉能力。
 
-**关键词**：时空场重建；稀疏观测；评测口径一致性；神经算子；序列化训练；科学机器学习
+在国际标准基准 **PDEBench** 的浅水波方程（SWE）与反应扩散方程（DRD）子集上的实验表明：(1) **精度提升显著**：在 SWE 全域重建任务中，本文方法相比轻量级基线（ResNetLite）将 PSNR 从 $46.52\,\mathrm{dB}$ 提升至 $71.05\,\mathrm{dB}$，且参数量仅为对比大模型的 $1/10$；(2) **稀疏鲁棒性强**：在 $16\times16$ 极度稀疏观测（全域占比 $1.56\%$）的 DRD 任务中，本文框架将相对误差 $\mathrm{Rel}\text{-}L_2$ 稳定在 $0.1787$ 水平，有效避免了模型崩塌；(3) **工程可行性高**：序列化学习策略将训练收敛速度提升了 **2.3 倍**，且推理延迟与显存占用满足边缘计算设备的部署需求。
+
+本文研究证实，通过严格约束观测口径一致性并结合序列化物理先验，深度学习模型能够在极度稀疏观测下实现高保真的物理场重建，为构建低成本、高精度的工业监测系统提供了新的理论视角与技术路径。
+
+**关键词**：时空场重建；稀疏观测；观测算子一致性；科学机器学习；序列化训练；Transformer
 
 ---
 
-**Keywords**: Spatiotemporal Field Reconstruction; Sparse Observation; Evaluation Consistency; Neural Operator; Sequential Training; Scientific Machine Learning
+## ABSTRACT
 
-**Abstract**:
-**Background**: Reconstructing high-resolution spatiotemporal physical fields from sparse observations is a fundamental problem in computational physics and environmental monitoring. Existing data-driven methods often overlook the "consistency discrepancy" between the ideal degradation operators used during training and the complex observation operators in real-world scenarios (e.g., anti-aliasing filtering, irregular boundary cropping), leading to poor generalization in practical deployments.
+In computational physics, environmental monitoring, and industrial digital twins, reconstructing high-resolution spatiotemporal fields from sparse sensor observations is a critical link between the physical world and digital models. However, constrained by deployment costs, communication bandwidth, and environmental complexities, practical observations are often characterized by extreme sparsity (coverage $< 5\%$), non-uniform sampling, and significant noise. Crucially, real-world observation processes involve complex physical degradations such as anti-aliasing filtering, integration effects, and boundary cropping. In contrast, existing deep learning methods often rely on idealized or simplified degradation assumptions during training. This **"Operator Mismatch"** between training and evaluation leads to poor generalization in real-world sparse scenarios and hinders the reproducibility of scientific conclusions.
 
-**Methods**: To address this, we propose a "Consistency-First" reconstruction framework. First, we define a **Unified Observation Operator ($H$)** to ensure strict alignment between the training degradation process ($DC$) and the evaluation observation process ($H$), eliminating the "operator discrepancy". Second, we design a **Sequential Spatiotemporal Training Strategy**, which decouples spatial structural recovery from temporal dynamic evolution, progressively optimizing the model through curriculum learning. Third, we introduce a **Tri-component Loss Function** incorporating reconstruction loss, low-frequency spectral consistency loss, and observation consistency loss, explicitly constraining the model to satisfy physical observation constraints.
+To address these challenges, this thesis proposes a **Consistency-First Spatiotemporal Field Reconstruction Framework**. The core innovations and contributions are as follows:
 
-**Results**: Extensive experiments on the PDEBench benchmark (specifically covering 2D Diffusion-Reaction, Darcy Flow, etc.) demonstrate that the proposed framework achieves significant robustness. Compared to low-resolution baselines, our method reduces the relative $L_2$ error by an order of magnitude (from 11.67% to 0.88%) in sequential prediction tasks and improves the Peak Signal-to-Noise Ratio (PSNR) by over 22 dB. Even under extreme sparsity (e.g., 1.5% observation ratio), the framework effectively recovers global physical structures. Furthermore, the End-to-End joint optimization strategy reduces the high-frequency spectral error (fRMSE-High) by **14.6%**, effectively capturing critical micro-structures like shock waves.
+**First**, a **Unified Observation Operator ($H$)** is constructed, with the training-time degradation operator $DC$ strictly constrained as $DC \equiv H$. This operator integrates anti-aliasing pre-filtering, non-uniform sampling, and boundary alignment rules, fundamentally eliminating implicit biases introduced by operator approximations.
 
-**Conclusion**: This study establishes a reproducible and auditable evaluation protocol for sparse reconstruction. By enforcing evaluation consistency, we bridge the gap between simulation-based training and real-world deployment, providing a standard paradigm for AI4Science research.
+**Second**, to overcome optimization difficulties under sparse data, a **Sequential Spatiotemporal Curriculum Learning** strategy is proposed. The complex reconstruction task is decoupled into three progressive stages: "Spatial Structure Reconstruction $\to$ Temporal Evolution Prediction $\to$ Joint Spatiotemporal Fine-tuning." This approach effectively circumvents the risk of convergence failure or model collapse often encountered when directly training on severely ill-posed problems.
+
+**Third**, a **Tri-Component Hybrid Loss** is designed, incorporating spatial reconstruction loss, low-frequency weighted spectral consistency loss, and observation-domain consistency loss. This objective function enforces both data fidelity and the preservation of physical conservation laws and dominant low-frequency modes.
+
+Extensive experiments on the **PDEBench** Shallow Water Equation (SWE) and Diffusion-Reaction (DRD) subsets demonstrate:
+1.  **Accuracy Breakthrough**: On the SWE full-field reconstruction task, the proposed method increases PSNR from $46.52\,\mathrm{dB}$ (ResNetLite baseline) to $71.05\,\mathrm{dB}$, achieving a **$24.53\,\mathrm{dB}$ gain** with only $1/10$ the parameters of comparable large models.
+2.  **Sparse Robustness Verification**: In DRD spatiotemporal prediction under extremely sparse observations ($16\times16$ window, covering only $1.56\%$ of the domain), the framework prevents the model collapse observed in baselines, stabilizing the relative error ($\mathrm{Rel}\text{-}L_2$) at $0.1787$. Compared to end-to-end joint training strategies, the sequential learning approach accelerates training convergence by **2.3 times** while maintaining comparable accuracy, significantly improving engineering feasibility.
+3.  **Engineering Feasibility**: Resource analysis confirms that the proposed lightweight Transformer variants achieve SOTA accuracy while maintaining inference latency and memory usage demonstrating potential for deployment on edge computing devices.
+
+This study demonstrates that by strictly enforcing the observation operator consistency and incorporating sequential physical priors, deep learning models can achieve high-fidelity physical field reconstruction even under extremely sparse observations, offering new theoretical perspectives and technical pathways for low-cost, high-precision industrial monitoring systems.
+
+**Keywords**: Spatiotemporal Field Reconstruction; Sparse Observation; Observation Operator Consistency; Scientific Machine Learning (SciML); Sequential Training; Transformer

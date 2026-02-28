@@ -70,7 +70,7 @@
 
 % 3. Trunk Net (MLP)
 % Coords input (below Branch Conv1)
-\node[io, below=8.0cm of b_conv1-west] (coords) {Coords};
+\node[io, below=12.0cm of b_conv1-west] (coords) {Coords};
 
 \pic[shift={(2.0 * 4.300000000000001,0,0)}] at (coords.east) {Box={
     name=t_mlp1,
@@ -103,11 +103,11 @@
 
 % 4. Fusion (Dot Product)
 % Position fusion roughly between the ends of both branches
-\coordinate (fusion_pos) at ($(b_vec-east)!0.5!(t_vec-east) + (2.0, 0, 0)$);
+\coordinate (fusion_pos) at ($(b_vec-east)!0.5!(t_vec-east) + (6.0, 0, 0)$);
 
 \pic[shift={(0,0,0)}] at (fusion_pos) {Box={
     name=dot,
-    caption=Dot\\Product,
+    caption=Dot,
     fill=\OpColor,
     height=5, width=2, depth=5
 }};
@@ -130,8 +130,8 @@
 \draw[arrow] (t_mlp3-east) -- (t_vec-west);
 
 % Fusion
-\draw[arrow] (b_vec-east) -- ++(0.5,0,0) |- (dot-west);
-\draw[arrow] (t_vec-east) -- ++(0.5,0,0) |- (dot-west);
+\draw[arrow] (b_vec-east) -- ++(1.5,0,0) |- (dot-west);
+\draw[arrow] (t_vec-east) -- ++(1.5,0,0) |- (dot-west);
 
 % Output
 \draw[arrow] (dot-east) -- (out);

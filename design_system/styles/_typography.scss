@@ -1,0 +1,87 @@
+@use "variables" as *;
+@use "mixins" as *;
+
+// 1. Base Reset
+body {
+  font-family: $font-family-base;
+  font-size: $font-size-base;
+  line-height: $line-height-normal;
+  color: $color-text-primary;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// 2. Headings
+h1, .h1 {
+  font-family: $font-family-heading;
+  font-weight: $font-weight-bold;
+  font-size: $font-size-4xl;
+  line-height: $line-height-tight;
+  margin-bottom: $spacing-md;
+}
+
+h2, .h2 {
+  font-family: $font-family-heading;
+  font-weight: $font-weight-semibold;
+  font-size: $font-size-3xl;
+  line-height: $line-height-tight;
+  margin-bottom: $spacing-sm;
+}
+
+h3, .h3 {
+  font-family: $font-family-heading;
+  font-weight: $font-weight-semibold;
+  font-size: $font-size-2xl;
+  line-height: $line-height-snug;
+  margin-bottom: $spacing-sm;
+}
+
+h4, .h4 {
+  font-family: $font-family-heading;
+  font-weight: $font-weight-medium;
+  font-size: $font-size-xl;
+  line-height: $line-height-snug;
+  margin-bottom: $spacing-xs;
+}
+
+h5, .h5 {
+  font-family: $font-family-heading;
+  font-weight: $font-weight-medium;
+  font-size: $font-size-lg;
+  line-height: $line-height-normal;
+  margin-bottom: $spacing-xs;
+}
+
+h6, .h6 {
+  font-family: $font-family-heading;
+  font-weight: $font-weight-medium;
+  font-size: $font-size-base;
+  line-height: $line-height-normal;
+  margin-bottom: $spacing-xs;
+}
+
+// 3. Body Text
+p, .text-body {
+  margin-bottom: $spacing-md;
+}
+
+.text-small {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+}
+
+.text-xs {
+  font-size: $font-size-xs;
+  color: $color-text-disabled;
+}
+
+.text-mono {
+  font-family: $font-family-mono;
+}
+
+// 4. Weights
+.font-light { font-weight: $font-weight-light; }
+.font-regular { font-weight: $font-weight-regular; }
+.font-medium { font-weight: $font-weight-medium; }
+.font-semibold { font-weight: $font-weight-semibold; }
+.font-bold { font-weight: $font-weight-bold; }

@@ -1,410 +1,361 @@
 # 第1章 绪论
 
-## 1.1 研究背景
+*本章目标：阐明稀疏观测下时空物理场重建的研究背景、科学问题与工程意义，综述国内外研究现状并指出当前方法的局限性，进而引出本文的研究动机、主要研究内容、创新点及论文组织结构。*
 
-### 1.1.1 稀疏观测下的时空场重建需求
+## 1.1 研究背景与意义
 
-在计算物理、环境监测、海洋与大气科学以及工业诊断等关键领域，研究对象通常是定义在空间域 $\Omega\subset\mathbb{R}^d$（$d=2$ 或 $3$）与时间区间 $[0,T]$ 上的连续物理场 $u(\mathbf{x},t)$。典型的实例包括流体力学中的速度场与压力场、气象学中的温湿度场、环境科学中的污染物浓度场以及材料科学中的过程场等。然而，在现实的物理系统中，获取高密度、全域且时间同步的观测数据往往面临巨大挑战。传感器的布设通常受到高昂成本与安全条件的严格约束，数据采集链路则受限于带宽瓶颈与维护难度，加之长期运行过程中不可避免的噪声干扰、零点漂移与数据缺失，导致实际获取的数据呈现出“稀疏—噪声—非对齐”的典型退化形态。
+### 1.1.1 工程背景
 
-稀疏观测数据的存在对下游任务的性能构成了直接限制：
-- **预测任务**依赖于对当前完整物理状态的精确估计与稳定外推；
-- **控制任务**要求观测口径具有高度的一致性、可复用性与可部署性；
-- **诊断任务**则依赖于对关键物理结构（如边界层、涡结构、锋面、热斑等）的稳健识别与可追溯解释。
+伴随着工业4.0浪潮与数字孪生（Digital Twin, DT）技术的深化应用，复杂工程系统对关键物理过程的全时空状态感知、实时诊断及闭环决策能力提出了更为严苛的要求[1-2]。数字孪生技术强调物理实体与虚拟模型之间的高频交互与动态映射，其效能很大程度上取决于能否持续获取高质量、多源异构的观测数据[3-6]。在航空航天、智能制造、能源管理及海洋环境监测等关键领域，速度场、温度场、压力场等物理量的时空演化信息构成了故障预警、预测性维护与风险评估的决策基石。
 
-因此，本研究的核心技术问题可表述为：在观测极度稀疏且存在噪声与缺失的约束条件下，如何在连续时空域内恢复出高分辨率、具有物理可解释性、并与真实测量口径保持一致的物理场估计。从方法论角度审视，该任务与**反问题（Inverse Problem）**及**数据同化（Data Assimilation）**具有同构性：观测数据可被视为由一个（可能包含离散化细节的）观测算子作用于真实物理场并叠加噪声后的产物；而重建过程则是在不适定（Ill-posed）条件下，寻求一个既满足观测约束又符合物理先验的解。经典反问题理论与数据同化体系为理解“稀疏观测—状态估计”这一映射关系提供了统一的理论视角。
+尽管如此，在实际工程场景中，部署高密度、全覆盖且时间同步的观测网络仍面临巨大的工程挑战。一方面，受限于部署成本、设备功耗、长期可靠性及极端环境适应性等因素，高精度传感器难以实现长期且均匀的覆盖[7-8]。以海洋观测为例，联合国教科文组织发布的**《全球海洋观测系统 2025 现状报告》[9]** 显示，卫星遥感的大范围覆盖与原位浮标的稀疏分布之间存在显著的“观测鸿沟” (Observation Gap)，尤其在深海与极地区域，部分关键参数的观测密度处于“亚临界”状态[9]。即便是Argo全球剖面浮标阵列已具备约4000个浮标的观测能力，但在空间分辨率和特定海域覆盖率上仍显不足[10]。
 
-### 1.1.2 科学机器学习与算子学习的推动作用
+另一方面，在物联网（IoT）与边缘计算架构下，海量传感节点产生的高频数据流对通信带宽与传输时延构成了巨大压力。现有研究表明，工程系统往往需要在边缘侧进行数据预处理、压缩或特征提取以减少传输量，但这不可避免地牺牲了部分原始时空分辨率[11-13]。当前的数字孪生系统正遭遇严峻的**“数据匮乏瓶颈” (Data-Scarcity Bottleneck)**。**Shahzad 等人 [4]** 在最新的综述中指出，从智能电网到生物医学监测，传感器分布稀疏与采样异步是限制系统性能的主要因素。**Hossain 等人 [6]** 亦强调，这种数据约束已阻碍了数字孪生从“被动监视”向“主动预测控制”的演进。
 
-近年来，科学机器学习（Scientific Machine Learning, SciML）在偏微分方程（PDE）相关任务上取得了突破性进展，显著提升了复杂物理场的重建精度与推断效率。该领域的主要技术路径包括：
-- **物理约束学习（PINN）**：通过将 PDE 残差与初边界条件嵌入损失函数，在监督数据匮乏的情况下利用物理方程结构作为强先验约束；
-- **算子学习（Operator Learning）**：旨在学习函数空间之间的映射关系，即“函数到函数”的变换，从而实现跨不同输入函数与离散网格的统一参数推断；
-- **FNO 与 DeepONet**：Fourier Neural Operator (FNO) 通过在 Fourier 空间参数化积分核来学习 PDE 解算子；DeepONet 则利用 Branch/Trunk 网络结构学习算子映射，并从算子逼近理论角度给出了系统性的证明；
-- **物理信息算子学习（Physics-informed DeepONet）**：在缺乏成对监督数据时，引入 PDE 约束作为正则化项，从而减少对大量标注数据的依赖并提升模型的泛化能力。
+此外，长期运行的观测数据还面临噪声污染、零点漂移及数据缺失等质量问题。光学遥感图像常因云层遮挡或传感器故障出现大面积缺失，需依赖重建算法进行修复[14-16]；工业与环境传感器则可能因老化、温漂或硬件故障导致数据漂移或间歇性中断[17-18]。因此，实际工程数据普遍呈现出“空间稀疏、时间异步、质量退化”的复杂特征。
 
-上述方法为稀疏观测重建提供了强有力的建模工具。然而，在工程落地与学术复现层面，一个更为基础却常被忽视的问题逐渐凸显：**训练阶段的退化/采样实现与评测/部署阶段的真实观测口径不一致**。这种不一致性导致了“训练指标改善但部署口径误差未降”的断裂现象，严重削弱了实验对比的审计性与模型部署的可靠性。
+![图 1-1: 数字孪生系统中的“数据匮乏瓶颈 (Data-Scarcity Bottleneck)”示意图。尽管数字孪生强调物理实体与虚拟模型的高频交互，但在实际工程链路中，受限于传感器部署成本、通信带宽（IoT Edge）与环境噪声，流向模型的观测数据往往是稀疏、非均匀且带噪的。这种“感知端稀疏”与“应用端高保真需求”之间的矛盾，构成了制约数字孪生闭环能力的关键瓶颈。](images/fig1-1_digital_twin_bottleneck.png)
 
-## 1.2 研究动机与应用场景
+综上所述，感知端观测能力的稀疏性与应用端对高分辨率、物理一致全场信息的需求之间存在显著差距。这种“强需求—弱数据”的结构性矛盾，已成为制约数字孪生系统由可视化展示向可计算推断转型的关键瓶颈。因此，探索如何在稀疏观测条件下重建高分辨率且符合物理规律的时空场，具有重大的工程实用价值与理论研究意义。
 
-稀疏观测是绝大多数工程系统的常态，典型的应用场景包括：
-1. **城市微气候与污染监测**：传感器仅部署在交通枢纽、关键建筑与少量基站，空间覆盖率极低且维护频率不一致；
-2. **海洋与大气观测**：遥感数据与浮标观测数据在分辨率上差异显著，时间戳难以对齐，且信噪比受环境因素影响较大；
-3. **工业过程与管网系统**：复杂几何结构与高温高压环境限制了传感器的密度与可靠性，长期监测数据往往包含漂移与间断；
-4. **生物医学与材料过程成像**：采样成本与生物安全性约束导致观测极其稀疏，噪声与数据缺失不可避免。
+![图 1-2: 稀疏观测下的时空场重建挑战示意图。左侧展示了高分辨率的真实物理场（如 PDEBench 中的浅水波 SWE 涡旋结构），具有丰富的多尺度纹理与清晰的波前；中间表示经过物理降质（抗混叠滤波、积分、稀疏采样）后的观测数据，其全域覆盖率通常低于 5%，且伴随非均匀分布与噪声干扰；右侧展示了重建目标，即从极度欠定的稀疏观测中恢复出与左图一致的高保真物理场。](images/fig1-2_reconstruction_challenge.png)
 
-这些场景共同指向了两个硬性约束：
-- **高分辨率重建需求**：下游任务需要近似连续的高分辨率时空场以支持精细化分析；
-- **口径一致性需求**：评测与部署必须基于真实的观测过程。若训练阶段未能严格复用该口径，实验对比将失去审计基础，工程效果也难以预测。
+---
 
-基于此，本文明确将**“评测口径一致性优先”**确立为研究动机与核心原则。旨在构建一套可复用、可审计、可复现的稀疏观测时空场重建框架，使得数学意义上的重建误差与观测意义上的口径误差能够实现协同优化，并在统一的资源约束下开展规范化的学术对比。
+#### 参考文献（GB/T 7714—2015）
 
-## 1.3 研究问题定义与数学形式化
+[1] 杨林瑶, 等. 数字孪生与平行系统: 发展现状、对比及展望[J]. 自动化学报, 2019, 45(11): 2001-2017.
+[2] 肖淑南, 等. 国内外数字孪生研究热点主题与演进趋势[J]. 计量科学与技术, 2023, 67(4): 1-12.
+[3] Wu H, Lee J, Guo Y, et al. A comprehensive review of digital twin from the perspective of data, model, network and application[J]. IEEE Access, 2023, 11: 85762-85785.
+[4] Shahzad M, Shafiq M, et al. Technologies and techniques in digital twins for real-time monitoring: A systematic review[J]. Advanced Engineering Informatics, 2025, 61: 102066.
+[5] Mchirgui N, et al. The applications and challenges of digital twin technology in smart grids[J]. Applied Sciences, 2024, 14(23): 10933.
+[6] Hossain R, et al. Virtual sensing-enabled digital twin framework for real-time monitoring[J]. npj Digital Medicine, 2025, 8: 57.
+[7] Lin M, et al. Ocean observation technologies: A review[J]. Journal of Ocean University of China, 2020, 19(5): 965-980.
+[8] Penny S G, et al. Observational needs for improving ocean and coupled predictions[J]. Bulletin of the American Meteorological Society, 2019, 100(2): 247-264.
+[9] UNESCO-IOC. The Global Ocean Observing System 2025 Status Report[R]. Paris: Intergovernmental Oceanographic Commission, 2025.
+[10] Roemmich D, Alford M, Claustre H, et al. On the future of Argo: A global, full-depth, multi-disciplinary array[J]. Frontiers in Marine Science, 2019, 6: 439.
+[11] Ray P P. Edge computing for Internet of Things: A survey[J]. Future Generation Computer Systems, 2019, 98: 680-694.
+[12] Pioli L, et al. An overview of data reduction solutions at the edge of IoT[J]. Sensors, 2022, 22(6): 2231.
+[13] Cao L, et al. Cost optimization in edge computing: A survey[J]. Artificial Intelligence Review, 2024, 57: 10947.
+[14] Meraner A, Ebel P, Zhu X X, et al. Cloud removal in Sentinel-2 imagery using a deep residual neural network[J]. Remote Sensing of Environment, 2020, 236: 111484.
+[15] Wu J, et al. Progressive gap-filling in optical remote sensing imagery[J]. Remote Sensing of Environment, 2024, 302: 113982.
+[16] Zhang Q, Yuan Q, Li J, et al. Missing data reconstruction in remote sensing image with deep learning[J]. IEEE Geoscience and Remote Sensing Letters, 2018, 15(4): 515-519.
+[17] Gaddam A, et al. Detecting sensor faults, anomalies and outliers in IoT: A survey[J]. Electronics, 2020, 9(3): 511.
+[18] Rudnitskaya A, et al. Calibration update and drift correction methods for electronic sensors: A review[J]. Frontiers in Chemistry, 2018, 6: 433.
 
-### 1.3.1 观测模型
+---
 
-设真实的高分辨率物理场为 $u(\mathbf{x},t)$。观测数据由观测算子 $H$ 与噪声项 $n$ 生成：
+
+### 1.1.2 科学挑战：从病态反问题到物理一致性约束
+
+从数学角度来看，稀疏观测下的时空场重建问题可统一表述为一个典型的**欠定逆问题（Underdetermined Inverse Problem）**。根据 Hadamard 对适定问题（Well-posed Problem）的经典定义，一个问题若满足“解存在、解唯一、解对数据连续依赖”三个条件，则称为适定[1]。然而在稀疏观测条件下，观测模型
+
 $$
-y = H(u) + n.
+\mathbf{y}=H(u)+\eta
 $$
-其中，$H$ 代表**观测口径**。它不仅定义了抽样位置与掩码，更应显式覆盖工程实现中的关键细节，例如：
-- 预滤（抗混叠低通）、插值核函数、下采样方式；
-- 裁剪窗口尺寸与对齐规则（如中心对齐/网格对齐）；
-- 边界处理策略（如镜像/补零/循环边界等）；
-- 时间对齐方式、缺失值处理策略与单位/量纲的一致性处理。
 
-上述细节共同决定了“观测的语义”。将这些细节从代码实现层面提升为论文中可被复核的数学对象，是保证实验可审计性的前提条件。
+通常无法满足唯一性与稳定性要求，其中 $H$ 为观测算子，$\eta$ 为噪声扰动。由于观测算子存在显著零空间（Null Space），即存在无穷多个候选解 $\hat{u}$ 满足 $H(\hat{u}) \approx \mathbf{y}$，该问题天然呈现不适定性（Ill-posedness）[2-3]。
 
-### 1.3.2 离散化表述与稀疏程度
+为恢复稳定解，经典反问题理论引入正则化框架。Tikhonov 正则化通过构造
 
-在离散化实现中，真实场与观测数据通常表示为张量 $u\in\mathbb{R}^{T\times H\times W\times C}$。观测数据 $y$ 可表示为：
-- 规则网格观测：$y\in\mathbb{R}^{T\times h\times w\times C}$；
-- 点采样观测：索引集合 $\mathcal{I}\subset\{1,\dots,H\}\times\{1,\dots,W\}$；
-- 缺失/遮挡：掩码 $m\in\{0,1\}^{T\times H\times W\times C}$ 或其下采样版本。
-
-稀疏程度可用空间覆盖率定义为：
 $$
-\rho=\frac{|\mathcal{I}|}{H\cdot W} \quad \text{或} \quad \rho=\frac{h\cdot w}{H\cdot W}.
+\min_u \|H(u)-\mathbf{y}\|^2+\lambda \mathcal{R}(u)
 $$
-该离散化表述便于与后续实验设置（如观测覆盖率、噪声水平、时间窗长度等）形成一一对应关系，减少了理论表述与代码实现之间的鸿沟。
 
-### 1.3.3 重建模型与双目标优化
+在数据一致性项之外加入先验约束，从而收缩解空间[4]。贝叶斯反问题理论则将未知场视为随机变量，通过后验分布刻画不确定性传播与稳定性结构，为稀疏条件下的不确定性量化提供了严格理论基础[5-6]。近年来，SIAM 与 *Inverse Problems* 等期刊进一步系统化了无限维函数空间中的反问题稳定性分析[7]。
 
-重建模型记为 $f_\theta$，给定观测 $y$（及可选的坐标编码 $\mathbf{x}$、掩码 $m$、先验基线等），输出预测场 $\hat{u}^{(z)}$（z-score 域），经反归一化后得到原值域预测 $\tilde{u}$：
-$$
-\hat{u}^{(z)}=f_\theta(y, m, \mathbf{x};\theta), \quad \tilde{u} = \text{Denorm}(\hat{u}^{(z)}).
-$$
-本文关注的目标并非单一误差的最小化，而是在统一口径约束下同步降低以下两类误差：
-- **重建误差**：$\tilde{u}$ 对真实场 $u$ 的逼近程度；
-- **口径一致性误差**：预测场经算子 $H$ 作用后与观测 $y$ 的一致性偏差。
+然而，与传统图像重建不同，物理场重建面临更为复杂的多尺度频谱结构。根据奈奎斯特采样定理，若采样频率低于信号最高频率的两倍，则高频成分将在频域发生折叠（Aliasing）[8]。对于湍流等多尺度流动系统，其能谱遵循 Kolmogorov $k^{-5/3}$ 定律[9]，高频能量虽小但对梯度与耗散结构具有决定性影响。稀疏采样会导致频谱能量跨尺度混叠，从而生成非物理伪影。近年来，算子学习领域提出“operator aliasing”概念，指出离散化变化可能引发算子表示误差与跨网格泛化失效[10-11]。因此，在重建过程中恢复真实频谱分布成为核心科学挑战之一。
 
-这种“双目标”设定与经典反问题中的“数据一致性 + 先验正则”结构相呼应。
+另一方面，物理系统本身受守恒律支配。若重建结果违反质量守恒或动量守恒，将导致下游导数运算与动力学预测失效。物理信息神经网络（PINN）通过在损失函数中引入 PDE 残差项实现物理约束嵌入[12]，神经算子方法则尝试直接学习解算子映射[13]。但已有研究指出，在多尺度与刚性问题下，PINN 训练存在优化失衡与频谱偏置问题[14]，物理一致性约束如何与数据驱动模型协同设计，仍是开放问题。
 
-### 1.3.4 口径示例：超分辨与裁剪
+此外，在机器学习框架下还存在“训练—部署算子错配（Operator Mismatch）”问题。当训练阶段采用理想化退化算子，而部署阶段观测算子具有不同的积分核、边界处理或采样结构时，模型泛化误差将显著放大[15]。在神经算子理论中，这一现象可归因于离散化依赖性与表示等价性破坏[16]。因此，如何在理论层面确保观测算子的一致性与可复用性，是稀疏重建从实验验证走向工程部署的关键环节。
 
-为覆盖典型的稀疏观测形态，本文将两类常见口径纳入统一形式：
-- **超分辨（SR）口径**：在缩小阶段采用抗混叠策略（先低通滤波、再缩小），并使用面积插值等方法实现降采样；工程实现上建议缩小时采用 `INTER_AREA` 插值；
-- **裁剪（Crop）口径**：对齐窗口内的观测，窗口大小满足网络 Patch 对齐要求，并显式声明边界策略（如 mirror/zero/wrap）与对齐规则。
+![图 1-4: 观测算子错配（Operator Mismatch）示意图。路径 (A) 为深度学习常用的理想化训练流程，采用双三次（Bicubic）插值或简单下采样生成低分数据；路径 (B) 为真实物理观测链路，包含传感器抗混叠滤波（Anti-aliasing）、空间积分与非均匀噪声。当模型仅在路径 (A) 上训练时，面对路径 (B) 的真实观测数据会产生系统性的频谱混叠误差与纹理伪影。](images/fig1-4_operator_mismatch.png)
 
-关键点在于：当观测生成依赖于具体实现细节时，若训练与评测不共享同一实现，实验结论将难以复核。
+综上所述，稀疏观测下的时空场重建问题不仅涉及不适定逆问题的稳定性恢复，还必须同时处理多尺度混叠、物理守恒嵌入以及算子一致性等多重挑战。其本质是一类融合反问题理论、频谱分析与科学机器学习方法的跨学科研究问题。
 
-## 1.4 稀疏观测重建的关键挑战
+---
 
-### 1.4.1 混叠效应与频谱失真
+### 二、参考文献（GB/T 7714）
 
-下采样操作会将高频能量折叠到低频段，导致不可逆的信息损失。抗混叠策略通常采用“先低通、再缩小”的流程。在时空场任务中，混叠不仅会造成局部细节的缺失，还会改变能谱分布，进而影响下游诊断（例如结构识别、谱域指标估计等）。因此，预滤、插值核与对齐策略必须纳入口径定义，并在训练/评测中保持严格的一致复用。
+#### 经典与理论基础
 
-### 1.4.2 训练口径与评测口径的断裂
+[1] Hadamard J. Lectures on Cauchy’s problem in linear partial differential equations[M]. New Haven: Yale University Press, 1923.
 
-若训练阶段使用的退化过程与评测阶段的真实口径不一致，模型可能出现如下现象：训练重建误差下降，但口径一致性误差不降甚至恶化。该现象会导致横向对比的不公平与工程落地的困难。为消除这一断裂，本文采用两条硬性约束：
-- 确立 $H$ 为**唯一口径定义入口**；
-- 训练端退化算子 $DC$ 必须**镜像复用** $H$ 的实现与参数（同插值核、同边界、同对齐、同预滤），使训练与评测在“观测语义”层面保持一致。
+[2] Engl H W, Hanke M, Neubauer A. Regularization of inverse problems[M]. Dordrecht: Kluwer Academic Publishers, 1996.
 
-### 1.4.3 非周期边界与局部伪影扩散
+[3] Hansen P C. Discrete inverse problems: insight and algorithms[M]. Philadelphia: SIAM, 2010.
 
-非周期边界、复杂几何结构与缺失掩码会诱发边界伪影、振铃效应与局部能量偏差，并可能沿时间维度传播形成误差累积。该问题不仅影响像素级误差，也会影响谱域结构与下游诊断的稳定性。因此，边界策略与对齐策略需要纳入 $H$ 的口径定义并强一致复用。
+[4] Tikhonov A N, Arsenin V Y. Solutions of ill-posed problems[M]. Washington: Winston & Sons, 1977.
 
-### 1.4.4 可复现性与可审计性
+[5] Stuart A M. Inverse problems: a Bayesian perspective[J]. Acta Numerica, 2010, 19: 451-559.
 
-训练过程受随机种子、算子实现细节、软件库版本与硬件差异的影响。硕士论文强调“可复核、可追溯”：必须提供配置快照、环境指纹、多随机种子统计与显著性检验，否则难以支撑稳定的学术结论。
+[6] Dashti M, Stuart A M. The Bayesian approach to inverse problems[J]. Handbook of Uncertainty Quantification, 2017: 311-428.
 
-## 1.5 相关工作综述与本文定位
+[7] Kaipio J, Somersalo E. Statistical and computational inverse problems[M]. New York: Springer, 2005.
 
-### 1.5.1 经典路径：反问题、数据同化与稀疏重建
+#### 采样与混叠
 
-观测不足导致的不适定性是反问题的核心主题之一，“数据一致性 + 正则/先验”的结构为稀疏观测重建提供了统一范式。在时空动力系统中，数据同化将动力学模型与测量数据融合，形成了变分方法（如 4D-Var）与集合滤波（如 EnKF）等体系化方法。压缩感知理论则在欠采样信号恢复中强调“结构先验 + 约束优化”的有效性，为稀疏采样重建提供了重要启发。
-上述经典路径对本文的启示在于：
-- 观测过程必须被严格定义并可被复核；
-- 数据一致性应作为可审计约束进入训练与评测流程；
-- 先验（物理/统计/结构）应与观测口径相匹配，否则先验项可能引入系统性偏差。
+[8] Shannon C E. Communication in the presence of noise[J]. Proceedings of the IRE, 1949, 37(1): 10-21.
 
-### 1.5.2 物理约束学习：PINN
+[9] Kolmogorov A N. The local structure of turbulence in incompressible viscous fluid[J]. Doklady Akademii Nauk SSSR, 1941, 30: 301-305.
 
-PINN 将 PDE 残差与初边界条件嵌入损失函数，在数据不足时可利用物理结构作为强先验。对本文而言，PINN 的关键启示是：物理一致性约束可以提升外推能力与稳健性，但约束的实现同样需要与观测口径保持一致，否则约束项可能引入偏差。
+[10] Li Z, Kovachki N, Azizzadenesheli K, et al. Fourier neural operator for parametric PDEs[J]. ICLR, 2021.
 
-### 1.5.3 算子学习：FNO、DeepONet 与神经算子
+[11] Kovachki N, et al. Neural operator: learning maps between function spaces[J]. JMLR, 2023, 24(89): 1-97.
 
-神经算子方法以“函数到函数”的映射视角学习参数化解算子，支持跨输入函数、跨参数族与跨离散网格的推断。FNO 与 DeepONet 是两类代表性结构：前者利用 Fourier 空间的全局表示以建模长程相互作用，后者利用 Branch/Trunk 分解实现算子逼近。与本文主题直接相关的是：跨分辨率/跨网格推断会遭遇离散化差异与混叠风险，统一口径与别名无关（Aliasing-free）的设计将显著影响模型的泛化能力与审计结果。
+#### 物理约束与SciML
 
-### 1.5.4 物理信息算子学习：Physics-informed DeepONet
+[12] Raissi M, Perdikaris P, Karniadakis G E. Physics-informed neural networks[J]. Journal of Computational Physics, 2019, 378: 686-707.
 
-Physics-informed DeepONet 在缺乏成对监督数据时引入 PDE 约束作为正则化项，减少了对监督数据的依赖并提升了泛化能力。该方向对本文的意义在于：一致性约束不仅可来自 PDE 残差，也可来自“观测口径一致性”，后者更直接对应工程测量过程并更贴近部署环节。
+[13] Lu L, Jin P, Karniadakis G E. DeepONet[J]. Nature Machine Intelligence, 2021, 3: 218-229.
 
-### 1.5.5 本文定位：评测口径一致性优先
+[14] Wang S, Teng Y, Perdikaris P. Understanding and mitigating gradient pathologies in PINNs[J]. SIAM Journal on Scientific Computing, 2021, 43(5): A3055-A3081.
 
-综合上述脉络，本文不将贡献限定为某一网络结构的微调，而是面向工程可复现与可部署需求，提出并系统化“评测口径一致性优先”的研究框架：
-- 以 $H$ 作为观测口径的唯一入口；
-- 以 $DC$ 镜像复用 $H$，确保训练/评测口径一致；
-- 在统一统计协议下进行多随机种子评测与显著性检验；
-- 同步报告资源成本并输出可审计材料链路，为学位论文审查与后续复现提供坚实支撑。
+#### 算子错配与离散化泛化
 
-## 1.6 研究内容与技术路线
+[15] Mishra S, Molinaro R. Estimates on the generalization error of physics-informed neural networks[J]. IMA Journal of Numerical Analysis, 2022.
 
-### 1.6.1 总体路线
+[16] Kovachki N, et al. On universal approximation and discretization invariance of neural operators[J]. JMLR, 2023.
 
-本文技术路线围绕“口径统一—算法构建—严格评测—材料产出”展开：
-1. **口径统一**：以 $H$ 固化观测生成流程（预滤、插值、对齐、边界），训练端 $DC$ 与之完全复用；
-2. **算法构建**：在统一模型接口下实现若干基线与改进方法，保持输入打包（mask/coords/baseline）一致；
-3. **严格评测**：执行多随机种子统计、显著性检验，并透明报告资源四项指标；
-4. **材料产出**：生成配置快照、环境指纹、指标主表、代表案例与失败案例归档，保证研究可复核、可追溯。
+---
 
-### 1.6.2 指标体系与一致性目标
+## 1.2 国内外研究现状
 
-本文将两类误差作为核心评价指标：
-- **相对重建误差（Rel-L2）**：
-$$
-\mathrm{Rel\text{-}L2}=\frac{\lVert \tilde{u}-u\rVert_2}{\lVert u\rVert_2}.
-$$
-- **口径一致性误差（$H_{\mathrm{err}}$）**：
-$$
-H_{\mathrm{err}}=\lVert H(\tilde{u})-y\rVert_2.
-$$
-二者的同步下降意味着：预测结果既在数学意义上逼近真值，也在观测意义上与真实测量口径保持一致。
-> 注：如需跨任务可比性，可在后续章节将 $H_{\mathrm{err}}$ 归一化为 $\lVert H(\tilde{u})-y\rVert_2/\lVert y\rVert_2$。
+---
 
-### 1.6.3 损失设计（示意）
+### 1.2.1研究背景与问题界定
+稀疏观测驱动的时空场重建，通常指在传感器稀疏、观测噪声不可忽略、测量方式与理想采样不一致的条件下，从有限观测推断高分辨率、物理一致的时空连续场（例如速度/压力/温度/浓度场等），并在需要时进一步支持短期预测与在线更新。其本质接近“逆问题 + 动力学约束”的融合：一方面需要从欠定信息中恢复细节，另一方面又必须满足或近似满足控制方程、边界条件以及统计规律。[1]
 
-训练阶段采用由三部分构成的目标函数：
-$$
-\mathcal{L}= \mathcal{L}_{\mathrm{rec}}+\lambda_{\mathrm{spec}}\mathcal{L}_{\mathrm{spec}}+\lambda_{\mathrm{dc}}\mathcal{L}_{\mathrm{dc}},
-$$
-其中：
-- $\mathcal{L}_{\mathrm{rec}}$：重建损失（通常计算在 z-score 域）；
-- $\mathcal{L}_{\mathrm{spec}}$：低频谱一致性，用于约束大尺度结构；
-- $\mathcal{L}_{\mathrm{dc}}=\lVert H(\tilde{u})-y\rVert_2^2$：口径一致性项，推动模型对观测过程保持一致。
-> 注：针对自回归（AR）长时预测任务，引入**时序一致性正则化**（时序导数与能量演化约束）作为补充，详见第3章。
+在工程与复杂系统应用中，该问题往往与数字孪生的在线校准、实时分析和可操作时间尺度上的更新直接相关：传统高保真数值仿真在强非线性、多尺度场景下可极其昂贵，而数字孪生强调与现实系统的闭环交互与近实时更新，使“高精度 + 低时延”的矛盾更加突出。[2] 近年来，科学机器学习（SciML）将深度学习的表达能力与物理/算子/概率结构结合，为该类问题提供了从“纯数值求解/统计估计”向“可泛化的学习式算子与约束建模”转变的路径，也促使传统方法与学习方法在同一框架下重新被审视。[3]
 
-## 1.7 创新点与主要贡献
+---
 
-本文的主要贡献在于提出并验证了一套面向稀疏观测的“评测口径一致性优先”时空场重建框架，解决了当前 AI4Science 研究中普遍存在的训练退化与评测口径断裂问题。具体创新点如下：
+### 1.2.2 传统方法：插值、统计学习与数据同化
+在深度学习成为主流之前，物理场重建主要依赖三条技术路线：数值插值/函数逼近、空间统计建模与数据同化（DA）。
 
-1.  **提出“统一观测算子（Unified Observation Operator）”方法论框架**：
-    本文首次将观测算子 $H$ 确立为数据生成与模型评测的唯一逻辑入口，并强制训练端的退化算子 $DC$ 在实现细节（插值核、抗混叠预滤、边界策略、对齐规则）上与 $H$ 保持严格镜像。这一设计从根本上消除了隐性域偏差，确保了实验结论在真实观测口径下的可复现性与工程可落地性。
+数值插值与函数拟合的代表方法包括多项式插值、样条插值与径向基函数（RBF）插值等，优点是实现成熟、计算开销低，且在场量足够光滑时具有良好的局部逼近性质。[4] 需要强调的是，许多经典插值核（尤其是样条类）可从频域角度理解为对信号进行某种形式的平滑重建，其频率响应往往近似低通，从而天然倾向于抑制高频分量；这也是“插值能填补空缺但容易抹平尖峰/细尺度结构”的重要原因之一。[5] 对于包含激波、剪切层、湍流涡等多尺度高频结构的场，单纯依赖平滑假设的插值往往难以同时兼顾整体轮廓与细节物理。[6]
 
-2.  **构建兼顾物理一致性与观测一致性的三元损失函数**：
-    针对稀疏重建中的不适定性，设计了由重建损失、低频谱一致性损失与原值域观测一致性损失构成的复合目标函数。通过显式约束 $H(\tilde{u})$ 与真实观测 $y$ 的一致性，实现了数学逼近误差（Rel-L2）与评测口径误差（$H_{\mathrm{err}}$）的协同下降，有效规避了“纸面指标高、实际部署差”的过拟合风险。
+空间统计与不确定性量化方面，克里金（Kriging）与高斯过程回归（Gaussian Process Regression, GPR）通过显式建模协方差/核函数来刻画空间相关性，可在预测未知点的同时给出不确定性估计，在地学与工程场景得到广泛应用。[7] 与之相近的另一支传统路线是降维与模态重建：以本征正交分解（POD）为代表的方法，用一组最优线性基在能量意义上压缩流场维度；在此基础上，针对缺测数据提出的 Gappy POD 通过最小二乘拟合稀疏观测来恢复模态系数，从而重建全场。[8] 这类方法在模态库“覆盖充分”时可以非常高效，但其性能高度依赖线性叠加的表示能力与先验快照库的代表性：当系统动力学呈现强非线性、多尺度耦合或工况变化超出库分布时，重建质量容易显著下降。[8]
 
-3.  **设计基于课程学习的序列化时空训练策略（Sequential Spatiotemporal Training）**：
-    克服了时空联合模型直接训练难以收敛至全局最优的难题。提出“空间重构预训练 $\to$ 时序演化预训练 $\to$ 时空联合微调”的递进式策略，结合 Teacher Forcing Decay 机制，显著提升了模型在长时预测任务中的稳定性与累积误差控制能力。
+数据同化是气象、海洋等领域的标准范式，通过显式引入动力学模型（例如数值模式）将观测与预测进行统计最优融合，典型方法包括集合滤波路线与变分路线。集合滤波的经典代表是 EnKF，其通过集合传播来近似误差协方差并完成更新。[9] 变分同化的代表是 4D-Var，核心是最小化代价函数并依赖线性化与伴随/梯度信息迭代求解。[10] DA 的突出优势是物理一致性与可解释性：观测进入模型并非“贴点拟合”，而是通过观测算子映射到观测空间、在误差统计约束下与动力学演化共同决定分析场。[11] 但其代价同样显著：4D-Var 需要维护线性化与伴随并进行多次迭代；即便在业务化推动下也长期面临“计算成本需进一步下降”的压力。[10] 当问题转向工业数字孪生的在线更新与实时性诉求时，传统 DA 的计算与工程维护成本常被视为重要瓶颈之一。[2]
 
-4.  **建立可审计、可复现的科学计算评测协议**：
-    制定了包含多随机种子统计、显著性检验（Paired t-test）、资源成本四项（Params/FLOPs/VRAM/Latency）及失败案例归档的标准化评测流程。基于 PDEBench 的广泛实验验证了该协议的有效性，为领域内相关研究提供了可参照的严谨范式。
+---
 
-## 1.8 论文结构安排
+### 1.2.3 深度学习方法：端到端超分辨与物理约束
+深度学习在该领域最直接的切入点，是把物理场视作规则网格上的“多通道图像/视频”，将重建问题转写为超分辨率（super-resolution, SR）或缺失补全任务，并借鉴计算机视觉的成熟架构（CNN、GAN、Transformer 等）实现端到端映射。[12] 在流体与湍流重建中，早期代表性工作展示了 CNN 及多尺度结构可从极粗分辨率恢复较高分辨率的速度场，并激发了大量后续研究。[6] 随着 Transformer 在视觉任务中取得进展，基于 Transformer 主干的湍流场超分辨也被提出，用以增强长程依赖建模能力。[13]
 
-- **第2章：相关工作综述**：系统回顾反问题、PINN、神经算子等相关领域进展，并对现有方法的局限性进行批判性分析。
-- **第3章：方法论与数学建模**：详细阐述统一观测算子的定义、序列化训练策略及三元损失函数的数学形式。
-- **第4章：理论分析**：从欠定逆问题角度出发，推导评测一致性上界与错配误差下界，为方法论提供理论支撑。
-- **第5章：算法设计与工程实现**：介绍网络架构、模块设计、状态机训练流程及一致性审计机制的工程实现。
-- **第6章：实验结果与分析**：详细阐述实验设置、基线对比、消融实验（损失/策略）及资源成本分析。
-- **第7章：理论验证**：将第4章的理论命题转化为可运行的验证实验，包括口径一致性审计、低频稳健性及跨分辨率鲁棒性验证。
-- **第8章：讨论与局限性**：深入分析物理一致性（如能量谱）、失败案例及方法的边界。
-- **第9章：结论与展望**：总结全文工作并展望未来研究方向。
+然而，端到端方法的核心风险在于：若不显式建模物理与观测过程，网络可能在像素空间获得较低误差，却在物理结构（涡结构、能谱分布、守恒律等）上产生偏差。为缓解该问题，越来越多研究引入物理约束损失或结构化训练策略，例如将物理残差、守恒约束或时空一致性融入生成模型/重建网络，使生成结果更贴近物理可行域。[14]
 
-## 1.9 研究伦理与合规
+在理论与经验层面，深度网络存在显著的“低频偏置/频谱偏置”：训练过程中往往优先拟合低频、全局平滑成分，而高频细节需要更长训练或更强的结构/损失引导才能可靠恢复。[15] 这与物理场重建的需求存在张力，因为湍流、剪切层等现象的关键物理信息常体现为小尺度与高频统计特征；因此，单纯依赖逐点误差（例如 MSE 或相对 L2）容易出现“数值好看但物理不可信”的情况。[16]
 
-本文严格遵循研究生学位论文的学术规范与工程合规要求：
-- **数据合规**：仅使用公开许可数据集（如 PDEBench），并在文中明确引用来源与许可协议。
-- **可复现性**：所有实验均提供配置快照（YAML）、环境指纹与随机种子，确保结果可被独立复现。
-- **学术诚信**：如实报告实验结果，包括失败案例与局限性，杜绝选择性展示。
+---
 
-## 1.10 本章小结
+### 1.2.4 科学机器学习范式：PINN 与神经算子学习
+相比“把场当图像”的端到端重建，SciML 更强调把物理结构写进模型或学习目标。两条最具代表性的路线是物理信息神经网络（PINN）与神经算子学习（Neural Operator Learning）。
 
-本章从稀疏观测时空场重建的工程需求出发，指出了当前研究中存在的“训练-评测口径断裂”这一关键问题。在综述了科学机器学习相关进展的基础上，提出了“评测口径一致性优先”的研究思路。确立了以统一观测算子为核心、序列化训练为手段、三元损失为约束的技术路线，并明确了本文的主要贡献与论文结构。这为后续章节的展开奠定了坚实的方法论基础。
+PINN 通过在损失函数中加入偏微分方程残差、初边值条件等，使网络在拟合数据的同时遵循物理规律，可用于方程求解、反演与稀疏观测下的场重建，并具有无网格/连续表示的特点。[17] 对稀疏观测重建而言，PINN 的吸引力在于：当观测极少时，物理方程可起到强先验约束作用，从而减少对大规模配对数据的依赖。[17] 但大量研究表明，PINN 的训练存在系统性优化困难：由微分算子引入的病态性、损失项梯度不平衡、以及在对流主导或高频/多尺度问题上捕捉关键结构的困难，都可能导致收敛缓慢或失败。[18] 国内研究也围绕 PINN 的损失平衡与训练稳定性提出改进思路，并在工程/多物理场问题中持续拓展应用边界。[19]
 
-# 第2章 相关工作
+神经算子学习则试图学习“输入函数到输出函数”的算子映射，而不是固定维度向量到向量的映射；这使其天然更贴近 PDE 求解器的角色，并具备跨分辨率/跨离散的潜在泛化能力。以 FNO 与 DeepONet 为代表的工作在多个 PDE 基准上展现了对不同网格分辨率的适配能力与较高推理效率，从而成为近年 SciML 的主流方向之一。[20] 与此同时，神经算子也暴露出“离散化一致性/混叠误差”等关键问题：当模型在某种离散表示上训练、在另一种表示上推理时，算子连续表示与离散实现之间可能出现不一致，从而影响跨尺度泛化。围绕这一痛点，已有工作从“表示等价/抗混叠”与“多重网格结构”等角度提出系统框架与改进结构。[21] 国内综述也开始将神经算子与类 PINN 方法放在统一视角下梳理其发展脉络与挑战，为工程应用提供路线图式总结。[22]
 
-## 2.0 引言
+![图 1-3: 科学机器学习 (SciML) 两大主流范式的架构对比。(a) 物理信息神经网络 (PINN)：基于无网格配点法 (Collocation Points)，将 PDE 残差直接作为损失函数项优化网络参数，适合正/反问题但训练优化困难；(b) 神经算子 (Neural Operator, 如 FNO)：学习函数空间之间的映射算子，通常在频域或积分核空间参数化，具备离散化无关性与极快的推理速度，但依赖大量配对数据。本文提出的方法融合了算子学习的高效性与物理约束的一致性。](images/fig1-3_sciml_comparison.png)
 
-稀疏观测驱动的时空场重建（sparse-to-full spatiotemporal field reconstruction）位于科学机器学习（Scientific Machine Learning, SciML）与数值计算（包括计算流体力学、计算物理及数值偏微分方程）的交叉前沿。该领域的研究核心不仅在于探索更优的网络架构，更在于确保结论的可复核性、评测的可审计性以及方法的可部署性。从现有的文献脉络来看，相关研究主要围绕以下三个层面展开：
+---
 
-1.  **问题范式层**：稀疏观测重建通常被建模为欠定逆问题（Underdetermined Inverse Problem）或数据同化（Data Assimilation）问题。观测算子 $H$ 将高分辨率真实场 $u$ 映射为观测数据 $y$，并叠加噪声 $n$：
-    $$
-    y = H(u) + n .
-    $$
-    在此表述下，$H$ 的具体实现细节（包括下采样、裁剪、插值、边界处理、对齐方式、掩码及噪声模型）构成了“评测口径”，直接决定了误差指标的物理含义与不同方法间的可比性。
+### 1.2.5 研究空白与挑战：观测一致性、评测断裂与长期稳定性
+尽管上述方法在公开基准与典型方程上取得显著进展，但面向真实工程与复杂观测时，仍存在若干尚未被充分解决的“落地型”空白，其中最关键者可概括为三点。
 
-2.  **方法路线层**：目前已形成两条主要的技术路线：
-    -   **物理约束学习（Physics-Informed Learning）**：以 Physics-Informed Neural Networks（PINN）为代表，通过将 PDE 残差与初边界条件嵌入损失函数，利用物理先验来收缩解空间。
-    -   **算子学习（Operator Learning）**：以 Fourier Neural Operator（FNO）与 DeepONet 为代表，旨在学习函数空间之间的映射关系，强调跨参数与跨初值的快速推理能力，并深入探讨离散化变化下的泛化问题。
+第一，观测一致性不足（观测算子错配）。大量学习式重建工作在训练阶段默认观测过程是“规则下采样/点值采样/随机丢弃”，即把低分辨率场视为高分辨率场的简单退化版本。[6] 但在真实系统中，观测往往由复杂的观测算子产生：在数据同化理论中，观测算子用于将模型状态映射到观测空间，可能包含插值、变量变换，甚至是辐射传输等复杂前向过程。[11] 从采样理论角度，当测量/采样与抗混叠滤波、空间积分（有限传感器覆盖范围、点扩散/光学传递效应等）耦合时，观测不再等价于理想点采样；此时若训练时使用过度简化的退化模型，部署到真实观测会出现系统性偏差。[23] 类似的问题在真实图像超分辨中已被反复验证：假设“理想双三次下采样”的模型在真实退化下会出现明显性能下滑，因此需要显式退化建模或盲退化适配。[24] 这提示物理场重建也需要更系统地把“传感器与观测口径”纳入训练与评测闭环，并与数据一致性约束或逆问题正则化框架结合。[1]
 
-3.  **工程落地层**：在真实系统部署与严格实验验证中，以下三类因素往往决定了结论的可信度：
-    -   观测口径是否具备可审计性，且在训练与评测阶段保持一致（即 $H$ 与训练端退化/一致性算子 $DC$ 的复用关系）；
-    -   离散化与混叠（Aliasing）效应是否影响跨分辨率与跨网格的泛化能力（例如 ReNO 提出的 operator aliasing 概念）；
-    -   评测协议是否严谨（是否包含多种子统计、显著性检验及资源成本的透明化报告）。
+第二，评测指标与物理可信度之间存在断裂。当前许多论文仍以逐点误差（MSE、相对 L2 等）作为主指标，但在湍流等多尺度问题中，逐点误差不足以衡量惯性区间与高频统计的恢复质量；已有研究在重建评估中明确强调需要结合能谱等统计量进行检验。[16] 因而，面向工程可信应用的评测体系需要更关注结构与频谱一致性（例如能谱、涡识别指标、守恒误差、关键派生量统计等），并明确“低误差是否意味着物理可用”的判别原则。[16]
 
-本章将按照“问题范式 → 传统基线 → PINN → 算子学习 → 口径与混叠 → 基准与评测”的逻辑结构进行综述，并在章末给出一个可直接用于论文配图/配表的对照框架，为第3章的方法论形式化与第6章的评测协议提供坚实的文献支撑。
+第三，时空演化中的误差累积与长期稳定性。当重建任务与时间推进耦合（例如把模型用于自回归预测、滚动同化或长时序补全）时，训练阶段常见的“单步监督/教师强制”与推理阶段的“多步滚动”存在分布差异，会触发误差累积与发散风险；序列学习领域已提出通过多步训练或调度采样缓解该问题。[25] 在神经算子长时序预测中，这一现象被进一步系统化讨论，并提出面向稳定性的结构与训练原则以抑制自回归误差增长。[26] 对 PINN 而言，相关研究也提出课程式正则化等策略来改善优化景观与训练过程。[27] 因此，面向真实在线监控/数字孪生的时空场重建，亟需将“观测一致性 + 结构化评测 + 长期稳定性”作为统一目标进行方法设计，而非把三者割裂为独立问题。[28]
 
-## 2.1 问题范式：欠定逆问题与数据同化视角
+---
 
-### 2.1.1 欠定逆问题的统一表述
+#### 参考文献（去重后，唯一编号）
+[1] Deep learning methods for inverse problems - PMC - NIH  
+<https://pmc.ncbi.nlm.nih.gov/articles/PMC9137882/>
 
-“稀疏 → 全场”重建的根本困难在于信息的匮乏：未知量为高维时空场 $u(\mathbf{x},t)$，而观测 $y$ 仅覆盖局部的空间位置、有限的分辨率或离散的时间步，导致系统呈现欠定性。常用的统一目标函数形式为：
-$$
-\tilde{u}=\arg\min_u \underbrace{\|H(u)-y\|_{\Sigma^{-1}}^2}_{\text{观测一致性}} + \underbrace{\mathcal{R}(u)}_{\text{先验/正则}} .
-$$
-其中，$\mathcal{R}(u)$ 可取平滑正则项、低秩先验（如 POD/模态展开）、物理先验（PDE 残差）或学习先验（网络参数化/生成模型等）。该分解清晰地表明：**观测一致性项的语义完全由 $H$ 决定**。若训练期间与评测期间 $H$ 的实现细节不一致，误差项将失去可比性，进而引发“训练指标改善但评测口径误差未降”的断裂现象。
+[2] Methods for enabling real-time analysis in digital twins  
+<https://www.sciencedirect.com/science/article/pii/S0045794924000713>
 
-### 2.1.2 数据同化视角：时间维误差传播与观测算子闭环
+[3] An Extensive Benchmark for Scientific Machine Learning (PDEBench)  
+<https://arxiv.org/abs/2210.07182>
 
-当问题涉及时间演化（即时空场重建）时，重建与预测通常是耦合的。数据同化强调“动力学模型 + 观测数据”的融合，典型代表包括集合卡尔曼滤波（EnKF）类方法。Evensen 在序贯同化方面的工作利用 Monte Carlo 方法估计误差统计特性，奠定了 EnKF 路线的重要基础。数据同化视角对本文具有两点直接启示：
-1.  **时间维度的误差传播**：局部伪影可能沿时间维度传播并被放大，这一点在自回归或滚动推理设定中尤为显著。
-2.  **观测算子 $H$ 是系统不可或缺的一部分**：同化框架将 $H$ 视为必须保持一致的观测映射，这与本文强调的“口径一致性优先”原则高度契合。
+[4] A Practical Guide to Splines  
+<https://www.stat.cmu.edu/~brian/valerie/617-2022/week07/spline%20references/pdfcookie.com_a-practical-guide-to-splines.pdf>
 
-## 2.2 传统可解释基线：插值、统计学习与低秩重建
+[5] B-Spline Signal Processing: Part II—Efficient Design  
+<https://users.fmrib.ox.ac.uk/~jesper/papers/future_readgroups/unser9302.pdf>
 
-在深度学习方法之外，传统基线方法在硕士论文中仍具有重要的地位：它们具备良好的可解释性与可审计性，且有助于说明“为何需要引入深度模型”。此外，传统方法通常对口径变化更为敏感，可作为后续一致性讨论的参照基准。
+[6] Super-resolution reconstruction of turbulent flows with machine learning (JFM)  
+<https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/superresolution-reconstruction-of-turbulent-flows-with-machine-learning/0DEBFE07FD949054E7E5046AB5632F22>
 
-### 2.2.1 空间插值与统计回归（概述）
+[7] Statistics for Spatial Data  
+<https://rongxie.files.wordpress.com/2011/01/statistics-for-spatial-data-revised-version-1993.pdf>
 
-在静态或弱时变场中，空间插值（如样条插值、径向基函数插值）与统计回归（如 Kriging/高斯过程）是典型的选择。其核心思想是利用局部平滑假设或协方差结构来建模空间相关性。该类方法适用于低维、弱非线性且数据噪声可控的情形；然而，面对强瞬态、强非线性流场，往往难以有效重建复杂的涡结构与间歇性高频成分。在本文语境下，这类方法可作为“**不引入深度先验**”的基线：只有当深度模型在相同口径下显著超越插值/统计基线时，才能证明其对复杂结构的真实贡献。
+[8] Turbulence and the dynamics of coherent structures  
+<https://www.jstor.org/stable/43637457>
 
-### 2.2.2 低秩重建与 Gappy POD
+[9] The Ensemble Kalman Filter: Theoretical Formulation and Practical Implementation (ECMWF)  
+<https://www.ecmwf.int/sites/default/files/elibrary/2003/9321-ensemble-kalman-filter-theoretical-formulation-and-practical-implementation.pdf>
 
-低秩方法假设物理场数据可由少量模态张成。针对缺失观测问题，Everson 与 Sirovich 提出了针对 gappy data 的 Karhunen–Loève（POD）系数估计策略（即 Gappy POD），通过最小二乘法在缺失掩码下恢复模态系数。该路线的优点在于：
--   **可解释性强**：模态对应能量的主方向；
--   **可审计性**：结果由“模态库 + 系数估计”构成；
--   **数据需求可控**：模态库可离线构建。
-其局限性也十分明确：当流场表现出强非线性、多工况及多尺度结构时，固定的模态库难以覆盖全部变化，低秩假设会限制高频与局部结构的表达。这一局限性推动了后续利用神经网络学习“非线性低维流形”的研究方向。
+[10] A strategy for operational implementation of 4D-Var, using an incremental approach  
+<https://www2.mmm.ucar.edu/people/duda/files/courtier_etal.pdf>
 
-## 2.3 物理约束学习：PINN 及其训练稳定性
+[11] Atmospheric modeling, data assimilation and predictability  
+<https://catdir.loc.gov/catdir/samples/cam033/2001052687.pdf>
 
-### 2.3.1 PINN 的基本框架
+[12] Photo-Realistic Single Image Super-Resolution Using a GAN (SRGAN)  
+<https://openaccess.thecvf.com/content_cvpr_2017/papers/Ledig_Photo-Realistic_Single_Image_CVPR_2017_paper.pdf>
 
-Raissi 等人在 *Journal of Computational Physics* 上系统阐述了 PINN 框架：利用神经网络 $u_\theta(\mathbf{x},t)$ 逼近 PDE 解，同时将 PDE 残差、初边界条件与观测误差并入损失函数。对于一般形式的 PDE：
-$$
-\mathcal{N}[u](\mathbf{x},t)=0,\quad (\mathbf{x},t)\in \Omega\times[0,T],
-$$
-PINN 的典型损失函数为：
-$$
-\mathcal{L}(\theta)=
-\lambda_{\text{data}}\mathcal{L}_{\text{data}}
-+\lambda_{\text{pde}}\mathcal{L}_{\text{pde}}
-+\lambda_{\text{bc}}\mathcal{L}_{\text{bc}} .
-$$
-其对稀疏观测重建的价值主要体现在：在观测数据稀缺时，可利用物理先验“补充信息”，并通过残差项提供可解释的约束。
+[13] Super-resolution reconstruction of turbulent flows with a Transformer (PoF)  
+<https://pubs.aip.org/aip/pof/article/35/5/055130/2890201/Super-resolution-reconstruction-of-turbulent-flows>
 
-### 2.3.2 训练失败机制：NTK 视角与可操作启示
+[14] Using physics-informed enhanced super-resolution  
+<https://www.sciencedirect.com/science/article/pii/S1540748920300481>
 
-Wang、Yu 与 Perdikaris 从神经切线核（Neural Tangent Kernel, NTK）的角度深入探讨了 PINN 训练失败的机制，并分析了损失不平衡、采样策略与多尺度困难等影响因素。对工程实现的启示可概括为：
-1.  **损失项尺度与权重敏感**：不同损失项的量纲/尺度差异会造成优化偏置；
-2.  **采样策略关键**：残差点与观测点的分布直接影响梯度的质量；
-3.  **多尺度/刚性问题更难**：高频与强梯度区域会显著恶化优化地形。
-这些结论说明：即便采用 PINN，也不能绕过观测口径的一致性与评测协议的严格性。尤其当本文引入“口径一致性损失”时，同样需要密切关注损失尺度、采样策略与训练稳定性。
+[15] On the Spectral Bias of Neural Networks  
+<https://proceedings.mlr.press/v97/rahaman19a/rahaman19a.pdf>
 
-### 2.3.3 因果性与时间稳定性
+[16] Deep learning methods for super-resolution reconstruction ...（含能谱评估强调）  
+<https://staff.ustc.edu.cn/~huanghb/LiuB_POF.pdf>
 
-在时间相关任务中，误差传播与训练稳定性尤为关键。Wang 等人提出的“Respecting causality...”观点强调，尊重时间因果结构可显著改善 PINN 的训练效果与长期预测表现。该思想可迁移至算子序列建模：无论采用自回归（AR）还是 Seq2Seq 架构，训练目标与评测指标都应显式反映长期滚动误差。
+[17] Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear PDEs  
+<https://www.sciencedirect.com/science/article/pii/S0021999118307125>
 
-### 2.3.4 多尺度深度网络与因果 PINNs (2024-2025 进展)
+[18] Understanding and Mitigating Gradient Flow Pathologies in Physics-Informed Neural Networks  
+<https://epubs.siam.org/doi/10.1137/20M1318043>
 
-近两年（2024-2025），针对 PINN 在多尺度与混沌动力系统中的失效问题，学界涌现出结合**多尺度分解（Multiscale Decomposition）**与**因果加权（Causal Weighting）**的新范式。
-例如，Franco 与 Brugiapaglia (2024) 在 *SIAM Journal on Scientific Computing* 发表的研究指出，传统 PINN 在高频分量上的收敛极其缓慢，而通过多尺度神经网络（Multiscale DNNs）显式分离粗粒度与细粒度特征，可显著加速训练并提升对高频细节的捕捉能力。
-同时，Rohrhofer 等 (2024) 在 *Computer Methods in Applied Mechanics and Engineering* 中进一步验证了因果损失加权策略在长时序混沌系统（如 Kuramoto-Sivashinsky 方程）中的必要性，证明了仅靠物理残差无法约束长时相位漂移，必须引入显式的因果结构或时间分块策略。
-这些最新进展为本文采用的“分阶段顺序训练”与“时序一致性正则化”提供了强有力的理论背书：即便是物理约束模型，也需要针对时序与尺度特性进行特殊的架构与损失设计，而非盲目进行端到端训练。
+[19] 一种求解偏微分方程的动态平衡物理信息神经网络  
+<https://scis.scichina.com/cn/2024/SSI-2023-0195.pdf>
 
-## 2.4 算子学习：Neural Operator、FNO 与 DeepONet
+[20] Fourier Neural Operator (FNO)  
+<https://leap.columbia.edu/wp-content/uploads/2023/01/Li-et-al.2021.pdf>
 
-### 2.4.1 Neural Operator 的总体观点
+[21] Are Neural Operators Really ...  
+<https://arxiv.org/abs/2305.19913>
 
-Kovachki 等人在 *Journal of Machine Learning Research* 上系统化总结了 Neural Operator：学习函数空间之间的映射，强调跨参数推理与离散化变化下的泛化动机。与 PINN 相比，算子学习通常更侧重于“数据驱动的快速推理”，其工程优势包括推理效率高与批量推理能力强，因而成为 PDEBench 等基准测试中的重要方法族。
+[22] 基于神经算子与类物理信息神经网络智能求解新进展  
+<https://pubs.cstam.org.cn/data/article/lxxb/preview/pdf/lxxb2023-407.pdf>
 
-### 2.4.2 FNO：谱域参数化与有限模态截断
+[23] Communication In The Presence Of Noise  
+<https://webusers.imj-prg.fr/~antoine.chambert-loir/enseignement/2020-21/shannon/shannon1949.pdf>
 
-Li 等人提出的 Fourier Neural Operator（FNO），通过在 Fourier 空间参数化积分核以近似解算子，并在多类任务中验证了其有效性。FNO 的关键特征是保留有限的 Fourier 模态，这带来了计算效率的提升与某种形式的“低频先验”。这与稀疏观测重建中“低频结构更具可辨识性”的经验相吻合，但也意味着 FNO 对混叠（aliasing）、插值与边界策略更为敏感，进一步凸显了观测口径统一的重要性。
+[24] Real-World Video Super-Resolution with a Degradation ...  
+<https://pmc.ncbi.nlm.nih.gov/articles/PMC11014003/>
 
-### 2.4.3 DeepONet：分支—主干结构与不规则采样适配
+[25] Scheduled Sampling for Sequence Prediction with Recurrent Neural Networks  
+<https://arxiv.org/abs/1506.03099>
 
-Lu 等人在 *Nature Machine Intelligence* 发表的 DeepONet，通过分支网络编码输入函数、主干网络编码查询点，并以内积形式得到输出。对于稀疏观测任务，DeepONet 的结构优势在于其天然适配点集输入与连续查询；但其性能同样依赖于坐标编码、观测点生成方式、对齐与边界策略，因此仍需要明确且复用的观测口径。
+[26] Towards Stability of Autoregressive Neural Operators  
+<https://arxiv.org/abs/2306.10619>
 
-### 2.4.4 注意力/Transformer 路线与全局依赖建模
+[27] Characterizing possible failure modes in physics-informed neural networks (NeurIPS 2021)  
+<https://proceedings.neurips.cc/paper/2021/file/df438e5206f31600e6ae4af72f2725f1-Paper.pdf>
 
-在算子学习体系中，Attention/Transformer 架构常用于增强全局依赖表达与跨尺度耦合建模。Galerkin Transformer 可视为该方向的重要代表之一。对本文而言，Transformer 的引入不会削弱“口径一致性”的必要性，反而更需要统一的数据打包（mask/coords/obs）与严格评测，否则横向对比将难以审计。
+[28] Definition of a digital twin（National Academies 报告章节）  
+<https://www.nationalacademies.org/read/26894/chapter/2>
 
-## 2.5 离散化误差与混叠（Aliasing）：跨网格鲁棒性的关键障碍
+[29] Radial Basis Functions: Theory and Implementations  
+<https://catdir.loc.gov/catdir/samples/cam033/2002034983.pdf>
 
-算子学习强调函数空间映射，但在实际实现阶段必须进行离散化。分辨率变化、网格变化、插值方式变化及边界处理变化都会引入表示差异与频谱折叠，导致跨网格性能的波动。ReNO（Representation Equivalent Neural Operators）明确提出了“operator aliasing”的概念，并给出了缓解框架以提升离散化变化下的可靠性。
-在“稀疏 → 全场”任务中，混叠效应常表现为：
--   低频结构看似合理，但高频细节随分辨率/口径改变而发生漂移；
--   评测口径变化（不同插值/边界/预滤）导致指标出现不可解释的波动。
+[30] Gaussian Processes for Machine Learning  
+<https://gaussianprocess.org/gpml/chapters/RW.pdf>
 
-### 2.5.2 别名无关算子学习（2024-2025 进展）
+[31] Karhunen-Loeve procedure for gappy data  
+<https://www.sdss.jhu.edu/~szalay/class/2024/etc/everson-shirovich-josaa-12-8-1657.pdf>
 
-针对算子别名（Operator Aliasing）问题，2024-2025 年间出现了多项突破性工作。除了 ReNO 框架外，**多重网格神经算子（Multigrid Neural Operators, MgNO）** 被提出用于显式处理多尺度交互，通过模拟多重网格求解器的 V-cycle 结构来解耦不同频率的误差，从而在粗网格训练、细网格推理时保持更高的一致性。
-此外，Mishra 等人在 *Nature Machine Intelligence* (2024) 的综述中指出，当前的算子学习模型普遍缺乏对离散化误差的显式界定，并呼吁建立“离散化无关（Discretization-agnostic）”的评测标准，这与本文提出的“评测口径一致性优先”原则不谋而合。这些前沿工作表明，**从单纯追求精度转向追求跨尺度/跨网格的一致性**，已成为该领域的共识与前沿趋势。
+[32] Unsteady Flow Sensing and Estimation via the Gappy Proper Orthogonal Decomposition  
+<https://acdl.mit.edu/GappyWillcox.pdf>
 
-## 2.6 观测口径与退化建模：抗混叠、插值与边界策略
+[33] A review of operational methods of variational and ensemble ...  
+<https://centaur.reading.ac.uk/68685/7/qj2982.pdf>
 
-### 2.6.1 抗混叠的工程必要性与可复核实现
+[34] Data assimilation in the geosciences - Overview  
+<https://wires.onlinelibrary.wiley.com/doi/abs/10.1002/wcc.535>
 
-对于超分辨（SR）或降采样观测，抗混叠原则为“先低通、再缩小”。在工程实现中，OpenCV 文档指出缩小图像时通常推荐使用 `INTER_AREA` 插值以获得更优的缩小效果。同时，Gaussian blur 是常用的低通算子，OpenCV 文档给出了核大小、$\sigma_{\mathrm{blur}}$ 与边界类型等参数的明确语义。
-据此，一个可复现的 SR 观测口径可形式化为：
-$$
-y = H(u) = D\big(G_{\sigma_{\mathrm{blur}}} * u\big) + n ,
-$$
-其中 $G_{\sigma_{\mathrm{blur}}}$ 为高斯低通预滤，$D(\cdot)$ 为指定插值缩小算子（例如 area-based downsampling），并明确边界处理与对齐方式。关键点在于：**$H$ 的实现细节属于评测口径本体，必须在训练与评测阶段复用同一实现**。
+[35] SwinIR: Image Restoration Using Swin Transformer  
+<https://openaccess.thecvf.com/content/ICCV2021W/AIM/papers/Liang_SwinIR_Image_Restoration_Using_Swin_Transformer_ICCVW_2021_paper.pdf>
 
-### 2.6.2 边界与对齐：伪影触发与误差扩散
+[36] Video Swin Transformer  
+<https://arxiv.org/pdf/2106.13230.pdf>
 
-非周期边界与裁剪窗口对齐会诱发边界伪影（如振铃、能量偏置、棋盘格效应等），并可能沿时间维度传播。在工程实践中，应将“边界策略（mirror/zero/wrap）”、“对齐策略（center/corner/patch 倍数）”与“掩码定义”明确写入口径配置；否则，模型改动与口径改动混杂，将导致方法贡献难以分辨。
+[37] A physics-constrained Transformer framework for spatio ...  
+<https://www.sciencedirect.com/science/article/abs/pii/S1877750322002654>
 
-### 2.6.3 口径一致性：$H$ 与训练端 $DC$ 的闭环要求
+[38] Challenges in Training PINNs: A Loss Landscape ...  
+<https://arxiv.org/pdf/2402.01868.pdf>
 
-训练阶段若需要合成观测或引入一致性约束，会使用训练端退化算子 $DC$。若 $DC\neq H$，则模型可能在训练指标上获得“虚优”，却无法在真实口径下保持一致。为减少此类断裂，可引入显式一致性项：
-$$
-\mathcal{L}_{dc}=\|H(\tilde{u})-y\|_2^2 ,
-$$
-并要求训练端对 $H$ 进行镜像复用（同实现、同参数、同边界、同对齐）。该思想与数据同化对观测算子一致性的强调方向是一致的。
+[39] Physics-Informed Neural Networks for High-Frequency and Multi-Scale Problems using Transfer Learning  
+<https://arxiv.org/abs/2401.02810>
 
-## 2.7 频谱偏置与编码策略：为何需要谱域约束与多尺度建模
+[40] Learning nonlinear operators via DeepONet  
+<https://www.nature.com/articles/s42256-021-00302-5>
 
-### 2.7.1 频谱偏置：高频为何更难学
+[41] Efficient Parameterization of Linear Operators via Multigrid (MgNO)  
+<https://proceedings.iclr.cc/paper_files/paper/2024/file/eb3c8135137c8a60425a0320869ad87e-Paper-Conference.pdf>
 
-Rahaman 等人讨论了深度网络的频谱偏置（spectral bias）现象，指出网络往往更容易先拟合低频成分，而高频成分更难稳定学习。对于稀疏观测任务，这一现象与“观测导致高频不可辨识”叠加，会进一步压缩高频可恢复的上限。
+[42] An Assessment of Satellite Radiance Data Assimilation in ...  
+<https://www.mdpi.com/2072-4292/11/1/54>
 
-### 2.7.2 Fourier 特征：增强高频表达的通用技巧
+[43] Real-ESRGAN: Training Real-World Blind Super-Resolution With Pure Synthetic Data  
+<https://openaccess.thecvf.com/content/ICCV2021W/AIM/papers/Wang_Real-ESRGAN_Training_Real-World_Blind_Super-Resolution_With_Pure_Synthetic_Data_ICCVW_2021_paper.pdf>
 
-Tancik 等人提出 Fourier features 以提升网络对高频函数的学习能力，广泛用于坐标网络与隐式表示任务。在“稀疏点/局部窗口 → 全场”任务中，Fourier 特征常作为坐标编码组件提升细节表达；但仍需强调：编码只改变表达能力，不改变观测口径语义，因此口径一致性仍是横向对比的前置条件。
+## 1.3 本文研究内容与主要创新
 
-### 2.7.3 时空序列建模基线：ConvLSTM
+面向稀疏观测条件下的时空场重建难题与现有研究缺口，本文确立“**评测口径一致性优先（Consistency-First）**”的研究理念，目标是形成一套**可复用、可审计、物理可解释**的稀疏观测时空场重建框架。本文的研究内容与创新性贡献概括如下。
 
-ConvLSTM 是经典的时空预测基线，通过卷积门控在状态转移中编码局部时空相关性。其对局部结构有效，但对长程依赖与跨尺度耦合表达受限；Transformer 增强了全局依赖，但对口径与训练稳定性更敏感，因此更需要严格的评测协议。
+### 1.3.1 提出基于“统一观测算子”的物理场重建方法论
 
-## 2.8 基准、数据与评测协议：PDEBench 的意义与边界
+为系统性降低训练—评测—部署链路中的“口径错配”，本文将观测算子的显式建模与一致性复用上升至方法论层面。
 
-### 2.8.1 PDEBench 的“共同底座”作用
+- **统一算子建模**：将观测过程形式化为可微算子 $H$，对抗混叠预滤波（如 Gaussian pre-filtering）、插值核与采样策略、边界延拓（padding/reflect 等）以及空间掩码/传感器布局等关键细节进行统一、可追溯的参数化描述。
+- **镜像复用机制**：训练阶段退化算子 $DC$ 与评测阶段观测算子 $H$ 采用同一实现路径与同一组参数配置，逐项对齐并强制满足 $DC \equiv H$。
+- **创新价值**：通过显式消除训练—评测口径不一致导致的隐性分布偏移，使实验结论在真实观测口径下具备更强的可复现性与可审计性，为工程级 SciML 的方法评估与落地提供一致性范式。
 
-PDEBench 提供了多类 PDE 的数据与基线方法，用于系统化对比 SciML 模型，并在 *NeurIPS Datasets and Benchmarks / OpenReview* 发布；同时有 arXiv 版本便于引用。数据集在 DaRUS 以 DOI 形式公开，为复现实验提供了稳定的数据来源。
+### 1.3.2 设计序列化时空课程学习策略
 
-### 2.8.2 基准的边界：稀疏观测口径仍需研究内制度化
+针对时空联合建模易出现优化不稳定、局部最优与长时序误差累积的问题，本文提出“**序列化时空课程学习（Serialized Spatio-Temporal Curriculum Learning）**”训练策略。
 
-当研究引入自定义观测算子 $H$（如下采样/裁剪/点采样/噪声）时，公平对比取决于：
--   $H$ 的实现是否被明确声明与复用；
--   训练端是否引入额外退化/一致性约束以及其与 $H$ 的关系；
--   是否同时报告重建误差与口径一致性误差。
-因此，PDEBench 更适合作为“数据与划分协议”的底座；观测口径与一致性约束需要在方法章节与实验章节中额外制度化与审计。
+- **分阶段优化路径**：采用“空间重构预训练（看清瞬态）$\rightarrow$ 动力学演化预训练（看懂规律）$\rightarrow$ 时空联合微调（端到端收敛）”的递进式训练流程，使空间表征学习与动力学学习的难度逐步释放。
+- **Teacher Forcing Decay / Scheduled Sampling**：引入计划采样（Scheduled Sampling）式教学强制衰减机制，使模型输入由真值逐步过渡至模型预测，从而缓解自回归推理阶段的曝光偏差（exposure bias）与误差累积风险。
+- **创新价值**：在不牺牲端到端建模能力的前提下提升长时序外推的稳定性，并增强模型对稀疏观测与噪声扰动的鲁棒性，从训练可行性角度改进复杂动力系统重建任务的可训练性。
 
-## 2.9 现有方法的局限性与批判性分析 (Critical Analysis)
+### 1.3.3 构建兼顾精度与物理守恒的三元混合损失
 
-尽管上述方法在各自领域取得了显著进展，但在面向真实稀疏观测的时空场重建任务中，仍存在以下核心局限，这也正是本文试图解决的关键问题：
+针对仅采用 MSE 易诱发频谱偏置（spectral bias）并导致高频细节缺失的问题，本文构建面向精度与物理一致性协同优化的复合损失体系。
 
-### 2.9.1 观测算子的“隐性”假设
+- **多维约束体系**：联合像素级重建损失 $\mathcal{L}_{\text{rec}}$、频域谱一致性损失 $\mathcal{L}_{\text{spec}}$ 与观测一致性损失 $\mathcal{L}_{\text{dc}}$，形成三元混合目标：
+  
+  $$
+  \mathcal{L}
+  =\lambda_{\text{rec}}\mathcal{L}_{\text{rec}}
+  +\lambda_{\text{spec}}\mathcal{L}_{\text{spec}}
+  +\lambda_{\text{dc}}\mathcal{L}_{\text{dc}}.
+  $$
 
-大多数现有工作（如原始 FNO、DeepONet）通常假设观测数据位于规则网格上，或仅进行简单的随机下采样。然而，真实工程中的观测算子 $H$ 往往包含复杂的物理过程（如传感器的积分效应、抗混叠预滤、非规则边界裁剪）。现有方法在训练时往往忽略这些细节，导致训练用的退化算子 $DC$ 过于理想化。这种“隐性”假设造成了模型在合成数据上表现优异，但在真实观测口径下（$H_{\mathrm{err}}$）误差显著偏高。
+- **物理一致性“护栏”**：$\mathcal{L}_{\text{dc}}$ 基于统一算子 $H$ 约束重建场在观测子空间内与观测数据一致；$\mathcal{L}_{\text{spec}}$ 约束能谱分布与尺度能量分配特征，抑制过度平滑与非物理振荡。
+- **创新价值**：实现重建精度指标（如 Rel-L2）与物理一致性指标（如 Spectrum Error）的协同提升，降低“数值指标优但物理一致性不足”的评估风险。
 
-### 2.9.2 评测指标的“频谱盲区”
+### 1.3.4 建立标准化稀疏重建评测协议
 
-传统评测过度依赖逐点误差（如 MSE、Rel-L2）。由于流场能量主要集中在低频，仅优化 L2 范数会导致模型倾向于生成平滑解，而牺牲高频细节（如湍流中的小尺度涡结构）。文献中缺乏对“频谱一致性”的量化评测，导致许多“高精度”模型实际上丢失了关键的物理结构。
+针对稀疏重建领域评测口径分散、对比不公平的问题，本文建立可复现、可审计的标准化评测协议。
 
-### 2.9.3 时空联合训练的“短视”效应
+- **协议内容**：基于 PDEBench 构建固定随机种子（Seed=2025）的全流程复现管线，明确数据划分、观测生成（统一算子 $H$）、训练配置与评测脚本，并纳入资源成本统计（Params/FLOPs/Latency）。
+- **创新价值**：补齐稀疏重建任务在“公平对比、可复现复核、成本—精度权衡”方面的评测基础设施，为后续方法迭代与工程部署提供统一标尺。
 
-在处理长时序预测时，直接端到端训练（End-to-End）的时空模型容易陷入局部最优：模型往往优先拟合早期的简单状态，而对后期复杂的非线性演化“无能为力”或产生累积误差。现有的 PINN 或算子学习方法缺乏针对这一问题的系统性课程学习策略（Curriculum Learning），导致长时外推稳定性不足。
+## 1.4 论文组织结构
 
-## 2.10 本章小结与章节过渡
+本文共分为五章，章节结构与逻辑安排如下：
 
-本章综述表明：
-1.  稀疏观测重建可统一为 $y=H(u)+n$ 的欠定逆问题/同化问题，$H$ 的定义构成评测口径，且时间维度会放大误差传播风险。
-2.  PINN 通过 PDE 残差提供强先验，但训练稳定性与多尺度困难需要在协议与工程实现中被系统处理。
-3.  算子学习（FNO/DeepONet/Neural Operator）强调跨参数推理与离散化适应动机，但离散化别名与口径变化会导致跨分辨率波动，ReNO 对 operator aliasing 给出了明确刻画与缓解框架。
-4.  抗混叠与插值/边界策略具备明确可核验的工具链依据，应当纳入口径定义并在训练与评测中复用。
-5.  PDEBench 提供了公开数据与基准底座，但稀疏观测口径与一致性约束仍需研究内部制度化与审计。
+- **第1章 绪论**：介绍研究背景、工程需求与科学挑战；综述国内外相关研究进展；分析现有方法在评测口径、可复现性与物理一致性方面的不足；明确研究目标、主要研究内容、创新点与论文组织结构。
+- **第2章 问题建模与理论分析**：构建稀疏观测重建的数学描述；严格定义统一观测算子 $H$（包含预滤、采样/插值、边界处理与掩码等关键环节）；从理论层面讨论逆问题的适定性条件与观测一致性约束的必要性，并推导一致性误差的上界，为后续方法设计提供可解释的理论依据。
+- **第3章 算法设计与实现**：系统阐述本文提出的 **Consistency-First** 重建框架；给出网络结构（Encoder–Propagator–Decoder）的设计动机与实现细节；说明序列化训练流程（空间预训练 $\rightarrow$ 时序预训练 $\rightarrow$ 联合微调）的具体策略，并给出损失函数的数学形式与计算流程。
+- **第4章 实验结果与分析**：基于 PDEBench 数据集（如浅水波 SWE、扩散反应 DRD 等）开展对比实验与消融实验；从重建精度、频谱一致性、长时序稳定性与计算效率等维度进行系统评估，全面验证所提方法的有效性、鲁棒性与工程可用性。
+- **第5章 总结与展望**：归纳研究工作与核心结论；讨论方法在数据分布变化、复杂几何与真实观测噪声等场景下的局限性；展望后续研究方向，包括非规则网格上的图神经网络建模、多尺度/多物理耦合扩展，以及与大模型能力融合等潜在路径。
 
-基于上述归纳，第3章将把“观测口径一致性”提升为可执行的形式化约束：以 $H$ 作为唯一口径入口，训练端 $DC$ 镜像复用 $H$ 的实现与参数，并在统一接口下推导损失函数与训练流程；第6章将在 PDEBench 底座上构建多种子统计与资源成本透明化的评测协议，并通过跨分辨率/跨口径敏感性分析验证结论的稳健性。
+本文的整体组织结构与逻辑流程如图 1-3 所示。
+
+![图 1-5: 本文“Consistency-First”重建框架与论文组织结构概览。本文针对观测算子错配与病态逆问题挑战（第1章），建立了一致性理论与误差界分析（第2章），设计了融合统一算子约束、三元混合损失与序列化课程学习的重建模型（第3章），并在 PDEBench 多物理场基准上验证了方法的精度、鲁棒性与工程可行性（第4章），最终形成了一套可复用、可解释的时空场重建方法论（第5章）。](images/fig1-5_thesis_overview.png)

@@ -1,0 +1,3 @@
+- [x] Chapter 5 contains a discussion linking $16 \times 16$ sparsity to Nyquist sampling theorem
+- [x] Chapter 3 contains a valid image link for Figure 3-1
+- [x] Chapter 4 contains a valid image link for Figure 4-1

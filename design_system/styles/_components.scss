@@ -1,0 +1,126 @@
+@use "variables" as *;
+@use "mixins" as *;
+
+// 1. Buttons
+.btn {
+  @include flex-center;
+  border: 1px solid transparent;
+  border-radius: $btn-radius;
+  font-family: $font-family-base;
+  font-weight: $font-weight-medium;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  text-decoration: none;
+
+  // Sizes
+  &.btn-sm {
+    height: $btn-height-sm;
+    padding: 0 $btn-padding-x-sm;
+    font-size: $font-size-sm;
+  }
+
+  &.btn-md {
+    height: $btn-height-md;
+    padding: 0 $btn-padding-x-md;
+    font-size: $font-size-base;
+  }
+
+  &.btn-lg {
+    height: $btn-height-lg;
+    padding: 0 $btn-padding-x-lg;
+    font-size: $font-size-lg;
+  }
+
+  // Variants
+  &.btn-primary {
+    background-color: $color-primary;
+    color: white;
+    &:hover { background-color: lighten($color-primary, 10%); }
+  }
+
+  &.btn-secondary {
+    background-color: $color-surface;
+    color: $color-text-primary;
+    border-color: $color-border;
+    &:hover { background-color: darken($color-surface, 5%); }
+  }
+  
+  &.btn-outline {
+    background-color: transparent;
+    border-color: $color-primary;
+    color: $color-primary;
+    &:hover { background-color: rgba($color-primary, 0.05); }
+  }
+}
+
+// 2. Inputs
+.input {
+  display: block;
+  width: 100%;
+  border: 1px solid $color-border;
+  border-radius: $input-radius;
+  background-color: $color-background;
+  color: $color-text-primary;
+  font-family: $font-family-base;
+  transition: border-color 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: $color-accent;
+    box-shadow: 0 0 0 2px rgba($color-accent, 0.2);
+  }
+
+  &.input-sm {
+    height: $input-height-sm;
+    padding: 0 $input-padding-x;
+    font-size: $font-size-sm;
+  }
+
+  &.input-md {
+    height: $input-height-md;
+    padding: 0 $input-padding-x;
+    font-size: $font-size-base;
+  }
+
+  &.input-lg {
+    height: $input-height-lg;
+    padding: 0 $input-padding-x;
+    font-size: $font-size-lg;
+  }
+}
+
+// 3. Cards
+.card {
+  background-color: $color-background;
+  border-radius: $card-radius;
+  padding: $card-padding;
+  box-shadow: $card-shadow;
+  border: 1px solid $color-border;
+}
+
+// 4. Lists
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+
+  li {
+    padding: $spacing-sm 0;
+    border-bottom: 1px solid $color-border;
+    
+    &:last-child { border-bottom: none; }
+  }
+}
+
+// 5. Labels & Forms
+.form-group {
+  margin-bottom: $spacing-md;
+
+  label {
+    display: block;
+    margin-bottom: $spacing-xs;
+    font-weight: $font-weight-medium;
+    font-size: $font-size-sm;
+    color: $color-text-secondary;
+  }
+}

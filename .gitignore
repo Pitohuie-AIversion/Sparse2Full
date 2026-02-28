@@ -10657,3 +10657,6 @@ runs_*/
 runsold/
 *.onnx
 *.tfevents.*
+tools/prince_local/
+runs/**/*.ckpt
+runs/**/*.pth

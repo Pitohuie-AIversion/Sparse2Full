@@ -1,0 +1,5 @@
+- [x] Chapter 1 contains no draft titles (e.g., `# 一、1.1.2...`)
+- [x] Chapter 1 contains no AI generation artifacts (e.g., `【6†source...`)
+- [x] Chapter 4 references are in GB/T 7714 numeric format `[x]`
+- [x] Chapter 5 references are in GB/T 7714 numeric format `[x]`
+- [x] Chapter 4 does not contain "Appendix: Modification Log"

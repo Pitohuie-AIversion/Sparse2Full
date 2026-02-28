@@ -1,0 +1,41 @@
+\documentclass[tikz, border=10mm]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{positioning, calc, arrows.meta, chains, fit, shapes}
+\input{nn_blocks.tex}
+\begin{document}
+\begin{tikzpicture}[
+    node distance=1.5cm,
+    every node/.style={scale=0.8, transform shape}
+]
+
+% Nodes
+\node[io] (in) {Input};
+\node[conv, right=of in] (enc1) { Conv1\\64 };
+\node[pool, right=of enc1] (pool1) {Down1};
+\node[conv, right=of pool1] (enc2) { Conv2\\128 };
+\node[pool, right=of enc2] (pool2) {Down2};
+\node[res, right=of pool2] (bot) {Bottle-\\neck\\256 };
+\node[up, right=of bot] (up2) {Up2};
+\node[conv, right=of up2] (dec2) { Conv2\\128 };
+\node[up, right=of dec2] (up1) {Up1};
+\node[conv, right=of up1] (dec1) { Conv1\\64 };
+\node[io, right=of dec1] (out) {Output};
+
+% Connections
+\draw[arrow] (in) -- (enc1);
+\draw[arrow] (enc1) -- (pool1);
+\draw[arrow] (pool1) -- (enc2);
+\draw[arrow] (enc2) -- (pool2);
+\draw[arrow] (pool2) -- (bot);
+\draw[arrow] (bot) -- (up2);
+\draw[arrow] (up2) -- (dec2);
+\draw[arrow] (dec2) -- (up1);
+\draw[arrow] (up1) -- (dec1);
+\draw[arrow] (dec1) -- (out);
+
+% Skips
+\draw[skip] (enc2) to[bend left=45] (dec2);
+\draw[skip] (enc1) to[bend left=45] (dec1);
+
+\end{tikzpicture}
+\end{document}

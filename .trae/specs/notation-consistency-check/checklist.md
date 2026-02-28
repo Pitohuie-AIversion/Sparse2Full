@@ -1,0 +1,7 @@
+- [x] Symbol reference map created.
+- [x] Chapter 1 analysis complete.
+- [x] Chapter 2 analysis complete.
+- [x] Chapter 3 analysis complete.
+- [x] Chapter 4 analysis complete.
+- [x] Chapter 5 & Appendix analysis complete.
+- [x] Final report `symbol_consistency_report.md` created.

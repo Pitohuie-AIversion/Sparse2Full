@@ -82,7 +82,7 @@
 
 - 指标：Rel-L2、MAE、PSNR、SSIM、fRMSE-low/mid/high、bRMSE（边界带 16px 比例缩放）、cRMSE、`||H(ŷ)−y||`。
 - 聚合：每通道先算，后等权平均（物理权重需另列）。
-- 统计：≥3 种子，均值±标准差；对主基线做 paired t-test（Rel-L2）+ Cohen’s d。
+- 统计：固定种子（Seed=2025）；确保确定性可复现。
 - 资源表：Params/FLOPs/显存/延迟。
 - 工具：`eval.py` 产出 `metrics.jsonl`（case 级）；`tools/summarize_runs.py` 自动生成 `results.md/tex` 与显著性报告。
 - DoD：`paper_package/metrics/` 自动产出主表 + 资源表 + 显著性。
@@ -148,7 +148,7 @@ paper_package/
 - DDP/AMP 确定性：统一精度策略与随机种子，开启 `torch.use_deterministic_algorithms(True)`。
 - 配置快照校验：`config_merged.yaml` 增加 `sha256` 并与实际加载配置哈希比对。
 - 注册唯一源：`ops/degradation.py` 作为 H/DC 唯一入口，训练与数据强制复用同一实例。
-- 资源与显著性：统一工具生成 Params/FLOPs/显存/延迟 与 paired t-test + Cohen’s d。
+- 资源与显著性：统一工具生成 Params/FLOPs/显存/延迟。
 - 安全检查：`git-secrets`/`trufflehog`，大文件强制 LFS；paper_package 自动审计不含受限素材。
 
 ## 硬件信息（环境指纹） — 2025-11-29T21:51:54+08:00

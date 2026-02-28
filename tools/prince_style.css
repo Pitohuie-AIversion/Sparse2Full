@@ -1,0 +1,216 @@
+@font-face {
+    font-family: "SimSun";
+    src: url("fonts/SourceHanSerifCN-Regular.otf");
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: "Times New Roman";
+    src: url("fonts/STIXTwoText-Regular.ttf");
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: "Times New Roman";
+    src: url("fonts/STIXTwoText-Bold.ttf");
+    font-weight: bold;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: "STIX Two Math";
+    src: url("fonts/STIXTwoMath-Regular.ttf");
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: "Noto Sans Math";
+    src: url("fonts/NotoSansMath-Regular.ttf");
+    font-weight: normal;
+    font-style: normal;
+}
+
+/* Math styling moved to bottom */
+
+body {
+    /* 中文用宋体，英文用 Times New Roman */
+    font-family: "Times New Roman", "SimSun", serif;
+    /* 小四对应 12pt */
+    font-size: 12pt;
+    line-height: 1.5;
+    text-align: justify;
+}
+
+h1 {
+    font-size: 16pt; /* 三号 */
+    font-weight: bold;
+    text-align: center;
+    margin-top: 24pt;
+    margin-bottom: 18pt;
+}
+
+h2 {
+    font-size: 15pt; /* 小三 */
+    font-weight: bold;
+    margin-top: 18pt;
+    margin-bottom: 12pt;
+}
+
+h3 {
+    font-size: 14pt; /* 四号 */
+    font-weight: bold;
+    margin-top: 12pt;
+    margin-bottom: 6pt;
+}
+
+p {
+    margin-bottom: 0.5em;
+    text-indent: 2em; /* 首行缩进两字符 */
+}
+
+/* 参考文献不需要缩进 */
+div.references p {
+    text-indent: 0;
+    margin-left: 2em;
+    text-indent: -2em; /* 悬挂缩进 */
+}
+
+/* 页面设置 */
+@page {
+    size: A4;
+    margin: 2.5cm 2cm 2cm 2cm; /* 上下左（装订）右 */
+    
+    @top-center {
+        content: string(header-title);
+        font-family: "SimSun", serif;
+        font-size: 10.5pt; /* 五号 */
+        border-bottom: 0.75pt solid black;
+        width: 100%;
+        vertical-align: bottom;
+        margin-bottom: 0.5cm;
+    }
+
+    @bottom-center {
+        content: counter(page);
+        font-family: "Times New Roman", serif;
+        font-size: 10.5pt; /* 五号 */
+    }
+}
+
+/* 首页不需要页眉 */
+@page:first {
+    @top-center {
+        content: normal;
+        border-bottom: none;
+    }
+}
+
+/* 提取标题作为页眉内容 */
+h1 {
+    string-set: header-title content();
+}
+
+/* 图表样式 */
+figure {
+    text-align: center;
+    margin: 1em 0;
+}
+
+img {
+    max-width: 90%;
+    height: auto;
+}
+
+figcaption {
+    font-family: "SimSun", serif; /* 图名通常用宋体或黑体 */
+    font-size: 10.5pt; /* 五号 */
+    font-weight: bold;
+    text-align: center;
+    margin-top: 0.5em;
+    caption-side: bottom;
+}
+
+/* 表格样式 */
+table {
+    width: 90%;
+    margin: 1em auto;
+    border-collapse: collapse;
+    font-size: 10.5pt; /* 五号 */
+    font-family: "Times New Roman", "SimSun", serif;
+}
+
+/* 三线表效果 */
+table {
+    border-top: 1.5pt solid black;
+    border-bottom: 1.5pt solid black;
+}
+
+thead th {
+    border-bottom: 0.75pt solid black;
+    font-weight: bold;
+    padding: 4pt;
+}
+
+td {
+    padding: 4pt;
+    text-align: center; /* 默认居中 */
+}
+
+/* 避免表格跨页断裂 */
+tr {
+    page-break-inside: avoid;
+}
+
+/* 脚注样式 */
+.footnote {
+    font-size: 9pt; /* 小五 */
+    float: footnote;
+}
+
+/* 代码块样式 */
+pre {
+    font-family: "Courier New", monospace;
+    font-size: 10pt;
+    background-color: #f5f5f5;
+    padding: 0.5em;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    white-space: pre-wrap; /* 自动换行 */
+    margin: 1em 2em; /* 与正文缩进一致 */
+}
+
+code {
+    font-family: "Courier New", monospace;
+    background-color: #f5f5f5;
+    padding: 0 2px;
+}
+
+/* 引用样式 */
+blockquote {
+    font-family: "KaiTi", "SimSun", serif; /* 引用常用楷体，这里回退到宋体 */
+    margin-left: 2em;
+    margin-right: 2em;
+    border-left: 3px solid #ccc;
+    padding-left: 1em;
+    color: #555;
+}
+
+/* 列表样式优化 */
+ul, ol {
+    margin-left: 2em;
+    text-indent: 0; /* 列表项本身不需要首行缩进 */
+}
+
+li p {
+    text-indent: 0; /* 列表内的段落也不缩进 */
+}
+
+/* Math styling */
+math {
+    /* 尝试多种数学字体回退 */
+    font-family: "STIX Two Math", "Noto Sans Math", "Times New Roman", serif;
+}
+

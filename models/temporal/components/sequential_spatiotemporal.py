@@ -1054,6 +1054,9 @@ class SequentialSpatiotemporalModel(nn.Module):
         Returns:
             predictions: 预测序列 [B, T_out, C, H, W]
         """
+        if x.dim() == 4:
+            x = x.unsqueeze(1)
+            
         B, T_in, C, H, W = x.shape
         predictions = []
         # 使用最近的 T_in 帧作为输入窗口
@@ -1090,3 +1093,7 @@ class SequentialSpatiotemporalModel(nn.Module):
             # 一次性预测模式（训练模式）
             outputs = self.forward(x)
             return outputs['final_pred'][:, :T_out]
+
+    def autoregressive_predict(self, x: torch.Tensor, T_out: int, teacher: Optional[torch.Tensor] = None, train_mode: bool = False) -> torch.Tensor:
+        """兼容 Trainer 的 autoregressive_predict 接口"""
+        return self.rollout_inference(x, T_out, step_by_step=True, preserve_grad=train_mode)

@@ -1,0 +1,73 @@
+@use "variables" as *;
+@use "mixins" as *;
+
+// 1. Container
+.container {
+  width: 100%;
+  margin-right: auto;
+  margin-left: auto;
+  padding-right: $spacing-md;
+  padding-left: $spacing-md;
+
+  @include media-up(tablet) {
+    padding-right: $spacing-xl;
+    padding-left: $spacing-xl;
+  }
+
+  @include media-up(desktop) {
+    padding-right: $spacing-xxl;
+    padding-left: $spacing-xxl;
+  }
+}
+
+// 2. Grid System (CSS Grid)
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr); // Mobile default: 4 columns
+  gap: $spacing-md; // Mobile gutter: 16px
+
+  @include media-up(tablet) {
+    grid-template-columns: repeat(8, 1fr); // Tablet: 8 columns
+    gap: $spacing-lg; // Tablet gutter: 24px
+  }
+
+  @include media-up(desktop) {
+    grid-template-columns: repeat(12, 1fr); // Desktop: 12 columns
+    gap: $spacing-lg; // Desktop gutter: 24px
+  }
+
+  @include media-up(wide) {
+    gap: $spacing-xl; // Wide gutter: 32px
+  }
+}
+
+// 3. Column Spans
+@for $i from 1 through 12 {
+  .col-#{$i} {
+    grid-column: span $i;
+  }
+}
+
+// 4. Utility Spacing Classes
+@each $name, $value in (
+  "none": $spacing-none,
+  "xs": $spacing-xs,
+  "sm": $spacing-sm,
+  "md": $spacing-md,
+  "lg": $spacing-lg,
+  "xl": $spacing-xl,
+  "xxl": $spacing-xxl,
+  "3xl": $spacing-3xl
+) {
+  .m-#{$name} { margin: $value; }
+  .mt-#{$name} { margin-top: $value; }
+  .mb-#{$name} { margin-bottom: $value; }
+  .ml-#{$name} { margin-left: $value; }
+  .mr-#{$name} { margin-right: $value; }
+  
+  .p-#{$name} { padding: $value; }
+  .pt-#{$name} { padding-top: $value; }
+  .pb-#{$name} { padding-bottom: $value; }
+  .pl-#{$name} { padding-left: $value; }
+  .pr-#{$name} { padding-right: $value; }
+}

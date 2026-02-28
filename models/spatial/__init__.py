@@ -48,6 +48,12 @@ from .liif import LIIFModel
 # 混合模型
 from .hybrid import HybridModel
 
+# Partial Convolution
+try:
+    from .partialconv_unet import PartialConvUNet
+except ImportError:
+    PartialConvUNet = None
+
 # 基础Transformer模型
 try:
     from .vit import VisionTransformer, ViT
@@ -148,6 +154,8 @@ if ConvGateLite is not None:
     __all__.append("ConvGateLite")
 if MLPModel is not None:
     __all__.append("MLPModel")
+if PartialConvUNet is not None:
+    __all__.append("PartialConvUNet")
 
 # 导入工厂函数
 from .factory import create_model
