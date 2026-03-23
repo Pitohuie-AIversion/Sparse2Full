@@ -1,0 +1,311 @@
+# 实验配置：时序NAR模型300轮训练 - Downsample策略
+# 基于2D扩散反应数据集的时序预测任务，使用Super Resolution (SR)
+
+# 基础配置
+defaults:
+  - _self_
+
+# 实验信息
+experiment:
+  name: "TemporalNAR-DR2D-128-SR-300epochs-s2025"
+  description: "时序NAR模型在2D扩散反应数据集上的300轮训练，使用Downsample策略"
+  tags: ["temporal", "nar", "diffusion-reaction", "sr", "downsample", "300epochs"]
+  device: cuda
+  seed: 42
+  output_dir: "runs/temporal_nar_downsample_300epochs"
+  use_amp: true
+
+# 设备配置
+mixed_precision: true
+
+# 输出配置
+output:
+  base_dir: runs
+  exp_dir: temporal_nar_downsample_300epochs
+  save_top_k: 5
+  monitor: val_rel_l2
+  mode: min
+
+# 检查点配置
+checkpoint:
+  save_every_n_epochs: 10
+  save_last: true
+  save_top_k: 5
+  monitor: val_rel_l2
+  mode: min
+  dirpath: runs/temporal_nar_downsample_300epochs/checkpoints
+  filename: "temporal_nar_sr-{epoch:03d}-{val_rel_l2:.4f}"
+
+# 数据配置 - 修改为SR任务
+data:
+  _target_: datasets.temporal_pdebench.TemporalPDEBenchDataModule
+  data_path: E:\2D\diffusion-reaction\2D_diff-react_NA_NA.h5
+  dataset_name: 2D_diff-react_NA_NA
+  batch_size: 2  # 减小batch size以避免内存问题
+  image_size: 128  # 保持原始数据尺寸128x128
+  
+  # 修改任务类型为SR (Super Resolution)
+  task: SR
+    
+  # Downsample配置
+  downsample_factor: 2  # 2倍下采样，从128x128降到64x64
+  downsample_method: "bilinear"  # 下采样方法：bilinear, bicubic, area
+  upsample_method: "bilinear"    # 上采样方法：bilinear, bicubic, nearest
+  scale: 2  # SR缩放因子，与downsample_factor保持一致
+  
+  # 数据加载配置
+  num_workers: 4
+  pin_memory: true
+  use_official_format: false
+  
+  # 时间步配置
+  keys:
+    - '0000'
+    - '0001'
+    - '0002'
+    - '0003'
+    - '0004'
+    - '0005'
+    - '0006'
+    - '0007'
+    - '0008'
+    - '0009'
+    - '0010'
+    - '0011'
+    - '0012'
+    - '0013'
+    - '0014'
+    - '0015'
+    - '0016'
+    - '0017'
+    - '0018'
+    - '0019'
+    - '0020'
+  
+  # 时序配置
+  temporal:
+    T_in: 4
+    T_out: 20
+    dt: 0.1
+    ar:
+      teacher_forcing_ratio: 0.8
+      scheduled_sampling: true
+      sampling_decay: 0.99
+  
+  # 数据加载器配置
+  dataloader:
+    batch_size: 2  # 减小batch size以避免内存问题
+    num_workers: 4
+    pin_memory: true
+    shuffle: true
+    drop_last: true
+
+# 模型配置 - 适配SR任务
+model:
+  _target_: models.swin_unet.SwinUNet
+  name: "SwinUNet"  # 添加模型名称
+  # SwinUNet基础配置 - 简化模型以减少计算量
+  base_kwargs:
+    in_channels: 2  # 输入通道数 - 修正为2通道匹配数据
+    out_channels: 2  # 2通道，匹配diff-reaction数据集
+    img_size: 128   # 输入分辨率（原始数据尺寸）
+    patch_size: 4
+    embed_dim: 48   # 减小嵌入维度
+    depths: [2, 2, 2, 2]  # 减少层数
+    num_heads: [3, 6, 6, 12]  # 减少注意力头数
+    window_size: 4  # 减小窗口大小
+    mlp_ratio: 4.0
+    drop_rate: 0.0
+    attn_drop_rate: 0.0
+    drop_path_rate: 0.1
+    use_fno_bottleneck: true
+  
+  # 时序模块配置
+  temporal:
+    enabled: false  # 禁用时序模块
+    type: "disabled"
+    c_out: 2
+    k: 3
+    causal: true
+    dropout: 0.1
+  
+  # NAR头配置
+  nar:
+    head_type: "simple"
+    d_model: 96
+    c_out: 2
+    num_heads: 8
+    max_timesteps: 32
+    dropout: 0.1
+  
+  # AR配置
+  ar:
+    detach_rollout: true
+    scheduled_sampling: true
+    sampling_schedule: "linear"
+  
+  # 启用开关
+  use_ar: true
+  use_nar: true
+
+# 损失配置 - 针对SR任务优化
+loss:
+  # 基础重建损失
+  reconstruction:
+    weight: 1.0
+    type: "mse"
+  
+  # 双头损失权重
+  ar_weight: 1.0
+  nar_weight: 1.0
+  
+  # 权重调度
+  ar_weight_schedule: "cosine"
+  nar_weight_schedule: "linear"
+  
+  # 损失类型
+  ar_loss_type: "mse"
+  nar_loss_type: "mse"
+  
+  # SR任务特定损失
+  perceptual_loss:
+    weight: 0.3
+    enabled: true
+    
+  # 频域损失（对SR任务重要）
+  spectral:
+    weight: 0.5
+    low_freq_weight: 1.0
+    high_freq_weight: 0.5  # 增加高频权重，保持细节
+  
+  # DC损失
+  degradation_consistency:
+    weight: 1.0
+    
+  # 梯度损失（保持边缘清晰）
+  gradient_loss:
+    weight: 0.2  # 增加权重
+    enabled: true
+    
+  # SSIM损失（结构相似性）
+  ssim_loss:
+    weight: 0.1
+    enabled: true
+
+# 训练配置 - 针对SR任务优化
+training:
+  max_epochs: 300
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 1
+  
+  # 训练配置 - 300轮训练
+train:
+  max_epochs: 300
+  
+  # 优化器 - 针对SR任务调整
+  optimizer:
+    name: "AdamW"
+    lr: 1e-3  # 提高学习率，加快训练速度
+    weight_decay: 1e-4
+    betas: [0.9, 0.999]
+    eps: 1e-8
+  
+  # 学习率调度器
+  scheduler:
+    name: "CosineAnnealingWarmRestarts"
+    T_0: 50
+    T_mult: 2
+    eta_min: 1e-7
+    warmup_steps: 2000
+    warmup_lr: 1e-5
+  
+  # 早停配置
+  early_stopping:
+    monitor: "val/rel_l2"
+    patience: 30
+    mode: "min"
+    min_delta: 1e-6
+    
+  # 验证配置
+  validation:
+    check_val_every_n_epoch: 2
+    val_split: 0.1
+    
+  # 数据增强 - 适配SR任务
+  augmentation:
+    enabled: true
+    flip_prob: 0.5
+    rotate_prob: 0.3
+    noise_std: 0.005  # 降低噪声，SR任务对噪声敏感
+
+# 监控配置
+monitoring:
+  # TensorBoard日志
+  tensorboard:
+    enabled: true
+    log_dir: "runs/temporal_nar_downsample_300epochs/tensorboard"
+    
+  # 指标监控 - 添加SR特定指标
+  metrics:
+    - "train/ar_loss"
+    - "train/nar_loss" 
+    - "train/total_loss"
+    - "train/spectral_loss"
+    - "train/dc_loss"
+    - "train/perceptual_loss"
+    - "train/gradient_loss"
+    - "train/ssim_loss"
+    - "val/rel_l2"
+    - "val/mae"
+    - "val/psnr"
+    - "val/ssim"
+    - "val/temporal_consistency"
+    - "val/lpips"  # 感知损失指标
+    - "train/lr"
+    - "train/grad_norm"
+    
+  # 学习率监控
+  lr_monitor:
+    logging_interval: "step"
+    
+  # 可视化配置 - 增强SR可视化
+  visualization:
+    enabled: true
+    save_every_n_epochs: 20
+    num_samples: 3
+    show_downsample_comparison: true  # 显示下采样对比
+    save_high_res_images: true        # 保存高分辨率图像
+    
+  # 性能监控
+  performance:
+    log_memory_usage: true
+    log_gpu_utilization: true
+    profile_training: false
+
+# 日志配置
+logging:
+  use_tensorboard: true
+  use_wandb: false
+  log_every_n_steps: 50
+  save_dir: "runs/temporal_nar_downsample_300epochs/logs"
+
+# SR任务特定配置
+sr_config:
+  # 评估指标
+  evaluation_metrics:
+    - "psnr"
+    - "ssim" 
+    - "lpips"
+    - "rel_l2"
+    - "mae"
+    
+  # 可视化设置
+  visualization:
+    save_comparison_grids: true
+    show_error_maps: true
+    colormap: "viridis"
+    
+  # 质量控制
+  quality_control:
+    min_psnr_threshold: 25.0  # 最小PSNR阈值
+    max_lpips_threshold: 0.3  # 最大LPIPS阈值

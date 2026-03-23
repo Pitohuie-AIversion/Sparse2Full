@@ -1,0 +1,22 @@
+data:
+  _target_: datasets.pdebench.PDEBenchDataModule
+  batch_size: 8
+  data_path: E:\2D\DarcyFlow\2D_DarcyFlow_beta1.0_Train.hdf5
+  dataset_name: 2D_DarcyFlow_beta1.0_Train
+  image_size: 128
+  keys:
+  - tensor
+  num_workers: 4
+  pin_memory: true
+  use_official_format: false
+model:
+  in_channels: 1
+  out_channels: 1
+task:
+  scale_factor: 4
+  sigma: 2.0
+  type: sr
+training:
+  learning_rate: 0.001
+  max_epochs: 50
+  weight_decay: 0.0001

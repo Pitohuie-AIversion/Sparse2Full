@@ -1,0 +1,116 @@
+# PDEBench稀疏观测重建系统 - 数据卡片配置
+# 用于论文材料生成工具
+
+datasets:
+  - name: "Darcy2D"
+    source: "PDEBench"
+    version: "1.0"
+    license: "MIT"
+    description: "2D Darcy flow equation with random permeability fields"
+    variables: ["pressure", "permeability"]
+    boundary_conditions: "Dirichlet on boundaries"
+    spatial_resolution: [256, 256]
+    temporal_resolution: null
+    train_samples: 8000
+    val_samples: 1000
+    test_samples: 1000
+    download_url: "https://darus.uni-stuttgart.de/dataset.xhtml?persistentId=doi:10.18419/darus-2986"
+    citation: "Takamoto et al. PDEBench: An Extensive Benchmark for Scientific Machine Learning. NeurIPS 2022."
+    preprocessing: "Normalized to zero mean and unit variance per channel"
+
+  - name: "NavierStokes2D"
+    source: "PDEBench"
+    version: "1.0"
+    license: "MIT"
+    description: "2D Navier-Stokes equation with viscosity variations"
+    variables: ["velocity_x", "velocity_y", "pressure"]
+    boundary_conditions: "Periodic boundaries"
+    spatial_resolution: [256, 256]
+    temporal_resolution: 100
+    train_samples: 6000
+    val_samples: 800
+    test_samples: 800
+    download_url: "https://darus.uni-stuttgart.de/dataset.xhtml?persistentId=doi:10.18419/darus-2986"
+    citation: "Takamoto et al. PDEBench: An Extensive Benchmark for Scientific Machine Learning. NeurIPS 2022."
+    preprocessing: "Temporal snapshots extracted, normalized per channel"
+
+  - name: "ShallowWater2D"
+    source: "PDEBench"
+    version: "1.0"
+    license: "MIT"
+    description: "2D Shallow water equations with varying bathymetry"
+    variables: ["height", "velocity_x", "velocity_y"]
+    boundary_conditions: "Reflective boundaries"
+    spatial_resolution: [256, 256]
+    temporal_resolution: 50
+    train_samples: 5000
+    val_samples: 600
+    test_samples: 600
+    download_url: "https://darus.uni-stuttgart.de/dataset.xhtml?persistentId=doi:10.18419/darus-2986"
+    citation: "Takamoto et al. PDEBench: An Extensive Benchmark for Scientific Machine Learning. NeurIPS 2022."
+    preprocessing: "Normalized to [-1, 1] range per variable"
+
+  - name: "Diffusion2D"
+    source: "PDEBench"
+    version: "1.0"
+    license: "MIT"
+    description: "2D diffusion equation with spatially varying diffusivity"
+    variables: ["concentration", "diffusivity"]
+    boundary_conditions: "Neumann boundaries"
+    spatial_resolution: [256, 256]
+    temporal_resolution: 80
+    train_samples: 7000
+    val_samples: 900
+    test_samples: 900
+    download_url: "https://darus.uni-stuttgart.de/dataset.xhtml?persistentId=doi:10.18419/darus-2986"
+    citation: "Takamoto et al. PDEBench: An Extensive Benchmark for Scientific Machine Learning. NeurIPS 2022."
+    preprocessing: "Log-transformed diffusivity, z-score normalized concentration"
+
+# 数据集分割信息
+splits:
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+  random_seed: 42
+  stratified: false
+
+# 数据增强配置
+augmentation:
+  enabled: true
+  methods:
+    - "horizontal_flip"
+    - "vertical_flip"
+    - "rotation_90"
+  probability: 0.3
+
+# 归一化配置
+normalization:
+  method: "z_score"  # z_score, min_max, robust
+  per_channel: true
+  clip_outliers: true
+  outlier_std: 3.0
+
+# 质量控制
+quality_control:
+  check_nan: true
+  check_inf: true
+  check_range: true
+  min_valid_ratio: 0.95
+  
+# 许可和使用条款
+license_info:
+  data_license: "MIT"
+  usage_restrictions: "Academic and research use only"
+  attribution_required: true
+  redistribution_allowed: true
+  commercial_use: false
+
+# 数据来源追踪
+provenance:
+  original_paper: "Takamoto et al. PDEBench: An Extensive Benchmark for Scientific Machine Learning. NeurIPS 2022."
+  data_generation_method: "Numerical simulation using finite difference methods"
+  simulation_parameters:
+    grid_resolution: [256, 256]
+    time_step: 0.01
+    spatial_step: 0.01
+  validation_method: "Analytical solutions for simple cases, convergence studies"

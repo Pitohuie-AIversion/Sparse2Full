@@ -111,9 +111,11 @@ def evaluate_baseline(config_path, mode_override=None):
             
             # Get normalization stats if available
             norm_stats = data_module.get_normalization_stats()
-            if norm_stats:
+            if norm_stats is not None:
                 # Move to device
                 norm_stats = {k: v.to(device) if torch.is_tensor(v) else v for k, v in norm_stats.items()}
+            else:
+                print("Warning: norm_stats is None")
 
             batch_metrics = compute_all_metrics(
                 pred=sr_imgs,

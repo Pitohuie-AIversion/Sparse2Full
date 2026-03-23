@@ -1,0 +1,79 @@
+# PDEBench可复现性检查配置
+# 严格遵循黄金法则：可复现 - 同一YAML+种子，验证指标方差≤1e-4
+
+# 可复现性检查配置
+reproducibility_check:
+  # 运行次数（≥3次以获得可靠的方差估计）
+  num_runs: 3
+  
+  # 训练轮数（用于测试训练过程的一致性）
+  num_epochs: 5
+  
+  # 方差容忍度（黄金法则要求≤1e-4）
+  variance_tolerance: 1e-4
+  
+  # 基础随机种子
+  base_seed: 42
+  
+  # 检查项目
+  check_items:
+    - model_initialization  # 模型初始化一致性
+    - training_process     # 训练过程一致性
+    - evaluation_metrics   # 评估指标一致性
+    - parameter_updates    # 参数更新一致性
+
+# 输出配置
+output_dir: "reproducibility_check_results"
+
+# 模型配置（用于测试）
+model:
+  name: "SimpleModel"
+  in_channels: 1
+  out_channels: 1
+  hidden_dim: 64
+
+# 数据配置（用于测试）
+data:
+  num_samples: 50
+  image_size: 64
+  batch_size: 4
+  
+# 训练配置（用于测试）
+training:
+  learning_rate: 1e-3
+  optimizer: "Adam"
+  criterion: "MSELoss"
+
+# Hydra配置
+defaults:
+  - _self_
+
+hydra:
+  job:
+    chdir: false
+  run:
+    dir: ${output_dir}
+  sweep:
+    dir: ${output_dir}
+    subdir: run_${now:%Y-%m-%d_%H-%M-%S}
+  
+  # 日志配置
+  job_logging:
+    version: 1
+    formatters:
+      simple:
+        format: '[%(asctime)s][%(name)s][%(levelname)s] - %(message)s'
+    handlers:
+      console:
+        class: logging.StreamHandler
+        formatter: simple
+        stream: ext://sys.stdout
+      file:
+        class: logging.FileHandler
+        formatter: simple
+        filename: ${hydra:runtime.output_dir}/reproducibility_check.log
+    root:
+      level: INFO
+      handlers: [console, file]
+    
+    disable_existing_loggers: false

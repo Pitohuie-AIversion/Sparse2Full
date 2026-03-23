@@ -1,0 +1,108 @@
+# @package _global_
+
+experiment:
+  name: SRx4-PDEBench-128-SwinUNet-clean-s2025-20251014
+  device: cuda
+  seed: 2025
+  output_dir: runs/${experiment.name}
+  deterministic: true
+
+data:
+  _target_: datasets.pdebench.PDEBenchDataModule
+  data_path: "data/pdebench/data/sample_data_0.h5"
+  data_dir: "data/pdebench"
+  keys: ["u"]
+  normalize: true
+  image_size: 128
+  dataloader:
+    batch_size: 4
+    num_workers: 0
+    pin_memory: false
+
+observation:
+  mode: SR
+  sr:
+    scale_factor: 4
+    blur_sigma: 1.0
+    blur_kernel_size: 5
+    boundary_mode: mirror
+
+logging:
+  log_every: 10
+  num_save_images: 4
+  save_images: true
+
+loss:
+  degradation_consistency:
+    name: DegradationConsistencyLoss
+    weight: 1.0
+  reconstruction:
+    name: L2Loss
+    weight: 1.0
+  spectral:
+    name: SpectralLoss
+    params:
+      modes: 16
+    weight: 0.01
+
+model:
+  name: SwinUNet
+  params:
+    attn_drop_rate: 0.0
+    depths:
+    - 2
+    - 2
+    - 6
+    - 2
+    drop_path_rate: 0.1
+    drop_rate: 0.0
+    embed_dim: 96
+    final_activation: null
+    img_size: 128
+    in_channels: 1
+    mlp_ratio: 4.0
+    num_heads:
+    - 3
+    - 6
+    - 12
+    - 24
+    out_channels: 1
+    patch_norm: true
+    patch_size: 4
+    qkv_bias: true
+    skip_connections: true
+    use_checkpoint: false
+    use_fno_bottleneck: false
+    window_size: 8
+
+training:
+  early_stopping:
+    min_delta: 1.0e-06
+    patience: 30
+  epochs: 200
+  gradient_clip: 1.0
+  mixed_precision: true
+  optimizer:
+    name: AdamW
+    params:
+      betas:
+      - 0.9
+      - 0.999
+      lr: 0.001
+      weight_decay: 0.0001
+  save_every: 20
+  scheduler:
+    name: cosine_warmup
+    params:
+      min_lr: 1.0e-06
+      warmup_epochs: 10
+  validate_every: 5
+
+validation:
+  metrics:
+  - rel_l2
+  - mae
+  - psnr
+  - ssim
+  save_best: true
+  save_last: true

@@ -167,19 +167,35 @@ class ARTrainingVisualizer:
         is_tensor = isinstance(target_seq, torch.Tensor)
         
         # 获取归一化统计信息进行反归一化
-        if norm_stats is not None and 'mean' in norm_stats and 'std' in norm_stats:
-            mean = norm_stats['mean']
-            std = norm_stats['std']
-            # 确保mean和std是标量或可以广播到正确形状
-            if isinstance(mean, torch.Tensor):
-                mean_val = float(mean[0]) if mean.numel() > 0 else 0.0
+        if norm_stats is not None:
+            if 'mean' in norm_stats and 'std' in norm_stats:
+                mean = norm_stats['mean']
+                std = norm_stats['std']
+                # 确保mean和std是标量或可以广播到正确形状
+                if isinstance(mean, torch.Tensor):
+                    mean_val = float(mean[0]) if mean.numel() > 0 else 0.0
+                else:
+                    mean_val = float(mean) if np.isscalar(mean) else 0.0
+                    
+                if isinstance(std, torch.Tensor):
+                    std_val = float(std[0]) if std.numel() > 0 else 1.0
+                else:
+                    std_val = float(std) if np.isscalar(std) else 1.0
+            elif 'data_mean' in norm_stats and 'data_std' in norm_stats:
+                mean = norm_stats['data_mean']
+                std = norm_stats['data_std']
+                if isinstance(mean, torch.Tensor):
+                    mean_val = float(mean[0]) if mean.numel() > 0 else 0.0
+                else:
+                    mean_val = float(mean) if np.isscalar(mean) else 0.0
+                    
+                if isinstance(std, torch.Tensor):
+                    std_val = float(std[0]) if std.numel() > 0 else 1.0
+                else:
+                    std_val = float(std) if np.isscalar(std) else 1.0
             else:
-                mean_val = float(mean) if np.isscalar(mean) else 0.0
-                
-            if isinstance(std, torch.Tensor):
-                std_val = float(std[0]) if std.numel() > 0 else 1.0
-            else:
-                std_val = float(std) if np.isscalar(std) else 1.0
+                mean_val = 0.0
+                std_val = 1.0
         else:
             # 如果没有归一化统计信息，使用默认值
             mean_val = 0.0
@@ -385,6 +401,11 @@ class ARTrainingVisualizer:
             elif 'u_mean' in norm_stats and 'u_std' in norm_stats:
                 mean_val = float(norm_stats['u_mean']) if not np.isscalar(norm_stats['u_mean']) else float(norm_stats['u_mean'])
                 std_val = float(norm_stats['u_std']) if not np.isscalar(norm_stats['u_std']) else float(norm_stats['u_std'])
+            elif 'data_mean' in norm_stats and 'data_std' in norm_stats:
+                mean = norm_stats['data_mean']
+                std = norm_stats['data_std']
+                mean_val = float(mean[0]) if isinstance(mean, torch.Tensor) and mean.numel() > 0 else (float(mean) if np.isscalar(mean) else 0.0)
+                std_val = float(std[0]) if isinstance(std, torch.Tensor) and std.numel() > 0 else (float(std) if np.isscalar(std) else 1.0)
             else:
                 mean_val, std_val = 0.0, 1.0
         else:
@@ -623,19 +644,36 @@ class ARTrainingVisualizer:
             pred_seq = pred_seq.detach().cpu().numpy()
         
         # 获取归一化统计信息进行反归一化
-        if norm_stats is not None and 'mean' in norm_stats and 'std' in norm_stats:
-            mean = norm_stats['mean']
-            std = norm_stats['std']
-            # 确保mean和std是标量或可以广播到正确形状
-            if isinstance(mean, torch.Tensor):
-                mean_val = float(mean[0]) if mean.numel() > 0 else 0.0
+        if norm_stats is not None:
+            if 'mean' in norm_stats and 'std' in norm_stats:
+                mean = norm_stats['mean']
+                std = norm_stats['std']
+                # 确保mean和std是标量或可以广播到正确形状
+                if isinstance(mean, torch.Tensor):
+                    mean_val = float(mean[0]) if mean.numel() > 0 else 0.0
+                else:
+                    mean_val = float(mean) if np.isscalar(mean) else 0.0
+                    
+                if isinstance(std, torch.Tensor):
+                    std_val = float(std[0]) if std.numel() > 0 else 1.0
+                else:
+                    std_val = float(std) if np.isscalar(std) else 1.0
+            elif 'data_mean' in norm_stats and 'data_std' in norm_stats:
+                mean = norm_stats['data_mean']
+                std = norm_stats['data_std']
+                if isinstance(mean, torch.Tensor):
+                    mean_val = float(mean[0]) if mean.numel() > 0 else 0.0
+                else:
+                    mean_val = float(mean) if np.isscalar(mean) else 0.0
+                    
+                if isinstance(std, torch.Tensor):
+                    std_val = float(std[0]) if std.numel() > 0 else 1.0
+                else:
+                    std_val = float(std) if np.isscalar(std) else 1.0
             else:
-                mean_val = float(mean) if np.isscalar(mean) else 0.0
-                
-            if isinstance(std, torch.Tensor):
-                std_val = float(std[0]) if std.numel() > 0 else 1.0
-            else:
-                std_val = float(std) if np.isscalar(std) else 1.0
+                mean_val = 0.0
+                std_val = 1.0
+                print("⚠️ 未找到归一化统计信息，时间分析使用z-score域数据")
         else:
             # 如果没有归一化统计信息，使用默认值
             mean_val = 0.0
@@ -799,19 +837,36 @@ class ARTrainingVisualizer:
             target_seq = target_seq.detach().cpu().numpy()
         
         # 获取归一化统计信息进行反归一化
-        if norm_stats is not None and 'mean' in norm_stats and 'std' in norm_stats:
-            mean = norm_stats['mean']
-            std = norm_stats['std']
-            # 确保mean和std是标量或可以广播到正确形状
-            if isinstance(mean, torch.Tensor):
-                mean_val = float(mean[0]) if mean.numel() > 0 else 0.0
+        if norm_stats is not None:
+            if 'mean' in norm_stats and 'std' in norm_stats:
+                mean = norm_stats['mean']
+                std = norm_stats['std']
+                # 确保mean和std是标量或可以广播到正确形状
+                if isinstance(mean, torch.Tensor):
+                    mean_val = float(mean[0]) if mean.numel() > 0 else 0.0
+                else:
+                    mean_val = float(mean) if np.isscalar(mean) else 0.0
+                    
+                if isinstance(std, torch.Tensor):
+                    std_val = float(std[0]) if std.numel() > 0 else 1.0
+                else:
+                    std_val = float(std) if np.isscalar(std) else 1.0
+            elif 'data_mean' in norm_stats and 'data_std' in norm_stats:
+                mean = norm_stats['data_mean']
+                std = norm_stats['data_std']
+                if isinstance(mean, torch.Tensor):
+                    mean_val = float(mean[0]) if mean.numel() > 0 else 0.0
+                else:
+                    mean_val = float(mean) if np.isscalar(mean) else 0.0
+                    
+                if isinstance(std, torch.Tensor):
+                    std_val = float(std[0]) if std.numel() > 0 else 1.0
+                else:
+                    std_val = float(std) if np.isscalar(std) else 1.0
             else:
-                mean_val = float(mean) if np.isscalar(mean) else 0.0
-                
-            if isinstance(std, torch.Tensor):
-                std_val = float(std[0]) if std.numel() > 0 else 1.0
-            else:
-                std_val = float(std) if np.isscalar(std) else 1.0
+                mean_val = 0.0
+                std_val = 1.0
+                print("⚠️ 未找到归一化统计信息，时间分析使用z-score域数据")
         else:
             # 如果没有归一化统计信息，使用默认值
             mean_val = 0.0

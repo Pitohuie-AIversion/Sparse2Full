@@ -1,0 +1,56 @@
+# @package _global_
+
+# 默认配置
+defaults:
+  - override /model: unet
+  - override /data: pdebench
+  - override /train: default
+  - _self_
+
+# 实验信息
+experiment:
+  name: "UNet-VSWT-Spatiotemporal"
+  seed: 2025
+  device: "cuda"
+  output_dir: "runs/${experiment.name}"
+
+# 空间模型配置 (UNet)
+spatial:
+  backbone_type: "unet"
+  spatial_feature_dim: 64  # UNet 瓶颈层特征维度
+  backbone_config:
+    in_channels: 1
+    out_channels: 1
+    features: [64, 128, 256, 512]
+    bilinear: true
+
+# 时间模型配置 (Video Swin Transformer)
+temporal:
+  backend: "video_swin"
+  temporal_dim: 96
+  num_layers: 4
+  num_heads: 4
+  window_size: [2, 7, 7]  # [T, H, W]
+  dropout: 0.1
+  # Video Swin 特定配置
+  depths: [2, 2, 6, 2]
+  embed_dim: 96
+  patch_size: [1, 4, 4]
+
+# 联合训练配置
+model:
+  name: "SequentialSpatiotemporalModel"
+  # 确保空间和时间模块的维度匹配
+  spatial_feature_dim: ${spatial.spatial_feature_dim}
+  
+# 训练超参数
+training:
+  spatial_pretrain:
+    enabled: true
+    epochs: 20
+  temporal_pretrain:
+    enabled: true
+    epochs: 20
+  joint_finetune:
+    enabled: true
+    epochs: 50

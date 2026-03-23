@@ -1,0 +1,282 @@
+# AR训练配置文件 - 硬件资源最大化优化版本
+# 基于2×NVIDIA L40 (46GB×2) + 192核CPU + 1TB内存的硬件配置优化
+
+experiment:
+  name: "AR-DR2D-Optimized-SwinUNet-s2025-20251102"
+  description: "硬件资源最大化配置 - AR自回归训练"
+  device: cuda:0
+  seed: 2025
+  output_dir: runs
+  log_every_n_steps: 10  # 减少日志频率，提升性能
+
+# 数据配置 - 优化版本
+data:
+  data_path: "data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+  dataset_name: RealDiffusionReaction
+  image_size: 128
+  sample_limit: 1000  # 增加样本数量，充分利用硬件
+  
+  # AR特定配置
+  T_in: 1
+  T_out: 10  # 增加预测步数，提升训练强度
+  
+  # 数据集分割配置
+  train_ratio: 0.8
+  val_ratio: 0.15
+  test_ratio: 0.05
+  
+  # 时间步配置
+  time_step_start: 0
+  time_step_end: 100  # 增加时间步数
+  time_step_stride: 1
+  
+  # 观测配置
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 2
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+      downsample_mode: area
+      align_corners: false
+      antialias: true
+  
+  # 预处理
+  normalize: true
+  augmentation:
+    enabled: true  # 启用数据增强，提升模型泛化能力
+    flip_prob: 0.5
+    rotate_prob: 0.3
+    noise_std: 0.01
+  
+  # 数据加载器 - 最大化硬件利用
+  dataloader:
+    batch_size: 512  # 大幅增加批次大小，充分利用双GPU
+    val_batch_size: 256  # 增加验证批次大小
+    test_batch_size: 128  # 增加测试批次大小
+    num_workers: 192  # 使用全部CPU核心
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 32  # 增加预取因子，提升数据加载效率
+    drop_last: true
+    multiprocessing_context: 'spawn'
+    worker_init_fn: true
+
+# 硬件配置 - 最大化资源利用
+hardware:
+  num_workers: 192  # 使用全部CPU核心
+  vram_threshold: 0.90  # 统一显存使用阈值
+  memory_cleanup_frequency: 1  # 更频繁的内存清理
+  # CPU优化设置 - 最大化利用
+  torch_threads: 48  # 大幅增加PyTorch线程数
+  mkl_threads: 48    # 大幅增加MKL线程数
+  omp_threads: 48    # 大幅增加OpenMP线程数
+
+# 模型配置 - 增强版本
+model:
+  name: ARWrapper
+  base_model: SwinUNet
+  in_channels: 1
+  out_channels: 1
+  img_size: 128
+  patch_size: 4
+  window_size: 8
+  depths: [2, 2, 6, 2]  # 增加模型深度，充分利用GPU算力
+  num_heads: [3, 6, 12, 24]  # 增加注意力头数
+  embed_dim: 96  # 增加嵌入维度
+  mlp_ratio: 4.0
+  drop_rate: 0.1
+  attn_drop_rate: 0.1
+  drop_path_rate: 0.2  # 增加drop path率，防止过拟合
+  
+  # AR包装器配置
+  ar_config:
+    detach_rollout: true
+    scheduled_sampling: true  # 启用计划采样
+    teacher_forcing_ratio: 0.8  # 降低教师强制比例
+
+# 训练配置 - 高性能版本
+training:
+  epochs: 3000  # 适当减少epoch数，但提升每个epoch的训练强度
+  batch_size: 512  # 大幅增加批次大小
+  gradient_accumulation_steps: 4  # 减少累积步数，增加更新频率
+  max_epochs: 3000
+  val_check_interval: 5  # 更频繁的验证
+  log_every_n_steps: 10
+  enable_checkpointing: true
+  enable_progress_bar: true
+  precision: "16-mixed"  # 保持混合精度
+  
+  # 并行计算优化 - 双GPU配置
+  sync_batchnorm: true  # 启用同步批归一化
+  find_unused_parameters: true  # 启用未使用参数检测
+  
+  # 优化器配置
+  optimizer:
+    name: adamw
+    lr: 2e-3  # 增加学习率，配合大批次训练
+    weight_decay: 1e-4
+    betas: [0.9, 0.999]
+  
+  # 学习率调度
+  scheduler:
+    name: cosine_annealing
+    T_max: 3000
+    eta_min: 1e-6
+  
+  # 训练设置 - 高性能优化
+  gradient_clip_val: 1.0
+  gradient_clip_algorithm: norm
+  
+  # GPU优化设置 - 最大化显存利用
+  memory_cleanup_frequency: 1  # 最频繁的内存清理
+  auto_batch_size_reduction: true
+  memory_threshold: 0.90  # 统一显存使用阈值
+  
+  # 混合精度训练
+  amp:
+    enabled: true
+    opt_level: O2  # 使用更激进的混合精度优化
+    loss_scale: dynamic
+  
+  # 课程学习配置
+  curriculum:
+    enabled: true
+    stages:
+      - epochs: 500
+        T_out: 5
+        description: "初期阶段: 预测5步"
+      - epochs: 1000
+        T_out: 10
+        description: "中期阶段: 预测10步"
+      - epochs: 1500
+        T_out: 20
+        description: "后期阶段: 预测20步"
+  
+  # 检查点配置
+  checkpoint:
+    save_best: true
+    save_last: true
+    max_keep: 3  # 减少检查点数量，节省存储
+    monitor: val_loss
+    mode: min
+    save_every_n_epochs: 50  # 更频繁的检查点保存
+  
+  # 早停配置
+  early_stopping:
+    enabled: true
+    patience: 100  # 减少耐心值，加快训练节奏
+    monitor: val_loss
+    mode: min
+    min_delta: 1e-5
+
+# AR损失配置
+loss:
+  ar_loss:
+    weight: 1.0
+    reduction: mean
+  reconstruction:
+    weight: 1.0
+  spectral:
+    weight: 0.2  # 增加频域损失权重
+  degradation_consistency:
+    weight: 0.8  # 增加一致性损失权重
+  gradient_weight: 0.1  # 启用梯度损失
+
+# 验证配置
+validation:
+  check_val_every_n_epoch: 1
+  metrics:
+    - rel_l2
+    - mae
+    - psnr  # 增加更多评估指标
+    - ssim
+  rollout_steps: [5, 10, 20]  # 多步预测验证
+  convergence_criteria:
+    target_rel_l2: 0.3  # 更严格的收敛标准
+    patience_for_convergence: 5
+    min_improvement: 1e-4
+
+# 设备配置 - 双GPU最大化利用
+device:
+  accelerator: gpu
+  devices: 2  # 双GPU配置
+  precision: 16
+  strategy: ddp  # 分布式数据并行
+  
+  # 性能优化设置
+  compile_model: true
+  benchmark: true
+  deterministic: false  # 关闭确定性，提升性能
+  
+  # 双GPU优化
+  sync_batchnorm: true  # 启用同步批归一化
+  find_unused_parameters: true  # 启用未使用参数检测
+  
+  # 内存优化 - 最大化利用
+  memory_management:
+    gradient_accumulation_steps: 4
+    memory_cleanup_frequency: 1
+    auto_batch_size_reduction: true
+    memory_threshold: 0.90  # 统一显存使用阈值
+    enable_memory_efficient_attention: true
+    gradient_checkpointing: false  # 关闭梯度检查点，提升速度
+
+# 日志配置
+logging:
+  experiment_name: "AR-DR2D-Optimized-SwinUNet-s2025"
+  version: null
+  default_hp_metric: false
+  log_model: false
+  
+  performance_monitoring:
+    log_gpu_memory: true
+    log_throughput: true  # 启用吞吐量监控
+    log_batch_time: true
+    memory_snapshot_frequency: 100
+  
+  tensorboard:
+    save_dir: runs/tensorboard
+    name: ar_training_optimized
+    version: null
+  
+  visualization:
+    save_samples_every_n_epochs: 25  # 更频繁的可视化保存
+    num_samples_to_save: 8
+    save_training_curves: true
+    save_rollout_visualization: true
+
+# 随机种子
+seed: 2025
+
+# 测试配置 - 高性能版本
+testing:
+  enabled: true
+  run_final_test: true
+  save_predictions: true  # 启用预测结果保存
+  compute_detailed_metrics: true  # 启用详细指标计算
+  
+  batch_size: 128  # 增加测试批次大小
+  save_visualizations: true  # 启用可视化保存
+  num_visualization_samples: 10
+  
+  fast_mode: false  # 关闭快速模式，进行完整测试
+  skip_complex_metrics: false
+  minimal_logging: false
+
+# 数据增强配置 - 启用版本
+data_augmentation:
+  enable: true  # 启用数据增强
+  random_rotation: 
+    enable: true
+    degrees: [-10, 10]  # 增加旋转角度
+  random_flip:
+    enable: true
+    horizontal: 0.5
+    vertical: 0.3
+  gaussian_noise:
+    enable: true
+    std: 0.02  # 增加噪声强度
+  normalize_per_sample: true  # 启用逐样本归一化
+  compute_statistics: true    # 启用统计计算

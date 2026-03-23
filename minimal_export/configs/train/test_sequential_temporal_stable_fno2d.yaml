@@ -1,0 +1,270 @@
+# 测试SequentialSpatiotemporalModel与稳定FNO2D的配置
+# 用于测试时序模块与数值稳定的空间backbone结合
+
+experiment:
+  name: "AR-DR2D-Test-StableSequentialTemporal-FNO2D-s2025"
+  description: "稳定的专用时序模块测试 - SequentialSpatiotemporalModel + StableFNO2D空间骨干"
+  device: cuda
+  seed: 2025
+  output_dir: runs
+  log_every_n_steps: 1  # 更详细的日志输出
+
+# 设备配置（单GPU确保稳定性）
+device:
+  accelerator: cuda
+  devices: 1  # 单GPU避免分布式问题
+  strategy: auto
+  allow_data_parallel_fallback: true
+  precision: fp32  # FP32避免复数运算问题
+
+# 强制启用专用时序模型 - 禁用ARWrapper
+ar:
+  enabled: false  # 禁用ARWrapper
+
+# 启用专用时序模型架构 - 核心配置
+sequential:
+  enabled: true  # 强制启用SequentialSpatiotemporalModel
+  model_type: "SequentialSpatiotemporalModel"
+  
+  # 空间配置 - StableFNO2D作为空间特征提取器
+  spatial:
+    in_channels: 1  # 原始输入通道数（FNO2D会自动添加2个坐标通道）
+    spatial_feature_dim: 64      # 空间特征维度（减少以提高稳定性）
+    out_channels: 1
+    img_size: [128, 128]
+    backbone_type: "stable_fno2d"  # 使用稳定的FNO2D作为空间骨干
+    backbone_config:
+      modes1: 8  # 减少modes以提高稳定性
+      modes2: 8  
+      width: 32  # 减少宽度
+      n_layers: 2  # 减少层数
+      activation: 'gelu'
+      spectral_norm: true  # 启用谱归一化
+      gradient_clip: 0.5  # 梯度裁剪
+  
+  # 时序配置 - Transformer时序建模（简化版）
+  temporal:
+    spatial_feature_dim: 64      # 空间特征维度（与空间配置一致）
+    temporal_dim: 128            # 减少时序特征维度以提高稳定性
+    out_channels: 1
+    img_size: [128, 128]
+    num_heads: 4                # 减少注意力头数
+    num_layers: 2               # 减少Transformer层数
+    dropout: 0.1                # Dropout率
+  
+  # 一致性检查配置
+  consistency:
+    enabled: true
+    spatial_temporal_consistency: true
+    feature_consistency_weight: 0.1  # 降低一致性权重
+  
+  # 训练配置 - 两阶段训练
+  training:
+    two_stage_training: true      # 启用两阶段训练
+    stage1_epochs: 10             # 第一阶段：空间预训练
+    stage2_epochs: 10             # 第二阶段：联合训练
+    spatial_loss_weight: 1.0      # 空间损失权重
+    temporal_loss_weight: 1.0     # 时序损失权重
+
+# 禁用ARWrapper，使用专用模型
+model_wrapper:
+  enabled: false  # 禁用ARWrapper
+
+# 模型配置 - 指定使用SequentialSpatiotemporalModel
+model:
+  name: SequentialSpatiotemporalModel  # 明确指定模型类型
+  # 具体参数通过sequential配置提供
+
+# 数据配置 - 快速测试模式
+data:
+  data_path: "data/PDEBench/2D/CFD/2D_Turbulence/2D_Turbulence_64.h5"
+  dataset_name: RealTurbulence
+  img_size: 128
+  keys: ["data"]
+  component: u
+  use_official_format: true
+  splits_dir: splits
+  target_channels: 1
+  input_channels: 1  # 原始输入通道数
+  sample_limit: 5  # 极小样本数用于快速测试
+  
+  # 时序预测配置
+  T_in: 4      # 输入时间步数
+  T_out: 1     # 目标：单步时序预测
+  
+  # 数据集分割配置 - 测试模式
+  train_ratio: 0.6
+  val_ratio: 0.2
+  test_ratio: 0.2
+  
+  # 时间步配置 - 限制范围加速测试
+  time_step_start: 0
+  time_step_end: 20   # 仅前20个时间步用于快速测试
+  time_step_stride: 1
+  
+  # 观测配置 - 降采样输入
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 2
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+      downsample_mode: area
+      align_corners: false
+      antialias: true
+  
+  # 预处理
+  normalize: true
+  augmentation:
+    enabled: false  # 测试模式关闭增强
+  
+  # 数据加载器（小批次测试）
+  dataloader:
+    batch_size: 2  # 极小批次测试
+    val_batch_size: 2
+    test_batch_size: 2
+    num_workers: 2
+    pin_memory: true
+    persistent_workers: false
+    prefetch_factor: 2
+
+# 硬件配置
+hardware:
+  allow_tf32: false    # 禁用TF32确保FNO2D精度
+  memory:
+    cudnn_benchmark: false    # 禁用cudnn benchmark避免复数问题
+
+# 训练配置 - 快速测试模式（更保守的参数）
+training:
+  epochs: 20    # 总epochs减少用于快速测试
+  batch_size: 2  # 小批次测试
+  gradient_accumulation_steps: 4  # 梯度累积
+  
+  # 专用时序模型优化配置
+  torch_compile: false  # 保持禁用确保稳定性
+  channels_last: false  # 禁用channels_last
+  
+  # 优化器配置 - 适配Transformer（更保守）
+  optimizer:
+    name: "AdamW"
+    lr: 0.0001    # 进一步降低学习率避免NaN
+    weight_decay: 0.0001
+    betas: [0.9, 0.999]
+    eps: 1e-8
+    fused: false
+    foreach: false
+  
+  # 调度器配置
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 20    # 与总epochs一致
+    eta_min: 1e-6
+    warmup_epochs: 2    # 减少warmup
+  
+  # 分布式训练配置（禁用）
+  distributed:
+    enabled: false    # 单GPU测试
+  
+  # 基本训练设置
+  gradient_clip_val: 0.5
+  gradient_clip_algorithm: norm
+  
+  # AMP配置（禁用）
+  amp:
+    enabled: false    # 禁用确保稳定性
+    autocast_dtype: float32
+  
+  # 课程学习 - 简化测试
+  curriculum:
+    enabled: true
+    stages:
+      - {T_out: 1, epochs: 10}     # 阶段1：单步预测
+      - {T_out: 1, epochs: 10}     # 阶段2：仍然是单步预测
+    teacher_forcing_decay: 0.95
+  
+  # 检查点配置
+  checkpoint:
+    save_best: true
+    save_last: true
+    max_keep: 2    # 减少检查点数量
+    monitor: val_loss
+    mode: min
+    save_every_n_epochs: 5    # 增加保存频率
+  
+  # 早停配置（禁用）
+  early_stopping:
+    enabled: false
+
+# 损失配置 - 专用时序模型优化（简化版）
+loss:
+  # 重建损失
+  reconstruction:
+    weight: 1.0
+  # 频谱损失（轻度）
+  spectral:
+    weight: 0.1  # 轻度频谱损失避免FNO2D冲突
+  # DC一致性损失
+  degradation_consistency:
+    weight: 0.1  # 降低一致性权重
+  gradient_weight: 0.0
+
+# 验证配置
+validation:
+  check_val_every_n_epoch: 2    # 每2个epoch验证一次
+  use_observation: false
+  
+  metrics:
+    - rel_l2
+    - mae
+    - degradation_consistency
+  
+  # 多时序步验证
+  rollout_steps: [1]      # 只验证单步预测
+  
+  convergence_criteria:
+    target_rel_l2: 0.5          # 宽松目标用于测试
+    patience_for_convergence: 3
+    min_improvement: 1e-3
+
+# 日志配置 - 详细测试日志
+logging:
+  experiment_name: "StableSequentialTemporal-FNO2D-Test"    # 测试实验名称
+  version: null
+  default_hp_metric: false
+  log_model: false
+  
+  # 性能监控
+  performance_monitoring:
+    log_gpu_memory: true
+    log_throughput: true
+    log_batch_time: true
+  
+  tensorboard:
+    save_dir: runs/tensorboard
+    name: stable_sequential_temporal_test
+    version: null
+  
+  visualization:
+    save_samples_every_n_epochs: 10
+    num_samples_to_save: 3
+    save_training_curves: true
+    save_rollout_visualization: true  # 启用时序可视化
+
+# 随机种子
+seed: 2025
+
+# 测试配置
+testing:
+  enabled: true  # 启用测试
+  run_final_test: true
+  save_predictions: true  # 保存预测结果分析
+  compute_detailed_metrics: true
+  
+  batch_size: 4
+  save_visualizations: true  # 保存可视化
+  num_visualization_samples: 3
+  
+  fast_mode: false
+  skip_complex_metrics: false
+  minimal_logging: false

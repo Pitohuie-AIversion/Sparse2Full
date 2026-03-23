@@ -1,0 +1,127 @@
+# @package _global_
+# 简化版真实扩散反应数据训练配置
+
+# 实验名称
+experiment_name: train_real_dr_data
+
+# 数据配置
+data:
+  _target_: training_system.utils.datasets.pde_bench.PDEBenchDataModule
+  name: 2d_diff_react_na_na_crop_20
+  dataset_name: 2D_diff-react_NA_NA
+  data_path: data/2D_diff-react_NA_NA.h5
+  task_type: crop_20
+  input_size: [128, 128]
+  output_size: [128, 128]
+  image_size: 128
+  in_channels: 2
+  out_channels: 2
+  keys: ['0000', '0001', '0002', '0003', '0004', '0005', '0006', '0007', '0008', '0009', 
+         '0010', '0011', '0012', '0013', '0014', '0015', '0016', '0017', '0018', '0019',
+         '0020', '0021', '0022', '0023', '0024', '0025', '0026', '0027', '0028', '0029',
+         '0030', '0031', '0032', '0033', '0034', '0035', '0036', '0037', '0038', '0039',
+         '0040', '0041', '0042', '0043', '0044', '0045', '0046', '0047', '0048', '0049',
+         '0050', '0051', '0052', '0053', '0054', '0055', '0056', '0057', '0058', '0059',
+         '0060', '0061', '0062', '0063', '0064', '0065', '0066', '0067', '0068', '0069',
+         '0070', '0071', '0072', '0073', '0074', '0075', '0076', '0077', '0078', '0079',
+         '0080', '0081', '0082', '0083', '0084', '0085', '0086', '0087', '0088', '0089',
+         '0090', '0091', '0092', '0093', '0094', '0095', '0096', '0097', '0098', '0099']
+  batch_size: 4
+  num_workers: 4
+  pin_memory: true
+  shuffle: true
+  normalization: z_score
+  crop_size: 20
+  observation:
+    type: crop
+    crop_ratio: 0.2
+    crop_strategy: random
+    boundary_handling: mirror
+  splits:
+    train: 0.7
+    val: 0.15
+    test: 0.15
+  seed: 42
+
+# 模型配置
+model:
+  _target_: training_system.utils.models.swin_unet.SwinUNet
+  name: swin_unet
+  in_channels: 2
+  out_channels: 2
+  img_size: 128
+  patch_size: 4
+  embed_dim: 96
+  depths: [2, 2, 2, 2]
+  num_heads: [3, 6, 12, 24]
+  window_size: 8
+  mlp_ratio: 4.0
+  drop_rate: 0.0
+  attn_drop_rate: 0.0
+  drop_path_rate: 0.1
+
+# 训练配置
+training:
+  epochs: 100
+  batch_size: 4
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  warmup_epochs: 10
+  gradient_clip_val: 1.0
+  optimizer:
+    name: adamw
+    lr: 0.001
+    weight_decay: 0.0001
+    betas: [0.9, 0.999]
+    eps: 1e-8
+  scheduler:
+    name: cosine
+    T_max: 100
+    eta_min: 1e-6
+    warmup_epochs: 10
+  amp: true
+  reproducibility:
+    seed: 42
+    deterministic: false
+    benchmark: true
+
+# 损失配置
+loss:
+  reconstruction:
+    weight: 1.0
+    reduction: mean
+  spectral:
+    weight: 0.5
+    freq_threshold: 16
+    reduction: mean
+  data_consistency:
+    weight: 1.0
+    reduction: mean
+
+# 评估配置
+eval:
+  metrics: [rel_l2, mae, psnr, ssim]
+  save_predictions: true
+  save_plots: true
+  frequency: 10
+
+# 日志配置
+logging:
+  level: INFO
+  log_dir: ./runs/train_real_dr_data
+  save_frequency: 10
+  use_tensorboard: true
+  use_wandb: false
+
+# 检查点配置
+checkpoint:
+  save_dir: ./runs/train_real_dr_data/checkpoints
+  save_frequency: 20
+  save_top_k: 3
+  monitor: val/rel_l2
+  mode: min
+
+# 硬件配置
+device: cuda
+gpu_ids: [0]
+distributed: false

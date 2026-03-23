@@ -1,0 +1,83 @@
+experiment:
+  name: debug-ddp-synth
+  seed: 2025
+  output_dir: runs
+  device: cpu
+  precision: "32"
+  log_every_n_steps: 10
+
+data:
+  data_path: runs/debug_ddp_synth.h5
+  T_in: 1
+  T_out: 5
+  img_size: 64
+  channels: 2
+  normalize: true
+  augmentation:
+    enabled: false
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  time_step_start: 0
+  time_step_end: 20
+  time_step_stride: 1
+
+model:
+  name: SwinUNet
+  in_channels: 2
+  out_channels: 2
+  img_size: 64
+  patch_size: 4
+  window_size: 8
+  depths: [2, 2, 2, 2]
+  num_heads: [2, 2, 4, 8]
+  embed_dim: 64
+  mlp_ratio: 4.0
+  drop_rate: 0.0
+  attn_drop_rate: 0.0
+  drop_path_rate: 0.1
+
+training:
+  epochs: 1
+  batch_size: 2
+  sync_batchnorm: false
+  early_stopping:
+    enabled: true
+    patience: 20
+    min_delta: 1e-4
+    monitor: val_loss
+  checkpoint:
+    save_last: true
+    save_best: true
+    save_every_n_epochs: 1
+    max_keep: 2
+
+visualization:
+  enabled: true
+
+loss:
+  reconstruction:
+    weight: 1.0
+  spectral:
+    weight: 0.5
+    low_freq_modes: 16
+    boundary_mode: mirror
+  data_consistency:
+    weight: 1.0
+
+observation:
+  mode: sr
+  scale_factor: 2
+  blur_sigma: 1.0
+  kernel_size: 5
+  boundary: mirror
+
+hardware:
+  num_workers: 0
+  pin_memory: false
+  persistent_workers: false
+
+testing:
+  enabled: true
+  run_final_test: true
+  batch_size: 1

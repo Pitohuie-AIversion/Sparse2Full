@@ -1,0 +1,91 @@
+# Swin Transformer Tiny (Swin-T) 模型配置
+# 基于Swin Transformer Tiny架构，适配PDEBench稀疏观测重建任务
+
+name: "SwinT"
+params:
+  in_channels: 1
+  out_channels: 1
+  img_size: 128
+  
+  # Patch Embedding参数
+  patch_size: 4  # 4x4 patches (更小的patch size)
+  embed_dim: 96  # Swin-T标准嵌入维度
+  
+  # Swin Transformer层配置
+  depths: [2, 2, 6, 2]  # 每个stage的层数
+  num_heads: [3, 6, 12, 24]  # 每个stage的注意力头数
+  window_size: 7  # 窗口大小
+  mlp_ratio: 4.0  # MLP隐藏层扩展比例
+  
+  # 注意力配置
+  qkv_bias: true  # QKV投影偏置
+  qk_scale: null  # 注意力缩放因子（null表示自动计算）
+  
+  # Dropout配置
+  drop_rate: 0.0  # 基础dropout率
+  attn_drop_rate: 0.0  # 注意力dropout率
+  drop_path_rate: 0.1  # 随机深度dropout率
+  
+  # 位置编码
+  ape: false  # 绝对位置编码
+  patch_norm: true  # patch embedding后的归一化
+  
+  # 其他配置
+  use_checkpoint: false  # 梯度检查点（节省显存）
+  final_upsample: "expand_first"  # 最终上采样策略
+
+# 训练特定配置
+training_config:
+  # 优化器配置 - 严格按照文档标准
+  optimizer:
+    name: "AdamW"
+    lr: 1.0e-3  # 学习率1e-3（文档标准）
+    weight_decay: 1.0e-4  # 权重衰减1e-4（文档标准）
+    betas: [0.9, 0.999]
+    eps: 1e-8
+  
+  # 学习率调度器 - Cosine+1k warmup（文档标准）
+  scheduler:
+    name: "cosine_warmup"
+    T_max: 200
+    warmup_steps: 1000  # 1k warmup（文档标准）
+    eta_min: 1.0e-6
+  
+  # 训练参数
+  epochs: 200
+  batch_size: 4
+  seed: 2025
+  
+  # 混合精度训练
+  use_amp: true
+  
+  # 梯度裁剪
+  grad_clip_norm: 1.0  # 标准梯度裁剪
+
+# 损失函数配置 - 三件套标准配置（文档标准：1.0/0.5/1.0）
+loss:
+  rec_weight: 1.0  # 重建损失权重（文档标准）
+  spec_weight: 0.5  # 频谱损失权重（文档标准）
+  dc_weight: 1.0  # 数据一致性损失权重（文档标准）
+  
+  # 频域损失参数 - 按照文档标准
+  low_freq_modes: 16  # 低频模式数量 kx=ky=16（文档标准）
+  mirror_padding: true  # 启用镜像延拓（非周期边界）
+
+# 模型特性
+model_info:
+  architecture: "Swin Transformer Tiny"
+  paper: "Swin Transformer: Hierarchical Vision Transformer using Shifted Windows"
+  description: "Swin Transformer Tiny版本，使用分层特征提取和shifted window attention"
+  key_features:
+    - "分层Transformer架构"
+    - "Shifted Window Attention"
+    - "相对位置偏置"
+    - "Patch Merging下采样"
+    - "U-Net式编码器-解码器结构"
+    - "适配PDEBench稀疏观测重建"
+  
+  # 模型规模信息
+  model_size: "Tiny"
+  typical_params: "~28M"  # 预估参数量
+  computational_efficiency: "高效"

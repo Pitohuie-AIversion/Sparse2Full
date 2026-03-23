@@ -1,0 +1,48 @@
+# Hybrid模型配置
+# Attention∥FNO∥UNet混合架构
+
+name: "Hybrid"
+
+params:
+  in_channels: 1  # 修复：DarcyFlow数据集为单通道
+  out_channels: 1  # 修复：输出也为单通道
+  img_size: 128
+  
+  kwargs:
+    # 混合架构配置
+    use_attention: true
+    use_fno: true
+    use_unet: true
+    
+    # 注意力分支配置
+    attention_config:
+      num_heads: 8
+      embed_dim: 256
+      depth: 4
+      window_size: 8
+      drop_rate: 0.1
+      attn_drop_rate: 0.1
+    
+    # FNO分支配置
+    fno_config:
+      modes: 16
+      width: 64
+      depth: 4
+      activation: "gelu"
+      dropout: 0.1
+    
+    # UNet分支配置
+    unet_config:
+      base_channels: 64
+      channel_multipliers: [1, 2, 4, 8]
+      num_res_blocks: 2
+      dropout: 0.1
+      use_attention: false  # UNet分支内部的注意力
+    
+    # 融合策略
+    fusion_strategy: "concat"  # concat, add, gate
+    fusion_channels: 256
+    
+    # 输出配置
+    output_activation: null
+    use_residual_connection: true

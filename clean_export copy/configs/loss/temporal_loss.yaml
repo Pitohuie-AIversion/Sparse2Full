@@ -1,0 +1,405 @@
+# 时序模型损失函数配置
+# 支持多种损失组合、动态权重调整、课程学习等
+
+# 损失函数全局配置
+loss_config:
+  enabled: true
+  loss_combination: "weighted_sum"  # weighted_sum, adaptive, curriculum
+  
+  # 损失计算配置
+  computation:
+    reduction: "mean"  # mean, sum, none
+    normalize_by_timesteps: true
+    clip_gradients: true
+    gradient_clip_value: 1.0
+
+# 主要损失函数
+primary_losses:
+  # 重建损失
+  reconstruction_loss:
+    enabled: true
+    type: "mse"  # mse, mae, huber, smooth_l1
+    weight: 1.0
+    
+    # 时序权重
+    temporal_weighting:
+      enabled: true
+      strategy: "exponential_decay"  # uniform, linear_decay, exponential_decay, custom
+      decay_factor: 0.95
+      
+    # 空间权重
+    spatial_weighting:
+      enabled: false
+      strategy: "uniform"  # uniform, center_weighted, edge_weighted
+      
+  # 相对L2损失
+  relative_l2_loss:
+    enabled: true
+    type: "rel_l2"
+    weight: 2.0
+    eps: 1e-8
+    
+    # 归一化策略
+    normalization:
+      method: "per_sample"  # per_sample, per_batch, global
+      
+  # 感知损失
+  perceptual_loss:
+    enabled: false
+    type: "vgg"
+    weight: 0.1
+    layers: ["relu1_2", "relu2_2", "relu3_3"]
+    
+# 时序特定损失
+temporal_losses:
+  # 时序一致性损失
+  temporal_consistency_loss:
+    enabled: true
+    weight: 0.5
+    
+    # 平滑性损失
+    smoothness_loss:
+      enabled: true
+      type: "gradient"  # gradient, difference, variance
+      weight: 1.0
+      order: 1  # 1阶或2阶差分
+      
+    # 连续性损失
+    continuity_loss:
+      enabled: true
+      type: "l2"
+      weight: 1.0
+      
+  # 长期稳定性损失
+  stability_loss:
+    enabled: true
+    weight: 0.3
+    
+    # 发散惩罚
+    divergence_penalty:
+      enabled: true
+      threshold: 5.0
+      penalty_type: "exponential"  # linear, exponential, quadratic
+      
+    # 能量保守损失
+    energy_conservation_loss:
+      enabled: false
+      weight: 0.1
+      tolerance: 0.05
+      
+  # 边界条件损失
+  boundary_loss:
+    enabled: false
+    weight: 0.2
+    boundary_type: "dirichlet"  # dirichlet, neumann, periodic
+    
+# 频域损失
+spectral_losses:
+  # 频谱损失
+  spectral_loss:
+    enabled: true
+    weight: 0.5
+    
+    # 频段配置
+    frequency_bands:
+      low_freq:
+        enabled: true
+        range: [0, 8]
+        weight: 2.0
+        
+      mid_freq:
+        enabled: true
+        range: [8, 16]
+        weight: 1.0
+        
+      high_freq:
+        enabled: true
+        range: [16, 32]
+        weight: 0.5
+        
+    # 损失类型
+    loss_type: "mse"  # mse, mae, kl_div
+    
+  # 功率谱损失
+  power_spectral_loss:
+    enabled: false
+    weight: 0.3
+    method: "welch"
+    
+  # 相位损失
+  phase_loss:
+    enabled: false
+    weight: 0.2
+    
+# 对抗损失
+adversarial_losses:
+  # GAN损失
+  gan_loss:
+    enabled: false
+    weight: 0.01
+    
+    # 判别器配置
+    discriminator:
+      type: "patch_gan"
+      num_layers: 3
+      
+    # 损失类型
+    loss_type: "lsgan"  # vanilla, lsgan, wgan
+    
+  # 特征匹配损失
+  feature_matching_loss:
+    enabled: false
+    weight: 10.0
+    layers: [1, 2, 3]
+
+# 正则化损失
+regularization_losses:
+  # L1正则化
+  l1_regularization:
+    enabled: false
+    weight: 1e-5
+    target: "weights"  # weights, activations, gradients
+    
+  # L2正则化
+  l2_regularization:
+    enabled: true
+    weight: 1e-4
+    target: "weights"
+    
+  # 梯度惩罚
+  gradient_penalty:
+    enabled: false
+    weight: 10.0
+    
+  # 谱归一化
+  spectral_normalization:
+    enabled: false
+    
+# 物理约束损失
+physics_losses:
+  # PDE残差损失
+  pde_residual_loss:
+    enabled: false
+    weight: 0.1
+    
+    # PDE类型
+    pde_type: "advection_diffusion"  # advection, diffusion, advection_diffusion, custom
+    
+    # 参数
+    parameters:
+      diffusion_coeff: 0.01
+      advection_velocity: [1.0, 0.0]
+      
+  # 守恒律损失
+  conservation_loss:
+    enabled: false
+    weight: 0.1
+    
+    # 守恒量类型
+    conservation_type: "mass"  # mass, momentum, energy
+    
+  # 边界条件损失
+  boundary_condition_loss:
+    enabled: false
+    weight: 0.2
+    
+    # 边界类型
+    boundary_conditions:
+      - type: "dirichlet"
+        location: "top"
+        value: 0.0
+        
+      - type: "neumann"
+        location: "bottom"
+        value: 0.0
+
+# 模式特定损失
+mode_specific_losses:
+  # AR模式损失
+  ar_losses:
+    # Teacher forcing损失
+    teacher_forcing_loss:
+      enabled: true
+      weight: 1.0
+      
+    # 自由运行损失
+    free_running_loss:
+      enabled: true
+      weight: 0.5
+      rollout_steps: 8
+      
+    # 调度采样损失
+    scheduled_sampling_loss:
+      enabled: true
+      weight: 0.3
+      
+  # NAR模式损失
+  nar_losses:
+    # 并行预测损失
+    parallel_prediction_loss:
+      enabled: true
+      weight: 1.0
+      
+    # 位置编码损失
+    positional_loss:
+      enabled: false
+      weight: 0.1
+      
+  # HYBRID模式损失
+  hybrid_losses:
+    # 模式一致性损失
+    mode_consistency_loss:
+      enabled: true
+      weight: 0.2
+      
+    # 融合损失
+    fusion_loss:
+      enabled: true
+      weight: 0.1
+
+# 动态权重调整
+dynamic_weighting:
+  enabled: true
+  
+  # 调整策略
+  strategy: "curriculum"  # fixed, linear, exponential, curriculum, adaptive
+  
+  # 课程学习权重调整
+  curriculum_weighting:
+    enabled: true
+    
+    # 阶段配置
+    stages:
+      - stage: "early"
+        epochs: [0, 20]
+        weights:
+          reconstruction_loss: 2.0
+          temporal_consistency_loss: 0.1
+          spectral_loss: 0.1
+          
+      - stage: "middle"
+        epochs: [20, 60]
+        weights:
+          reconstruction_loss: 1.0
+          temporal_consistency_loss: 0.5
+          spectral_loss: 0.3
+          
+      - stage: "late"
+        epochs: [60, 100]
+        weights:
+          reconstruction_loss: 1.0
+          temporal_consistency_loss: 1.0
+          spectral_loss: 0.5
+          
+  # 自适应权重调整
+  adaptive_weighting:
+    enabled: false
+    
+    # 调整频率
+    adjustment_frequency: 10  # 每10个epoch调整一次
+    
+    # 调整策略
+    adjustment_strategy: "performance_based"  # performance_based, gradient_based
+    
+    # 性能阈值
+    performance_thresholds:
+      reconstruction_loss: 0.01
+      temporal_consistency_loss: 0.005
+
+# 损失调度
+loss_scheduling:
+  enabled: true
+  
+  # 预热阶段
+  warmup:
+    enabled: true
+    epochs: 5
+    
+    # 预热期间的损失权重
+    warmup_weights:
+      reconstruction_loss: 1.0
+      temporal_consistency_loss: 0.0
+      spectral_loss: 0.0
+      
+  # 退火策略
+  annealing:
+    enabled: true
+    
+    # 退火调度
+    schedules:
+      - loss_name: "temporal_consistency_loss"
+        schedule_type: "cosine"
+        initial_weight: 0.1
+        final_weight: 1.0
+        start_epoch: 10
+        end_epoch: 50
+        
+      - loss_name: "spectral_loss"
+        schedule_type: "linear"
+        initial_weight: 0.1
+        final_weight: 0.5
+        start_epoch: 20
+        end_epoch: 80
+
+# 损失监控
+loss_monitoring:
+  enabled: true
+  
+  # 监控频率
+  log_frequency: 100  # 每100步记录一次
+  
+  # 监控内容
+  monitor_components: true
+  monitor_gradients: true
+  monitor_weights: true
+  
+  # 异常检测
+  anomaly_detection:
+    enabled: true
+    nan_detection: true
+    inf_detection: true
+    explosion_threshold: 100.0
+    
+  # 可视化
+  visualization:
+    enabled: true
+    plot_loss_curves: true
+    plot_weight_evolution: true
+
+# 损失计算优化
+optimization:
+  # 计算优化
+  computation_optimization:
+    enabled: true
+    
+    # 并行计算
+    parallel_computation: true
+    
+    # 内存优化
+    memory_efficient: true
+    gradient_checkpointing: false
+    
+  # 数值稳定性
+  numerical_stability:
+    enabled: true
+    
+    # 数值裁剪
+    clip_values: true
+    clip_range: [-10.0, 10.0]
+    
+    # 平滑处理
+    smooth_losses: true
+    smoothing_factor: 0.1
+
+# 调试配置
+debug_config:
+  enabled: false
+  
+  # 详细日志
+  verbose_logging: false
+  
+  # 保存中间结果
+  save_intermediate: false
+  
+  # 损失分解
+  loss_decomposition: true

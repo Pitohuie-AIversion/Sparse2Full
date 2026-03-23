@@ -1,0 +1,164 @@
+# 实验配置：长时序AR模型训练 - 20时间步预测
+# 使用真实扩散-反应数据集进行自回归时序建模
+
+curriculum:
+  enabled: true
+  stages:
+  - T_out: 1
+    epochs: 20
+    name: stage1_warmup
+    teacher_forcing_ratio: 1.0
+  - T_out: 3
+    epochs: 25
+    name: stage2_short
+    teacher_forcing_ratio: 0.9
+  - T_out: 5
+    epochs: 25
+    name: stage3_medium
+    teacher_forcing_ratio: 0.7
+  - T_out: 10
+    epochs: 30
+    name: stage4_long
+    teacher_forcing_ratio: 0.5
+  - T_out: 20
+    epochs: 50
+    name: stage5_full
+    teacher_forcing_ratio: 0.3
+
+data_path: E:/2D/diffusion-reaction/2D_diff-react_NA_NA.h5
+
+defaults:
+- ../data: temporal_pdebench
+- ../model: swin_unet
+- ../train: default
+- ../temporal
+- _self_
+
+eval:
+  metrics:
+  - rel_l2
+  - mae
+  - psnr
+  - ssim
+  - temporal_consistency
+  - dc_consistency
+  - long_term_stability
+  rollout_steps: 20
+  save_animations: true
+  save_sequences: true
+  vis_cases:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+
+experiment:
+  device: cuda
+  early_stopping:
+    mode: min
+    monitor: val/rel_l2
+    patience: 30
+  log_every_n_steps: 5
+  name: Temporal-AR-SwinUNet-T20-DR2D-128-s2025-longterm
+  output_dir: runs
+  precision: 16
+  save_last: true
+  save_top_k: 5
+  seed: 2025
+  use_amp: true
+  val_check_interval: 0.25
+
+# 图像和数据配置
+img_size: 128
+data_keys:
+  input: data
+  target: data
+
+# 损失函数配置 - 针对长时序优化
+loss:
+  ar_loss:
+    weight: 1.0
+    type: mse
+    temporal_weighting: exponential  # 对后期时间步给予更高权重
+    decay_factor: 0.95
+  dc_loss:
+    weight: 0.8
+    type: mse
+  spectral_loss:
+    weight: 0.3
+    low_freq_weight: 1.0
+    mid_freq_weight: 0.5
+    high_freq_weight: 0.2
+
+# 模型配置 - 优化长时序性能
+model:
+  _target_: models.swin_unet.SwinUNet
+  in_channels: 1
+  out_channels: 1
+  img_size: 128
+  ar_config:
+    enabled: true
+    max_rollout_steps: 20
+    teacher_forcing_ratio: 0.5
+    gradient_checkpointing: true  # 节省显存
+    temporal_consistency_loss: true
+    stability_regularization: 0.01
+  swin_config:
+    embed_dim: 96
+    depths: [2, 2, 6, 2]
+    num_heads: [3, 6, 12, 24]
+    window_size: 8
+    mlp_ratio: 4.0
+    drop_rate: 0.1
+    attn_drop_rate: 0.1
+    drop_path_rate: 0.2
+    patch_norm: true
+
+# 缩放配置
+scale: 1
+
+# 任务类型
+task: temporal
+
+# 时序配置 - 长时序优化
+temporal:
+  T_in: 1
+  T_out: 20
+  dt: 0.01
+  max_rollout_steps: 20
+  teacher_forcing_schedule:
+    type: exponential_decay
+    initial_ratio: 1.0
+    final_ratio: 0.1
+    decay_steps: 1000
+  stability_checks:
+    enabled: true
+    max_divergence: 10.0
+    check_frequency: 5
+
+# 训练配置 - 针对长时序稳定性优化
+train:
+  optimizer:
+    name: AdamW
+    lr: 3.0e-4  # 降低学习率以提高稳定性
+    weight_decay: 1.0e-4
+    eps: 1.0e-8
+    betas: [0.9, 0.999]
+  scheduler:
+    name: CosineAnnealingLR
+    T_max: 150
+    eta_min: 1.0e-6
+    warmup_steps: 500
+  gradient_clip_val: 0.5
+  batch_size: 4  # 减小批次大小以适应长时序
+  accumulate_grad_batches: 4  # 通过梯度累积保持有效批次大小
+  max_epochs: 150
+  nan_detection: true
+  
+  # 数据处理改进 - 长时序稳定性
+  robust_normalization:
+    enabled: true
+    clip_outliers: true
+    outlier_threshold: 3.0
+    smooth_transitions: true

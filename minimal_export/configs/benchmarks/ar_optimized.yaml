@@ -1,0 +1,224 @@
+# Optimized benchmark config for RealDataARTrainer
+experiment:
+  name: "AR-DR2D-Benchmark-Optimized-s2025"
+  description: "Optimized settings for 3-epoch benchmark"
+  device: cuda
+  seed: 2025
+  output_dir: runs
+  log_every_n_steps: 50
+
+logging:
+  performance_monitoring:
+    log_gpu_memory: true
+    log_throughput: true
+    log_batch_time: true
+    memory_snapshot_frequency: 50
+    benchmark:
+      enabled: true
+      warmup_steps: 5
+      measure_steps: 50
+      report_interval: 5
+      max_runtime_seconds: 600
+
+data:
+  data_path: "data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+  dataset_name: RealDiffusionReaction
+  image_size: 128
+  sample_limit: 200
+  max_samples: 512
+  T_in: 1
+  T_out: 5
+  train_ratio: 0.8
+  val_ratio: 0.15
+  test_ratio: 0.05
+  time_step_start: 0
+  time_step_end: 100
+  time_step_stride: 1
+  normalize: true
+  augmentation:
+    enabled: false
+  dataloader:
+    batch_size: 48
+    val_batch_size: 48
+    test_batch_size: 32
+    num_workers: 0
+    pin_memory: false
+    persistent_workers: false
+    prefetch_factor: null
+    drop_last: true
+    multiprocessing_context: null
+    timeout: 0
+    shuffle: true
+  keys: ["u", "v"]
+
+observation:
+  mode: sr
+  scale_factor: 2
+  blur_sigma: 1.0
+  kernel_size: 5
+  downsample_interpolation: area
+  boundary: mirror
+
+hardware:
+  num_workers: 0
+  vram_threshold: 0.94
+  memory_cleanup_frequency: 2
+  torch_threads: 4
+  mkl_threads: 4
+  omp_threads: 4
+  cpu:
+    numexpr_threads: 4
+    mkl_threads: 4
+    omp_threads: 4
+    torch_threads: 4
+    blas_threads: 4
+  memory:
+    memory_threshold: 0.95
+    auto_batch_size: true
+    gradient_accumulation_steps: 1
+    empty_cache_frequency: 50
+    max_memory_allocated: 0.98
+    memory_fraction: 0.98
+    allow_tf32: true
+    cudnn_benchmark: true
+    aggressive_memory_usage: false
+    disable_memory_cleanup: false
+    memory_efficient: true
+    pin_memory_device: null
+
+model:
+  name: ARWrapper
+  base_model: SwinUNet
+  in_channels: 2
+  out_channels: 2
+  img_size: 128
+  patch_size: 4
+  window_size: 8
+  depths: [1, 1, 2, 1]
+  num_heads: [2, 4, 8, 16]
+  embed_dim: 48
+  mlp_ratio: 4.0
+  drop_rate: 0.1
+  attn_drop_rate: 0.1
+  drop_path_rate: 0.1
+  ar_config:
+    detach_rollout: true
+    scheduled_sampling: false
+    teacher_forcing_ratio: 1.0
+
+training:
+  epochs: 3
+  batch_size: 48
+  gradient_accumulation_steps: 1
+  max_runtime_seconds: 300
+  max_epochs: 5000
+  val_check_interval: 9999
+  log_every_n_steps: 50
+  enable_checkpointing: true
+  enable_progress_bar: true
+  precision: "bf16-mixed"
+  sync_batchnorm: false
+  find_unused_parameters: false
+  memory_cleanup_frequency: 2
+  auto_batch_size_reduction: true
+  memory_threshold: 0.94
+  optimizer:
+    name: "AdamW"
+    lr: 0.001
+    weight_decay: 0.01
+    betas: [0.9, 0.999]
+    eps: 1e-8
+    amsgrad: false
+    fused: true
+    foreach: false
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 3
+    eta_min: 1e-6
+    warmup_epochs: 0.5
+    warmup_start_lr: 1e-6
+    cycle_momentum: true
+  gradient_clip_val: 1.0
+  gradient_clip_algorithm: norm
+  compile_model: true
+  channels_last: true
+  use_fused_adam: true
+  torch_compile: true
+  torch_compile_mode: "max-autotune"
+  torch_compile_backend: "inductor"
+  enable_nested_tensor: true
+  use_flash_attention: true
+  gradient_checkpointing: false
+  amp:
+    enabled: true
+    opt_level: "O1"
+    loss_scale: "dynamic"
+    growth_factor: 2.0
+    backoff_factor: 0.5
+    growth_interval: 1000
+    cast_model_type: "bfloat16"
+    autocast_dtype: bfloat16
+    autocast_cpu_enabled: false
+    cache_enabled: true
+  curriculum:
+    enabled: true
+    stages:
+      - epochs: 3
+        T_out: 5
+        description: "短程阶段: 预测5步"
+  checkpoint:
+    save_best: true
+    save_last: true
+    max_keep: 3
+    monitor: val_loss
+    mode: min
+    save_every_n_epochs: 3
+  early_stopping:
+    enabled: true
+    patience: 5
+    monitor: val_loss
+    mode: min
+    min_delta: 1e-4
+
+loss:
+  ar_loss:
+    weight: 1.0
+    reduction: mean
+  reconstruction:
+    weight: 1.0
+  spectral:
+    weight: 0.5
+  data_consistency:
+    weight: 1.0
+  gradient_weight: 0.0
+
+validation:
+  check_val_every_n_epoch: 1
+  metrics: [rel_l2, mae]
+  rollout_steps: [5]
+  convergence_criteria:
+    target_rel_l2: 0.5
+    patience_for_convergence: 3
+
+testing:
+  enabled: false
+  run_final_test: false
+  batch_size: 32
+  save_predictions: false
+  compute_detailed_metrics: false
+  fast_mode: false
+  skip_complex_metrics: true
+  minimal_logging: true
+
+visualization:
+  enabled: false
+  save_test_visualizations: false
+  num_test_samples: 0
+  formats: ["png"]
+
+performance_monitoring:
+  enabled: true
+  log_gpu_utilization: true
+  log_cpu_utilization: true
+  log_iowait: true
+  report_interval_seconds: 10

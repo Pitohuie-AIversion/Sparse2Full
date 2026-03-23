@@ -43,7 +43,8 @@ def convert_md_to_docx(md_files, template_path, output_dir, filter_path, bib_fil
             "-o", output_path,
             "--reference-doc", template_path,
             "--lua-filter", filter_path,
-            "--standalone"  # Important for applying reference doc styles
+            "--standalone",  # Important for applying reference doc styles
+            "--resource-path=.:" + os.path.dirname(md_file) # Ensure images are found relative to the md file
         ]
 
         # Add bibliography support if file exists
@@ -90,7 +91,8 @@ def convert_md_to_pdf(md_files, output_dir, prince_path, filter_path=None, bib_f
         file_name = os.path.basename(md_file)
         name_no_ext = os.path.splitext(file_name)[0]
         output_path = os.path.join(output_dir, f"{name_no_ext}.pdf")
-        html_path = os.path.join(output_dir, f"{name_no_ext}.html")
+        # Generate HTML in the same directory as MD file to preserve relative paths for Prince
+        html_path = os.path.join(os.path.dirname(md_file), f"{name_no_ext}.html")
         
         print(f"Converting {file_name} -> {output_path}...")
         
@@ -106,7 +108,7 @@ def convert_md_to_pdf(md_files, output_dir, prince_path, filter_path=None, bib_f
             "-o", html_path,
             "--standalone",
             "--mathml",
-            "--resource-path=.:" + PROJECT_ROOT # Add project root to resource path
+            "--resource-path=.:" + os.path.dirname(md_file) # Ensure images are found relative to the md file
         ]
         
         if filter_path and os.path.exists(filter_path):

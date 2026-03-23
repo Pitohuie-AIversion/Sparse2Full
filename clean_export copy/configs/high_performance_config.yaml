@@ -1,0 +1,109 @@
+"""
+示例配置文件：高性能配置
+"""
+
+model:
+  name: "SwinTemporalNAR"
+  input_channels: 3
+  hidden_dim: 256
+  num_layers: 8
+  num_heads: 16
+  window_size: 7
+  time_steps: 20
+  prediction_steps: 10
+  spatial_resolution: [128, 128]
+  temporal_encoding_type: "rope"  # 使用RoPE时间编码
+  dropout: 0.1
+  activation: "gelu"
+
+training:
+  batch_size: 32
+  num_epochs: 200
+  learning_rate: 5e-4
+  weight_decay: 1e-4
+  warmup_epochs: 10
+  mixed_precision: true
+  compile_model: true  # 启用模型编译
+  gradient_accumulation_steps: 2
+  gradient_clipping: 1.0
+  scheduler: "cosine"
+  early_stopping: true
+  patience: 20
+  
+data:
+  data_dir: "./data/pdebench"
+  time_steps: 20
+  prediction_steps: 10
+  spatial_resolution: [128, 128]
+  normalize: true
+  cache_data: true
+  num_workers: 8
+  prefetch_factor: 4
+  pin_memory: true
+  data_format: "zarr"  # 使用Zarr格式以获得更好的性能
+  
+hardware:
+  device: "auto"
+  num_workers: 8
+  pin_memory: true
+  numa_aware: true
+  gpu_memory_fraction: 0.95
+  allow_growth: false  # 预分配GPU内存
+  
+distributed:
+  enabled: true  # 启用分布式训练
+  backend: "nccl"
+  strategy: "ddp"
+  world_size: 4  # 4个GPU
+  rank: 0
+  local_rank: 0
+  master_addr: "localhost"
+  master_port: "12355"
+  
+monitoring:
+  enable_monitoring: true
+  log_dir: "./logs"
+  monitoring_interval: 0.5
+  enable_tensorboard: true
+  enable_json_logging: true
+  log_level: "INFO"
+  save_model_checkpoints: true
+  checkpoint_interval: 5
+  save_best_model: true
+  
+optimization:
+  numa_memory_manager:
+    enabled: true
+    memory_policy: "interleave"
+    
+  gpu_optimizer:
+    enabled: true
+    tensor_core_optimization: true
+    cuda_stream_optimization: true
+    memory_optimization: true
+    fusion_optimization: true
+    
+  mixed_precision:
+    enabled: true
+    loss_scale: 4096.0  # 更高的初始损失缩放
+    init_scale: 4096.0
+    growth_factor: 2.0
+    backoff_factor: 0.5
+    growth_interval: 2000
+    
+  data_pipeline:
+    enabled: true
+    numa_aware: true
+    gpu_optimized: true
+    cache_size: 5000
+    preload_factor: 0.2
+    memory_mapping: true
+    
+performance:
+  benchmark_mode: false
+  profile_memory: true
+  profile_performance: true
+  benchmark_iterations: 200
+  warmup_iterations: 20
+  max_memory_usage: "32GB"  # 最大内存使用限制
+  target_throughput: 1000  # 目标吞吐量 (samples/sec)

@@ -1,0 +1,165 @@
+# 纯空间超分辨率预测配置
+# 实验名称：SRx4-DR2D-256-SwinUNet-spatial-s2025
+# 纯空间预测：T_in=1, T_out=1, 禁用AR包装器
+
+experiment:
+  name: "SRx4-DR2D-256-SwinUNet-spatial-s2025"
+  description: "纯空间超分辨率重建，×4倍放大，基于PDEBench 2D Diffusion-Reaction数据集"
+  device: "cuda"  # 使用GPU加速
+  seed: 2025
+  seeds: [42, 123, 456]  # 多种子支持
+  use_multi_seeds: false  # 默认单种子训练
+  output_dir: "runs"
+  tags: ["spatial", "super_resolution", "PDEBench", "SwinUNet", "pure_spatial", "SRx4"]
+  precision: "16"  # 混合精度训练
+
+data:
+  dataset_name: "RealDiffusionReaction2D"
+  data_path: "data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+  
+  # 数据参数
+  img_size: 256
+  channels: 2  # u和v两个变量
+  keys: ["0000", "0001", "0002", "0003", "0004", "0005", "0006", "0007", "0008", "0009"]  # 使用前10个样本
+  
+  # 纯空间配置 - 关键：T_in=T_out=1
+  T_in: 1      # 纯空间：输入时间步数=1
+  T_out: 1     # 纯空间：输出时间步数=1
+  time_step_start: 0
+  time_step_end: 80  # 使用前80个时间步
+  time_step_stride: 1
+  
+  # 数据切分
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  
+  # 数据增强
+  augmentation:
+    enabled: true
+    flip_prob: 0.5
+    rotate_prob: 0.3
+    noise_std: 0.01
+  
+  # 数据预处理
+  preprocessing:
+    normalize: true
+    cache_data: false
+  
+  # 数据加载器
+  dataloader:
+    batch_size: 8  # 纯空间可适当增大batch_size
+    num_workers: 4
+    pin_memory: true
+    persistent_workers: true
+
+model:
+  name: "SwinUNet"
+  params:
+    in_channels: 2
+    out_channels: 2
+    img_size: 256
+    kwargs:
+      patch_size: 4
+      window_size: 8
+      depths: [2, 2, 6, 2]
+      num_heads: [3, 6, 12, 24]
+      embed_dim: 96
+      mlp_ratio: 4.0
+      drop_rate: 0.1
+      attn_drop_rate: 0.0
+      drop_path_rate: 0.1
+
+# AR包装器配置 - 关键：禁用AR
+ar_wrapper:
+  enabled: false  # 纯空间预测：禁用AR包装器
+  T_out: 1        # 纯空间：输出步数=1
+
+# 课程学习配置 - 纯空间可简化
+curriculum:
+  enabled: false  # 纯空间通常不需要课程学习
+
+# 纯空间训练配置
+training:
+  temporal_mode: "spatial_only"  # 关键：纯空间模式
+  epochs: 100  # 纯空间训练通常更快收敛
+  optimizer:
+    name: "AdamW"
+    params:
+      lr: 1e-3  # 遵循开发文档规范
+      weight_decay: 1e-4
+      betas: [0.9, 0.999]
+  scheduler:
+    name: "cosine_warmup"  # 遵循开发文档规范
+    params:
+      T_max: 100
+      warmup_steps: 1000
+      eta_min: 1e-6
+  grad_clip_norm: 1.0  # 梯度裁剪，遵循开发文档
+  mixed_precision: true  # 启用混合精度
+  log_interval: 10
+  save_interval: 20
+  validation:
+    check_val_every_n_epoch: 5  # 纯空间验证频率可降低
+  early_stopping:
+    enabled: true
+    patience: 20  # 纯空间可适当减少耐心值
+    monitor: "val_rel_l2"
+    mode: "min"
+    min_delta: 1e-4
+
+# 损失函数配置（遵循开发文档三件套规范）
+loss:
+  rec_weight: 1.0      # 重建损失权重
+  spec_weight: 0.5     # 频谱损失权重
+  dc_weight: 1.0       # 数据一致性损失权重
+  rec_loss_type: "l2"  # 重建损失类型
+  spec_loss_type: "l2" # 频谱损失类型
+  dc_loss_type: "l2"   # 数据一致性损失类型
+  low_freq_modes: 16   # 低频模式数
+  use_gradient_loss: false
+  gradient_weight: 0.1
+  use_pde_residual_loss: false
+  pde_residual_weight: 0.1
+
+# 观测算子配置（超分辨率×4）
+observation:
+  mode: "sr"  # 超分辨率模式
+  scale_factor: 4  # ×4倍超分辨率
+  blur_sigma: 1.0  # 高斯模糊sigma
+  kernel_size: 5   # 核大小（奇数）
+  boundary: "mirror"  # 边界处理策略
+  downsample_interpolation: "area"  # 下采样插值方法
+  crop_size: null
+  crop_box: null
+
+validation:
+  metrics: ["rel_l2", "mae", "psnr", "ssim", "dc_error"]  # 纯空间指标
+  save_predictions: true
+  max_predictions: 10
+
+performance_monitoring:
+  enabled: true
+  report_interval_seconds: 60
+  gpu_low_threshold: 0.90
+  iowait_high_threshold: 0.12
+  cpu_low_threshold: 0.80
+
+logging:
+  use_tensorboard: true
+  log_level: "INFO"
+  save_code_snapshot: true
+
+visualization:
+  enabled: true
+  save_plots: true
+  plot_interval: 25  # 纯空间绘图间隔可增大
+  plot_types: ["prediction", "error", "spectrum"]  # 纯空间简化绘图类型
+  max_visualization_samples: 5
+
+paper_package:
+  enabled: true
+  include_checkpoints: true
+  include_visualizations: true
+  include_metrics: true
+  anonymize: false

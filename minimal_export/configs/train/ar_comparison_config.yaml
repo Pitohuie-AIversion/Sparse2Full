@@ -1,0 +1,308 @@
+# 横向对比实验配置文件
+# 用于多模型、多种子的公平对比实验
+
+experiment:
+  name: "AR-Comparison-Study-2025"
+  description: "多模型横向对比实验 - 公平环境设置"
+  device: cuda
+  # 多种子确保统计显著性
+  seeds: [42, 123, 456, 789, 1012]  # 5个种子用于统计显著性检验
+  output_dir: runs
+  log_every_n_steps: 10
+
+# 设备与并行配置 - 确保公平对比
+device:
+  accelerator: cuda
+  devices: 2  # 使用相同GPU配置
+  strategy: ddp
+  allow_data_parallel_fallback: true
+  precision: bf16-mixed
+
+# 禁用AR时序，纯空间预测模式
+ar:
+  enabled: false
+
+sequential:
+  enabled: false
+
+# 数据配置 - 确保所有模型使用完全相同的数据
+# 遵循黄金法则：一致性优先
+data:
+  data_path: "data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+  dataset_name: RealDiffusionReaction
+  img_size: 128  # 统一分辨率
+  keys: ["data"]
+  use_official_format: true
+  splits_dir: splits
+  target_channels: 1  # 单通道预测
+  input_channels: 1   # 单通道观测
+  
+  # AR特定配置
+  T_in: 1      # 输入时间步数
+  T_out: 1     # 纯空间预测：仅预测单帧
+  
+  # 数据集分割配置 - 固定分割确保公平
+  train_ratio: 0.8
+  val_ratio: 0.15
+  test_ratio: 0.05
+  
+  # 时间步配置
+  time_step_start: 0
+  time_step_end: 100  # 对比模式：使用更多数据
+  time_step_stride: 1
+  
+  # 观测配置 - 统一降采样设置
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 2
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+      downsample_mode: area
+      align_corners: false
+      antialias: true
+  
+  # 预处理
+  normalize: true
+  augmentation:
+    enabled: false  # 对比实验禁用数据增强
+    flip_prob: 0.0
+    rotate_prob: 0.0
+    noise_std: 0.0
+  
+  # 禁用合成数据
+  use_synthetic_data: false
+  
+  # 数据加载器 - 统一设置
+  dataloader:
+    batch_size: 2048
+    val_batch_size: 512
+    test_batch_size: 256
+    num_workers: 16
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 4
+    drop_last: true
+    shuffle: true
+    timeout: 60
+
+hardware:
+  allow_tf32: true
+  memory:
+    cudnn_benchmark: true
+
+# 模型配置 - 适配所有模型的统一设置
+model:
+  name: "SwinUNet"  # 默认模型，会被命令行参数覆盖
+  in_channels: 4    # 观测(1)+坐标(2)+掩码(1) - 适配空间-only模式
+  out_channels: 1   # 单通道预测
+  img_size: 128     # 统一分辨率
+  
+  # 通用参数，各模型会在此基础上添加特定参数
+  patch_size: 4
+  drop_rate: 0.1
+  attn_drop_rate: 0.1
+  drop_path_rate: 0.1
+
+# 训练配置 - 统一训练设置确保公平对比
+training:
+  epochs: 500  # 对比模式：适中的训练轮数
+  batch_size: 1024  # 适配更多模型
+  gradient_accumulation_steps: 1
+  
+  # PyTorch编译优化
+  torch_compile: false  # 对比实验禁用编译，确保公平
+  torch_compile_backend: "inductor"
+  torch_compile_mode: "reduce-overhead"
+  channels_last: true
+  
+  # 损失权重 - 统一损失函数
+  loss_weights:
+    reconstruction: 1.0
+    spectral: 0.5
+    data_consistency: 1.0
+    val_batch_size: 256  # 减小批次以适配更多模型
+    test_batch_size: 128
+    num_workers: 8
+  
+  # 验证配置
+  validation:
+    enabled: true
+    check_val_every_n_epoch: 10
+    save_val_batch_for_viz: false
+    log_val_metrics: true
+  
+  # 优化器 - 统一优化设置
+  optimizer:
+    name: "AdamW"
+    lr: 0.001
+    weight_decay: 0.0001
+    betas: [0.9, 0.999]
+    eps: 1e-8
+    fused: false
+    foreach: false
+  
+  # 学习率调度
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 1000  # 与总epochs一致
+    eta_min: 1e-6
+    warmup_epochs: 20
+  
+  # 基本训练设置
+  gradient_clip_val: 1.0
+  gradient_clip_algorithm: norm
+  
+  # 混合精度训练
+  amp:
+    enabled: true
+    autocast_dtype: bfloat16
+  
+  # 课程学习 - 对比模式禁用
+  curriculum:
+    enabled: false
+    stages: []
+  
+  # 检查点
+  checkpoint:
+    save_best: true
+    save_last: true
+    max_keep: 3  # 对比模式保留较少检查点
+    monitor: val_loss
+    mode: min
+    save_every_n_epochs: 100
+  
+  # 早停 - 对比模式禁用，确保完整训练
+  early_stopping:
+    enabled: false
+    patience: 200
+    monitor: val_loss
+    mode: min
+    min_delta: 1e-6
+
+# 损失配置
+loss:
+  # AR特定损失
+  ar_loss:
+    weight: 0.0  # 禁用AR时序损失
+    reduction: mean
+  
+  # 辅助损失
+  reconstruction:
+    weight: 1.0
+  spectral:
+    weight: 0.5  # 启用频谱损失用于对比
+  degradation_consistency:
+    weight: 1.0  # 启用DC一致性损失
+  gradient_weight: 0.0
+
+# 验证配置
+validation:
+  check_val_every_n_epoch: 10
+  use_observation: false
+  
+  # 对比实验指标
+  metrics:
+    - rel_l2
+    - mae
+    - psnr
+    - ssim
+    - dc_error  # 数据一致性误差
+  
+  # AR特定验证
+  rollout_steps: [1]  # 空间-only：仅验证单步
+  
+  # 收敛标准 - 对比模式宽松标准
+  convergence_criteria:
+    target_rel_l2: 0.1
+    patience_for_convergence: 5
+    min_improvement: 1e-4
+
+# 日志配置
+logging:
+  experiment_name: "AR-Comparison-Study-2025"
+  version: null
+  default_hp_metric: false
+  log_model: false
+  
+  # 性能监控
+  performance_monitoring:
+    log_gpu_memory: true
+    log_throughput: true
+    log_batch_time: true
+  
+  tensorboard:
+    save_dir: runs/tensorboard
+    name: ar_comparison_study
+    version: null
+  
+  visualization:
+    save_samples_every_n_epochs: 50
+    num_samples_to_save: 10
+    save_training_curves: true
+    save_rollout_visualization: false
+
+# 随机种子 - 由实验脚本控制
+seed: 42
+
+# 测试配置 - 对比模式启用最终测试
+testing:
+  enabled: true  # 启用最终测试
+  run_final_test: true
+  save_predictions: false  # 不保存预测结果节省空间
+  compute_detailed_metrics: true  # 计算详细指标
+  
+  # 测试设置
+  batch_size: 256
+  save_visualizations: false
+  num_visualization_samples: 0
+  
+  # 快速测试模式
+  fast_mode: false
+  skip_complex_metrics: false
+  minimal_logging: false
+
+# 数据增强配置 - 对比模式禁用
+data_augmentation:
+  enable: false
+  # CPU密集型增强操作
+  random_rotation: 
+    enable: false
+  random_flip:
+    enable: false
+  gaussian_noise:
+    enable: false
+  # 数值计算密集型操作
+  normalize_per_sample: false
+  compute_statistics: false
+
+# 横向对比实验专用配置
+comparison_study:
+  enabled: true
+  baseline_model: "unet"  # 基线模型用于显著性检验
+  
+  # 对比模型列表 - 可根据需要调整
+  models_to_compare:
+    - "swin_unet"
+    - "unet"
+    - "fno2d" 
+    - "segformer"
+    - "unet_plus_plus"
+    - "hybrid"
+  
+  # 公平性检查
+  fairness_checks:
+    - "same_data_split"
+    - "same_batch_size"
+    - "same_optimizer"
+    - "same_epochs"
+    - "same_loss_weights"
+  
+  # 输出设置
+  generate_latex_tables: true
+  generate_csv_results: true
+  generate_significance_report: true
+  
+  # 资源统计
+  profile_resources: true  # 统计每个模型的资源消耗

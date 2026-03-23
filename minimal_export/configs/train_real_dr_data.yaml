@@ -1,0 +1,121 @@
+# @package _global_
+# 真实扩散反应数据训练配置
+
+defaults:
+  - data: 2d_diff_react_na_na_crop_20
+  - model: swin_unet
+  - train: default
+  - loss: temporal_loss
+  - eval: default
+  - _self_
+
+# 实验名称
+experiment_name: train_real_dr_data
+
+# 数据配置
+data:
+  data_path: data/2D_diff-react_NA_NA.h5  # 更新为实际路径
+  dataset_name: 2D_diff-react_NA_NA
+  task_type: crop_20  # 20% 裁剪任务
+  image_size: 128
+  batch_size: 4
+  num_workers: 4
+
+# 模型配置
+model:
+  name: swin_unet
+  in_channels: 2  # 输入通道数 (u, v)
+  out_channels: 2  # 输出通道数 (u, v)
+  img_size: 128
+  patch_size: 4
+  embed_dim: 96
+  depths: [2, 2, 2, 2]
+  num_heads: [3, 6, 12, 24]
+  window_size: 8
+  mlp_ratio: 4.0
+  drop_rate: 0.0
+  attn_drop_rate: 0.0
+  drop_path_rate: 0.1
+
+# 训练配置
+training:
+  epochs: 100
+  batch_size: 4
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  warmup_epochs: 10
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 1
+  
+  # 优化器
+  optimizer:
+    name: adamw
+    lr: 0.001
+    weight_decay: 0.0001
+    betas: [0.9, 0.999]
+    eps: 1e-8
+  
+  # 学习率调度器
+  scheduler:
+    name: cosine
+    T_max: 100
+    eta_min: 1e-6
+    warmup_epochs: 10
+
+# 损失配置
+loss:
+  reconstruction:
+    weight: 1.0
+    reduction: mean
+  
+  spectral:
+    weight: 0.5
+    freq_threshold: 16
+    reduction: mean
+  
+  data_consistency:
+    weight: 1.0
+    reduction: mean
+
+# 评估配置
+eval:
+  metrics:
+    - rel_l2
+    - mae
+    - psnr
+    - ssim
+  
+  save_predictions: true
+  save_plots: true
+  frequency: 10  # 每10个epoch评估一次
+
+# 日志配置
+logging:
+  level: INFO
+  log_dir: ./runs/train_real_dr_data
+  save_frequency: 10
+  
+  # WandB配置（如果可用）
+  wandb:
+    enabled: false
+    project: sparse2full
+    name: train_real_dr_data
+    tags: [real_data, diffusion_reaction, crop_20]
+
+# 硬件配置
+device: cuda
+gpu_ids: [0]
+amp: true  # 自动混合精度
+distributed: false
+
+# 可重复性
+seed: 42
+deterministic: true
+
+# 检查点
+checkpoint:
+  save_dir: ./runs/train_real_dr_data/checkpoints
+  save_frequency: 20
+  save_top_k: 3
+  monitor: val/rel_l2
+  mode: min

@@ -1,0 +1,46 @@
+# 经典Transformer模型配置
+# 基于"Attention is All You Need"论文的标准Transformer架构，适配PDEBench稀疏观测重建任务
+
+name: "Transformer"
+params:
+  in_channels: 1
+  out_channels: 1
+  img_size: 128
+  
+  # Patch Embedding参数
+  patch_size: 16  # 16x16 patches，与ViT保持一致
+  d_model: 256    # 标准Transformer模型维度（调整为8的倍数）
+  
+  # Transformer架构参数
+  num_encoder_layers: 6   # 编码器层数
+  num_decoder_layers: 6   # 解码器层数
+  num_heads: 8           # 注意力头数
+  d_ff: 2048            # 前馈网络隐藏层维度
+  
+  # Dropout配置
+  dropout: 0.1          # 标准dropout率
+  
+  # 激活函数
+  activation: "relu"    # 前馈网络激活函数
+  
+# 模型特点说明
+description: |
+  经典Transformer模型实现，基于"Attention is All You Need"论文：
+  - 标准编码器-解码器架构
+  - 多头自注意力机制
+  - 位置编码
+  - 残差连接和层归一化
+  - 适配2D图像的patch化处理
+  
+# 预期性能
+expected_performance:
+  parameters_M: ~25.0    # 预期参数量（百万）
+  flops_G: ~50.0        # 预期FLOPs（十亿）@128x128
+  memory_GB: ~2.0       # 预期显存占用（GB）
+  
+# 训练建议
+training_recommendations:
+  learning_rate: 0.0001  # 建议学习率
+  batch_size: 4         # 建议批大小
+  warmup_epochs: 10     # 建议预热轮数
+  scheduler: "cosine_warmup"  # 建议调度器

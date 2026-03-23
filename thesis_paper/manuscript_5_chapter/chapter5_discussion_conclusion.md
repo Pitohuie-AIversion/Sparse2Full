@@ -43,17 +43,19 @@
 ### 5.3.1 主动感知与强化学习闭环 (Active Sensing & Reinforcement Learning)
 突破静态网格观测的限制，未来的观测系统将具备“智能”。结合**深度强化学习（Deep RL）**，可以将物理场重构建模为序列决策过程（Sequential Decision Process）：智能体（Agent）根据当前重建场的信息熵或物理残差分布，动态规划下一个最优观测位置（Next-best View）。这种“感知—决策—行动”的闭环不仅能最大化信息增益（Information Gain），还能针对激波、剪切层等高动态区域实现自适应加密观测，以最小的传感器成本实现物理特征的完备捕获。
 
-![图 5-2: 基于深度强化学习（Deep RL）的物理场主动感知闭环示意图。智能体（Agent）根据当前重建场的不确定性分布，动态规划下一个最优观测位置（Next-best View），以最小化传感器成本实现对关键物理特征（如激波、剪切层）的自适应捕获。](images/fig5-2_active_sensing_rl.png)
+![图 5-1: 基于深度强化学习（Deep RL）的物理场主动感知闭环示意图。智能体（Agent）根据当前重建场的不确定性分布，动态规划下一个最优观测位置（Next-best View），以最小化传感器成本实现对关键物理特征（如激波、剪切层）的自适应捕获。](images/fig5-2_active_sensing_rl.png)
 
 ### 5.3.2 面向 PDE 泛化的物理基础模型 (Foundation Models for PDEs)
+
 随着“基础模型（Foundation Model）”范式的兴起，单一物理场景的专用模型正逐渐向多物理场通用模型演进。未来的工作可探索构建**通用神经算子（Generalist Neural Operator）**，在海量不同控制方程（如 Navier-Stokes, Maxwell, Schrödinger）与边界条件的数据上进行预训练。利用**上下文学习（In-context Learning）**或**多模态提示（Multimodal Prompting）**技术，将观测算子 $H$、控制方程参数或边界几何作为“提示词（Prompt）”输入模型，实现对未见物理场景的零样本（Zero-shot）或少样本泛化，彻底解决传统方法“一场景一训练”的成本瓶颈。
 
-![图 5-3: 面向 PDE 泛化的物理基础模型（Foundation Model）架构示意图。模型在海量异构物理方程数据（如 Navier-Stokes, Maxwell, Schrödinger）上进行预训练，通过上下文学习（In-context Learning）或多模态提示（Multimodal Prompting）机制，将观测算子与边界条件作为提示词，实现对未见物理场景的零样本泛化。](images/fig5-3_foundation_model_pde.png)
+![图 5-2: 面向 PDE 泛化的物理基础模型（Foundation Model）架构示意图。模型在海量异构物理方程数据（如 Navier-Stokes, Maxwell, Schrödinger）上进行预训练，通过上下文学习（In-context Learning）或多模态提示（Multimodal Prompting）机制，将观测算子与边界条件作为提示词，实现对未见物理场景的零样本泛化。](images/fig5-3_foundation_model_pde.png)
 
 ### 5.3.3 可信科学机器学习：从贝叶斯到共形预测 (Trustworthy SciML)
+
 现有的不确定性量化主要依赖贝叶斯神经网络（BNN）或深度集合（Deep Ensembles），其置信区间往往未经校准（Uncalibrated），难以满足航空航天等高安全领域的严苛标准。未来的研究应引入**共形预测（Conformal Prediction, CP）**框架，这是一种无需分布假设的统计推断方法。通过在物理场重建中构建“共形预测集”，可以在有限样本下提供具有严格数学保证的覆盖率（Coverage Guarantee，例如确保 95% 的真值落在预测区间内）。结合物理守恒律（如残差约束），发展“物理信息共形预测（Physics-informed CP）”，将为稀疏观测下的模型部署颁发“安全证书”。
 
-![图 5-4: 面向可信科学机器学习的几何神经算子与共形预测架构示意图。左侧展示了定义在非欧几何流形上的神经算子（GNO），具备离散化无关性；右侧展示了物理信息共形预测（Physics-Informed Conformal Prediction）模块，为重建结果提供具有严格覆盖率保证（Coverage Guarantee）的置信区间，确保工程应用的安全可靠性。](images/fig5-4_trustworthy_geometric_sciml.png)
+![图 5-3: 面向可信科学机器学习的几何神经算子与共形预测架构示意图。左侧展示了定义在非欧几何流形上的神经算子（GNO），具备离散化无关性；右侧展示了物理信息共形预测（Physics-Informed Conformal Prediction）模块，为重建结果提供具有严格覆盖率保证（Coverage Guarantee）的置信区间，确保工程应用的安全可靠性。](images/fig5-4_trustworthy_geometric_sciml.png)
 
 ### 5.3.4 非规则网格与几何神经算子 (Geometric Neural Operators)
 针对工业界普遍存在的复杂几何（如飞行器气动外形），传统的 CNN 架构因受限于欧氏空间网格而失效。未来的核心方向是发展**几何神经算子（Geometric Neural Operators, GNO）**。GNO 将物理场建模为流形上的函数映射，天然具备**离散化无关性（Discretization-invariance）**，即在任意分辨率和非结构化网格上均能保持算子的一致性。结合几何深度学习，设计具有 SE(3) 等变性（Equivariance）的观测算子与重建网络，将显著提升模型在复杂拓扑结构下的几何泛化能力。

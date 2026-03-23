@@ -1,0 +1,35 @@
+# FNO2d模型配置
+# 二维傅里叶神经算子
+
+name: "FNO2D"
+
+params:
+  in_channels: 1
+  out_channels: 1
+  img_size: 128
+  
+  kwargs:
+    # FNO核心参数
+    modes1: 16              # x方向傅里叶模态数
+    modes2: 16              # y方向傅里叶模态数
+    width: 64               # 隐藏层宽度
+    n_layers: 4             # FNO层数
+    
+    # 激活函数
+    activation: "gelu"
+    
+    # 归一化
+    norm: "instance"        # batch, instance, layer, none
+    
+    # Dropout
+    dropout: 0.0
+    
+    # 初始化
+    init_scale: 1.0
+    
+    # 边界处理
+    padding: 8              # 周期性填充
+    
+    # 可选参数
+    use_mlp: true          # 是否使用MLP层
+    mlp_ratio: 4           # MLP隐藏层倍数

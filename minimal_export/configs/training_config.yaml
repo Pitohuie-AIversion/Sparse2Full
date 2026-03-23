@@ -1,0 +1,173 @@
+# 高性能训练脚本配置文件
+# 针对AMD EPYC 9654 + NVIDIA L40 x2硬件平台深度优化
+
+# 硬件配置
+hardware:
+  cpu:
+    model: "AMD EPYC 9654"
+    cores: 192
+    numa_nodes: 2
+    memory: "1.0 TiB"
+    avx512_support: true
+  
+  gpu:
+    count: 2
+    model: "NVIDIA L40"
+    memory_per_gpu: 46068  # MiB
+    compute_capability: 8.9
+    tensor_cores: true
+    cuda_cores: 18176
+    memory_bandwidth: "864 GB/s"
+
+# 性能优化配置
+performance:
+  # 批次大小配置
+  batch_size:
+    base: 32
+    adaptive: true
+    max_gpu_memory_fraction: 0.85
+  
+  # 数据加载优化
+  data_loading:
+    num_workers: 16  # NUMA节点数 * 8
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 4
+    multiprocessing_context: "spawn"
+  
+  # 混合精度训练
+  mixed_precision:
+    enabled: true
+    dtype: "float16"
+    init_scale: 65536  # 2^16
+    growth_factor: 2
+    backoff_factor: 0.5
+    growth_interval: 2000
+  
+  # 计算图优化
+  compilation:
+    enabled: true
+    mode: "max-autotune"
+    backend: "inductor"
+    fullgraph: true
+    options:
+      epilogue_fusion: true
+      max_autotune: true
+      max_autotune_pointwise: true
+      shape_padding: true
+      permute_fusion: true
+      split_cat_fx_passes: true
+
+# 模型配置
+model:
+  # SwinTemporalNAR配置
+  swin_temporal_nar:
+    in_channels: 3
+    out_channels: 3
+    embed_dim: 96
+    depths: [2, 2, 6, 2]
+    num_heads: [3, 6, 12, 24]
+    window_size: 7
+    mlp_ratio: 4.0
+    drop_path_rate: 0.1
+  
+  # 时间编码配置
+  temporal_encoder:
+    d_model: 96
+    nhead: 8
+    num_layers: 4
+    dropout: 0.1
+    max_seq_length: 1000
+  
+  # NAR预测配置
+  nar_head:
+    T_out: 5  # 支持多步预测
+    query_dim: 96
+    attention_heads: 8
+
+# 训练配置
+training:
+  # 基础训练参数
+  epochs: 100
+  learning_rate: 0.0001
+  weight_decay: 0.01
+  gradient_clipping: 1.0
+  
+  # 分布式训练
+  distributed:
+    enabled: true
+    backend: "nccl"
+    find_unused_parameters: false
+    broadcast_buffers: false
+    gradient_as_bucket_view: true
+    static_graph: true
+  
+  # 优化器配置
+  optimizer:
+    name: "AdamW"
+    betas: [0.9, 0.999]
+    eps: 1e-8
+  
+  # 学习率调度
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 100
+    eta_min: 1e-6
+
+# 监控与日志
+monitoring:
+  # 性能监控
+  performance:
+    log_interval: 10
+    profile_memory: true
+    profile_gpu_utilization: true
+    profile_cpu_utilization: true
+  
+  # 日志配置
+  logging:
+    level: "INFO"
+    log_dir: "logs"
+    tensorboard: true
+    wandb: false
+  
+  # 检查点配置
+  checkpoint:
+    save_interval: 5
+    keep_last: 3
+    save_best: true
+    metric: "val_loss"
+
+# 数据配置
+data:
+  # 数据集路径
+  dataset_path: "data/PDEBench"
+  
+  # 数据预处理
+  preprocessing:
+    normalize: true
+    resize: [256, 256]
+    augmentation: true
+  
+  # 时间序列配置
+  temporal:
+    T_in: 1  # 输入时间步
+    T_out: 5  # 输出时间步
+    time_step: 0.1
+
+# 性能基准测试
+benchmark:
+  # 基准测试配置
+  enabled: true
+  target_gpu_utilization: 0.95
+  target_memory_bandwidth: 0.90
+  target_performance_improvement: 0.30
+  
+  # 测试场景
+  scenarios:
+    - name: "single_gpu"
+      gpu_count: 1
+    - name: "multi_gpu"
+      gpu_count: 2
+    - name: "distributed"
+      gpu_count: 2
+      nodes: 1

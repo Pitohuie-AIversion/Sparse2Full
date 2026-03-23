@@ -1,0 +1,24 @@
+# Tasks
+
+- [x] Task 1: Create Documentation Directory
+    - [x] Create `docs/` directory if it does not exist.
+- [x] Task 2: Document Python Dependencies
+    - [x] Analyze `requirements.txt` and `setup.py`.
+    - [x] Identify core libraries (PyTorch, NumPy, H5Py, OmegaConf, PyTorch-Lightning).
+    - [x] Identify implied dependencies (Hydra-Core, TensorBoard).
+    - [x] Write "Python Dependencies" section in `docs/TRAINING_DEPENDENCIES.md`.
+- [x] Task 3: Document Data Dependencies
+    - [x] Describe PDEBench dataset format (HDF5).
+    - [x] Document expected paths and keys (`tensor`).
+    - [x] Write "Data Dependencies" section.
+- [x] Task 4: Document Configuration Dependencies
+    - [x] Explain Hydra config structure (`configs/`).
+    - [x] Detail key configuration files (`config.yaml`, `pdebench.yaml`, `swin_unet.yaml`, `default.yaml`).
+    - [x] Write "Configuration System" section.
+- [x] Task 5: Document Environment Dependencies
+    - [x] List all used environment variables (`MASTER_ADDR`, `PDEBENCH_DATA_PATH`, etc.).
+    - [x] Explain their purpose (Distributed, Data, Optimization).
+    - [x] Write "Environment Variables" section.
+- [x] Task 6: Finalize Document
+    - [x] Add a Dependency Tree / Architecture Diagram (text-based).
+    - [x] Review and verify accuracy against scanned files.

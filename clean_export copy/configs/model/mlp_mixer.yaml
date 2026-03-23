@@ -1,0 +1,39 @@
+# MLPMixer模型配置
+# MLP-Mixer架构用于图像重建
+
+name: "MLPMixer"
+
+params:
+  in_channels: 1
+  out_channels: 1
+  img_size: 128
+  
+  kwargs:
+    # Patch参数
+    patch_size: 8           # 图像块大小
+    
+    # MLP-Mixer结构参数
+    num_blocks: 8           # Mixer块数量
+    hidden_dim: 512         # 隐藏层维度
+    tokens_mlp_dim: 256     # Token-mixing MLP维度
+    channels_mlp_dim: 2048  # Channel-mixing MLP维度
+    
+    # Dropout
+    dropout: 0.0
+    
+    # 激活函数
+    activation: "gelu"
+    
+    # 归一化
+    norm_layer: "LayerNorm"
+    
+    # 位置编码
+    use_pos_embed: true
+    pos_embed_type: "learnable"  # learnable, sincos
+    
+    # 输出头
+    head_type: "linear"     # linear, conv
+    
+    # 可选参数
+    use_checkpoint: false
+    init_scale: 1.0

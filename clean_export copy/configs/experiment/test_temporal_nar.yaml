@@ -1,0 +1,179 @@
+# @package _global_
+
+# 时序NAR模型真实数据集测试配置
+# 整合temporal_training.yaml和swin_temporal_nar.yaml
+defaults:
+  - ../data: temporal_pdebench
+  - ../model: swin_temporal_nar
+  - ../train: default
+  - ../temporal
+  - _self_
+
+# 实验配置
+experiment:
+  name: "Test-TemporalNAR-DR2D-128-s2025"
+  seed: 2025
+  device: "cuda"
+  precision: 16
+  use_amp: true
+  
+  # 输出目录
+  output_dir: "test_runs"
+  save_top_k: 1
+  save_last: true
+  
+  # 测试模式设置
+  test_mode: true
+  quick_test: false  # 设为true进行快速测试
+  
+  # 日志设置
+  log_every_n_steps: 5
+  val_check_interval: 50
+
+# 覆盖数据配置 - 使用真实diffusion-reaction数据集
+data_path: "e:/2d/diffusion-reaction/2D_diff-react_NA_NA.h5"
+keys: ["data"]  # 真实数据集使用'data'键，包含2个通道(u,v)
+task: "SR"
+scale: 4
+image_size: 128
+batch_size: 2  # 测试时使用较小的batch size
+
+# 时序配置
+temporal:
+  T_in: 2      # 输入时间步数（测试用较小值）
+  T_out: 4     # 输出时间步数
+  dt: 0.1      # 时间步长
+  
+  # AR模型设置
+  ar:
+    teacher_forcing_ratio: 0.8
+    scheduled_sampling: true
+
+# 模型配置覆盖（适配测试环境）
+model:
+  # SwinUNet基础配置（测试用较小模型）
+  base_kwargs:
+    in_channels: 1
+    out_channels: 1
+    img_size: 32  # 测试用较小尺寸
+    patch_size: 4
+    embed_dim: 48  # 减小以加速测试
+    depths: [2, 2, 2, 2]  # 减少层数
+    num_heads: [3, 6, 12, 24]
+    window_size: 4  # 适配较小图像
+    mlp_ratio: 4.0
+    drop_rate: 0.0
+    attn_drop_rate: 0.0
+    drop_path_rate: 0.1
+    use_fno_bottleneck: false
+  
+  # 时序模块配置
+  temporal:
+    enabled: true
+    type: "conv1d"
+    c_out: 1
+    k: 3
+    causal: true
+    dropout: 0.1
+  
+  # NAR头配置
+  nar:
+    head_type: "simple"
+    d_model: 48  # 与embed_dim对齐
+    num_heads: 4  # 减少以加速测试
+    max_timesteps: 16
+    dropout: 0.1
+  
+  # AR配置
+  ar:
+    detach_rollout: true
+    scheduled_sampling: true
+    sampling_schedule: "linear"
+  
+  # 启用开关
+  use_ar: true
+  use_nar: true
+
+# 损失配置
+loss:
+  # 双头损失权重
+  ar_weight: 1.0
+  nar_weight: 1.0
+  
+  # 权重调度
+  ar_weight_schedule: "constant"  # 测试时保持常量
+  nar_weight_schedule: "constant"
+  
+  # 损失类型
+  ar_loss_type: "mse"
+  nar_loss_type: "mse"
+  
+  # 其他损失
+  spectral_loss:
+    weight: 0.3
+  dc_loss:
+    weight: 0.5
+
+# 训练配置覆盖（测试用）
+train:
+  max_epochs: 10  # 测试用较少轮数
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 1
+  
+  # 优化器
+  optimizer:
+    name: "AdamW"
+    lr: 5e-4  # 测试用较小学习率
+    weight_decay: 1e-4
+    betas: [0.9, 0.999]
+  
+  # 学习率调度器
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 10
+    eta_min: 1e-6
+    warmup_steps: 100
+
+# 测试配置
+test:
+  # 推理模式测试
+  inference_modes: ["ar", "nar", "ensemble"]
+  
+  # 性能测试
+  performance_test:
+    enabled: true
+    num_samples: 50  # 性能测试样本数
+    measure_memory: true
+    measure_flops: true
+    measure_latency: true
+  
+  # 可视化测试
+  visualization:
+    enabled: true
+    save_dir: "test_visualizations"
+    num_cases: 3
+    create_animations: true
+    plot_comparisons: true
+  
+  # 指标评估
+  metrics:
+    - "rel_l2"
+    - "mae"
+    - "psnr" 
+    - "ssim"
+    - "temporal_consistency"
+    - "dc_consistency"
+  
+  # 对比分析
+  comparison:
+    baseline_models: ["ar_only", "nar_only"]
+    statistical_test: true  # 进行统计显著性测试
+
+# 快速测试配置（当quick_test=true时使用）
+quick_test_config:
+  max_epochs: 3
+  batch_size: 1
+  num_samples: 10
+  T_out: 2
+  skip_visualization: false
+  skip_performance: false

@@ -1,0 +1,260 @@
+# 高级时序训练配置
+# 支持课程学习、多模式训练、稳定性优化
+
+# 基础训练参数
+batch_size: 8
+max_epochs: 200
+accumulate_grad_batches: 2
+
+# 优化器配置
+optimizer:
+  name: AdamW
+  lr: 2.0e-4
+  weight_decay: 1.0e-4
+  eps: 1.0e-8
+  betas: [0.9, 0.999]
+
+# 学习率调度器
+scheduler:
+  name: CosineAnnealingWarmRestarts
+  T_0: 50
+  T_mult: 2
+  eta_min: 1.0e-6
+  warmup_steps: 1000
+
+# 梯度裁剪
+gradient_clip_val: 1.0
+gradient_clip_algorithm: "norm"
+
+# 混合精度训练
+use_amp: true
+precision: 16
+
+# 早停配置
+early_stopping:
+  monitor: "val/rel_l2"
+  mode: "min"
+  patience: 30
+  min_delta: 1e-5
+
+# 检查点保存
+save_top_k: 5
+save_last: true
+monitor: "val/rel_l2"
+mode: "min"
+
+# 验证配置
+val_check_interval: 0.25
+check_val_every_n_epoch: 1
+
+# 日志配置
+log_every_n_steps: 10
+enable_progress_bar: true
+
+# 时序特定训练配置
+temporal_training:
+  # 课程学习配置
+  curriculum_learning:
+    enabled: true
+    strategy: "progressive"  # progressive, staged, adaptive
+    
+    # 渐进式课程学习
+    progressive:
+      start_T_out: 1
+      end_T_out: 8
+      growth_rate: 1.2
+      growth_epochs: 20
+      
+    # 分阶段课程学习
+    staged:
+      stages:
+        - name: "warmup"
+          T_out: 1
+          epochs: 20
+          teacher_forcing_ratio: 1.0
+          learning_rate_multiplier: 0.5
+        - name: "short_term"
+          T_out: 3
+          epochs: 30
+          teacher_forcing_ratio: 0.9
+          learning_rate_multiplier: 0.8
+        - name: "medium_term"
+          T_out: 5
+          epochs: 40
+          teacher_forcing_ratio: 0.7
+          learning_rate_multiplier: 1.0
+        - name: "long_term"
+          T_out: 8
+          epochs: 50
+          teacher_forcing_ratio: 0.5
+          learning_rate_multiplier: 1.0
+        - name: "full_rollout"
+          T_out: 12
+          epochs: 60
+          teacher_forcing_ratio: 0.3
+          learning_rate_multiplier: 0.9
+    
+    # 自适应课程学习
+    adaptive:
+      performance_threshold: 0.1  # 相对L2阈值
+      patience: 10  # 等待轮数
+      T_out_increment: 1
+      max_T_out: 16
+  
+  # 调度采样配置
+  scheduled_sampling:
+    enabled: true
+    schedule_type: "exponential"  # linear, exponential, cosine, inverse_sigmoid
+    
+    # 指数衰减
+    exponential:
+      initial_prob: 1.0
+      final_prob: 0.2
+      decay_rate: 0.995
+      
+    # 线性衰减
+    linear:
+      initial_prob: 1.0
+      final_prob: 0.3
+      decay_steps: 2000
+      
+    # 余弦衰减
+    cosine:
+      initial_prob: 1.0
+      final_prob: 0.25
+      period: 1000
+      
+    # 反sigmoid
+    inverse_sigmoid:
+      k: 0.002
+      x0: 1000
+  
+  # 模式切换策略
+  mode_switching:
+    enabled: true
+    strategy: "scheduled"  # scheduled, adaptive, random
+    
+    # 计划切换
+    scheduled:
+      schedule:
+        - epochs: [0, 50]
+          mode: "ar"
+          weight: 1.0
+        - epochs: [50, 100]
+          mode: "hybrid"
+          ar_weight: 0.7
+          nar_weight: 0.3
+        - epochs: [100, 150]
+          mode: "hybrid"
+          ar_weight: 0.5
+          nar_weight: 0.5
+        - epochs: [150, 200]
+          mode: "nar"
+          weight: 1.0
+    
+    # 自适应切换
+    adaptive:
+      performance_metric: "val/rel_l2"
+      switch_threshold: 0.05
+      patience: 15
+      mode_sequence: ["ar", "hybrid", "nar"]
+  
+  # 稳定性优化
+  stability:
+    # 梯度稳定性
+    gradient_stability:
+      enabled: true
+      max_grad_norm: 1.0
+      grad_accumulation_steps: 4
+      
+    # 数值稳定性
+    numerical_stability:
+      enabled: true
+      eps: 1e-8
+      clip_values: [-10.0, 10.0]
+      
+    # 训练稳定性
+    training_stability:
+      enabled: true
+      nan_detection: true
+      inf_detection: true
+      loss_spike_detection: true
+      loss_spike_threshold: 10.0
+      recovery_strategy: "reduce_lr"  # reduce_lr, restart, skip_batch
+  
+  # 正则化配置
+  regularization:
+    # 时序一致性正则化
+    temporal_consistency:
+      enabled: true
+      weight: 0.1
+      consistency_type: "smooth"  # smooth, monotonic, periodic
+      
+    # 物理约束正则化
+    physics_constraints:
+      enabled: false
+      conservation_weight: 0.05
+      boundary_weight: 0.02
+      
+    # 频域正则化
+    spectral_regularization:
+      enabled: true
+      weight: 0.05
+      preserve_frequencies: [0, 16]  # 保持低频成分
+
+# 数据增强配置
+data_augmentation:
+  temporal:
+    # 时序噪声注入
+    noise_injection:
+      enabled: true
+      noise_type: "gaussian"  # gaussian, uniform, salt_pepper
+      noise_level: 0.01
+      
+    # 时序扰动
+    temporal_perturbation:
+      enabled: true
+      time_shift_range: [-0.1, 0.1]
+      time_scale_range: [0.95, 1.05]
+      
+    # 序列截断
+    sequence_truncation:
+      enabled: true
+      min_length_ratio: 0.8
+      max_length_ratio: 1.0
+
+# 监控和诊断
+monitoring:
+  # 性能监控
+  performance:
+    track_metrics: ["rel_l2", "mae", "psnr", "ssim"]
+    track_gradients: true
+    track_weights: true
+    track_activations: false
+    
+  # 稳定性监控
+  stability:
+    track_loss_variance: true
+    track_gradient_norm: true
+    track_parameter_drift: true
+    
+  # 时序特定监控
+  temporal:
+    track_rollout_error: true
+    track_long_term_stability: true
+    track_mode_performance: true
+    
+# 可视化配置
+visualization:
+  enabled: true
+  save_frequency: 10  # 每10个epoch保存一次
+  
+  # 保存内容
+  save_predictions: true
+  save_attention_maps: true
+  save_temporal_evolution: true
+  save_error_analysis: true
+  
+  # 可视化案例数
+  num_vis_cases: 5
+  vis_timesteps: [0, 2, 4, 7]  # 可视化的时间步

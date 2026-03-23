@@ -1,0 +1,26 @@
+# PDEBench模型接口统一性验证配置
+# 验证所有模型是否遵循统一接口：forward(x[B,C_in,H,W])→y[B,C_out,H,W]
+
+model_interface_validator:
+  # 测试配置
+  test_batch_size: 2          # 测试批次大小
+  test_img_size: 64           # 测试图像尺寸
+  test_in_channels: 4         # 测试输入通道数（baseline + coords + mask + fourier_pe?）
+  test_out_channels: 1        # 测试输出通道数
+  
+  # 验证项目
+  check_items:
+    - init_signature          # 初始化签名检查
+    - forward_signature       # 前向传播签名检查
+    - instantiation          # 模型实例化检查
+    - forward_pass           # 前向传播测试
+
+# 输出配置
+output_dir: "model_interface_validation_results"
+
+# Hydra配置
+hydra:
+  job:
+    chdir: false
+  run:
+    dir: ./logs/model_interface_validation/${now:%Y-%m-%d_%H-%M-%S}

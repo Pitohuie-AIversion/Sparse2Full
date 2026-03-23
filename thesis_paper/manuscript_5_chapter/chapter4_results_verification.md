@@ -37,8 +37,25 @@
 **2. 可复现性控制 (Reproducibility & Audit)**
 针对深度学习实验中常见的“随机性黑盒”问题，本研究实施了以下工程级控制措施：
 *   **全局随机种子 (Global Seed)**：统一固定 Python、NumPy 及 PyTorch 的随机种子 (Seed=2025)，确保数据划分与模型初始化的确定性。
-*   **确定性算法 (Deterministic Algorithms)**：在 PyTorch 中开启 `torch.use_deterministic_algorithms(True)`，强制使用确定性卷积算法，消除 GPU 并行计算引入的微小数值扰动。
+*   **确定性算法 (Deterministic Algorithms)**：在 PyTorch 中开启 `torch.use_deterministic_algorithms(True)`，并设置环境变量 `os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"`，强制使用确定性卷积算法，消除 GPU 并行计算引入的微小数值扰动。
 *   **环境指纹 (Environment Fingerprint)**：每次实验启动时，系统自动抓取并记录 `env_fingerprint.json`（含 CUDA/PyTorch 版本及 GPU 拓扑），确保跨时间、跨平台的实验结果具有严格的可比性基准。
+
+**3. 硬件环境配置 (Hardware Configuration)**
+
+为确保实验的可复现性与性能评估的基准一致性，本研究的所有实验均在统一的高性能计算节点上完成。详细硬件与环境指纹如表 4-1 所示。
+
+**表 4-1 实验硬件环境与软件栈指纹**
+
+| 类别 (Category) | 项目 (Item) | 规格/版本 (Specification) | 备注 (Note) |
+| :--- | :--- | :--- | :--- |
+| **计算平台** | CPU | AMD EPYC 9654 (96-Core) $\times$ 2 | 192 Cores, 1 Thread/Core |
+| | RAM | 1.0 TiB | System Memory |
+| | GPU | NVIDIA L40 (46GB) $\times$ 2 | Ada Lovelace Architecture |
+| **软件栈** | OS | CentOS Linux 8 (Core) | Kernel 4.18.0-193 |
+| | Python | 3.12.2 | Global Seed 固定 |
+| | PyTorch | 2.7.0+cu118 | CUDA 11.8 Runtime |
+| | Driver | 545.23.06 | CUDA 12.3 Driver |
+| | Backend | cuDNN 90100 | - |
 
 ### 4.1.3 基线模型与选型依据
 为公平评估所提方法的有效性，本章选取了涵盖 CNN、Transformer、Operator 及 MLP 四大类范式的基线模型（见表 4-1）。
@@ -47,7 +64,7 @@
 
 | 模型类别 | 代表模型 | 核心归纳偏置 (Inductive Bias) | 选型理由 (Rationale) |
 | :--- | :--- | :--- | :--- |
-| **CNN / ResNet** | **EDSR**, UNet | 局部相关性 + 多尺度特征 | 经典的图像重建基线，测试深层残差网络对高频细节的恢复能力。EDSR 因去除 BN 层更适合物理场回归而被选为核心骨干。 |
+| **CNN / ResNet** | **EDSR**, UNet | 局部相关性 + 多尺度特征 | 经典的图像重建基线，测试深层残差网络对高频细节的恢复能力。EDSR 因去除批量归一化 (Batch Normalization, BN) 层更适合物理场回归而被选为核心骨干。 |
 | **Operator** | FNO, UNO | 离散化无关 + 全局谱特征 | 神经算子代表，测试在不同分辨率下的泛化性与频域建模能力。 |
 | **Transformer** | SwinIR, UNetFormer | 全局注意力 + 长程依赖 | 现代架构代表，测试捕捉非局部（Non-local）物理关联的能力。 |
 | **MLP** | MLP-Mixer | 全连接混合 | 极简基线，用于确立性能下界。 |
@@ -66,20 +83,20 @@
 1.  **重建精度指标**：
     *   **Rel-L2 (相对重建误差)**：衡量全场逼近精度的核心指标，反映了重建场 $\tilde{\mathbf{U}}$ 与真实场 $\mathbf{U}$ 在 Frobenius 范数下的相对偏差：
         $$
-        \mathrm{Rel}\text{-}L_2=\frac{\lVert \tilde{\mathbf{U}}-\mathbf{U}\rVert_F}{\lVert \mathbf{U}\rVert_F}
+        \mathrm{Rel}\text{-}L_2=\frac{\lVert \tilde{\mathbf{U}}-\mathbf{U}\rVert_F}{\lVert \mathbf{U}\rVert_F} \tag{4-1}
         $$
     *   **PSNR / SSIM**：图像质量评价指标，衡量视觉保真度与结构相似性。
 
 2.  **物理一致性指标**：
     *   **$H_{\mathrm{err}}$ (口径一致性误差)**：衡量重建结果再次经过观测算子 $H$ 投影后，是否能回退到原始观测数据 $\mathbf{y}$。它是验证“观测一致性”假设的关键依据：
         $$
-        H_{\mathrm{err}}=\lVert H(\tilde{\mathbf{U}})-\mathbf{y}\rVert_F
+        H_{\mathrm{err}}=\lVert H(\tilde{\mathbf{U}})-\mathbf{y}\rVert_F \tag{4-2}
         $$
     *   **fRMSE (Frequency RMSE)**：分频段（Low/Mid/High）计算的均方根误差，重点考察低频主模态与高频湍流细节的恢复情况。
 
 ### 4.1.6 统计协议
 *   **确定性实验**：所有实验均在固定随机种子（Seed=2025）下执行，确保结果的严格可复现性。
-*   **代表性验证**：得益于确定性算法的引入，单一实验结果即具备稳定的代表性，消除了随机波动对性能评估的干扰。
+*   **统计验证**：当前报告的数据基于单一种子的确定性运行。由于计算资源限制及确定性算法的引入，部分初步实验尚未展开多次独立运行（≥3个不同种子）的方差统计。后续核心对比中将补充报告均值与标准差，并开展严谨的统计显著性检验。
 
 ---
 
@@ -99,8 +116,12 @@
 | SwinUNet | 3.52 | 0.01 | 12.00 | 0.1830 | 31.96 | 极度稀疏下收敛困难 |
 | SegFormer | 23.21 | 88.62 | 5.78 | 0.1008 | 32.36 | 表现中等 |
 | MLP-Model | 0.01 | 0.14 | **0.35** | 0.0182 | 39.52 | 极简基线 |
+| Bicubic (Interp.) | 0.00 | 0.00 | **<0.01** | 0.1480 | 33.96 | 传统插值基线 |
+| Bilinear (Interp.) | 0.00 | 0.00 | **<0.01** | 0.1836 | 32.07 | 传统插值基线 |
 
-**结果分析**：EDSR 凭借其去归一化（No-BN）设计与深层残差结构，在物理场数值回归任务上展现出压倒性优势（Rel-L2 0.0023）。这验证了第3章的设计选择：对于固定网格的稀疏重建，针对性的残差 CNN 仍是效率与精度的最佳平衡点。详细的全量模型扫描数据（28种模型）请见**附录 B**。
+**结果分析**：
+1.  **超越传统插值基线**：如表 4-2 所示，即便是最基础的深度学习模型（如 MLP-Model, Rel-L2 0.0182），也表现出显著优于传统的 Bicubic (Rel-L2 0.1480) 和 Bilinear (Rel-L2 0.1836) 插值方法的性能。特别是在 PSNR 这一关键指标上，EDSR 高达 71.05 dB，而 Bicubic 仅为 33.96 dB，充分凸显了深度学习模型在从稀疏观测中恢复非线性物理场时的强大信息推断能力，证明了纯数学插值在物理场重建中的局限性。
+2.  **空间骨干确立**：EDSR 凭借其去归一化（No-BN）设计与深层残差结构，在物理场数值回归任务上表现出明显优势（Rel-L2 0.0023）。这验证了第3章的设计选择：对于固定网格的稀疏重建，针对性的残差 CNN 仍是效率与精度的最佳平衡点。详细的全量模型扫描数据（28种模型）请见**附录 B**。
 
 ![图 4-1: SWE 数据集上不同架构的训练收敛曲线对比。EDSR (Ours) 展现出更快的收敛速度与更低的稳态误差，显著优于 UNet 与 FNO 基线。](images/fig4-4_training_convergence.png)
 
@@ -110,35 +131,35 @@
 
 | 模型架构 | Params (M) | Rel-L2 $\downarrow$ | PSNR $\uparrow$ | FLOPs (G) | 时延 (ms) | 状态 |
 | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
-| **EDSR (Ours)** | **0.93** | **0.0046** | **58.86** | 15.28 | 20.25 | ✅ 最佳基线 |
-| ConvUNetLite | 1.00 | 0.0082 | 53.74 | 16.40 | **0.77** | ✅ 极速 |
-| UNet | 0.92 | 0.0327 | 41.72 | 14.96 | 1.11 | ✅ 低显存 |
-| StableFNO2d | 1.19 | 0.0351 | 41.12 | **0.07** | 5.00 | ⚠️ 略超标 |
-| *NAFNet* | *8.15* | *0.0072* | *54.89* | *771.14* | *15.91* | ❌ 严重超标 |
+| **EDSR (Ours)** | **0.93** | **0.0046** | **58.86** | 15.28 | 20.25 | $\checkmark$ 最佳基线 |
+| ConvUNetLite | 1.00 | 0.0082 | 53.74 | 16.40 | **0.77** | $\checkmark$ 极速 |
+| UNet | 0.92 | 0.0327 | 41.72 | 14.96 | 1.11 | $\checkmark$ 低显存 |
+| StableFNO2d | 1.19 | 0.0351 | 41.12 | **0.07** | 5.00 | ! 略超标 |
+| *NAFNet* | *8.15* | *0.0072* | *54.89* | *771.14* | *15.91* | $\times$ 严重超标 |
 
 **视野受限下的空间重建能力 (Crop Capability Scan)**
-为探究模型在极端视野缺失下的重建极限，我们对 UNet 架构进行了从 112×112 (76.5% 观测) 到 1×1 (0.006% 观测) 的全范围扫描实验。同时，为了验证深层残差网络在 Inpainting 任务中的优势，我们对比了 EDSR、PartialConvUNet 在典型稀疏场景下的表现（见表 4-4）。
+为探究模型在极端视野缺失下的重建极限，我们对 UNet 架构进行了从 112×112 (76.5% 观测) 到 1×1 (0.006% 观测) 的全范围扫描实验。同时，为了验证深层残差网络在 Inpainting 任务中的劣势，我们对比了 EDSR、PartialConvUNet 在典型稀疏场景下的表现（见表 4-4）。
 
 **表 4-4 不同 Crop 尺寸下的重建性能对比 (UNet vs EDSR vs PartialConvUNet)**
 
-| Crop Size | Area Pct (%) | **UNet** Rel-L2 | **EDSR** Rel-L2    | **EDSR** PSNR | **PartialConv** Rel-L2 |
-| :---:     | :---:        | :---:           | :---:              | :---:         | :---:                  |
-| **112**   | **76.56**    | **0.1096**      | 0.8999$^{\dagger}$ | 17.32         | 1.0000$^{\dagger}$     |
-| 96        | 56.25        | 0.6289          | -                  | -             | -                      |
-| 80        | 39.06        | 0.7482          | -                  | -             | 1.0000$^{\dagger}$     |
-| **64**    | **25.00**    | **0.1097**      | -                  | -             | 1.0000$^{\dagger}$     |
-| **48**    | **14.06**    | 0.8919          | 0.8999$^{\dagger}$ | 17.32         | 1.0000$^{\dagger}$     |
-| **32**    | **6.25**     | **0.1095**      | 0.9473$^{\dagger}$ | 16.87         | 1.0000$^{\dagger}$     |
-| 16        | 1.56         | 0.9692          | 0.9792             | 16.58         | -                      |
-| 8         | 0.39         | -               | 0.9875             | 16.50         | -                      |
-| 4         | 0.10         | -               | 0.9922             | 16.46         | -                      |
-| 1         | 0.01         | 0.9950          | 0.9948             | 16.44         | -                      |
+| Crop Size | Area Pct (%) | **UNet** Rel-L2 | **EDSR** Rel-L2 | **PartialConv** Rel-L2 |
+| :---:     | :---:        | :---:           | :---:           | :---:                  |
+| **112**   | **76.56**    | 0.4668          | -               | 1.0000$^{\dagger}$     |
+| 96        | 56.25        | 0.6364          | -               | -                      |
+| 80        | 39.06        | 0.7696          | -               | 1.0000$^{\dagger}$     |
+| **64**    | **25.00**    | 0.8476          | -               | 1.0000$^{\dagger}$     |
+| **48**    | **14.06**    | 0.9037          | 0.9026          | 1.0000$^{\dagger}$     |
+| **32**    | **6.25**     | 0.9463          | 0.9495          | 1.0000$^{\dagger}$     |
+| 16        | 1.56         | 0.9840          | 0.9820          | -                      |
+| 8         | 0.39         | 1.0164          | 0.9906          | -                      |
+| 4         | 0.10         | 1.0096          | 0.9924          | -                      |
+| 1         | 0.01         | 1.0055          | 0.9952          | -                      |
 
 **结果分析**：
-1.  **UNet 的惊人鲁棒性**：实验结果呈现出极具冲击力的对比——简单的全卷积 UNet 在 Size 112、64 甚至 32 的部分实验中展现出了极高的重建精度 (Rel-L2 ~0.11)，远超结构更复杂的 EDSR 和 PartialConvUNet。这表明 UNet 的**跳跃连接 (Skip Connections)** 机制在将稀疏的观测边界信息传递到缺失区域（Inpainting）时具有不可替代的优势。
-2.  **深层网络的过拟合风险**：相比之下，EDSR（标注 $^{\dagger}$）和 PartialConvUNet（标注 $^{\dagger}$）在多数 Crop 任务中遭遇了训练崩塌（Rel-L2 > 0.8）。EDSR 的深层残差结构虽然在 SR 任务（均匀下采样）中表现优异，但在 Crop 任务（大面积连续缺失）中，由于缺乏长程的特征传递机制（如 Skip Connection），难以有效推断中心缺失区域的内容。
-3.  **PartialConv 的失效**：PartialConvUNet 的完全失效（Rel-L2=1.0）进一步证实了针对图像修复设计的“掩码更新”机制并不适用于遵循严格物理守恒律（如能量守恒）的流体场重建。
-4.  **物理信息相变点**：对于所有模型而言，当观测区域极度稀疏（Size < 16, <1.5%）时，性能均收敛到随机猜测水平（Rel-L2 > 0.96），这标志着物理信息的可重建极限。
+1.  **架构的降级平滑性 (Graceful Degradation)**：实验结果显示，虽然所有模型在视野受限时均出现误差上升，但带有**跳跃连接 (Skip Connections)** 的全卷积 UNet 展现出了相对平滑的降级曲线（例如 Size 112 时 Rel-L2 为 0.4668）。这表明其编码器-解码器结构能够一定程度上将观测边界信息传递到缺失区域（Inpainting）。
+2.  **深层网络的结构劣势**：相比之下，在 SR（均匀下采样）任务中表现优异的 EDSR 在 Crop 任务中表现略逊于 UNet（如 Size 32 下 0.9495 vs 0.9463）。这是因为深层残差结构缺乏长程特征传递机制，面对大面积连续缺失时，难以有效推断缺失区域内容。
+3.  **PartialConv 的失效**：PartialConvUNet 的完全失效（Rel-L2=1.0）进一步证实了针对传统图像修复设计的“掩码更新”机制并不适用于遵循严格物理守恒律（如能量守恒）的流体场重建。
+4.  **物理信息相变点**：对于所有模型而言，当观测区域极度稀疏（Size < 16, <1.5%）时，性能均收敛到随机猜测水平（Rel-L2 > 0.96，见表 4-11），这标志着纯数据驱动下物理信息的可重建极限。
 
 ### 4.2.2 时空演化性能 (Spatiotemporal Evolution)
 在动力学更为复杂的 DRD 数据集上，评估“空间重建 + 时序预测”联合模型的长时演化能力。表 4-5 展示了不同方法在 SR $\times 4$ (Input $32\times32$) 下的性能。
@@ -150,7 +171,7 @@
 | **Ours (Seq-EDSR)** | 2.70 | 44.11 | 3.10 | **0.1787** | **31.20** | **0.8837** | **0.0046** |
 | UNet (Baseline) | 9.89 | 161.84 | 1.17 | 0.1780 | 36.29 | 0.8410 | 0.0129 |
 | **UNetFormer** | 25.20 | 32.67 | 0.99 | 0.9473 | 16.87 | 0.0827 | 0.0000$^{\dagger}$ |
-| Bicubic (Interp.) | 0.00 | 0.00 | **<0.01** | 0.1986 | 34.07 | 0.8423 | 0.0332 |
+| Bicubic (Interp.)  | 0.00 | 0.00 | **<0.01** | 0.1986 | 34.07 | 0.8423 | 0.0332 |
 | Bilinear (Interp.) | 0.00 | 0.00 | **<0.01** | 0.2824 | 29.03 | 0.7552 | 0.0629 |
 
 **结果分析**：
@@ -168,11 +189,11 @@
 1.  **标准图组**：包括真值 (GT)、预测值 (Pred) 及绝对误差 (Error)。Ours 在纹理细节恢复上明显优于 UNet，误差分布更均匀。
 2.  **物理一致性**：功率谱分析显示，Ours 在低频段与 GT 高度重合，而 UNet 在高频段存在明显的能量衰减，这与 fRMSE 指标一致。
 
-![图 4-4: 重建结果的径向平均功率谱对比。Baseline (UNet) 在高频段（$k > 32$）呈现显著的能量衰减（过度平滑），而引入谱一致性损失 $\mathcal{L}_{spec}$ 的 Ours 模型（红色）能够有效保持物理场的多尺度能量分布，与真实场（黑色）高度重合。](images/fig4-2_power_spectrum.png)
+![图 4-4: 重建结果的径向平均功率谱对比。Baseline (UNet) 在高频段（$k > 32$）呈现显著的能量衰减（过度平滑），而引入谱一致性损失 $\mathcal{L}_{spec}$ 的 Ours 模型（红色实线）能够有效保持物理场的多尺度能量分布，与真实场（黑色虚线）高度重合。](images/fig4-2_power_spectrum.png)
 
 3.  **失败案例分析**：在极少数边界条件剧烈变化（如角落处）的样本中，模型仍存在轻微的边界伪影（Boundary Artifacts），提示未来的改进方向应引入专门的边界物理一致性约束。
-
-![图 4-5: 典型失败案例分析。在强非线性边界区域，模型可能出现高频振铃（Ringing Artifacts）或频谱泄漏现象（红框所示），这通常源于固定网格对复杂边界几何的离散化误差。](images/fig4-8_failure_cases.png)
+ 
+ ![图 4-5: 典型失败案例分析。在强非线性边界区域，模型可能出现高频振铃（Ringing Artifacts）或频谱泄漏现象（红框所示），这通常源于固定网格对复杂边界几何的离散化误差。](images/fig4-8_failure_cases.png)
 
 ---
 
@@ -183,7 +204,7 @@
 
 **表 4-6 口径错配影响分析 (Model: UNet)**
 
-| 设置 (Setting) | $\sigma_{\text{train}}$ | $\sigma_{\text{test}}$ | Rel-L2 $\downarrow$ | PSNR (dB) $\uparrow$ | SSIM $\uparrow$ | $H_{\mathrm{err}}$ $\downarrow$ | 变化幅度 |
+| 设置 (Setting) | $\sigma_{\text{train}}$ (px) | $\sigma_{\text{test}}$ (px) | Rel-L2 $\downarrow$ | PSNR (dB) $\uparrow$ | SSIM $\uparrow$ | $H_{\mathrm{err}}$ $\downarrow$ | 变化幅度 |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
 | **Consistent** | **1.0** | **1.0** | **0.1096** | **48.95** | **0.9052** | **0.0056** | - |
 | Mismatch (轻微) | 2.0 | 1.0 | 0.1110 | 48.15 | 0.9062 | 0.0073 | $H_{\mathrm{err}}$ 恶化 30% |
@@ -207,7 +228,7 @@
 | | **+ Full** | 0.0984 | 62.40 | 0.9067 | 13.51 | 0.0047 |
 
 **结果与机理解析**：
-1.  **物理感知损失对弱骨干的“救赎”**：对于 UNet 这类通用模型，引入物理损失（DC+Spec）带来了巨大的性能飞跃（Rel-L2 降低约 40%，$H_{\mathrm{err}}$ 降低 56%）。
+1.  **物理感知损失对弱骨干的有效改善**：对于 UNet 这类通用模型，引入物理损失（DC+Spec）带来了巨大的性能飞跃（Rel-L2 降低约 40%，$H_{\mathrm{err}}$ 降低 56%）。
 2.  **强骨干的“内隐”一致性**：对于 EDSR，引入额外 Loss 后 $H_{\mathrm{err}}$ 变化微乎其微。这揭示了优秀的残差网络架构本身就具备极强的拟合观测数据的能力，引入物理损失的价值在于规范未观测区域的物理行为。
 
 ![图 4-6: 损失函数消融实验的验证集 Rel-L2 曲线对比。引入物理感知损失（Full Loss）后，UNet 模型的收敛平台显著降低，证明了物理约束对解空间的有效收缩作用。](images/fig4-6_ablation_curves.png)
@@ -275,7 +296,7 @@
 | $\times 64$ | $2 \times 2$ | 3.29 | 0.9666 | 16.69 | 0.05 | **0.0026** | N/A | N/A | 接近随机 |
 | $\times 128$ | $1 \times 1$ | 3.44 | 0.9737 | 16.63 | 0.04 | **0.0008** | N/A | N/A | 盲猜均值 |
 
-**发现**：$16 \times 16$ 是物理场结构恢复的分水岭。在极度稀疏下，模型表现出“诚实的退化”，$H_{\mathrm{err}}$ 始终保持在极低水平。
+**发现**：$16 \times 16$ 是物理场结构恢复的分水岭。在极度稀疏下，模型表现出符合预期的性能下降，但其 $H_{\mathrm{err}}$ 始终保持在极低水平。
 
 ### 4.4.3 资源效率分析 (Resource Efficiency)
 
@@ -305,12 +326,8 @@
 
 ## 参考文献 (References)
 
-[1] Cohen J. Statistical power analysis for the behavioral sciences[M]. 2nd ed. Lawrence Erlbaum Associates, 1988.
+[1] Takamoto M, Praditia T, Leiteritz R, et al. PDEBench: An extensive benchmark for scientific machine learning[R]. arXiv preprint arXiv:2210.07182, 2022.
 
-[2] Gosset W S. The probable error of a mean[J]. Biometrika, 1908, 6(1): 1–25.
+[2] Wang Z, Bovik A C, Sheikh H R, et al. Image quality assessment: From error visibility to structural similarity[J]. IEEE Transactions on Image Processing, 2004, 13(4): 600–612.
 
-[3] Takamoto M, Praditia T, Leiteritz R, et al. PDEBench: An extensive benchmark for scientific machine learning[R]. arXiv preprint arXiv:2210.07182, 2022.
-
-[4] Wang Z, Bovik A C, Sheikh H R, et al. Image quality assessment: From error visibility to structural similarity[J]. IEEE Transactions on Image Processing, 2004, 13(4): 600–612.
-
-[5] Wilkinson M D, Dumontier M, Aalbersberg I J, et al. The FAIR Guiding Principles for scientific data management and stewardship[J]. Scientific Data, 2016, 3: 160018.
+[3] Wilkinson M D, Dumontier M, Aalbersberg I J, et al. The FAIR Guiding Principles for scientific data management and stewardship[J]. Scientific Data, 2016, 3: 160018.

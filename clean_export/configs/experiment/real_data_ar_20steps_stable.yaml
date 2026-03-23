@@ -1,0 +1,129 @@
+# 稳定版20步AR训练配置 - 增强数值稳定性
+# 基于原配置调整，解决NaN损失问题
+
+defaults:
+  - _self_
+
+# 实验配置
+experiment:
+  name: "Real-DR2D-AR-T20-128-SwinUNet-stable-s2025"
+  description: "真实扩散-反应数据AR训练，预测20个时间步，增强数值稳定性"
+  tags: ["AR", "real_data", "diffusion_reaction", "stable"]
+  log_every_n_steps: 10  # 更频繁的日志记录
+  device: "cuda"
+  seed: 2025
+  output_dir: "runs/${experiment.name}"
+  debug: true  # 启用调试模式
+
+# 数据配置
+data:
+  _target_: datasets.real_dr_dataset.RealDiffusionReactionDataModule
+  data_path: "E:/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+  T_in: 1
+  T_out: 20
+  batch_size: 1
+  num_workers: 0
+  pin_memory: false
+  persistent_workers: false
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  normalize: true
+  augmentation: false
+  time_step_start: 0
+  time_step_end: 980
+  sample_limit: null
+
+# 模型配置
+model:
+  _target_: models.swin_unet.SwinUNet
+  in_channels: 2
+  out_channels: 2
+  img_size: 128
+  patch_size: 4
+  embed_dim: 96
+  depths: [2, 2, 6, 2]
+  num_heads: [3, 6, 12, 24]
+  window_size: 7
+  mlp_ratio: 4.0
+  qkv_bias: true
+  drop_rate: 0.0
+  attn_drop_rate: 0.0
+  drop_path_rate: 0.1
+  norm_layer: "LayerNorm"
+  patch_norm: true
+  use_checkpoint: false
+
+# 训练配置
+trainer:
+  max_epochs: 3
+  accelerator: "gpu"
+  devices: 1
+  precision: "16-mixed"
+  gradient_clip_val: 0.5
+  accumulate_grad_batches: 1
+  log_every_n_steps: 1
+  val_check_interval: 1.0
+  check_val_every_n_epoch: 1
+  enable_checkpointing: true
+  enable_progress_bar: true
+  enable_model_summary: true
+  deterministic: false
+  benchmark: true
+
+# 优化器配置
+optimizer:
+  _target_: torch.optim.AdamW
+  lr: 1e-4
+  weight_decay: 1e-4
+  betas: [0.9, 0.999]
+  eps: 1e-8
+
+# 学习率调度器
+scheduler:
+  _target_: torch.optim.lr_scheduler.CosineAnnealingLR
+  T_max: 3
+  eta_min: 1e-7
+
+# 损失函数配置
+loss:
+  _target_: losses.combined_loss.CombinedLoss
+  mse_weight: 1.0
+  l1_weight: 0.0
+  spectral_weight: 0.1
+  gradient_weight: 0.0
+  reduction: "mean"
+
+# 回调函数
+callbacks:
+  model_checkpoint:
+    _target_: pytorch_lightning.callbacks.ModelCheckpoint
+    dirpath: "${experiment.output_dir}/checkpoints"
+    filename: "epoch_{epoch:03d}"
+    monitor: "val/loss"
+    mode: "min"
+    save_top_k: 2
+    save_last: true
+    auto_insert_metric_name: false
+
+  early_stopping:
+    _target_: pytorch_lightning.callbacks.EarlyStopping
+    monitor: "val/loss"
+    mode: "min"
+    patience: 5
+    min_delta: 1e-6
+
+  learning_rate_monitor:
+    _target_: pytorch_lightning.callbacks.LearningRateMonitor
+    logging_interval: "step"
+
+# 日志配置
+logger:
+  tensorboard:
+    _target_: pytorch_lightning.loggers.TensorBoardLogger
+    save_dir: "${experiment.output_dir}/tensorboard"
+    name: ${experiment.name}
+    version: null
+    default_hp_metric: false
+# 随机种子
+seed: 2025

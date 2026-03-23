@@ -1,0 +1,316 @@
+# SwinTemporalWrapper完整实验配置
+# 集成AR/NAR/HYBRID三种模式，支持课程学习和高级时序训练策略
+
+# 默认配置继承
+defaults:
+  - ../model: swin_temporal_wrapper
+  - ../train: temporal_advanced
+  - ../eval: comprehensive
+  - _self_
+
+# 实验基本信息
+experiment:
+  name: "SwinTemporalWrapper-Full-DR2D-128-s2025"
+  description: "SwinTemporalWrapper全功能测试：AR/NAR/HYBRID模式，课程学习，调度采样"
+  output_dir: "runs"
+  seed: 2025
+  device: "cuda"
+  precision: 16
+  use_amp: true
+
+# 数据配置
+data:
+  dataset_name: "2d_diff_react_na_na"
+  data_path: "E:/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+  img_size: 128
+  
+  # 时序数据配置
+  temporal:
+    T_in: 4
+    T_out: 8
+    dt: 0.01
+    sequence_stride: 2
+    overlap_ratio: 0.5
+    
+  # 数据分割
+  split_ratios:
+    train: 0.7
+    val: 0.15
+    test: 0.15
+    
+  # 数据预处理
+  preprocessing:
+    normalize: true
+    normalization_type: "z_score"  # z_score, min_max, robust
+    clip_outliers: true
+    outlier_threshold: 3.0
+
+# 模型配置覆盖
+model:
+  # 基础参数
+  in_channels: 1
+  out_channels: 1
+  img_size: 128
+  T_in: 4
+  T_out: 8
+  
+  # 预测模式（将通过课程学习动态调整）
+  prediction_mode: "ar"
+  scheduled_sampling: true
+  
+  # 时序编码器配置
+  temporal_encoder_config:
+    hidden_dim: 96
+    num_conv_layers: 4
+    kernel_size: 3
+    dilation_base: 2
+    dropout: 0.1
+    activation: "gelu"
+    use_residual: true
+    use_layer_norm: true
+    
+  # NAR预测头配置
+  nar_head_config:
+    hidden_dim: 192
+    num_heads: 12
+    num_layers: 4
+    dropout: 0.1
+    output_projection: "mlp"
+    use_positional_encoding: true
+    max_seq_length: 32
+    
+  # SwinUNet配置
+  swin_config:
+    patch_size: 4
+    embed_dim: 96
+    depths: [2, 2, 6, 2]
+    num_heads: [3, 6, 12, 24]
+    window_size: 8
+    mlp_ratio: 4.0
+    qkv_bias: true
+    drop_rate: 0.1
+    attn_drop_rate: 0.1
+    drop_path_rate: 0.2
+    use_checkpoint: true  # 节省显存
+
+# 损失函数配置
+loss:
+  # 主要损失
+  primary_loss:
+    type: "mse"
+    weight: 1.0
+    
+  # 辅助损失
+  auxiliary_losses:
+    # 相对L2损失
+    rel_l2:
+      weight: 0.5
+      eps: 1e-8
+      
+    # 频域损失
+    spectral:
+      weight: 0.3
+      low_freq_weight: 1.0
+      mid_freq_weight: 0.5
+      high_freq_weight: 0.2
+      
+    # 时序一致性损失
+    temporal_consistency:
+      weight: 0.2
+      consistency_type: "smooth"
+      
+    # 物理约束损失（可选）
+    physics_constraint:
+      weight: 0.1
+      enabled: false
+      
+  # 模式特定损失权重
+  mode_weights:
+    ar: 1.0
+    nar: 0.8
+    hybrid:
+      ar_component: 0.6
+      nar_component: 0.4
+
+# 训练配置覆盖
+train:
+  # 基础训练参数
+  batch_size: 6  # 适应时序数据的显存需求
+  max_epochs: 300
+  accumulate_grad_batches: 4
+  
+  # 优化器
+  optimizer:
+    name: AdamW
+    lr: 1.5e-4
+    weight_decay: 1.0e-4
+    
+  # 学习率调度
+  scheduler:
+    name: CosineAnnealingWarmRestarts
+    T_0: 50
+    T_mult: 2
+    eta_min: 1.0e-6
+    warmup_steps: 1500
+    
+  # 课程学习配置
+  temporal_training:
+    curriculum_learning:
+      enabled: true
+      strategy: "staged"
+      
+      staged:
+        stages:
+          - name: "ar_warmup"
+            epochs: 50
+            T_out: 2
+            prediction_mode: "ar"
+            teacher_forcing_ratio: 1.0
+            learning_rate_multiplier: 0.5
+            
+          - name: "ar_short"
+            epochs: 40
+            T_out: 4
+            prediction_mode: "ar"
+            teacher_forcing_ratio: 0.9
+            learning_rate_multiplier: 0.8
+            
+          - name: "ar_medium"
+            epochs: 40
+            T_out: 6
+            prediction_mode: "ar"
+            teacher_forcing_ratio: 0.7
+            learning_rate_multiplier: 1.0
+            
+          - name: "ar_full"
+            epochs: 50
+            T_out: 8
+            prediction_mode: "ar"
+            teacher_forcing_ratio: 0.5
+            learning_rate_multiplier: 1.0
+            
+          - name: "hybrid_transition"
+            epochs: 60
+            T_out: 8
+            prediction_mode: "hybrid"
+            teacher_forcing_ratio: 0.4
+            learning_rate_multiplier: 0.9
+            
+          - name: "nar_final"
+            epochs: 60
+            T_out: 8
+            prediction_mode: "nar"
+            teacher_forcing_ratio: 0.0
+            learning_rate_multiplier: 0.8
+    
+    # 调度采样
+    scheduled_sampling:
+      enabled: true
+      schedule_type: "exponential"
+      exponential:
+        initial_prob: 1.0
+        final_prob: 0.2
+        decay_rate: 0.998
+        
+    # 稳定性优化
+    stability:
+      gradient_stability:
+        enabled: true
+        max_grad_norm: 1.0
+      numerical_stability:
+        enabled: true
+        clip_values: [-5.0, 5.0]
+      training_stability:
+        enabled: true
+        nan_detection: true
+        loss_spike_threshold: 5.0
+
+# 评估配置
+eval:
+  # 评估指标
+  metrics:
+    - "rel_l2"
+    - "mae" 
+    - "psnr"
+    - "ssim"
+    - "temporal_consistency"
+    - "long_term_stability"
+    - "dc_consistency"
+    
+  # 多步评估
+  multistep_eval:
+    enabled: true
+    rollout_steps: [1, 2, 4, 8, 12, 16]
+    
+  # 模式特定评估
+  mode_evaluation:
+    evaluate_all_modes: true
+    modes: ["ar", "nar", "hybrid"]
+    
+  # 可视化
+  visualization:
+    enabled: true
+    save_frequency: 20
+    num_cases: 8
+    save_animations: true
+    save_error_maps: true
+    
+  # 长期稳定性测试
+  stability_test:
+    enabled: true
+    max_rollout_steps: 32
+    divergence_threshold: 10.0
+
+# 监控配置
+monitoring:
+  # 性能监控
+  track_metrics: true
+  track_gradients: true
+  track_learning_curves: true
+  
+  # 时序特定监控
+  temporal_monitoring:
+    track_mode_performance: true
+    track_curriculum_progress: true
+    track_sampling_schedule: true
+    
+  # 日志配置
+  logging:
+    log_every_n_steps: 20
+    save_checkpoints_every_n_epochs: 10
+    
+# 硬件配置
+hardware:
+  # GPU配置
+  gpu_memory_fraction: 0.9
+  mixed_precision: true
+  
+  # 并行配置
+  num_workers: 4
+  pin_memory: true
+  
+  # 显存优化
+  gradient_checkpointing: true
+  empty_cache_frequency: 100
+
+# 输出配置
+output:
+  # 保存配置
+  save_model: true
+  save_predictions: true
+  save_metrics: true
+  save_logs: true
+  
+  # 结果分析
+  generate_report: true
+  create_visualizations: true
+  
+  # 模型导出
+  export_formats: ["pytorch", "onnx"]
+  
+# 调试配置
+debug:
+  enabled: false
+  profile_memory: false
+  profile_time: false
+  save_intermediate_outputs: false

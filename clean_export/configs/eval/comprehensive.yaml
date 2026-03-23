@@ -1,0 +1,144 @@
+# @package eval
+
+# 综合评测配置 - 多维度指标计算和可视化
+
+# 评测数据配置
+data:
+  split: "test"  # 评测数据集
+  batch_size: 1  # 评测时使用batch_size=1确保精确计算
+  num_workers: 4
+  
+# 指标计算配置
+metrics:
+  # 主要指标
+  primary:
+    - "rel_l2"      # 相对L2误差
+    - "mae"         # 平均绝对误差
+    - "mse"         # 均方误差
+    
+  # 图像质量指标
+  image_quality:
+    - "psnr"        # 峰值信噪比
+    - "ssim"        # 结构相似性指数
+    
+  # 物理指标
+  physics:
+    - "frmse_low"   # 低频段RMSE
+    - "frmse_mid"   # 中频段RMSE  
+    - "frmse_high"  # 高频段RMSE
+    - "brmse"       # 边界带RMSE
+    - "crmse"       # 守恒量RMSE
+    
+  # 一致性指标
+  consistency:
+    - "dc_loss"     # 数据一致性损失 ||H(ŷ)-y||₂
+
+# 频域分析配置
+frequency_analysis:
+  # 频段划分（基于Nyquist频率的比例）
+  frequency_bands:
+    low: [0.0, 0.25]    # k ≤ k1 = 1/4 × Nyquist
+    mid: [0.25, 0.5]    # k1 < k ≤ k2 = 1/2 × Nyquist  
+    high: [0.5, 1.0]    # k > k2
+    
+  # FFT配置
+  fft_modes: 16  # 只比较前16个模式
+  mirror_padding: true  # 非周期边界使用镜像延拓
+
+# 边界分析配置
+boundary_analysis:
+  boundary_width: 16  # 边界带宽度（像素）
+  scale_with_resolution: true  # 随分辨率线性缩放
+  
+# 守恒量分析配置
+conservation_analysis:
+  # 守恒量类型
+  quantities:
+    - "mass"        # 质量守恒 ∫u dA
+    - "energy"      # 能量守恒 ∫u² dA
+    - "momentum_x"  # x方向动量 ∫u*v_x dA（如果有速度场）
+    - "momentum_y"  # y方向动量 ∫u*v_y dA
+    
+# 多通道聚合配置
+multichannel_aggregation:
+  method: "equal_weight"  # "equal_weight" 或 "physics_weight"
+  
+  # 物理权重（可选，当method="physics_weight"时使用）
+  physics_weights:
+    u: 1.0      # 标量场权重
+    rho: 1.0    # 密度权重
+    ux: 0.5     # x速度权重
+    uy: 0.5     # y速度权重
+
+# 可视化配置
+visualization:
+  enabled: true
+  
+  # 生成的图表类型
+  plots:
+    - "gt_pred_error"     # GT/Pred/Error对比热图
+    - "power_spectrum"    # 功率谱对数图
+    - "boundary_profile"  # 边界带误差剖面
+    - "conservation_bar"  # 守恒量误差柱状图
+    - "metrics_radar"     # 指标雷达图
+    
+  # 热图配置
+  heatmap:
+    colormap: "viridis"   # 颜色映射
+    unified_colorbar: true  # 统一色标
+    dpi: 300              # 图像分辨率
+    
+  # 功率谱配置
+  power_spectrum:
+    log_scale: true       # 对数尺度
+    frequency_range: [1, 64]  # 频率范围
+    
+  # 保存配置
+  save_format: ["png", "pdf"]  # 保存格式
+  save_dpi: 300
+
+# 统计分析配置
+statistical_analysis:
+  # 多种子统计
+  multi_seed: true
+  confidence_level: 0.95  # 置信区间
+  
+  # 显著性检验
+  significance_test:
+    enabled: true
+    method: "paired_t_test"  # 配对t检验
+    baseline_model: "swin_unet"  # 基线模型
+    alpha: 0.05  # 显著性水平
+    
+  # 效应量计算
+  effect_size:
+    enabled: true
+    method: "cohen_d"  # Cohen's d
+
+# 输出配置
+output:
+  # 结果保存路径
+  save_dir: "paper_package/metrics"
+  
+  # 输出格式
+  formats:
+    - "json"      # 详细指标JSON
+    - "csv"       # 表格CSV
+    - "latex"     # LaTeX表格
+    - "markdown"  # Markdown报告
+    
+  # 报告配置
+  report:
+    include_plots: true
+    include_statistics: true
+    include_raw_data: false  # 是否包含原始数据
+    
+# 性能配置
+performance:
+  # 并行计算
+  parallel: true
+  num_processes: 4
+  
+  # 内存优化
+  batch_metrics: true  # 批量计算指标
+  cache_results: true  # 缓存中间结果

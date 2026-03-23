@@ -1,0 +1,100 @@
+# 示例配置文件：基础配置
+
+model:
+  name: "SwinTemporalNAR"
+  input_channels: 1
+  hidden_dim: 128
+  num_layers: 4
+  num_heads: 8
+  window_size: 7
+  time_steps: 10
+  prediction_steps: 5
+  spatial_resolution: [64, 64]
+  temporal_encoding_type: "sinusoidal"  # sinusoidal, learnable, relative, rope
+  dropout: 0.1
+  activation: "gelu"
+
+training:
+  batch_size: 16
+  num_epochs: 100
+  learning_rate: 1e-3
+  weight_decay: 1e-4
+  warmup_epochs: 5
+  mixed_precision: true
+  compile_model: false
+  gradient_accumulation_steps: 1
+  gradient_clipping: 1.0
+  scheduler: "cosine"  # linear, cosine, polynomial
+  
+data:
+  data_dir: "./data/pdebench"
+  time_steps: 10
+  prediction_steps: 5
+  spatial_resolution: [64, 64]
+  normalize: true
+  cache_data: true
+  num_workers: 4
+  prefetch_factor: 2
+  pin_memory: true
+  data_format: "hdf5"  # hdf5, zarr, numpy
+  
+hardware:
+  device: "auto"  # auto, cpu, cuda, cuda:0, etc.
+  num_workers: 4
+  pin_memory: true
+  numa_aware: true
+  gpu_memory_fraction: 0.9
+  allow_growth: true
+  
+distributed:
+  enabled: false
+  backend: "nccl"  # nccl, gloo
+  strategy: "ddp"  # ddp, fsdp
+  world_size: 1
+  rank: 0
+  local_rank: 0
+  master_addr: "localhost"
+  master_port: "12355"
+  
+monitoring:
+  enable_monitoring: true
+  log_dir: "./logs"
+  monitoring_interval: 1.0
+  enable_tensorboard: true
+  enable_json_logging: true
+  log_level: "INFO"
+  save_model_checkpoints: true
+  checkpoint_interval: 10
+  
+optimization:
+  numa_memory_manager:
+    enabled: true
+    memory_policy: "interleave"  # interleave, bind, preferred
+    
+  gpu_optimizer:
+    enabled: true
+    tensor_core_optimization: true
+    cuda_stream_optimization: true
+    memory_optimization: true
+    
+  mixed_precision:
+    enabled: true
+    loss_scale: 1024.0
+    init_scale: 1024.0
+    growth_factor: 2.0
+    backoff_factor: 0.5
+    growth_interval: 1000
+    
+  data_pipeline:
+    enabled: true
+    numa_aware: true
+    gpu_optimized: true
+    cache_size: 1000
+    preload_factor: 0.1
+    
+performance:
+  benchmark_mode: false
+  profile_memory: true
+  profile_performance: true
+  benchmark_iterations: 100
+  warmup_iterations: 10

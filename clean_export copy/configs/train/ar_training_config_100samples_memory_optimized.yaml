@@ -1,0 +1,271 @@
+# 100样本内存优化配置 - 最大化GPU利用率同时避免OOM
+# 专为L40 48GB GPU设计，平衡内存使用和计算密度
+
+data:
+  name: "PDEBenchAR"
+  data_path: "./data/PDEBench/1D-diffusion-reaction/"
+  train_split_file: "./data/splits/train_100samples.txt"  # 仅100个样本
+  val_split_file: "./data/splits/val_100samples.txt"
+  test_split_file: "./data/splits/test_100samples.txt"
+  input_keys: ["u"]
+  output_keys: ["u"]
+  input_length: 1
+  output_length: 1
+  # 内存优化设置
+  num_workers: 12  # 减少CPU内存占用
+  pin_memory: true
+  prefetch_factor: 16  # 减少预取内存
+  persistent_workers: true
+  # 数据观测配置
+  crop_size: 128  # 改为单个值
+  sr_scale: 4
+  observation_noise_level: 0.0
+  degradation_type: "sr_crop"  # 或 "crop_only"
+  # 内存优化的数据加载
+  batch_size: 80  # 从250降低到80，避免OOM
+  shuffle: true
+  drop_last: true
+
+model:
+  name: "SwinUNet"
+  in_ch: 1
+  out_ch: 1
+  img_size: 128  # 改为单个值而非列表
+  # 内存优化的模型架构
+  embed_dim: 192  # 从256降低到192，减少25%内存
+  depths: [2, 2, 18, 2]  # 从[3,3,27,3]减少，保持计算密度
+  num_heads: [6, 12, 24, 48]
+  window_size: 8
+  mlp_ratio: 4.0
+  qkv_bias: true
+  qk_scale: null
+  drop_rate: 0.0  # 禁用dropout减少内存波动
+  attn_drop_rate: 0.0
+  drop_path_rate: 0.1
+  patch_norm: true
+  use_checkpoint: true  # 启用梯度检查点，显著减少内存
+  # FNO瓶颈配置
+  fno_modes: [32, 32]
+  fno_n_layers: 4
+  fno_hidden_dim: 256  # 从384降低
+  fno_use_mlp: true
+  fno_mlp_ratio: 4.0
+  fno_activation: "gelu"
+  fno_norm: "instance"
+  # 双GPU配置
+  device_ids: [0, 1]
+  distributed: true
+  strategy: "ddp"  # 使用DDP而非DataParallel，内存效率更高
+
+# 仅使用R2损失，如用户要求
+loss:
+  # 重建损失
+  reconstruction:
+    type: "rel_l2"  # R2损失
+    weight: 1.0
+    reduction: "mean"
+    normalize: true  # 使用归一化计算
+  # 禁用其他损失以减少计算
+  spectral:
+    enabled: false
+  data_consistency:
+    enabled: false
+  gradient:
+    enabled: false
+  pde_residual:
+    enabled: false
+
+# 训练配置
+training:
+  epochs: 100  # 足够的训练周期
+  save_dir: "./runs/ar_100samples_memory_optimized"
+  save_freq: 10  # 每10轮保存一次
+  log_freq: 5    # 每5轮记录详细日志
+  val_freq: 5    # 每5轮验证一次
+  # 内存优化的优化器
+  optimizer:
+    name: "AdamW"
+    lr: 0.0002  # 稍高的学习率补偿较小的批次
+    weight_decay: 0.05
+    betas: [0.9, 0.999]
+    eps: 1e-8
+    # 内存优化选项
+    fused: true   # 使用融合实现
+    foreach: false  # 避免与fused冲突
+    amsgrad: false
+    maximize: false
+  # 调度器配置
+  scheduler:
+    name: "cosine_with_warmup"
+    warmup_epochs: 20  # 增加warmup周期
+    max_epochs: 100
+    min_lr: 1e-6
+  # 梯度优化
+  gradient_clip_val: 0.5  # 梯度裁剪防止内存峰值
+  accumulate_grad_batches: 1
+  # AMP配置 - 内存优化
+  amp:
+    enabled: true
+    dtype: "fp16"  # 使用FP16减少内存占用
+    init_scale: 1024.0  # 降低初始scale
+    growth_factor: 2.0
+    backoff_factor: 0.5
+    growth_interval: 2000
+    enabled_bfloat16: false  # 禁用BF16以避免兼容性问题
+  # 早停
+  early_stopping:
+    enabled: true
+    patience: 15
+    min_delta: 1e-6
+    monitor: "val/loss"
+    mode: "min"
+  # 检查点
+  checkpoint:
+    enabled: true
+    save_top_k: 3
+    monitor: "val/loss"
+    mode: "min"
+    save_last: true
+    every_n_epochs: 10
+    filename: "epoch_{epoch:03d}_val_loss_{val/loss:.6f}"
+    auto_insert_metric_name: false
+
+# 验证配置
+validation:
+  batch_size: 80  # 与训练相同批次大小
+  num_workers: 8
+  pin_memory: true
+  prefetch_factor: 8
+  persistent_workers: true
+  # 预测可视化
+  visualize_predictions: true
+  visualize_freq: 5  # 每5轮可视化
+  num_visualization_samples: 16  # 可视化样本数
+  save_predictions: true
+  save_format: "h5"
+  # 评估指标
+  metrics:
+    - "rel_l2"
+    - "mae"
+    - "mse"
+    - "psnr"
+    - "ssim"
+
+# 测试配置
+testing:
+  batch_size: 80
+  num_workers: 8
+  pin_memory: true
+  prefetch_factor: 8
+  save_predictions: true
+  save_format: "h5"
+  # 评估指标
+  metrics:
+    - "rel_l2"
+    - "mae"
+    - "mse"
+    - "psnr"
+    - "ssim"
+  # 预测可视化
+  visualize_predictions: true
+  num_visualization_samples: 20
+
+# 系统优化
+system:
+  # CUDA优化
+  cuda:
+    deterministic: false  # 禁用确定性算法以提高性能
+    benchmark: true      # 启用cudnn benchmark
+    tf32: true          # 启用TF32加速
+    allow_tf32: true
+  # 内存管理
+  memory:
+    # PyTorch内存优化
+    pytorch:
+      allocator:
+        backend: "native"  # 使用原生分配器
+        config: "expandable_segments:True"  # 避免内存碎片
+      cuda:
+        max_split_size_mb: 512  # 最大分割大小
+        garbage_collection_threshold: 0.6  # 垃圾回收阈值
+    # 系统内存优化
+    system:
+      clear_cache_freq: 10  # 每10轮清理缓存
+      gc_threshold: 0.8   # 系统垃圾回收阈值
+  # 线程优化
+  threads:
+    torch_num_threads: 16  # PyTorch线程数
+    omp_num_threads: 16   # OpenMP线程数
+    mkldnn_num_threads: 16  # MKL-DNN线程数
+    numa_enabled: true    # 启用NUMA优化
+  # 分布式训练
+  distributed:
+    backend: "nccl"       # NCCL后端
+    init_method: "env://"
+    world_size: 2       # 2个GPU
+    rank: 0
+    local_rank: 0
+    master_addr: "localhost"
+    master_port: 12355
+    find_unused_parameters: false  # 提高DDP性能
+    gradient_as_bucket_view: true  # 内存优化
+
+# 日志配置
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  handlers:
+    - "console"
+    - "file"
+  file:
+    enabled: true
+    path: "./runs/ar_100samples_memory_optimized/training.log"
+    max_bytes: 10485760  # 10MB
+    backup_count: 5
+  # 权重和偏差
+  wandb:
+    enabled: false  # 禁用以减少内存和网络开销
+    project: "pdebench-ar"
+    entity: null
+    name: "ar_100samples_memory_optimized"
+    tags: ["100samples", "memory_optimized", "swin_unet", "r2_loss"]
+    notes: "内存优化的100样本训练配置"
+    save_code: true
+    dir: "./runs/ar_100samples_memory_optimized/wandb"
+
+# 实验配置
+experiment:
+  name: "ar_100samples_memory_optimized"
+  output_dir: "./runs/ar_100samples_memory_optimized"
+  description: "100样本内存优化训练，最大化GPU利用率避免OOM"
+  tags: ["100samples", "memory_optimized", "swin_unet", "r2_loss", "dual_gpu"]
+  
+# 性能监控
+performance:
+  # 资源监控
+  monitor:
+    enabled: true
+    gpu: true
+    cpu: true
+    memory: true
+    disk: true
+    network: false  # 禁用网络监控减少开销
+    freq: 10  # 每10秒监控一次
+  # 性能分析
+  profiling:
+    enabled: false  # 禁用分析以减少开销
+    warmup_epochs: 5
+    profile_epochs: 1
+    save_dir: "./runs/ar_100samples_memory_optimized/profiling"
+    with_stack: false
+    with_modules: false
+    record_shapes: true
+    profile_memory: true
+    with_flops: true
+  # 基准测试
+  benchmark:
+    enabled: true
+    warmup_batches: 10
+    benchmark_batches: 50
+    save_results: true
+    save_dir: "./runs/ar_100samples_memory_optimized/benchmark"

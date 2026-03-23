@@ -38,32 +38,7 @@ Extensive experiments on the **PDEBench** Shallow Water Equation (SWE) and Diffu
 This study demonstrates that by strictly enforcing the observation operator consistency and incorporating sequential physical priors, deep learning models can achieve high-fidelity physical field reconstruction even under extremely sparse observations, offering new theoretical perspectives and technical pathways for low-cost, high-precision industrial monitoring systems.
 
 **Keywords**: Spatiotemporal Field Reconstruction; Sparse Observation; Observation Operator Consistency; Scientific Machine Learning (SciML); Sequential Training; Transformer
-
----
-
-## ABSTRACT
-
-In computational physics, environmental monitoring, and industrial digital twins, reconstructing high-resolution spatiotemporal fields from sparse sensor observations is a critical link between the physical world and digital models. However, constrained by deployment costs, communication bandwidth, and environmental complexities, practical observations are often characterized by extreme sparsity (coverage $< 5\%$), non-uniform sampling, and significant noise. Crucially, real-world observation processes involve complex physical degradations such as anti-aliasing filtering, integration effects, and boundary cropping. In contrast, existing deep learning methods often rely on idealized or simplified degradation assumptions during training. This **"Operator Mismatch"** between training and evaluation leads to poor generalization in real-world sparse scenarios and hinders the reproducibility of scientific conclusions.
-
-To address these challenges, this thesis proposes a **Consistency-First Spatiotemporal Field Reconstruction Framework**. The core innovations and contributions are as follows:
-
-**First**, a **Unified Observation Operator ($H$)** is constructed, with the training-time degradation operator $DC$ strictly constrained as $DC \equiv H$. This operator integrates anti-aliasing pre-filtering, non-uniform sampling, and boundary alignment rules, fundamentally eliminating implicit biases introduced by operator approximations.
-
-**Second**, to overcome optimization difficulties under sparse data, a **Sequential Spatiotemporal Curriculum Learning** strategy is proposed. The complex reconstruction task is decoupled into three progressive stages: "Spatial Structure Reconstruction $\to$ Temporal Evolution Prediction $\to$ Joint Spatiotemporal Fine-tuning." This approach effectively circumvents the risk of convergence failure or model collapse often encountered when directly training on severely ill-posed problems.
-
-**Third**, a **Tri-Component Hybrid Loss** is designed, incorporating spatial reconstruction loss, low-frequency weighted spectral consistency loss, and observation-domain consistency loss. This objective function enforces both data fidelity and the preservation of physical conservation laws and dominant low-frequency modes.
-
-Extensive experiments on the **PDEBench** Shallow Water Equation (SWE) and Diffusion-Reaction (DRD) subsets demonstrate:
-1.  **Accuracy Breakthrough**: On the SWE full-field reconstruction task, the proposed method increases PSNR from $46.52\,\mathrm{dB}$ (ResNetLite baseline) to $71.05\,\mathrm{dB}$, achieving a **$24.53\,\mathrm{dB}$ gain** with only $1/10$ the parameters of comparable large models.
-2.  **Sparse Robustness Verification**: In DRD spatiotemporal prediction under extremely sparse observations ($16\times16$ window, covering only $1.56\%$ of the domain), the framework prevents the model collapse observed in baselines, stabilizing the relative error ($\mathrm{Rel}\text{-}L_2$) at $0.1783$. Compared to end-to-end joint training strategies, the sequential learning approach accelerates training convergence by **2.3 times** while maintaining comparable accuracy, significantly improving engineering feasibility.
-3.  **Engineering Feasibility**: Resource analysis confirms that the proposed lightweight Transformer variants achieve SOTA accuracy while maintaining inference latency and memory usage demonstrating potential for deployment on edge computing devices.
-
-This study demonstrates that by strictly enforcing the observation operator consistency and incorporating sequential physical priors, deep learning models can achieve high-fidelity physical field reconstruction even under extremely sparse observations, offering new theoretical perspectives and technical pathways for low-cost, high-precision industrial monitoring systems.
-
-**Keywords**: Spatiotemporal Field Reconstruction; Sparse Observation; Observation Operator Consistency; Scientific Machine Learning (SciML); Sequential Training; Transformer
-
-
-# 符号说明表 (Notation Table)
+/# 符号说明表 (Notation Table)
 
 为确保论文叙述的严谨性与一致性，本文主要数学符号及其含义约定如下。除特殊说明外，全文遵循此表定义。
 
@@ -135,8 +110,6 @@ This study demonstrates that by strictly enforcing the observation operator cons
 | E2E | End-to-End | 端到端 |
 | PSNR | Peak Signal-to-Noise Ratio | 峰值信噪比 |
 | FLOPs | Floating Point Operations | 浮点运算量 |
-
-
 # 第1章 绪论
 
 *本章目标：阐明稀疏观测下时空物理场重建的研究背景、科学问题与工程意义，综述国内外研究现状并指出当前方法的局限性，进而引出本文的研究动机、主要研究内容、创新点及论文组织结构。*
@@ -147,9 +120,9 @@ This study demonstrates that by strictly enforcing the observation operator cons
 
 伴随着工业4.0浪潮与数字孪生（Digital Twin, DT）技术的深化应用，复杂工程系统对关键物理过程的全时空状态感知、实时诊断及闭环决策能力提出了更为严苛的要求[1-2]。数字孪生技术强调物理实体与虚拟模型之间的高频交互与动态映射，其效能很大程度上取决于能否持续获取高质量、多源异构的观测数据[3-6]。在航空航天、智能制造、能源管理及海洋环境监测等关键领域，速度场、温度场、压力场等物理量的时空演化信息构成了故障预警、预测性维护与风险评估的决策基石。
 
-尽管如此，在实际工程场景中，部署高密度、全覆盖且时间同步的观测网络仍面临巨大的工程挑战。一方面，受限于部署成本、设备功耗、长期可靠性及极端环境适应性等因素，高精度传感器难以实现长期且均匀的覆盖[7-8]。以海洋观测为例，联合国教科文组织发布的**《全球海洋观测系统 2025 现状报告》(UNESCO-IOC, 2025)** 显示，卫星遥感的大范围覆盖与原位浮标的稀疏分布之间存在显著的“观测鸿沟” (Observation Gap)，尤其在深海与极地区域，部分关键参数的观测密度处于“亚临界”状态[9]。即便是Argo全球剖面浮标阵列已具备约4000个浮标的观测能力，但在空间分辨率和特定海域覆盖率上仍显不足[10]。
+尽管如此，在实际工程场景中，部署高密度、全覆盖且时间同步的观测网络仍面临巨大的工程挑战。一方面，受限于部署成本、设备功耗、长期可靠性及极端环境适应性等因素，高精度传感器难以实现长期且均匀的覆盖[7-8]。以海洋观测为例，联合国教科文组织发布的**《全球海洋观测系统 2025 现状报告》[9]** 显示，卫星遥感的大范围覆盖与原位浮标的稀疏分布之间存在显著的“观测鸿沟” (Observation Gap)，尤其在深海与极地区域，部分关键参数的观测密度处于“亚临界”状态[9]。即便是Argo全球剖面浮标阵列已具备约4000个浮标的观测能力，但在空间分辨率和特定海域覆盖率上仍显不足[10]。
 
-另一方面，在物联网（IoT）与边缘计算架构下，海量传感节点产生的高频数据流对通信带宽与传输时延构成了巨大压力。现有研究表明，工程系统往往需要在边缘侧进行数据预处理、压缩或特征提取以减少传输量，但这不可避免地牺牲了部分原始时空分辨率[11-13]。当前的数字孪生系统正遭遇严峻的**“数据匮乏瓶颈” (Data-Scarcity Bottleneck)**。**Shahzad 等人 (2025)** 在最新的综述中指出，从智能电网到生物医学监测，传感器分布稀疏与采样异步是限制系统性能的主要因素。**Hossain 等人 (2025)** 亦强调，这种数据约束已阻碍了数字孪生从“被动监视”向“主动预测控制”的演进。
+另一方面，在物联网（IoT）与边缘计算架构下，海量传感节点产生的高频数据流对通信带宽与传输时延构成了巨大压力。现有研究表明，工程系统往往需要在边缘侧进行数据预处理、压缩或特征提取以减少传输量，但这不可避免地牺牲了部分原始时空分辨率[11-13]。当前的数字孪生系统正遭遇严峻的**“数据匮乏瓶颈” (Data-Scarcity Bottleneck)**。**Shahzad 等人 [4]** 在最新的综述中指出，从智能电网到生物医学监测，传感器分布稀疏与采样异步是限制系统性能的主要因素。**Hossain 等人 [6]** 亦强调，这种数据约束已阻碍了数字孪生从“被动监视”向“主动预测控制”的演进。
 
 此外，长期运行的观测数据还面临噪声污染、零点漂移及数据缺失等质量问题。光学遥感图像常因云层遮挡或传感器故障出现大面积缺失，需依赖重建算法进行修复[14-16]；工业与环境传感器则可能因老化、温漂或硬件故障导致数据漂移或间歇性中断[17-18]。因此，实际工程数据普遍呈现出“空间稀疏、时间异步、质量退化”的复杂特征。
 
@@ -498,12 +471,6 @@ PINN 通过在损失函数中加入偏微分方程残差、初边值条件等，
 本文的整体组织结构与逻辑流程如图 1-3 所示。
 
 ![图 1-5: 本文“Consistency-First”重建框架与论文组织结构概览。本文针对观测算子错配与病态逆问题挑战（第1章），建立了一致性理论与误差界分析（第2章），设计了融合统一算子约束、三元混合损失与序列化课程学习的重建模型（第3章），并在 PDEBench 多物理场基准上验证了方法的精度、鲁棒性与工程可行性（第4章），最终形成了一套可复用、可解释的时空场重建方法论（第5章）。](images/fig1-5_thesis_overview.png)
-
-
-# 第2章 问题建模与理论分析 (Problem Formulation & Theory)
-
-本章旨在建立稀疏观测下物理场重建问题的严谨数学框架，并重点分析“观测一致性”在逆问题求解中的理论地位。我们将首先给出物理场重建的数学描述与逆问题的适定性分析，接着对观测算子 $H$ 进行物理建模，最后通过理论推导证明观测一致性（$DC \equiv H$）是保证重建误差有界与泛化鲁棒性的必要条件。
-
 # 第2章 问题建模与理论分析 (Problem Formulation & Theory)
 
 本章旨在建立稀疏观测下物理场重建问题的数学框架，并分析“观测一致性”在逆问题求解中的理论地位。首先给出逆问题与观测模型的统一表述；随后明确评测口径的“双域指标”；最后从不适定性、观测算子误差与误差界推导说明：若要在真实部署口径下获得可控误差与鲁棒泛化，需要将数据一致性约束建立在真实观测算子之上（$DC \equiv H$）。
@@ -645,49 +612,49 @@ y=H(u)+\eta,\quad \|\eta\|\le \delta
 ### 参考文献
 
 [1] Arridge S, Maass P, Oktem O, Schönlieb C-B. Solving inverse problems using data-driven models[J]. *Acta Numerica*, 2019, 28: 1–174. doi:10.1017/S0962492919000059.  
-    https://assets.cambridge.org/97811084/78687/excerpt/9781108478687_excerpt.pdf
+    [PDF](https://assets.cambridge.org/97811084/78687/excerpt/9781108478687_excerpt.pdf)
 
 [2] Bocquet M. *Introduction to the principles and methods of data assimilation*[R]. Lecture notes, 2025.  
-    https://cerea.enpc.fr/HomePages/bocquet/teaching/assim-mb-en-0.52.pdf
+    [PDF](https://cerea.enpc.fr/HomePages/bocquet/teaching/assim-mb-en-0.52.pdf)
 
 [3] Rabier F. *Variational data assimilation: theory and overview*[R]. ECMWF Seminar 2003.  
-    https://www.ecmwf.int/sites/default/files/elibrary/2003/76079-variational-data-assimiltion-theory-and-overview_0.pdf
+    [PDF](https://www.ecmwf.int/sites/default/files/elibrary/2003/76079-variational-data-assimiltion-theory-and-overview_0.pdf)
 
 [4] Hadamard J. *Sur les problèmes aux dérivées partielles et leur signification physique*[R]. Princeton University Bulletin, 1902.  
-    https://illposed.net/hadamard.pdf
+    [PDF](https://illposed.net/hadamard.pdf)
 
 [5] Clason C. *Regularization of Inverse Problems*[R]. arXiv:2001.00617, 2020.  
-    https://arxiv.org/abs/2001.00617
+    [arXiv](https://arxiv.org/abs/2001.00617)
 
 [6] Platte R B. *Condition Numbers and Inverse Problems*[R]. Arizona State University, 2017.  
-    https://math.asu.edu/sites/g/files/litvpz216/files/rtgintro_inv_problems.pdf
+    [PDF](https://math.asu.edu/sites/g/files/litvpz216/files/rtgintro_inv_problems.pdf)
 
 [7] Hodyss D, Nichols N K. The error of representation: basic understanding[J]. *Tellus A*, 2015, 67: 24822. doi:10.3402/tellusa.v67.24822.  
-    https://tellusjournal.org/articles/10.3402/tellusa.v67.24822
+    [Link](https://tellusjournal.org/articles/10.3402/tellusa.v67.24822)
 
 [8] ECMWF Training Material. *Data assimilation algorithms and key elements*[R]. (Satellite radiances; observation errors and representativeness).  
-    https://www.ecmwf.int/sites/default/files/SAT_TC_Data_assimilation_key_elements_TM.pdf
+    [PDF](https://www.ecmwf.int/sites/default/files/SAT_TC_Data_assimilation_key_elements_TM.pdf)
 
 [9] Ménard R, Cossette J-F, Deshaies-Jacques M. On the Complementary Role of Data Assimilation and Machine Learning: An Example Derived from Air Quality Analysis[J]. 2020.  
-    https://pmc.ncbi.nlm.nih.gov/articles/PMC7304728/
+    [PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC7304728/)
 
 [10] Boink Y E, Haltmeier M, Holman S, Schwab J. Data-consistent neural networks for solving nonlinear inverse problems[J]. *Inverse Problems and Imaging*, 2023, 17(1): 203–229. doi:10.3934/ipi.2022037.  
-     https://www.aimsciences.org/article/doi/10.3934/ipi.2022037
+     [Link](https://www.aimsciences.org/article/doi/10.3934/ipi.2022037)
 
 [11] Liang D, Cheng J, Ke Z, Ying L. Deep Magnetic Resonance Image Reconstruction: Inverse Problems Meet Neural Networks[J]. *IEEE Signal Processing Magazine*, 2020, 37(1): 141–151. doi:10.1109/MSP.2019.2950557.  
-     https://pmc.ncbi.nlm.nih.gov/articles/PMC7977031/
+     [PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC7977031/)
 
 [12] Bungert L, Burger M, Korolev Y, Schönlieb C-B. Variational regularisation for inverse problems with imperfect forward operators and general noise models[J]. 2020.  
-     https://pmc.ncbi.nlm.nih.gov/articles/PMC8208616/
+     [PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC8208616/)
 
 [13] Hamilton F, Berry T, Sauer T. Correcting Observation Model Error in Data Assimilation[R]. arXiv:1803.06918, 2018.  
-     https://arxiv.org/abs/1803.06918
+     [arXiv](https://arxiv.org/abs/1803.06918)
 
 [14] Lunz S, Hauptmann A, Tarvainen T, Schönlieb C-B, Arridge S. On Learned Operator Correction in Inverse Problems[J]. 2021.  
-     https://pmc.ncbi.nlm.nih.gov/articles/PMC7617273/
+     [PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC7617273/)
 
 [15] Hansen P C. *Inverse Problems*[R]. Meet DTU lecture slides, 2019.  
-     https://www.imm.dtu.dk/~pcha/MeetDTU.pdf
+     [PDF](https://www.imm.dtu.dk/~pcha/MeetDTU.pdf)
 
 ## 2.2 观测算子 $H$ 的物理建模
 
@@ -792,52 +759,52 @@ H(u)= M\,D_s\,(K*u),
 #### 参考文献
 
 [1] ECMWF. *Assimilation algorithms (Data Assimilation algorithms)*[R].  
-https://www.ecmwf.int/sites/default/files/elibrary/2008/16931-assimilation-algorithms.pdf
+[PDF](https://www.ecmwf.int/sites/default/files/elibrary/2008/16931-assimilation-algorithms.pdf)
 
 [2] Spatial response resampling (SR2): Accounting for the spatial point spread function in hyperspectral image resampling[J]. *ScienceDirect*, 2023.  
-https://www.sciencedirect.com/science/article/pii/S2215016123000031
+[Link](https://www.sciencedirect.com/science/article/pii/S2215016123000031)
 
 [3] Park S C, Park M K, Kang M G. Super-resolution image reconstruction: A technical overview[J]. *IEEE Signal Processing Magazine*, 2003.  
-https://cse.buffalo.edu/courses/cse725/peter/Park_2003.pdf
+[PDF](https://cse.buffalo.edu/courses/cse725/peter/Park_2003.pdf)
 
 [4] NASA. Remote sensing scanner / IFOV integration material[R]. 1976.  
-https://ntrs.nasa.gov/api/citations/19760025534/downloads/19760025534.pdf
+[PDF](https://ntrs.nasa.gov/api/citations/19760025534/downloads/19760025534.pdf)
 
 [5] GIM International. Understanding Spatial Resolution[EB/OL].  
-https://www.gim-international.com/content/article/understanding-spatial-resolution
+[Link](https://www.gim-international.com/content/article/understanding-spatial-resolution)
 
 [6] Lin G. *Sensor Spatial Response (PSF/LSF/MTF; Nyquist metrics)*[R]. NASA NTRS, 2024.  
-https://ntrs.nasa.gov/api/citations/20250000520/downloads/2024-VH-RODA_sensorSpatialResponse_GLin.pdf
+[PDF](https://ntrs.nasa.gov/api/citations/20250000520/downloads/2024-VH-RODA_sensorSpatialResponse_GLin.pdf)
 
 [7] NASA. *Optical Transfer Functions, Pointing and Requirements*[R]. 2021.  
-https://ntrs.nasa.gov/api/citations/20210020948/downloads/UPDATED%20Optical%20Transfer%20Functions%20Pointing%20and%20Requriements.pdf
+[PDF](https://ntrs.nasa.gov/api/citations/20210020948/downloads/UPDATED%20Optical%20Transfer%20Functions%20Pointing%20and%20Requriements.pdf)
 
 [8] Remote Sensing (MDPI). An Approach for Spatial Statistical Modelling Remote Sensing Data of Land Cover by Fusing Data of Different Types[J]. 2025.  
-https://www.mdpi.com/2072-4292/17/1/123
+[Link](https://www.mdpi.com/2072-4292/17/1/123)
 
 [9] Texas Instruments. *AN-236 An Introduction to the Sampling Theorem (Rev. C)*[R].  
-https://www.ti.com/lit/pdf/snaa079
+[PDF](https://www.ti.com/lit/pdf/snaa079)
 
 [10] MIT. Shannon sampling / noise notes[EB/OL].  
-https://fab.cba.mit.edu/classes/S62.12/docs/Shannon_noise.pdf
+[PDF](https://fab.cba.mit.edu/classes/S62.12/docs/Shannon_noise.pdf)
 
 [11] Rabier F. *Variational data assimilation: theory and overview*[R]. ECMWF Seminar, 2003.  
-https://www.ecmwf.int/sites/default/files/elibrary/2003/76079-variational-data-assimiltion-theory-and-overview_0.pdf
+[PDF](https://www.ecmwf.int/sites/default/files/elibrary/2003/76079-variational-data-assimiltion-theory-and-overview_0.pdf)
 
 [12] NOAA. Observation/representation error material (repository)[R].  
-https://repository.library.noaa.gov/view/noaa/11487/noaa_11487_DS1.pdf
+[PDF](https://repository.library.noaa.gov/view/noaa/11487/noaa_11487_DS1.pdf)
 
 [13] Janjić T, et al. On the representation error in data assimilation[J]. *Quarterly Journal of the Royal Meteorological Society*, 2018.  
-https://rmets.onlinelibrary.wiley.com/doi/10.1002/qj.3130
+[Link](https://rmets.onlinelibrary.wiley.com/doi/10.1002/qj.3130)
 
 [14] IITK reading material. PIV interrogation window / resolution notes[R].  
-https://www.iitk.ac.in/che/PG_research_lab/pdf/resources/MPIV-reading-material.pdf
+[PDF](https://www.iitk.ac.in/che/PG_research_lab/pdf/resources/MPIV-reading-material.pdf)
 
 [15] University of Washington. Lecture 2: Convolution (Young inequality notes)[R].  
-https://sites.math.washington.edu/~hart/m526/Lecture2.pdf
+[PDF](https://sites.math.washington.edu/~hart/m526/Lecture2.pdf)
 
 [16] Liu Z Q, Rabier F. The interaction between model resolution, observation resolution and observation density in data assimilation: A one-dimensional study[J]. 2002.  
-https://rainbow.ldeo.columbia.edu/~alexeyk/Papers/LiuRabier2002.pdf
+[PDF](https://rainbow.ldeo.columbia.edu/~alexeyk/Papers/LiuRabier2002.pdf)
 
 ## 2.3 观测一致性理论 (Consistency Theory)
 
@@ -989,58 +956,56 @@ Consistency-First 的工程优势来自“把 \(H\) 做实”。实现层面需�
 #### 参考文献
 
 [1] Aggarwal H K, Mani M P, Jacob M. **MoDL: Model Based Deep Learning Architecture for Inverse Problems**[R]. arXiv:1712.02862, 2017.  
-https://arxiv.org/abs/1712.02862
+[arXiv](https://arxiv.org/abs/1712.02862)
 
 [2] Vella M, Mota J F C. **Overcoming Measurement Inconsistency in Deep Learning for Linear Inverse Problems: Applications in Medical Imaging**[R]. 2020.  
-https://jmota.eps.hw.ac.uk/documents/Vella20-OvercomingMeasurementInconsistencyInDeepLearningForLinearInverseProblems.pdf
+[PDF](https://jmota.eps.hw.ac.uk/documents/Vella20-OvercomingMeasurementInconsistencyInDeepLearningForLinearInverseProblems.pdf)
 
 [3] Venkatakrishnan S V, Bouman C A, Wohlberg B. **Plug-and-Play Priors for Model Based Reconstruction**[J]. 2013.  
-https://brendt.wohlberg.net/publications/pdf/venkatakrishnan-2013-plugandplay2.pdf
+[PDF](https://brendt.wohlberg.net/publications/pdf/venkatakrishnan-2013-plugandplay2.pdf)
 
 [4] Boink Y E, Haltmeier M, Holman S, Schwab J. **Data-consistent neural networks for solving nonlinear inverse problems**[J]. *Inverse Problems and Imaging*, 2023.  
-https://www.aimsciences.org/article/doi/10.3934/ipi.2022037
+[Link](https://www.aimsciences.org/article/doi/10.3934/ipi.2022037)
 
 [5] Liu G, Reda F A, Shih K J, Wang T C, Tao A, Catanzaro B. **Image Inpainting for Irregular Holes Using Partial Convolutions**[C]. ECCV 2018.  
-https://openaccess.thecvf.com/content_ECCV_2018/papers/Guilin_Liu_Image_Inpainting_for_ECCV_2018_paper.pdf
+[PDF](https://openaccess.thecvf.com/content_ECCV_2018/papers/Guilin_Liu_Image_Inpainting_for_ECCV_2018_paper.pdf)
 
 [6] Liu R, Lehman J, Molino P, Such F P, Frank E, Sergeev A, Yosinski J. **An Intriguing Failing of Convolutional Neural Networks and the CoordConv Solution**[R]. arXiv:1807.03247, 2018.  
-https://arxiv.org/abs/1807.03247
+[arXiv](https://arxiv.org/abs/1807.03247)
 
 [7] Tancik M, Srinivasan P P, Mildenhall B, Fridovich-Keil S, Raghavan N, Singhal U, Ramamoorthi R, Barron J T, Ng R. **Fourier Features Let Networks Learn High Frequency Functions in Low Dimensional Domains**[C]. NeurIPS 2020.  
-https://papers.neurips.cc/paper_files/paper/2020/file/55053683268957697aa39fba6f231c68-Paper.pdf
+[PDF](https://papers.neurips.cc/paper_files/paper/2020/file/55053683268957697aa39fba6f231c68-Paper.pdf)
 
 [8] Ledig C, Theis L, Huszár F, Caballero J, Cunningham A, Acosta A, Aitken A, Tejani A, Totz J, Wang Z, Shi W. **Photo-Realistic Single Image Super-Resolution Using a Generative Adversarial Network**[C]. CVPR 2017.  
-https://openaccess.thecvf.com/content_cvpr_2017/papers/Ledig_Photo-Realistic_Single_Image_CVPR_2017_paper.pdf
+[PDF](https://openaccess.thecvf.com/content_cvpr_2017/papers/Ledig_Photo-Realistic_Single_Image_CVPR_2017_paper.pdf)
 
 [9] Shi X, Chen Z, Wang H, Yeung D Y, Wong W K, Woo W C. **Convolutional LSTM Network: A Machine Learning Approach for Precipitation Nowcasting**[R]. arXiv:1506.04214, 2015.  
-https://arxiv.org/abs/1506.04214
+[arXiv](https://arxiv.org/abs/1506.04214)
 
 [10] Liu Z, Lin Y, Cao Y, Hu H, Wei Y, Zhang Z, Lin S, Guo B. **Video Swin Transformer**[R]. arXiv:2106.13230, 2021.  
-https://arxiv.org/abs/2106.13230
+[arXiv](https://arxiv.org/abs/2106.13230)
 
 [11] PyTorch. **Module — `torch.nn.Module` Documentation**[EB/OL].  
-https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html
+[Link](https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html)
 
 [12] PyTorch. **Buffer — `torch.nn.parameter.Buffer` Documentation**[EB/OL].  
-https://docs.pytorch.org/docs/stable/generated/torch.nn.parameter.Buffer.html
+[Link](https://docs.pytorch.org/docs/stable/generated/torch.nn.parameter.Buffer.html)
 
 [13] PyTorch. **`torch.nn.functional.interpolate` Documentation**[EB/OL].  
-https://docs.pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
+[Link](https://docs.pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html)
 
 [14] PyTorch. **`torch.use_deterministic_algorithms` Documentation**[EB/OL].  
-https://docs.pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html
+[Link](https://docs.pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html)
 
 [15] OpenCV. **Geometric Image Transformations — `resize` Interpolation Guidance**[EB/OL].  
-https://docs.opencv.org/3.4/da/d54/group__imgproc__transform.html
+[Link](https://docs.opencv.org/3.4/da/d54/group__imgproc__transform.html)
 
 [16] PyTorch. **ReflectionPad2d Documentation**[EB/OL].  
-https://docs.pytorch.org/docs/stable/generated/torch.nn.ReflectionPad2d.html
+[Link](https://docs.pytorch.org/docs/stable/generated/torch.nn.ReflectionPad2d.html)
 
 ## 2.5 本章小结
 
 本章从数学角度形式化了稀疏物理场重建问题，指出了其不适定性本质。通过对观测算子 $H$ 的物理建模（降质与几何模型），明确了数据生成的机理。核心在于，本章建立了观测一致性理论，通过两个关键命题证明了 $DC \equiv H$ 不仅是工程实现的规范，更是保证重建误差有界和消除系统性泛化偏差的理论必要条件。这一理论框架为第 3 章提出的“统一算子模块”与“一致性损失函数”提供了坚实的数学支撑。
-
-
 # 第3章 算法设计与实现 (Methodology)
 
 ## 3.0 引言
@@ -1184,9 +1149,9 @@ class DegradationOperator(nn.Module):
 
 ## 3.4 训练策略：序列化课程学习
 
-物理场重建是一个典型的病态（Ill-posed）反问题。直接进行端到端训练往往面临收敛困难或陷入局部极小值。为此，本研究设计了“空间 $	o$ 时序 $	o$ 联合”的三阶段序列化课程学习（Sequential Curriculum Learning）策略，如图 3-3 所示。
+物理场重建是一个典型的病态（Ill-posed）反问题。直接进行端到端训练往往面临收敛困难或陷入局部极小值。为此，本研究设计了“空间 $\to$ 时序 $\to$ 联合”的三阶段序列化课程学习（Sequential Curriculum Learning）策略，如图 3-3 所示。
 
-![图 3-3: 序列化时空课程学习（Sequential Spatiotemporal Curriculum Learning）策略流程图。通过将复杂的时空重建任务解耦为“空间结构重构 $	o$ 动力学演化预测 $	o$ 联合微调”三个渐进阶段，有效解决了极度欠定条件下的优化收敛难题。](images/fig3-3_sequential.png)
+![图 3-3: 序列化时空课程学习（Sequential Spatiotemporal Curriculum Learning）策略流程图。通过将复杂的时空重建任务解耦为“空间结构重构 $\to$ 动力学演化预测 $\to$ 联合微调”三个渐进阶段，有效解决了极度欠定条件下的优化收敛难题。](images/fig3-3_sequential.png)
 
 ### 阶段一：空间重构预训练 (Spatial Pretraining)
 *   **目标**：让网络首先学会从稀疏观测中恢复静态的空间结构。
@@ -1240,8 +1205,6 @@ $$ \mathcal{L}_{\text{dc}} = || DC(\hat{u}) - y ||_2^2 $$
 ## 3.6 本章小结
 
 本章详细阐述了稀疏观测物理场重建的算法设计与工程实现。通过构建“观测一致性优先”的总体框架，利用统一观测算子消除了训练与评测的口径偏差；通过序列化课程学习策略解决了欠定反问题的优化难题；通过三元混合损失函数有效平衡了数据精度与物理守恒性。这些设计共同构成了一个闭环、鲁棒且可复现的科学机器学习系统，为第 4 章的实验验证奠定了坚实的技术基础。
-
-
 # 第4章 实验结果与分析
 
 > 本章在第2–3章提出的“**统一观测口径（H/DC 同源复用）+ 三件套损失（$L_{\mathrm{rec}}+\lambda_s L_{\mathrm{spec}}+\lambda_{dc}L_{\mathrm{dc}}$）+ 确定性训练闭环**”框架下，系统评估稀疏观测驱动的时空场重建性能。实验设计紧扣“**理论闭环**”原则，重点验证第2章提出的观测一致性必要性、结构稳健性与跨域泛化性命题。
@@ -1301,10 +1264,10 @@ $$ \mathcal{L}_{\text{dc}} = || DC(\hat{u}) - y ||_2^2 $$
 
 ### 4.1.4 观测一致性生成与审计
 为消除“算子错配”引入的隐性偏差，本研究实施了严格的**观测一致性生成协议**：
-1.57→1.  **统一算子定义 (Unified Definition)**：训练退化算子 $DC$ 与测试观测算子 $H$ 共享同一代码实现与参数配置（$\mathrm{DC} \equiv H$）。这被称为本项目的 **"The Golden Rule"**。
-58→2.  **阻断式审计 (Blocking Audit)**：在实验启动前，随机抽取 $N \ge 100$ 个样本进行一致性校验，要求 $\mathrm{MSE}(H(u), \mathrm{DC}(u)) < 10^{-8}$，否则强制终止实验。这确保了实验结论的**可审计性 (Auditability)**。
-59→
-60→### 4.1.5 评测指标体系
+1.  **统一算子定义 (Unified Definition)**：训练退化算子 $DC$ 与测试观测算子 $H$ 共享同一代码实现与参数配置（$\mathrm{DC} \equiv H$）。这被称为本项目的 **"The Golden Rule"**。
+2.  **阻断式审计 (Blocking Audit)**：在实验启动前，随机抽取 $N \ge 100$ 个样本进行一致性校验，要求 $\mathrm{MSE}(H(u), \mathrm{DC}(u)) < 10^{-8}$，否则强制终止实验。这确保了实验结论的**可审计性 (Auditability)**。
+
+### 4.1.5 评测指标体系
 本章采用多维指标体系，全面评估重建质量与物理一致性：
 
 1.  **重建精度指标**：
@@ -1327,9 +1290,9 @@ $$ \mathcal{L}_{\text{dc}} = || DC(\hat{u}) - y ||_2^2 $$
 
 ---
 
-## 4.2 主实验结果 (Main Results)
+## 4.2 稀疏场重建主结果 (Main Reconstruction Results)
 
-### 4.2.1 SWE 全域重建：架构性能扫描
+### 4.2.1 空间重建性能 (Spatial Reconstruction)
 首先在 SWE 数据集上对不同架构进行全量扫描，结果如表 4-2 所示。
 
 **表 4-2 SWE 数据集上的架构性能扫描 (SR $\times 4$)**
@@ -1346,22 +1309,48 @@ $$ \mathcal{L}_{\text{dc}} = || DC(\hat{u}) - y ||_2^2 $$
 
 **结果分析**：EDSR 凭借其去归一化（No-BN）设计与深层残差结构，在物理场数值回归任务上展现出压倒性优势（Rel-L2 0.0023）。这验证了第3章的设计选择：对于固定网格的稀疏重建，针对性的残差 CNN 仍是效率与精度的最佳平衡点。详细的全量模型扫描数据（28种模型）请见**附录 B**。
 
+![图 4-1: SWE 数据集上不同架构的训练收敛曲线对比。EDSR (Ours) 展现出更快的收敛速度与更低的稳态误差，显著优于 UNet 与 FNO 基线。](images/fig4-4_training_convergence.png)
+
 为进一步在有限计算预算下筛选最优基线，我们进行了**1M 参数量预算**下的横向对比（表 4-3）。
 
 **表 4-3 不同空间重建架构在 1M 参数预算下的性能对比**
 
 | 模型架构 | Params (M) | Rel-L2 $\downarrow$ | PSNR $\uparrow$ | FLOPs (G) | 时延 (ms) | 状态 |
 | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
-| **EDSR (Ours)** | **0.93** | **0.0046** | **58.86** | 15.28 | 20.25 | ✅ 最佳基线 |
-| ConvUNetLite | 1.00 | 0.0082 | 53.74 | 16.40 | **0.77** | ✅ 极速 |
-| UNet | 0.92 | 0.0327 | 41.72 | 14.96 | 1.11 | ✅ 低显存 |
-| StableFNO2d | 1.19 | 0.0351 | 41.12 | **0.07** | 5.00 | ⚠️ 略超标 |
-| *NAFNet* | *8.15* | *0.0072* | *54.89* | *771.14* | *15.91* | ❌ 严重超标 |
+| **EDSR (Ours)** | **0.93** | **0.0046** | **58.86** | 15.28 | 20.25 | $\checkmark$ 最佳基线 |
+| ConvUNetLite | 1.00 | 0.0082 | 53.74 | 16.40 | **0.77** | $\checkmark$ 极速 |
+| UNet | 0.92 | 0.0327 | 41.72 | 14.96 | 1.11 | $\checkmark$ 低显存 |
+| StableFNO2d | 1.19 | 0.0351 | 41.12 | **0.07** | 5.00 | ! 略超标 |
+| *NAFNet* | *8.15* | *0.0072* | *54.89* | *771.14* | *15.91* | $\times$ 严重超标 |
 
-### 4.2.2 DRD 时空预测：长时演化稳定性
-在动力学更为复杂的 DRD 数据集上，评估“空间重建 + 时序预测”联合模型的长时演化能力。表 4-4 展示了不同方法在 SR $\times 4$ (Input $32\times32$) 下的性能。
+**视野受限下的空间重建能力 (Crop Capability Scan)**
+为探究模型在极端视野缺失下的重建极限，我们对 UNet 架构进行了从 112×112 (76.5% 观测) 到 1×1 (0.006% 观测) 的全范围扫描实验。同时，为了验证深层残差网络在 Inpainting 任务中的优势，我们对比了 EDSR、PartialConvUNet 在典型稀疏场景下的表现（见表 4-4）。
 
-**表 4-4 DRD 数据集时空预测主结果 (SR $\times 4$)**
+**表 4-4 不同 Crop 尺寸下的重建性能对比 (UNet vs EDSR vs PartialConvUNet)**
+
+| Crop Size | Area Pct (%) | **UNet** Rel-L2 | **EDSR** Rel-L2    | **EDSR** PSNR | **PartialConv** Rel-L2 |
+| :---:     | :---:        | :---:           | :---:              | :---:         | :---:                  |
+| **112**   | **76.56**    | **0.1096**      | 0.8999$^{\dagger}$ | 17.32         | 1.0000$^{\dagger}$     |
+| 96        | 56.25        | 0.6289          | -                  | -             | -                      |
+| 80        | 39.06        | 0.7482          | -                  | -             | 1.0000$^{\dagger}$     |
+| **64**    | **25.00**    | **0.1097**      | -                  | -             | 1.0000$^{\dagger}$     |
+| **48**    | **14.06**    | 0.8919          | 0.8999$^{\dagger}$ | 17.32         | 1.0000$^{\dagger}$     |
+| **32**    | **6.25**     | **0.1095**      | 0.9473$^{\dagger}$ | 16.87         | 1.0000$^{\dagger}$     |
+| 16        | 1.56         | 0.9692          | 0.9792             | 16.58         | -                      |
+| 8         | 0.39         | -               | 0.9875             | 16.50         | -                      |
+| 4         | 0.10         | -               | 0.9922             | 16.46         | -                      |
+| 1         | 0.01         | 0.9950          | 0.9948             | 16.44         | -                      |
+
+**结果分析**：
+1.  **UNet 的惊人鲁棒性**：实验结果呈现出极具冲击力的对比——简单的全卷积 UNet 在 Size 112、64 甚至 32 的部分实验中展现出了极高的重建精度 (Rel-L2 ~0.11)，远超结构更复杂的 EDSR 和 PartialConvUNet。这表明 UNet 的**跳跃连接 (Skip Connections)** 机制在将稀疏的观测边界信息传递到缺失区域（Inpainting）时具有不可替代的优势。
+2.  **深层网络的过拟合风险**：相比之下，EDSR（标注 $^{\dagger}$）和 PartialConvUNet（标注 $^{\dagger}$）在多数 Crop 任务中遭遇了训练崩塌（Rel-L2 > 0.8）。EDSR 的深层残差结构虽然在 SR 任务（均匀下采样）中表现优异，但在 Crop 任务（大面积连续缺失）中，由于缺乏长程的特征传递机制（如 Skip Connection），难以有效推断中心缺失区域的内容。
+3.  **PartialConv 的失效**：PartialConvUNet 的完全失效（Rel-L2=1.0）进一步证实了针对图像修复设计的“掩码更新”机制并不适用于遵循严格物理守恒律（如能量守恒）的流体场重建。
+4.  **物理信息相变点**：对于所有模型而言，当观测区域极度稀疏（Size < 16, <1.5%）时，性能均收敛到随机猜测水平（Rel-L2 > 0.96），这标志着物理信息的可重建极限。
+
+### 4.2.2 时空演化性能 (Spatiotemporal Evolution)
+在动力学更为复杂的 DRD 数据集上，评估“空间重建 + 时序预测”联合模型的长时演化能力。表 4-5 展示了不同方法在 SR $\times 4$ (Input $32\times32$) 下的性能。
+
+**表 4-5 DRD 数据集时空预测主结果 (SR $\times 4$)**
 
 | 模型架构 | Params (M) | FLOPs (G) | Latency (ms) | Rel-L2 $\downarrow$ | PSNR $\uparrow$ | SSIM $\uparrow$ | $H_{\mathrm{err}}$ $\downarrow$ |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -1376,74 +1365,30 @@ $$ \mathcal{L}_{\text{dc}} = || DC(\hat{u}) - y ||_2^2 $$
 2.  **避免平凡解**：对比 UNetFormer 的 $H_{\mathrm{err}}=0$ 但 Rel-L2 极高（标注 $^{\dagger}$），说明强约束下模型容易退化为“仅输出观测值填充”的平凡解（Trivial Solution），即在观测点处完美拟合但在未观测区域完全失效。Ours 通过序列化课程学习有效规避了这一局部极小值。
 3.  **超越传统插值**：虽然 Bicubic 插值在 PSNR 上表现尚可（得益于其平滑特性），但在结构性指标 SSIM (0.8423 vs 0.8837) 与物理一致性 $H_{\mathrm{err}}$ (0.0332 vs 0.0046) 上显著弱于学习型模型，证实了深度学习在从稀疏观测中恢复非线性动力学结构方面的不可替代性。
 
-### 4.2.3 架构性能归因分析 (Attribution Analysis)
+![图 4-2: 时空预测任务中的误差累积（Rollout Error）分析。随着预测步长（Time Step）的增加，Ours (Seq-EDSR) 的累积误差增长最为缓慢，表现出优异的长时稳定性；而 UNet 与 FNO 则出现了较快的误差漂移。](images/fig4-7_rollout_error.png)
 
-基于表 4-1 与表 4-2 的量化结果，不同模型架构呈现出显著分化。我们结合 $H_{\mathrm{err}}$（观测一致性误差）这一关键指标，对架构的**归纳偏置 (Inductive Bias)** 与物理场统计结构的匹配程度进行深度归因：
+### 4.2.3 定性与谱分析 (Qualitative & Spectral Analysis)
+为直观评估重建质量，图 4-3 展示了典型测试样本的重建结果。
 
-1.  **EDSR (ResNet) 为何是精度与一致性之王？**
-    *   **观测真值的“守门人”**：横向对比各模型的观测一致性误差（$H_{\mathrm{err}}$），EDSR 取得了惊人的 **0.0047**，远低于 FNO (**0.0591**)、UNet (**0.0369**) 和 SwinIR (**0.5839**)。这意味着 EDSR 在重建过程中最忠实地保留了原始观测信息，没有产生严重的“幻觉”漂移。
-    *   **去归一化 (No-BN)**：物理场具备明确量纲与绝对数值意义。Batch Normalization 会破坏分布信息；EDSR 去除 BN 后更适合数值回归。
-    *   **深层残差**：SR 任务高度依赖局部高频恢复。EDSR 的深层堆叠在保持分辨率的同时增强了细节表达。
-
-2.  **Transformer (SegFormer/UNetFormer) 为何推理最快？**
-    *   **高效注意力**：采用空间缩减注意力 (Spatial-Reduction Attention) 降低复杂度，在保留全局感受野的同时提升并行效率；相较大核卷积，其 Latency 具备显著优势（<1ms）。
-
-3.  **Operator (UNO) 为何算力极低？**
-    *   **积分算子近似**：UNO 通过 FFT 或低秩近似实现映射，计算复杂度接近 $O(N)$，因此 FLOPs 极低 (4.24G)，在高分辨率扩展性方面具备潜力。
-
-4.  **NAFNet 与 UNet 的对比启示**
-    *   **算力换精度**：NAFNet 利用门控机制与大核卷积显著提升了感受野与精度，但其 FLOPs 代价巨大（771G vs 161G）。这从侧面反衬了 Transformer 与 Operator 在全局建模效率上的结构优势。
-
-### 4.2.4 结果与理论命题的关联验证
-上述主实验结果直接支撑了第2章的理论假设：
-*   **命题 1 验证**：Ours 的 $H_{\mathrm{err}}$ 显著低于 Baseline (0.0046 vs 0.0129)，且 Rel-L2 同步下降，证实了“观测一致性是重建误差有界的必要条件”。
-*   **命题 2 验证**：在复杂 DRD 场中，引入 $L_{\mathrm{spec}}$ 的 Ours 模型在 SSIM 上表现更优（0.8837 vs 0.8410），验证了频域约束对结构保持的鲁棒性贡献。
-
-### 4.2.5 视野受限下的空间重建能力 (Crop Capability Scan)
-为探究模型在极端视野缺失下的重建极限，我们对 UNet 架构进行了从 112×112 (76.5% 观测) 到 1×1 (0.006% 观测) 的全范围扫描实验。同时，为了验证深层残差网络在 Inpainting 任务中的优势，我们对比了 EDSR、PartialConvUNet 在典型稀疏场景下的表现（见表 4-5）。
-
-**表 4-5 不同 Crop 尺寸下的重建性能对比 (UNet vs EDSR vs PartialConvUNet)**
-
-| Crop Size | Area Pct (%) | **UNet** Rel-L2 | **EDSR** Rel-L2 | **EDSR** PSNR | **PartialConv** Rel-L2 |
-| :---: | :---: | :---: | :---: | :---: | :---: |
-| **112** | **76.56** | **0.1096** | 0.8999$^{\dagger}$ | 17.32 | 1.0000$^{\dagger}$ |
-| 96 | 56.25 | 0.6289 | - | - | - |
-| 80 | 39.06 | 0.7482 | - | - | 1.0000$^{\dagger}$ |
-| **64** | **25.00** | **0.1097** | - | - | 1.0000$^{\dagger}$ |
-| **48** | **14.06** | 0.8919 | 0.8999$^{\dagger}$ | 17.32 | 1.0000$^{\dagger}$ |
-| **32** | **6.25** | **0.1095** | 0.9473$^{\dagger}$ | 16.87 | 1.0000$^{\dagger}$ |
-| 16 | 1.56 | 0.9692 | 0.9792 | 16.58 | - |
-| 8 | 0.39 | - | 0.9875 | 16.50 | - |
-| 4 | 0.10 | - | 0.9922 | 16.46 | - |
-| 1 | 0.01 | 0.9950 | 0.9948 | 16.44 | - |
-
-**结果分析**：
-1.  **UNet 的惊人鲁棒性**：实验结果呈现出极具冲击力的对比——简单的全卷积 UNet 在 Size 112、64 甚至 32 的部分实验中展现出了极高的重建精度 (Rel-L2 ~0.11)，远超结构更复杂的 EDSR 和 PartialConvUNet。这表明 UNet 的**跳跃连接 (Skip Connections)** 机制在将稀疏的观测边界信息传递到缺失区域（Inpainting）时具有不可替代的优势。
-2.  **深层网络的过拟合风险**：相比之下，EDSR（标注 $^{\dagger}$）和 PartialConvUNet（标注 $^{\dagger}$）在多数 Crop 任务中遭遇了训练崩塌（Rel-L2 > 0.8）。EDSR 的深层残差结构虽然在 SR 任务（均匀下采样）中表现优异，但在 Crop 任务（大面积连续缺失）中，由于缺乏长程的特征传递机制（如 Skip Connection），难以有效推断中心缺失区域的内容。
-3.  **PartialConv 的失效**：PartialConvUNet 的完全失效（Rel-L2=1.0）进一步证实了针对图像修复设计的“掩码更新”机制并不适用于遵循严格物理守恒律（如能量守恒）的流体场重建。
-4.  **物理信息相变点**：对于所有模型而言，当观测区域极度稀疏（Size < 16, <1.5%）时，性能均收敛到随机猜测水平（Rel-L2 > 0.96），这标志着物理信息的可重建极限。
-
-### 4.2.6 可视化分析 (Qualitative Analysis)
-
-为直观评估重建质量，图 4-1 展示了典型测试样本的重建结果。
-
-![图 4-1: 典型测试样本（SWE 数据集，SR $\times 4$ 任务）的重建结果对比。第一行展示了真实场 (GT)、UNet 基线重建与 Ours (EDSR) 重建；第二行展示了对应的绝对误差热图。Ours 模型在涡旋边缘与高频纹理区域展现出更低的重建误差。](images/fig4-1_vis_results.png)
+![图 4-3: 典型测试样本（SWE 数据集，SR $\times 4$ 任务）的重建结果对比。第一行展示了真实场 (GT)、UNet 基线重建与 Ours (EDSR) 重建；第二行展示了对应的绝对误差热图。Ours 模型在涡旋边缘与高频纹理区域展现出更低的重建误差。](images/fig4-1_vis_results.png)
 
 1.  **标准图组**：包括真值 (GT)、预测值 (Pred) 及绝对误差 (Error)。Ours 在纹理细节恢复上明显优于 UNet，误差分布更均匀。
 2.  **物理一致性**：功率谱分析显示，Ours 在低频段与 GT 高度重合，而 UNet 在高频段存在明显的能量衰减，这与 fRMSE 指标一致。
 
-![图 4-2: 重建结果的径向平均功率谱对比。Baseline (UNet) 在高频段（$k > 32$）呈现显著的能量衰减（过度平滑），而引入谱一致性损失 $\mathcal{L}_{spec}$ 的 Ours 模型（红色）能够有效保持物理场的多尺度能量分布，与真实场（黑色）高度重合。](images/fig4-2_power_spectrum.png)
+![图 4-4: 重建结果的径向平均功率谱对比。Baseline (UNet) 在高频段（$k > 32$）呈现显著的能量衰减（过度平滑），而引入谱一致性损失 $\mathcal{L}_{spec}$ 的 Ours 模型（红色）能够有效保持物理场的多尺度能量分布，与真实场（黑色）高度重合。](images/fig4-2_power_spectrum.png)
 
 3.  **失败案例分析**：在极少数边界条件剧烈变化（如角落处）的样本中，模型仍存在轻微的边界伪影（Boundary Artifacts），提示未来的改进方向应引入专门的边界物理一致性约束。
 
+![图 4-5: 典型失败案例分析。在强非线性边界区域，模型可能出现高频振铃（Ringing Artifacts）或频谱泄漏现象（红框所示），这通常源于固定网格对复杂边界几何的离散化误差。](images/fig4-8_failure_cases.png)
+
 ---
 
-## 4.3 核心机制分析 (Mechanism Analysis)
+## 4.3 核心机制与消融实验 (Mechanism & Ablation)
 
-### 4.3.1 口径一致性的作用：$DC \equiv H$ vs $DC \neq H$
+### 4.3.1 物理约束的有效性 (Physical Constraints Effectiveness)
 为量化“算子错配”的危害，我们设计了对照实验：保持测试观测算子 $H$ 不变（标准高斯模糊 $\sigma=1.0$），人为调整训练退化算子 $DC$ 的参数 $\sigma_{\text{train}}$。
 
-**表 4-5 口径错配影响分析 (Model: UNet)**
+**表 4-6 口径错配影响分析 (Model: UNet)**
 
 | 设置 (Setting) | $\sigma_{\text{train}}$ | $\sigma_{\text{test}}$ | Rel-L2 $\downarrow$ | PSNR (dB) $\uparrow$ | SSIM $\uparrow$ | $H_{\mathrm{err}}$ $\downarrow$ | 变化幅度 |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
@@ -1453,50 +1398,11 @@ $$ \mathcal{L}_{\text{dc}} = || DC(\hat{u}) - y ||_2^2 $$
 
 **分析：深层归因与约束流形漂移 (Constraint Manifold Drift)**
 实验观察到一个反直觉现象：在严重错配下，全场重建误差 Rel-L2 几乎不变（0.1096 vs 0.1095），但观测一致性误差 $H_{\mathrm{err}}$ 却激增 91%。
-从几何角度解释，观测算子 $H$ 定义了一个解流形 $\mathcal{M}_H = \{u | H(u)=y\}$。
-*   Rel-L2 衡量的是解 $\hat{u}$ 在全空间中与真值 $u$ 的距离，由数据的主成分（低频轮廓）主导。
-*   $H_{\mathrm{err}}$ 衡量的是解 $\hat{u}$ 到真实观测流形 $\mathcal{M}_H$ 的距离。
+从几何角度解释，观测算子 $H$ 定义了一个解流形 $\mathcal{M}_H = \{u | H(u)=y\}$。错配的 $DC$ 实际上将模型约束到了一个错误的流形 $\mathcal{M}_{DC}$ 上。虽然模型恢复了大尺度的物理结构，但在观测子空间内产生了系统性的偏差。
 
-错配的 $DC$ 实际上将模型约束到了一个错误的流形 $\mathcal{M}_{DC} = \{u | DC(u)=y\}$ 上。由于 $\mathcal{M}_{DC}$ 与 $\mathcal{M}_H$ 并不重合，模型在优化过程中发生了**“约束流形漂移 (Constraint Manifold Drift)”**。虽然模型恢复了大尺度的物理结构（Rel-L2 保持低位），但在观测子空间内产生了系统性的偏差（导致 $H_{\mathrm{err}}$ 爆炸）。这种**“看起来对，但测起来错”**的解，在数字孪生闭环控制中是极度危险的，因为它会误导数据同化系统产生错误的反馈增益。
+为进一步验证“三件套损失”的有效性，在 UNet（通用基线）与 EDSR（专用基线）上分别进行消融。
 
-### 4.3.2 序列化训练的必要性
-针对时空联合建模难优化的问题，对比了“分步序列化训练 (Stage 2)”与“全参数联合微调 (Stage 3)”两种策略的效果。
-
-**表 4-6 训练阶段性能演进对比 (SR $\times 4$, Stride=10)**
-
-| 阶段 (Stage) | 策略描述 | Rel-L2 | PSNR (dB) | SSIM | fRMSE-High | 训练耗时 (h) | 结论 |
-| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
-| **Stage 2** | **Freeze Spatial** | **0.1787** | **31.20** | 0.8837 | 4.45 | **37.7** | **收敛稳，精度高** |
-| **Stage 3** | **Unfreeze All** | 0.2030 | 29.85 | **0.8869** | **2.46** | +12.5 | 纹理更优，但不稳定 |
-| *Delta* | *Fine-tuning Effect* | *+13.6%* | *-1.35dB* | *+0.36%* | **-44.7%** | - | *高频显著增强* |
-
-**分析**：
-*   **精度与稳定性的权衡**：实验发现，在 Stage 2 (冻结空间骨干) 的基础上进行 Stage 3 (全参数解冻微调)，虽然全场误差指标 (Rel-L2, PSNR) 略有回撤，但结构性指标 (SSIM) 和高频误差 (fRMSE-High) 取得了显著改善。
-*   **高频细节的代价**：Stage 3 通过全梯度回传，成功将高频误差降低了 **44.7%** (4.45 $\to$ 2.46)。这表明联合微调对于恢复湍流中的微小涡旋结构至关重要，尽管这可能会引入一些低频的统计漂移（导致 PSNR 下降）。
-*   **工程建议**：对于追求数值精度的应用（如气候预测），Stage 2 可能是性价比最高的终点；而对于追求视觉保真度和精细结构的应用（如流场超分可视化），建议进行 Stage 3 微调。
-
-### 4.3.3 空间重建的必要性分析 (Necessity of Spatial Reconstruction)
-
-为验证“先空间、后时序”策略的必要性，我们在“时空双重稀疏”场景（空间 $\times 4$ 下采样 + 时间 Stride 10）下设计了三组对照实验（表 4-7）：
-
-**表 4-7 空间重建必要性对照实验 (Backbone: VideoSwin)**
-
-| 实验组 | 配置 | 稀疏条件 | Rel-L2 | 现象描述 |
-| :--- | :--- | :--- | :---: | :--- |
-| **A. Collapse** | VideoSwin Only | Low-Res + Stride 1 | **0.9336** | **模型崩溃**：即使时间连续，仅空间信息缺失也足以导致预测随机化。 |
-| **B. Robust** | **EDSR + VideoSwin** | Low-Res + **Stride 10** | **0.1783** | **稀疏鲁棒收敛**：引入空间重建后，即使时间更稀疏，模型仍能稳定收敛。 |
-| **C. Upper Bound** | GT + VideoSwin | High-Res + Stride 1 | **0.0261** | **理论上限**：时空信息完备下的性能天花板。 |
-
-**结论**：实验表明，空间重建是防止时空模型崩溃的“安全阀”。当空间结构不可辨识时，强力时序模型（VideoSwin）也无法捕捉演化规律；一旦引入 EDSR 恢复空间结构，模型即可容忍极大的时间稀疏度（Stride 10）。
-
----
-
-## 4.4 消融实验 (Ablation Study)
-
-### 4.4.1 损失函数组件贡献
-为验证“三件套损失”的有效性，在 UNet（通用基线）与 EDSR（专用基线）上分别进行消融。采用 **Component-wise Ablation** 方法，逐步叠加损失项。
-
-**表 4-9 损失函数消融 (SR $\times 4$)**
+**表 4-7 损失函数消融 (SR $\times 4$)**
 
 | 模型 | 损失组合 | Rel-L2 $\downarrow$ | PSNR $\uparrow$ | SSIM $\uparrow$ | fRMSE-Low $\downarrow$ | $H_{\mathrm{err}}$ $\downarrow$ |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
@@ -1508,19 +1414,50 @@ $$ \mathcal{L}_{\text{dc}} = || DC(\hat{u}) - y ||_2^2 $$
 | | **+ Full** | 0.0984 | 62.40 | 0.9067 | 13.51 | 0.0047 |
 
 **结果与机理解析**：
-1.  **物理感知损失对弱骨干的“救赎”**：对于 UNet 这类通用模型，引入物理损失（DC+Spec）带来了巨大的性能飞跃（Rel-L2 降低约 40%，$H_{\mathrm{err}}$ 降低 56%）。这表明物理约束能有效弥补模型归纳偏置的不足，强行将解空间拉回到物理流形附近。
-2.  **强骨干的“内隐”一致性**：对于 EDSR，引入额外 Loss 后 $H_{\mathrm{err}}$ 变化微乎其微（0.0046 $\to$ 0.0047）。这揭示了一个深刻的现象：**优秀的残差网络架构本身就具备极强的拟合观测数据的能力**。此时，引入物理损失（特别是 $L_{\mathrm{spec}}$）的价值不在于进一步压低观测点误差，而在于**规范未观测区域（Unobserved Region）的物理行为**，防止频谱泄露和非物理的高频噪声堆积，从而提升泛化时的鲁棒性。
+1.  **物理感知损失对弱骨干的“救赎”**：对于 UNet 这类通用模型，引入物理损失（DC+Spec）带来了巨大的性能飞跃（Rel-L2 降低约 40%，$H_{\mathrm{err}}$ 降低 56%）。
+2.  **强骨干的“内隐”一致性**：对于 EDSR，引入额外 Loss 后 $H_{\mathrm{err}}$ 变化微乎其微。这揭示了优秀的残差网络架构本身就具备极强的拟合观测数据的能力，引入物理损失的价值在于规范未观测区域的物理行为。
 
-### 4.4.2 骨干网络架构影响
-回顾表 4-1 与 4-2，架构的**归纳偏置**起决定性作用：
-*   **ResNet (EDSR)**：深层残差极其适合网格数据的数值回归，是高精度重建的首选。
-*   **Transformer**：在极度稀疏或非规则网格上潜力大，但在标准 SR 任务中受限于数据量，收敛效率不如 CNN。
-*   **Operator**：在跨分辨率泛化上具有理论优势，但在固定分辨率的 Benchmark 上，其参数效率（Params vs Accuracy）略逊于精细设计的 CNN。
+![图 4-6: 损失函数消融实验的验证集 Rel-L2 曲线对比。引入物理感知损失（Full Loss）后，UNet 模型的收敛平台显著降低，证明了物理约束对解空间的有效收缩作用。](images/fig4-6_ablation_curves.png)
 
-### 4.4.3 噪声敏感性分析
+### 4.3.2 序列化训练的必要性 (Sequential Training Strategy)
+针对时空联合建模难优化的问题，对比了“分步序列化训练 (Stage 2)”与“全参数联合微调 (Stage 3)”两种策略的效果。
+
+**表 4-8 训练阶段性能演进对比 (SR $\times 4$, Stride=10)**
+
+| 阶段 (Stage) | 策略描述 | Rel-L2 | PSNR (dB) | SSIM | fRMSE-High | 训练耗时 (h) | 结论 |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| **Stage 2** | **Freeze Spatial** | **0.1787** | **31.20** | 0.8837 | 4.45 | **37.7** | **收敛稳，精度高** |
+| **Stage 3** | **Unfreeze All** | 0.2030 | 29.85 | **0.8869** | **2.46** | +12.5 | 纹理更优，但不稳定 |
+| *Delta* | *Fine-tuning Effect* | *+13.6%* | *-1.35dB* | *+0.36%* | **-44.7%** | - | *高频显著增强* |
+
+**分析**：Stage 3 通过全梯度回传，成功将高频误差降低了 **44.7%** (4.45 $\to$ 2.46)。这表明联合微调对于恢复湍流中的微小涡旋结构至关重要。
+
+![图 4-7: 序列化课程学习策略（Sequential Curriculum Learning）的训练演进曲线。从 Stage 2（冻结空间）切换到 Stage 3（全参数微调）时，高频误差（fRMSE-High，红线）显著下降，表明联合微调有效恢复了物理场的细节结构。](images/fig4-5_sequential_evolution.png)
+
+为验证“先空间、后时序”策略的必要性，我们在“时空双重稀疏”场景（空间 $\times 4$ 下采样 + 时间 Stride 10）下设计了三组对照实验（表 4-9）：
+
+**表 4-9 空间重建必要性对照实验 (Backbone: VideoSwin)**
+
+| 实验组 | 配置 | 稀疏条件 | Rel-L2 | 现象描述 |
+| :--- | :--- | :--- | :---: | :--- |
+| **A. Collapse** | VideoSwin Only | Low-Res + Stride 1 | **0.9336** | **模型崩溃**：即使时间连续，仅空间信息缺失也足以导致预测随机化。 |
+| **B. Robust** | **EDSR + VideoSwin** | Low-Res + **Stride 10** | **0.1783** | **稀疏鲁棒收敛**：引入空间重建后，即使时间更稀疏，模型仍能稳定收敛。 |
+| **C. Upper Bound** | GT + VideoSwin | High-Res + Stride 1 | **0.0261** | **理论上限**：时空信息完备下的性能天花板。 |
+
+### 4.3.3 架构性能归因分析 (Architecture Attribution)
+基于表 4-1 与表 4-2 的量化结果，不同模型架构呈现出显著分化。
+1.  **EDSR (ResNet)**：观测真值的“守门人”。去除 BN 后更适合数值回归，深层堆叠增强细节。
+2.  **Transformer (SegFormer/UNetFormer)**：高效注意力降低复杂度，推理极快，但在极度稀疏下收敛困难。
+3.  **Operator (UNO)**：计算密度低，适合高分辨率扩展，但参数效率略逊于 CNN。
+
+---
+
+## 4.4 鲁棒性、边界与效率 (Robustness, Boundaries & Efficiency)
+
+### 4.4.1 噪声与跨域鲁棒性 (Noise & Generalization)
 测试 EDSR 在不同输入噪声水平下的表现。
 
-**表 4-9 噪声敏感性分析（Diffusion–Reaction, SR ×4）**
+**表 4-10 噪声敏感性分析（Diffusion–Reaction, SR ×4）**
 
 | 噪声水平 $\sigma_n$ | Rel-L2 $\downarrow$ | 性能衰减幅度（vs Clean） |
 | :---: | :---: | :---: |
@@ -1529,20 +1466,12 @@ $$ \mathcal{L}_{\text{dc}} = || DC(\hat{u}) - y ||_2^2 $$
 | 0.05 | 0.2245 | +687.7% |
 | 0.10 | 0.4363 | +1430.9% |
 
-**分析**：
-*   **低噪下的敏感性**：在微弱噪声（$\sigma_n=0.01$）下，Rel-L2 从 0.0285 升至 0.0540（约 +90%）。尽管绝对误差仍处于可接受水平，但该现象提示：仅在无噪数据上训练的模型对高频噪声较敏感，可能将噪声误判为高频纹理并在重建中放大。
-*   **改进建议**：建议在训练时引入 **Noise Injection** 策略以增强鲁棒性。
+**分析**：仅在无噪数据上训练的模型对高频噪声较敏感。此外，在 **2D Darcy Flow** 数据集上的验证表明，“统一观测算子 + 残差骨干”的范式具备处理不同物理机制的通用潜力。
 
-### 4.4.4 跨方程泛化性验证 (Cross-Equation Generalization)
-为验证所提框架是否过拟合于特定的 PDE 类型，我们进一步在 **2D Darcy Flow**（稳态多孔介质流）数据集上进行了验证。在 SR $\times 4$ 任务下，EDSR 模型依然展现出了极强的收敛能力，取得了 **0.0013** 的极低 $H_{\mathrm{err}}$（观测一致性误差）。这一结果表明，“统一观测算子 + 残差骨干”的范式并非仅针对波动方程（SWE）或反应扩散方程（DRD）有效，而是具备处理不同物理机制（如渗透率场映射）的通用潜力，能够作为一种通用的物理场超分基线。
-
----
-
-## 4.5 极度稀疏场景探索
-
+### 4.4.2 极度稀疏边界 (Extreme Sparsity)
 探究模型在观测极限下的表现。将 SR 倍率从 $\times 4$ 推至 $\times 128$（仅 1 个观测点）。
 
-**表 4-10 极度稀疏能力扫描**
+**表 4-11 极度稀疏能力扫描**
 
 | Scale | Input Size | Params (M) | Rel-L2 | PSNR (dB) | SSIM | DC Error | FLOPs (G) | Latency (ms) | 状态 |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
@@ -1553,16 +1482,11 @@ $$ \mathcal{L}_{\text{dc}} = || DC(\hat{u}) - y ||_2^2 $$
 | $\times 64$ | $2 \times 2$ | 3.29 | 0.9666 | 16.69 | 0.05 | **0.0026** | N/A | N/A | 接近随机 |
 | $\times 128$ | $1 \times 1$ | 3.44 | 0.9737 | 16.63 | 0.04 | **0.0008** | N/A | N/A | 盲猜均值 |
 
-**发现**：
-1.  **性能相变点**：$16 \times 16$ 是物理场结构恢复的分水岭。低于此分辨率，单纯的空间超分已无法提取有效特征。
-2.  **“诚实的退化” (Honest Degradation)**：通过分析极度稀疏条件下的观测一致性误差，我们发现一个有趣的现象：随着输入尺寸从 $32 \times 32$ 缩减至 $1 \times 1$，尽管全场重建误差 $Rel\text{-}L2$ 飙升至 $0.97$，但 **$H_{\mathrm{err}}$ 始终保持在极低水平**（Size 1 时仅为 **0.0002**，Size 4 时为 **0.0006**）。这表明，在极度稀疏导致无法重建物理场结构时，模型并没有产生非物理的“幻觉”去强行拟合，而是退化为一种保守的“均值插值”策略，但它**始终严守了仅有的观测点约束**。这种在不确定性下的保守行为对于科学计算应用至关重要，证明了观测一致性约束作为“安全护栏”的有效性。
-3.  **效率瓶颈**：随着 Scale 增大（输入变小），为适配更大倍率，网络深度增加导致 **Params** 上升（2.70M $\to$ 3.44M），同时 **Latency** 在 $\times 32$ 处激增至 163ms，提示超高倍率 SR 需关注推理成本。
+**发现**：$16 \times 16$ 是物理场结构恢复的分水岭。在极度稀疏下，模型表现出“诚实的退化”，$H_{\mathrm{err}}$ 始终保持在极低水平。
 
----
+### 4.4.3 资源效率分析 (Resource Efficiency)
 
-## 4.6 资源与效率分析
-
-**表 4-11 模型资源效率对比 (Input $256^2$)**
+**表 4-12 模型资源效率对比 (Input $256^2$)**
 
 | 模型 | Params (M) | FLOPs (G) | Latency (ms) | 评价 |
 | :--- | :---: | :---: | :---: | :--- |
@@ -1570,22 +1494,13 @@ $$ \mathcal{L}_{\text{dc}} = || DC(\hat{u}) - y ||_2^2 $$
 | UNetFormer | 25.20 | 32.67 | **0.99** | 推理极快，适合实时 |
 | UNO | 28.05 | **4.24** | 4.60 | 计算密度低，适合超高分 |
 
-**分析**：虽然 Transformer 参数量大，但得益于高效的注意力机制设计，其推理延迟反而最低（<1ms），适合对时延敏感的在线监测系统；EDSR 则在存储（Params）与计算（FLOPs）上最为均衡，具备边缘设备部署潜力。我们通过 **Pareto Frontier Analysis** 确认了 EDSR 在移动端算力预算（< 20 GFLOPs）下的帕累托最优地位。
+**分析**：我们通过 **Pareto Frontier Analysis** 确认了 EDSR 在移动端算力预算（< 20 GFLOPs）下的帕累托最优地位。
 
-![图 4-3: 不同模型架构在 SWE 任务上的资源-精度权衡（Pareto Frontier）。横轴为计算量 (GFLOPs)，纵轴为相对误差 (Rel-L2)。Ours (EDSR) 位于左下角的帕累托最优区域，表明其在有限算力预算下实现了最佳的重建精度，具备边缘部署潜力。](images/fig4-3_pareto_frontier.png)
-
-### 4.6.1 时序模块的计算瓶颈分析
-
-实验观察表明，无论采用何种训练策略，时序建模成本均显著高于空间重建：
-
-*   **空间模块 (EDSR)**：单 Epoch 耗时约 **55 秒**。
-*   **时序模块 (VideoSwin)**：单 Epoch 耗时约 **650 秒**。
-
-时序模块耗时约为空间模块的 **10 倍以上**。这提示未来的优化方向应集中在**降低时序注意力复杂度**（如线性注意力、SSM），而非单纯压缩空间网络。
+![图 4-8: 不同模型架构在 SWE 任务上的资源-精度权衡（Pareto Frontier）。横轴为计算量 (GFLOPs)，纵轴为相对误差 (Rel-L2)。Ours (EDSR) 位于左下角的帕累托最优区域，表明其在有限算力预算下实现了最佳的重建精度，具备边缘部署潜力。](images/fig4-3_pareto_frontier.png)
 
 ---
 
-## 4.7 本章小结
+## 4.5 本章小结
 
 本章通过系统的实验验证了所提方法在稀疏物理场重建中的有效性。主要结论如下：
 1.  **方法有效性**：在 SR $\times 4$ 与 Crop 任务中，基于统一口径的 EDSR 模型在精度（Rel-L2）与物理一致性（$H_{\mathrm{err}}$）上均显著优于基线。
@@ -1606,8 +1521,6 @@ $$ \mathcal{L}_{\text{dc}} = || DC(\hat{u}) - y ||_2^2 $$
 [4] Wang Z, Bovik A C, Sheikh H R, et al. Image quality assessment: From error visibility to structural similarity[J]. IEEE Transactions on Image Processing, 2004, 13(4): 600–612.
 
 [5] Wilkinson M D, Dumontier M, Aalbersberg I J, et al. The FAIR Guiding Principles for scientific data management and stewardship[J]. Scientific Data, 2016, 3: 160018.
-
-
 # 第5章 总结与展望
 
 ## 5.1 全文总结
@@ -1636,7 +1549,7 @@ $$ \mathcal{L}_{\text{dc}} = || DC(\hat{u}) - y ||_2^2 $$
 ### 5.2.1 复杂边界与几何泛化能力的不足
 本文目前的实验主要基于规则网格（Regular Grid）与周期性或简单的诺伊曼/狄利克雷边界条件。其中，频谱损失（Spectral Loss）天然依赖于傅里叶变换的周期性假设。当应用于强非周期边界、复杂几何嵌入（如叶片、管道内部）或非结构化网格时，频域表征容易出现**谱泄漏（Spectral Leakage）**与**吉布斯效应（Gibbs Phenomenon）**，导致边界附近的重建误差显著增加（bRMSE 指标恶化）。此外，对于**高雷诺数湍流（High Reynolds Number Turbulence）**等具有宽频多尺度特征的物理系统，固定的谱域权重难以同时兼顾大尺度相干结构与耗散尺度的微小涡旋，容易导致高频细节的过度平滑或非物理截断。
 
-### 5.2.2 局限性与改进空间
+### 5.2.2 理论极限与不确定性缺失
 
 尽管本研究取得了一定成果，但仍存在以下局限性：
 
@@ -1651,19 +1564,21 @@ $$ \mathcal{L}_{\text{dc}} = || DC(\hat{u}) - y ||_2^2 $$
 针对上述局限与科学机器学习（SciML）的前沿趋势，未来的研究可从以下维度展开：
 
 ### 5.3.1 主动感知与强化学习闭环 (Active Sensing & Reinforcement Learning)
-44→突破静态网格观测的限制，未来的观测系统将具备“智能”。结合**深度强化学习（Deep RL）**，可以将物理场重构建模为序列决策过程（Sequential Decision Process）：智能体（Agent）根据当前重建场的信息熵或物理残差分布，动态规划下一个最优观测位置（Next-best View）。这种“感知—决策—行动”的闭环不仅能最大化信息增益（Information Gain），还能针对激波、剪切层等高动态区域实现自适应加密观测，以最小的传感器成本实现物理特征的完备捕获。
+突破静态网格观测的限制，未来的观测系统将具备“智能”。结合**深度强化学习（Deep RL）**，可以将物理场重构建模为序列决策过程（Sequential Decision Process）：智能体（Agent）根据当前重建场的信息熵或物理残差分布，动态规划下一个最优观测位置（Next-best View）。这种“感知—决策—行动”的闭环不仅能最大化信息增益（Information Gain），还能针对激波、剪切层等高动态区域实现自适应加密观测，以最小的传感器成本实现物理特征的完备捕获。
 
-![图 5-1: 基于深度强化学习（Deep RL）的物理场主动感知闭环示意图。智能体（Agent）根据当前重建场的不确定性分布，动态规划下一个最优观测位置（Next-best View），以最小化传感器成本实现对关键物理特征（如激波、剪切层）的自适应捕获。](images/fig5-1_active_sensing_rl.png)
+![图 5-2: 基于深度强化学习（Deep RL）的物理场主动感知闭环示意图。智能体（Agent）根据当前重建场的不确定性分布，动态规划下一个最优观测位置（Next-best View），以最小化传感器成本实现对关键物理特征（如激波、剪切层）的自适应捕获。](images/fig5-2_active_sensing_rl.png)
 
-46→### 5.3.2 面向 PDE 泛化的物理基础模型 (Foundation Models for PDEs)
+### 5.3.2 面向 PDE 泛化的物理基础模型 (Foundation Models for PDEs)
 随着“基础模型（Foundation Model）”范式的兴起，单一物理场景的专用模型正逐渐向多物理场通用模型演进。未来的工作可探索构建**通用神经算子（Generalist Neural Operator）**，在海量不同控制方程（如 Navier-Stokes, Maxwell, Schrödinger）与边界条件的数据上进行预训练。利用**上下文学习（In-context Learning）**或**多模态提示（Multimodal Prompting）**技术，将观测算子 $H$、控制方程参数或边界几何作为“提示词（Prompt）”输入模型，实现对未见物理场景的零样本（Zero-shot）或少样本泛化，彻底解决传统方法“一场景一训练”的成本瓶颈。
 
+![图 5-3: 面向 PDE 泛化的物理基础模型（Foundation Model）架构示意图。模型在海量异构物理方程数据（如 Navier-Stokes, Maxwell, Schrödinger）上进行预训练，通过上下文学习（In-context Learning）或多模态提示（Multimodal Prompting）机制，将观测算子与边界条件作为提示词，实现对未见物理场景的零样本泛化。](images/fig5-3_foundation_model_pde.png)
+
 ### 5.3.3 可信科学机器学习：从贝叶斯到共形预测 (Trustworthy SciML)
-50→现有的不确定性量化主要依赖贝叶斯神经网络（BNN）或深度集合（Deep Ensembles），其置信区间往往未经校准（Uncalibrated），难以满足航空航天等高安全领域的严苛标准。未来的研究应引入**共形预测（Conformal Prediction, CP）**框架，这是一种无需分布假设的统计推断方法。通过在物理场重建中构建“共形预测集”，可以在有限样本下提供具有严格数学保证的覆盖率（Coverage Guarantee，例如确保 95% 的真值落在预测区间内）。结合物理守恒律（如残差约束），发展“物理信息共形预测（Physics-informed CP）”，将为稀疏观测下的模型部署颁发“安全证书”。
+现有的不确定性量化主要依赖贝叶斯神经网络（BNN）或深度集合（Deep Ensembles），其置信区间往往未经校准（Uncalibrated），难以满足航空航天等高安全领域的严苛标准。未来的研究应引入**共形预测（Conformal Prediction, CP）**框架，这是一种无需分布假设的统计推断方法。通过在物理场重建中构建“共形预测集”，可以在有限样本下提供具有严格数学保证的覆盖率（Coverage Guarantee，例如确保 95% 的真值落在预测区间内）。结合物理守恒律（如残差约束），发展“物理信息共形预测（Physics-informed CP）”，将为稀疏观测下的模型部署颁发“安全证书”。
 
-![图 5-2: 面向可信科学机器学习的几何神经算子与共形预测架构示意图。左侧展示了定义在非欧几何流形上的神经算子（GNO），具备离散化无关性；右侧展示了物理信息共形预测（Physics-Informed Conformal Prediction）模块，为重建结果提供具有严格覆盖率保证（Coverage Guarantee）的置信区间，确保工程应用的安全可靠性。](images/fig5-2_trustworthy_geometric_sciml.png)
+![图 5-4: 面向可信科学机器学习的几何神经算子与共形预测架构示意图。左侧展示了定义在非欧几何流形上的神经算子（GNO），具备离散化无关性；右侧展示了物理信息共形预测（Physics-Informed Conformal Prediction）模块，为重建结果提供具有严格覆盖率保证（Coverage Guarantee）的置信区间，确保工程应用的安全可靠性。](images/fig5-4_trustworthy_geometric_sciml.png)
 
-52→### 5.3.4 非规则网格与几何神经算子 (Geometric Neural Operators)
+### 5.3.4 非规则网格与几何神经算子 (Geometric Neural Operators)
 针对工业界普遍存在的复杂几何（如飞行器气动外形），传统的 CNN 架构因受限于欧氏空间网格而失效。未来的核心方向是发展**几何神经算子（Geometric Neural Operators, GNO）**。GNO 将物理场建模为流形上的函数映射，天然具备**离散化无关性（Discretization-invariance）**，即在任意分辨率和非结构化网格上均能保持算子的一致性。结合几何深度学习，设计具有 SE(3) 等变性（Equivariance）的观测算子与重建网络，将显著提升模型在复杂拓扑结构下的几何泛化能力。
 
 ## 参考文献 (References)
@@ -1681,8 +1596,6 @@ $$ \mathcal{L}_{\text{dc}} = || DC(\hat{u}) - y ||_2^2 $$
 [6] Liu N, Jafarzadeh S, Yu Y. Domain agnostic Fourier neural operators[C]//Advances in Neural Information Processing Systems. 2023, 36.
 
 [7] Linka K, Schäfer A, Meng X, et al. Bayesian physics informed neural networks for real-world nonlinear dynamical systems[J]. Computer Methods in Applied Mechanics and Engineering, 2022, 402: 115346.
-
-
 # 附录 A：候选模型性能扫描全表
 
 本附录提供了第 4 章 4.2 节中 28 个候选模型在 Shallow Water Equation (SWE) 数据集上的完整性能扫描结果。
@@ -2030,5 +1943,3 @@ SwinIR 在超分辨率、去噪等任务上通常能取得优于 CNN 和传统 T
 这使得模型能够同时捕捉空间特征（纹理、边界）和时间演化规律（速度、轨迹），是处理复杂时变物理场（如湍流演化）的核心模型。
 **源码对应**：`models/temporal/components/video_swin.py`
 ![Video Swin Transformer](../figures_nn/build_export_j2/videoswin/fig_videoswin_auto.svg)
-
-

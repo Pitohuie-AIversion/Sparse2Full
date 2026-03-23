@@ -1,0 +1,146 @@
+# 15-epoch 双GPU本地DDP训练配置（AR-DR2D）
+
+experiment:
+  name: "Real-DR2D-AR-T20-128-SwinUNet-s2025"
+  description: "本地双GPU DDP，15个epoch监控硬件优化"
+  device: cuda
+  seed: 2025
+  output_dir: runs
+  log_every_n_steps: 10
+
+# 数据配置（若路径不存在，训练器将自动回退到合成数据集）
+data:
+  data_path: "data/2D_diff-react_NA_NA.h5"  # 占位路径，触发合成回退
+  dataset_name: RealDiffusionReaction
+  image_size: 128
+  channels: 2
+  sample_limit: 2000
+
+  T_in: 1
+  T_out: 20
+
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+
+  time_step_start: 0
+  time_step_end: 980
+  time_step_stride: 1
+
+  normalize: true
+  augmentation:
+    enabled: true
+    flip_prob: 0.5
+    rotate_prob: 0.3
+    noise_std: 0.01
+
+  dataloader:
+    batch_size: 64           # 每卡批次64（两卡全局128）；避免OOM
+    val_batch_size: 64
+    test_batch_size: 32
+    num_workers: 16          # 适中worker数，减少NCCL/IO竞争
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 16
+    drop_last: true
+    shuffle: true
+    timeout: 0
+    multiprocessing_context: "spawn"
+
+# 观测算子（H/DC一致，遵循黄金法则）
+observation:
+  mode: sr
+  scale_factor: 2
+  blur_sigma: 1.0
+  kernel_size: 5
+  downsample_interp: INTER_AREA
+  boundary: mirror
+
+# 训练配置
+training:
+  epochs: 15
+  batch_size: 64
+  gradient_accumulation_steps: 2
+  memory_cleanup_frequency: 50
+  auto_batch_size_reduction: true
+  memory_threshold: 0.94
+  precision: "bf16-mixed"
+
+  optimizer:
+    name: AdamW
+    lr: 1e-3
+    weight_decay: 1e-4
+    betas: [0.9, 0.999]
+    eps: 1e-8
+
+  scheduler:
+    name: CosineAnnealingLR
+    T_max: 15
+    eta_min: 1e-6
+
+  amp:
+    enabled: true
+    cast_model_type: bf16
+
+  grad_clip:
+    enabled: true
+    max_norm: 1.0
+
+  curriculum:
+    enabled: true
+    stages:
+      - { epochs: 5, T_out: 5,  description: "阶段1: 预测5步" }
+      - { epochs: 5, T_out: 15, description: "阶段2: 预测15步" }
+      - { epochs: 5, T_out: 20, description: "阶段3: 预测20步" }
+
+# 设备与分布式
+device:
+  accelerator: gpu
+  devices: 2
+  precision: "bf16-mixed"
+  strategy: ddp
+  compile_model: true
+  memory_management:
+    gradient_accumulation_steps: 2
+    memory_cleanup_frequency: 50
+    auto_batch_size_reduction: true
+    memory_threshold: 0.94
+    enable_memory_efficient_attention: true
+
+# 硬件优化
+hardware:
+  num_workers: 16
+  vram_threshold: 0.94
+  memory_cleanup_frequency: 50
+  torch_threads: 32
+  mkl_threads: 32
+  omp_threads: 32
+  cpu:
+    numexpr_threads: 16
+    interop_threads: 16
+    openblas_threads: 16
+
+# 测试
+testing:
+  enabled: false
+  run_final_test: false
+  batch_size: 32
+
+# 性能监控
+performance_monitoring:
+  enabled: true
+  log_gpu_utilization: true
+  log_cpu_utilization: true
+  log_iowait: true
+  report_interval_seconds: 15
+
+# 可视化（训练期间禁用以减低干扰）
+visualization:
+  enabled: false
+  save_test_visualizations: false
+  num_test_samples: 0
+  formats: ["png"]
+
+# 基准压测（禁用）
+benchmark:
+  enabled: false

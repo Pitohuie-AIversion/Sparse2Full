@@ -1,0 +1,38 @@
+# 超分辨率任务配置 - 2倍放大
+
+# 继承基础训练配置
+defaults:
+  - /train
+
+# 任务特定配置
+data:
+  task: "SR"
+  task_params:
+    scale_factor: 2
+    blur_sigma: 0.8
+    blur_kernel_size: 5
+    boundary_mode: "mirror"
+
+# 课程学习：先2倍后4倍
+training:
+  epochs: 100  # 2倍训练轮数较少
+  
+  # 2倍任务的优化器配置
+  optimizer:
+    params:
+      lr: 2.0e-3  # 2倍任务学习率稍高
+      
+  scheduler:
+    params:
+      T_max: 100
+      warmup_steps: 500
+
+# 损失函数权重调整
+loss:
+  rec_weight: 1.0
+  spec_weight: 0.3  # 2倍任务频域损失权重较小
+  dc_weight: 0.8
+
+# 实验命名
+experiment:
+  name_template: "SRx2-{data}-{res}-{model}-s{seed}-{date}"

@@ -1,0 +1,282 @@
+# @package _global_
+
+# 时序NAR模型100轮训练配置
+# 基于test_temporal_nar.yaml，优化为完整训练设置
+defaults:
+  - ../datasets/2d_diff_react_na_na_crop_20
+  - ../train/default
+  - ../model/swin_temporal_nar
+  - _self_
+
+# 实验配置
+experiment:
+  name: "TemporalNAR-DR2D-128-100epochs-s2025"
+  seed: 2025
+  device: "cuda"
+  precision: 16
+  use_amp: true
+  
+  # 输出目录
+  output_dir: "runs/temporal_nar_100epochs"
+  save_top_k: 3  # 保存最好的3个模型
+  save_last: true
+  
+  # 训练模式设置
+  test_mode: false
+  quick_test: false
+  
+  # 日志设置
+  log_every_n_steps: 10
+  val_check_interval: 100
+  
+  # 检查点设置
+  checkpoint:
+    monitor: "val/rel_l2"
+    mode: "min"
+    save_top_k: 3
+    every_n_epochs: 5
+    filename: "temporal_nar-{epoch:03d}-{val_rel_l2:.4f}"
+
+# 覆盖数据配置
+data:
+  _target_: datasets.PDEBenchDataModule
+  data_path: "e:/2d/diffusion-reaction/2D_diff-react_NA_NA.h5"
+  keys: ["0000", "0001", "0002", "0003", "0004"]  # 使用前5个case进行快速测试
+  batch_size: 4  # 训练时使用合适的batch size
+  num_workers: 4
+  pin_memory: true
+  use_official_format: false
+  image_size: 128
+
+# 时序配置
+temporal:
+  T_in: 4      # 输入时间步数
+  T_out: 3     # 输出时间步数
+  dt: 0.1      # 时间步长
+  
+  # AR模型设置
+  ar:
+    teacher_forcing_ratio: 0.8
+    scheduled_sampling: true
+    sampling_decay: 0.99  # 逐步减少teacher forcing
+
+# 模型配置
+model:
+  # SwinUNet基础配置
+  base_kwargs:
+    in_channels: 1
+    out_channels: 1
+    img_size: 128
+    patch_size: 4
+    embed_dim: 96
+    depths: [2, 2, 6, 2]
+    num_heads: [3, 6, 12, 24]
+    window_size: 8
+    mlp_ratio: 4.0
+    drop_rate: 0.0
+    attn_drop_rate: 0.0
+    drop_path_rate: 0.1
+    use_fno_bottleneck: true
+  
+  # 时序模块配置
+  temporal:
+    enabled: true
+    type: "conv1d"
+    c_out: 1
+    k: 3
+    causal: true
+    dropout: 0.1
+  
+  # NAR头配置
+  nar:
+    head_type: "simple"
+    d_model: 96
+    num_heads: 8
+    max_timesteps: 16
+    dropout: 0.1
+  
+  # AR配置
+  ar:
+    detach_rollout: true
+    scheduled_sampling: true
+    sampling_schedule: "linear"
+  
+  # 启用开关
+  use_ar: true
+  use_nar: true
+
+# 损失配置
+loss:
+  # 双头损失权重
+  ar_weight: 1.0
+  nar_weight: 1.0
+  
+  # 权重调度（训练过程中动态调整）
+  ar_weight_schedule: "cosine"  # 余弦调度
+  nar_weight_schedule: "linear"  # 线性增长
+  
+  # 损失类型
+  ar_loss_type: "mse"
+  nar_loss_type: "mse"
+  
+  # 其他损失
+  spectral_loss:
+    weight: 0.5
+    low_freq_weight: 1.0
+    high_freq_weight: 0.3
+  
+  dc_loss:
+    weight: 1.0
+    
+  # 梯度损失（可选）
+  gradient_loss:
+    weight: 0.1
+    enabled: true
+
+# 训练配置
+train:
+  max_epochs: 100
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 1
+  
+  # 优化器
+  optimizer:
+    name: "AdamW"
+    lr: 1e-3
+    weight_decay: 1e-4
+    betas: [0.9, 0.999]
+    eps: 1e-8
+  
+  # 学习率调度器
+  scheduler:
+    name: "CosineAnnealingWarmRestarts"
+    T_0: 20  # 初始周期
+    T_mult: 2  # 周期倍增因子
+    eta_min: 1e-6
+    warmup_steps: 1000
+    warmup_lr: 1e-5
+  
+  # 早停配置
+  early_stopping:
+    monitor: "val/rel_l2"
+    patience: 15
+    mode: "min"
+    min_delta: 1e-5
+    
+  # 验证配置
+  validation:
+    check_val_every_n_epoch: 2
+    val_split: 0.1
+    
+  # 数据增强
+  augmentation:
+    enabled: true
+    flip_prob: 0.5
+    rotate_prob: 0.3
+    noise_std: 0.01
+
+# 监控配置
+monitoring:
+  # TensorBoard日志
+  tensorboard:
+    enabled: true
+    log_dir: "runs/temporal_nar_100epochs/tensorboard"
+    
+  # 指标监控
+  metrics:
+    - "train/ar_loss"
+    - "train/nar_loss" 
+    - "train/total_loss"
+    - "train/spectral_loss"
+    - "train/dc_loss"
+    - "val/rel_l2"
+    - "val/mae"
+    - "val/psnr"
+    - "val/ssim"
+    - "val/temporal_consistency"
+    
+  # 学习率监控
+  lr_monitor:
+    logging_interval: "step"
+    
+  # 模型监控
+  model_summary:
+    max_depth: 2
+
+# 可视化配置
+visualization:
+  enabled: true
+  save_dir: "runs/temporal_nar_100epochs/visualizations"
+  
+  # 训练过程可视化
+  training:
+    plot_losses: true
+    plot_metrics: true
+    plot_lr: true
+    save_interval: 10  # 每10个epoch保存一次
+    
+  # 预测结果可视化
+  predictions:
+    num_cases: 5
+    save_interval: 20  # 每20个epoch保存一次
+    create_animations: true
+    plot_comparisons: true
+    plot_error_maps: true
+
+# 性能配置
+performance:
+  # 内存优化
+  memory:
+    gradient_checkpointing: false
+    pin_memory: true
+    persistent_workers: true
+    
+  # 计算优化
+  compute:
+    compile_model: false  # PyTorch 2.0编译（可选）
+    channels_last: false
+    
+  # 分布式训练（如果需要）
+  distributed:
+    strategy: "ddp"  # 或 "ddp_spawn"
+    sync_batchnorm: true
+
+# 评估配置
+evaluation:
+  # 验证集评估
+  validation:
+    metrics: ["rel_l2", "mae", "psnr", "ssim", "temporal_consistency"]
+    save_predictions: true
+    
+  # 测试集评估（训练结束后）
+  test:
+    enabled: true
+    inference_modes: ["ar", "nar", "ensemble"]
+    save_results: true
+    
+  # 性能基准测试
+  benchmark:
+    enabled: true
+    measure_flops: true
+    measure_memory: true
+    measure_latency: true
+
+# 输出配置
+output:
+  # 模型保存
+  model:
+    save_format: "pytorch"  # 或 "onnx"
+    save_optimizer: true
+    save_scheduler: true
+    
+  # 结果保存
+  results:
+    save_predictions: true
+    save_metrics: true
+    save_logs: true
+    
+  # 报告生成
+  report:
+    generate_html: true
+    generate_pdf: false
+    include_plots: true

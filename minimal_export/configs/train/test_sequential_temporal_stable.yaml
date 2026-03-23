@@ -1,0 +1,128 @@
+# 测试SequentialSpatiotemporalModel的配置 - 使用稳定版本
+# 用于测试专用的时序模块，而不是简单的自回归预测
+
+# 基础配置继承
+defaults:
+  - base_train_real_data
+  - _self_
+
+# 实验名称
+experiment_name: "AR-DR2D-Test-SequentialTemporal-Stable-s2025"
+
+# 数据配置
+data:
+  name: "real_diffusion_reaction"
+  data_dir: "data/real_data/diffusion_reaction_2d"
+  input_length: 1
+  target_length: 5  # 减少目标长度以加快测试
+  image_size: 128
+  train_samples: 5  # 仅使用5个样本进行快速测试
+  val_samples: 2
+  test_samples: 2
+  normalize: true
+
+dataloader:
+  batch_size: 2  # 小批次进行测试
+  num_workers: 4
+  pin_memory: true
+
+# 模型配置 - 使用SequentialSpatiotemporalModel
+model:
+  name: "sequential_spatiotemporal"  # 使用专用的时序模型
+  
+  # 时序模型配置
+  sequential:
+    enabled: true  # 启用专用的时序模块
+    
+    # 空间模块配置
+    spatial:
+      in_channels: 2  # 输入通道数（根据数据集）
+      out_channels: 2  # 输出通道数
+      spatial_feature_dim: 64  # 空间特征维度
+      img_size: [128, 128]  # 图像尺寸
+      backbone_type: "stable_fno2d"  # 使用稳定的FNO2D作为空间骨干
+      #backbone_type: "simple_cnn"  # 或者使用简单的CNN作为空间骨干
+      
+      # 空间骨干配置
+      backbone_config:
+        # FNO2D配置
+        modes1: 8  # 减少模态数以提高稳定性
+        modes2: 8
+        width: 32  # 减少宽度
+        n_layers: 2  # 减少层数
+        activation: "gelu"
+        # 稳定FNO2D额外配置
+        spectral_norm: true
+        gradient_clip: 0.5
+        
+        # 简单CNN配置（如果使用simple_cnn）
+        #hidden_channels: 32
+        #num_layers: 2
+        #kernel_size: 3
+        #use_batch_norm: true
+        #dropout: 0.1
+    
+    # 时序模块配置
+    temporal:
+      feature_dim: 64  # 时序特征维度（应与空间特征维度匹配）
+      num_temporal_layers: 2
+      num_heads: 4
+      dropout: 0.1
+
+# 自回归配置（禁用）
+ar:
+  enabled: false  # 禁用自回归，使用专用时序模块
+
+# 训练配置
+training:
+  epochs: 1000
+  learning_rate: 0.0001  # 降低学习率以提高稳定性
+  weight_decay: 0.0001
+  scheduler: "cosine"
+  warmup_epochs: 10
+  gradient_clip_val: 0.5  # 梯度裁剪
+  
+  # 损失函数配置
+  loss_type: "mse"
+  loss_weights:
+    reconstruction: 1.0
+    spectral: 0.25
+    degradation: 0.25
+  
+  # 早停配置
+  early_stopping:
+    patience: 5
+    min_delta: 0.001
+
+# 优化器配置
+optimizer:
+  name: "adamw"
+  lr: 0.0001
+  weight_decay: 0.0001
+  betas: [0.9, 0.999]
+  eps: 1e-8
+
+# 学习率调度器
+scheduler:
+  name: "cosine"
+  T_max: 20
+  eta_min: 1e-6
+
+# 日志配置
+logging:
+  log_every_n_steps: 1  # 每步都记录以监控训练
+  save_top_k: 1
+  val_check_interval: 0.5  # 更频繁的验证
+
+# 硬件配置
+device: "cuda"
+mixed_precision: false  # 禁用混合精度以提高稳定性
+compile_model: false  # 禁用模型编译以提高稳定性
+
+# 随机种子
+seed: 2025
+
+# 输出配置
+output_dir: "runs"
+save_predictions: true
+save_model: true

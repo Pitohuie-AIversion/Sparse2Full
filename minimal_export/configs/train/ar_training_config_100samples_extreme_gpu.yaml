@@ -1,0 +1,268 @@
+# AR训练配置文件 - 100样本极致GPU利用率V2
+# 专为最大化GPU内存和计算利用率优化
+
+experiment:
+  name: "AR-DR2D-100Samples-ExtremeGPU-SwinUNet-s2025"
+  description: "100样本+极限batch+最大化GPU利用率V2"
+  device: cuda
+  seed: 2025
+  output_dir: runs
+  log_every_n_steps: 1  # 最频繁日志监控
+
+# 设备与并行（DDP）- 极限优化
+device:
+  accelerator: cuda
+  devices: 2
+  strategy: ddp
+  allow_data_parallel_fallback: true
+  precision: 32-true  # 使用FP32确保稳定性但启用TF32
+
+# CUDA和硬件极限优化
+hardware:
+  allow_tf32: true              # 启用TF32大幅提升性能
+  memory:
+    cudnn_benchmark: true       # 启用CUDNN自动调优
+    cudnn_deterministic: false  # 禁用确定性算法
+    cudnn_allow_tf32: true    # 显式启用CUDNN TF32
+  cuda:
+    enable_flash_attention: false  # 禁用确保稳定性
+    enable_memory_efficient_attention: false
+
+# 显式禁用AR时序，改为空间-only模式
+ar:
+  enabled: false
+
+sequential:
+  enabled: false
+
+# 数据配置 - 100样本+极限batch
+data:
+  data_path: "data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+  dataset_name: RealDiffusionReaction
+  img_size: 128  # 匹配实际数据分辨率
+  sample_limit: 100  # 仅100个样本
+  
+  # AR特定配置
+  T_in: 1      # 输入时间步数
+  T_out: 1     # 纯空间预测：仅预测单帧
+  
+  # 数据集分割配置 - 极限batch优化
+  train_ratio: 0.8    # 80个训练样本（更多训练数据）
+  val_ratio: 0.15     # 15个验证样本  
+  test_ratio: 0.05    # 5个测试样本
+  
+  # 时间步配置 - 最大化时间步数
+  time_step_start: 0
+  time_step_end: 101   # 使用全部101个时间步
+  time_step_stride: 1
+  
+  # 观测配置 - 降采样输入
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 2
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+      downsample_mode: area
+      align_corners: false
+      antialias: true
+  
+  # 预处理
+  normalize: true
+  augmentation:
+    enabled: false  # 关闭数据增强
+    flip_prob: 0.0
+    rotate_prob: 0.0
+    noise_std: 0.0
+
+  # 数据加载器 - 极限batch配置
+  dataloader:
+    batch_size: 200        # 极限batch（每GPU 100）- 100样本可支持
+    val_batch_size: 15     # 验证批次=全部验证样本
+    test_batch_size: 5     # 测试批次=全部测试样本
+    num_workers: 8         # 最大工作进程数
+    pin_memory: true       # 启用页面锁定内存
+    persistent_workers: true  # 保持工作进程存活
+    prefetch_factor: 16    # 最大预取因子
+    drop_last: true        # 丢弃不完整batch确保对齐
+    shuffle: true          # 保持数据打乱
+    timeout: 300           # 增加超时时间
+
+# 模型配置 - 恢复大模型但控制梯度
+model:
+  name: SwinUNet
+  in_channels: 2    # 双通道数据（u,v）
+  out_channels: 2
+  img_size: 128
+  patch_size: 4
+  window_size: 8    # 恢复较大窗口
+  depths: [2, 2, 18, 2]   # 大深度模型增加计算量
+  num_heads: [3, 6, 12, 24]  # 大注意力头数
+  embed_dim: 192          # 大嵌入维度增加参数
+  mlp_ratio: 4.0
+  drop_rate: 0.0          # 禁用dropout确保稳定性
+  attn_drop_rate: 0.0     # 禁用注意力dropout
+  drop_path_rate: 0.0     # 禁用drop path
+  
+  # AR包装器配置
+  ar_config:
+    detach_rollout: true
+    scheduled_sampling: false
+    teacher_forcing_ratio: 1.0
+
+# 训练配置 - 极限训练配置
+training:
+  epochs: 100              # 更多训练轮次
+  batch_size: 200         # 极限batch大小
+  gradient_accumulation_steps: 1  # 双卡下直接满批次
+  
+  # PyTorch编译优化 - 启用提升性能
+  torch_compile: true     # 启用torch.compile提升性能
+  torch_compile_mode: "default"  # 默认编译模式
+  channels_last: true     # 启用channels_last内存格式
+  
+  # 训练优化
+  dataloader:
+    batch_size: 200
+    val_batch_size: 15
+    test_batch_size: 5
+    num_workers: 8
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 16
+    drop_last: true       # 丢弃不完整batch
+    shuffle: true
+  
+  # 验证配置 - 频繁验证监控
+  validation:
+    enabled: true
+    check_val_every_n_epoch: 2  # 每2轮验证减少开销
+    save_val_batch_for_viz: true  # 保存验证批次用于可视化
+    log_val_metrics: true
+  
+  # 优化器配置 - 极限配置（更低学习率但大batch）
+  optimizer:
+    name: "AdamW"
+    lr: 0.00005             # 极低学习率配合大batch
+    weight_decay: 0.0001
+    betas: [0.9, 0.999]
+    eps: 1e-8
+    fused: true            # 启用融合优化器提升性能
+    foreach: false         # 禁用foreach避免冲突
+  
+  # 调度器配置 - 长周期调度
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 100             # 与总epochs一致
+    eta_min: 1e-8          # 极小的最小学习率
+    warmup_epochs: 20     # 长warmup期适应大batch
+  
+  # 基本训练设置 - 严格梯度裁剪
+  gradient_clip_val: 1.0    # 标准梯度裁剪阈值
+  gradient_clip_algorithm: norm
+  
+  # AMP配置 - 重新启用但谨慎配置
+  amp:
+    enabled: true          # 启用AMP但使用更稳定配置
+    autocast_dtype: float16  # 使用FP16而非BF16
+    grad_scaler: true      # 启用梯度缩放
+    growth_factor: 2.0
+    backoff_factor: 0.5
+    growth_interval: 2000
+  
+  # 检查点配置
+  checkpoint:
+    save_best: true
+    save_last: true
+    max_keep: 3           # 减少保留检查点数节省空间
+    monitor: val_loss
+    mode: min
+    save_every_n_epochs: 20  # 减少保存频率
+  
+  # 早停配置
+  early_stopping:
+    enabled: true         # 启用早停
+    patience: 30          # 大耐心值适应长训练
+    monitor: val_loss
+    mode: min
+    min_delta: 1e-4
+
+# 损失配置 - 仅使用R2损失（最稳定）
+loss:
+  # AR特定损失
+  ar_loss:
+    weight: 0.0           # 空间-only模式
+    reduction: mean
+  
+  # 仅使用R2损失（最稳定）
+  reconstruction:
+    weight: 1.0           # R2损失权重为1.0
+  spectral:
+    weight: 0.0           # 禁用频谱损失
+  degradation_consistency:
+    weight: 0.0           # 禁用DC一致性损失
+  gradient_weight: 0.0    # 禁用梯度损失
+
+# 验证配置
+validation:
+  check_val_every_n_epoch: 2  # 每2轮验证
+  use_observation: false
+  
+  metrics:
+    - rel_l2
+    - mae
+    - rmse
+    - psnr
+  
+  # AR特定验证
+  rollout_steps: [1]
+  
+  convergence_criteria:
+    target_rel_l2: 0.3    # 适中收敛标准
+    patience_for_convergence: 10
+    min_improvement: 1e-3
+
+# 日志配置 - 详细日志监控
+logging:
+  experiment_name: "AR-DR2D-100Samples-ExtremeGPU-SwinUNet-s2025"
+  version: null
+  default_hp_metric: false
+  log_model: false
+  
+  # 性能监控 - 极限监控
+  performance_monitoring:
+    log_gpu_memory: true      # 监控GPU内存
+    log_throughput: true      # 监控吞吐量
+    log_batch_time: true      # 监控批次时间
+    log_gpu_utilization: true  # 监控GPU利用率
+    log_cuda_events: true    # 记录CUDA事件
+  
+  tensorboard:
+    save_dir: runs/tensorboard
+    name: ar_training_100samples_extreme_gpu
+    version: null
+  
+  visualization:
+    save_samples_every_n_epochs: 10  # 每10轮保存可视化
+    num_samples_to_save: 10         # 保存所有样本的可视化
+    save_training_curves: true
+    save_rollout_visualization: true   # 保存预测效果
+
+# 随机种子
+seed: 2025
+
+# 测试配置 - 极限测试
+testing:
+  enabled: true             # 启用测试
+  run_final_test: true      # 运行最终测试
+  save_predictions: true    # 保存预测结果以验证效果
+  compute_detailed_metrics: true
+  
+  batch_size: 5             # 测试批次=全部测试样本
+  save_visualizations: true # 保存测试可视化
+  num_visualization_samples: 5  # 可视化所有测试样本
+  
+  fast_mode: false
+  skip_complex_metrics: false
+  minimal_logging: false

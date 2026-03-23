@@ -1,0 +1,277 @@
+# AR训练配置文件 - SegFormer版本
+# 基于SegFormer架构的空间预测模型配置
+
+experiment:
+  name: "AR-DR2D-SegFormer-s2025-20251115"
+  description: "SegFormer模型AR训练配置 - 高效分割Transformer"
+  device: cuda
+  seed: 2025
+  output_dir: runs
+  log_every_n_steps: 5
+
+device:
+  accelerator: cuda
+  devices: 2
+  strategy: ddp
+  allow_data_parallel_fallback: true
+  precision: bf16-mixed
+
+# 显式禁用AR时序，改为空间-only模式
+ar:
+  enabled: false
+
+sequential:
+  enabled: false
+
+# 数据配置
+data:
+  data_path: "data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+  dataset_name: RealDiffusionReaction
+  img_size: 128
+  keys: ["data"]
+  use_official_format: true
+  splits_dir: splits
+  target_channels: 1
+  input_channels: 1
+  sample_limit: 100
+  
+  # AR特定配置
+  T_in: 1
+  T_out: 1
+  
+  # 数据集分割配置
+  train_ratio: 0.8
+  val_ratio: 0.15
+  test_ratio: 0.05
+  
+  # 时间步配置
+  time_step_start: 0
+  time_step_end: 50
+  time_step_stride: 1
+  
+  # 观测配置 - 降采样输入
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 2
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+      downsample_mode: area
+      align_corners: false
+      antialias: true
+  
+  # 预处理
+  normalize: true
+  augmentation:
+    enabled: false
+    flip_prob: 0.0
+    rotate_prob: 0.0
+    noise_std: 0.0
+  
+  # 数据加载器
+  dataloader:
+    batch_size: 2048
+    val_batch_size: 735
+    test_batch_size: 245
+    num_workers: 24
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 8
+    drop_last: true
+    shuffle: true
+    timeout: 60
+
+hardware:
+  allow_tf32: true
+  memory:
+    cudnn_benchmark: true
+
+# 模型配置 - SegFormer特定参数
+model:
+  name: SegFormer
+  in_channels: 4  # 观测(1)+坐标(2)+掩码(1)
+  out_channels: 1
+  backbone: "b0"           # SegFormer骨干网络
+  embed_dim: 256           # 嵌入维度
+  num_heads: [1, 2, 5, 8]  # 注意力头数
+  depths: [2, 2, 2, 2]     # 每个阶段的深度
+  mlp_ratio: 4.0           # MLP比例
+  drop_rate: 0.0           # Dropout率
+  drop_path_rate: 0.1      # Drop path率
+  
+  # AR包装器配置
+  ar_config:
+    detach_rollout: true
+    scheduled_sampling: false
+    teacher_forcing_ratio: 1.0
+
+# 训练配置
+training:
+  epochs: 500
+  batch_size: 2048
+  gradient_accumulation_steps: 1
+  
+  # PyTorch编译优化配置
+  torch_compile: false  # SegFormer禁用复杂编译
+  torch_compile_backend: "inductor"
+  torch_compile_mode: "reduce-overhead"
+  channels_last: true
+  
+  loss_weights:
+    reconstruction: 1.0
+    spectral: 0.5
+    data_consistency: 1.0
+    val_batch_size: 64
+    test_batch_size: 32
+    num_workers: 4
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 4
+    drop_last: true
+    shuffle: true
+  
+  # 最小验证配置
+  validation:
+    enabled: true
+    check_val_every_n_epoch: 5
+    save_val_batch_for_viz: false
+    log_val_metrics: false
+  
+  # 优化器配置
+  optimizer:
+    name: "AdamW"
+    lr: 0.001
+    weight_decay: 0.0001
+    betas: [0.9, 0.999]
+    eps: 1e-8
+    fused: false
+    foreach: false
+  
+  # 调度器
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 500
+    eta_min: 1e-6
+    warmup_epochs: 5
+  
+  # 基本训练设置
+  gradient_clip_val: 1.0
+  gradient_clip_algorithm: norm
+  
+  # 最小AMP配置
+  amp:
+    enabled: true
+    autocast_dtype: bfloat16
+  
+  # 课程学习配置
+  curriculum:
+    enabled: false
+    stages: []
+  
+  # 检查点
+  checkpoint:
+    save_best: true
+    save_last: true
+    max_keep: 5
+    monitor: val_loss
+    mode: min
+    save_every_n_epochs: 50
+  
+  # 早停
+  early_stopping:
+    enabled: false
+    patience: 200
+    monitor: val_loss
+    mode: min
+    min_delta: 1e-6
+
+# AR损失配置
+loss:
+  # AR特定损失
+  ar_loss:
+    weight: 0.0
+    reduction: mean
+  
+  # 辅助损失
+  reconstruction:
+    weight: 1.0
+  spectral:
+    weight: 0.5
+  degradation_consistency:
+    weight: 1.0
+  gradient_weight: 0.0
+
+# 验证配置
+validation:
+  check_val_every_n_epoch: 10
+  use_observation: false
+  
+  metrics:
+    - rel_l2
+    - mae
+  
+  # AR特定验证
+  rollout_steps: [1]
+  
+  convergence_criteria:
+    target_rel_l2: 0.5
+    patience_for_convergence: 3
+    min_improvement: 1e-3
+
+# 日志配置
+logging:
+  experiment_name: "AR-DR2D-SegFormer-s2025"
+  version: null
+  default_hp_metric: false
+  log_model: false
+  
+  performance_monitoring:
+    log_gpu_memory: true
+    log_throughput: true
+    log_batch_time: true
+  
+  tensorboard:
+    save_dir: runs/tensorboard
+    name: ar_training_segformer
+    version: null
+  
+  visualization:
+    save_samples_every_n_epochs: 50
+    num_samples_to_save: 5
+    save_training_curves: true
+    save_rollout_visualization: false
+
+# 随机种子
+seed: 2025
+
+# 测试配置
+testing:
+  enabled: false
+  run_final_test: false
+  save_predictions: false
+  compute_detailed_metrics: false
+  
+  batch_size: 32
+  save_visualizations: false
+  num_visualization_samples: 0
+  
+  fast_mode: false
+  skip_complex_metrics: false
+  minimal_logging: false
+
+# 数据增强配置
+data_augmentation:
+  enable: false
+  random_rotation: 
+    enable: false
+    degrees: [-5, 5]
+  random_flip:
+    enable: false
+    horizontal: 0.5
+    vertical: 0.3
+  gaussian_noise:
+    enable: false
+    std: 0.01
+  normalize_per_sample: false
+  compute_statistics: false

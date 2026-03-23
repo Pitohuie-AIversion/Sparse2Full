@@ -1,8 +1,17 @@
-2025-12-26 21:18:47 [   DEBUG] cmd.py:977: Popen(['git', 'version'], cwd=/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full, universal_newlines=False, shell=None, istream=None)
-2025-12-26 21:18:47 [   DEBUG] cmd.py:977: Popen(['git', 'version'], cwd=/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full, universal_newlines=False, shell=None, istream=None)
-2025-12-26 21:18:48 [   DEBUG] __init__.py:337: matplotlib data path: /share/fandixiaLab/suguangsheng/anaconda3/lib/python3.12/site-packages/matplotlib/mpl-data
-2025-12-26 21:18:48 [   DEBUG] __init__.py:337: CONFIGDIR=/share/fandixiaLab/suguangsheng/.config/matplotlib
-2025-12-26 21:18:48 [   DEBUG] __init__.py:1498: interactive is False
-2025-12-26 21:18:48 [   DEBUG] __init__.py:1499: platform is linux
-2025-12-26 21:18:48 [   DEBUG] __init__.py:337: CACHEDIR=/share/fandixiaLab/suguangsheng/.cache/matplotlib
-2025-12-26 21:18:48 [   DEBUG] font_manager.py:1574: Using fontManager instance from /share/fandixiaLab/suguangsheng/.cache/matplotlib/fontlist-v330.json
+2026-03-05 18:15:23 [   DEBUG] __init__.py:47: Creating converter from 7 to 5
+2026-03-05 18:15:23 [   DEBUG] __init__.py:47: Creating converter from 5 to 7
+2026-03-05 18:15:23 [   DEBUG] __init__.py:47: Creating converter from 7 to 5
+2026-03-05 18:15:23 [   DEBUG] __init__.py:47: Creating converter from 5 to 7
+2026-03-05 18:15:24 [   DEBUG] __init__.py:337: matplotlib data path: /share/fandixiaLab/suguangsheng/anaconda3/lib/python3.12/site-packages/matplotlib/mpl-data
+2026-03-05 18:15:24 [ WARNING] __init__.py:543: Matplotlib created a temporary cache directory at /tmp/matplotlib-gjrmx4kz because the default path (/share/fandixiaLab/suguangsheng/.config/matplotlib) is not a writable directory; it is highly recommended to set the MPLCONFIGDIR environment variable to a writable directory, in particular to speed up the import of Matplotlib and to better support multiprocessing.
+2026-03-05 18:15:24 [   DEBUG] __init__.py:337: CONFIGDIR=/tmp/matplotlib-gjrmx4kz
+2026-03-05 18:15:24 [   DEBUG] __init__.py:1498: interactive is False
+2026-03-05 18:15:24 [   DEBUG] __init__.py:1499: platform is linux
+2026-03-05 18:15:24 [   DEBUG] __init__.py:337: CACHEDIR=/tmp/matplotlib-gjrmx4kz
+2026-03-05 18:15:24 [   DEBUG] font_manager.py:1025: font search path [PosixPath('/share/fandixiaLab/suguangsheng/anaconda3/lib/python3.12/site-packages/matplotlib/mpl-data/fonts/ttf'), PosixPath('/share/fandixiaLab/suguangsheng/anaconda3/lib/python3.12/site-packages/matplotlib/mpl-data/fonts/afm'), PosixPath('/share/fandixiaLab/suguangsheng/anaconda3/lib/python3.12/site-packages/matplotlib/mpl-data/fonts/pdfcorefonts')]
+2026-03-05 18:15:24 [    INFO] font_manager.py:1578: generated new fontManager
+2026-03-05 18:15:26 [   DEBUG] cmd.py:977: Popen(['git', 'version'], cwd=/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full, universal_newlines=False, shell=None, istream=None)
+2026-03-05 18:15:26 [   DEBUG] cmd.py:977: Popen(['git', 'version'], cwd=/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full, universal_newlines=False, shell=None, istream=None)
+2026-03-05 18:15:26 [ WARNING] factory.py:17: Project models not found. Using fallback/dummy implementations.
+2026-03-05 18:15:27 [    INFO] trainer.py:52: Data module setup complete.
+2026-03-05 18:15:27 [    INFO] trainer.py:52: Data module setup complete.

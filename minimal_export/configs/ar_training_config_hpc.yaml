@@ -1,0 +1,313 @@
+# 面向双 L40 与 192 核的高性能 AR 训练配置
+
+experiment:
+  name: "AR-DR2D-HPC-SwinUNet-s2025"
+  description: "双GPU DDP，提升并行与内存利用，稳定可复现"
+  device: cuda
+  seed: 2025
+  output_dir: runs
+  log_every_n_steps: 25
+
+logging:
+  use_tensorboard: true
+  use_wandb: false
+  log_level: INFO
+  save_code_snapshot: true
+
+data:
+  # 注意：请按实际数据路径更新
+  data_path: "data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+  dataset_name: RealDiffusionReaction
+  img_size: 256
+  channels: 2
+  sample_limit: 0
+
+  T_in: 1
+  T_out: 5
+
+  train_ratio: 0.8
+  val_ratio: 0.15
+  test_ratio: 0.05
+
+  time_step_start: 0
+  time_step_end: 2000
+  time_step_stride: 1
+
+  preprocessing:
+    normalize: true
+    cache_data: false
+  augmentation:
+    enabled: false
+    flip_prob: 0.0
+    rotate_prob: 0.0
+    noise_std: 0.0
+    cutout_prob: 0.0
+    cutout_size: 0
+    mixup_alpha: 0.0
+    color_jitter: 0.0
+
+  dataloader:
+    # 每进程并行设置（DDP=2进程，总并行≈2×num_workers）
+    batch_size: 16
+    val_batch_size: 16
+    test_batch_size: 16
+    num_workers: 64
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 16
+    drop_last: true
+    timeout: 0
+    shuffle: true
+    multiprocessing_context: spawn
+
+    # 数据缓存/预加载与共享内存配置
+    cache_dataset: false
+    preload_data: false
+    shared_memory: true
+    buffer_size: "64GB"
+    memory_map_dataset: false
+    preload_entire_dataset: false
+    window_cache_enabled: false
+    window_cache_max_gb: 0
+    batch_cache_enabled: false
+    batch_cache_max_gb: 0
+    cache_lru_size: 0
+
+  keys: ["0000", "0001", "0002", "0003", "0004", "0005", "0006", "0007", "0008", "0009"]
+  normalize_sample_size: 64
+
+observation:
+  mode: sr
+  scale_factor: 2
+  blur_sigma: 1.0
+  kernel_size: 5
+  downsample_interpolation: area
+  boundary: mirror
+  crop_size: null
+  crop_box: null
+
+data_observation:
+  mode: sr
+  scale_factor: 2
+  blur_sigma: 1.0
+  kernel_size: 5
+  downsample_interpolation: area
+  boundary: mirror
+  crop_size: null
+  crop_box: null
+
+hardware:
+  # 与DataLoader一致的建议worker数（每进程）
+  num_workers: 64
+  vram_threshold: 0.94
+  memory_cleanup_frequency: 2
+
+  # 线程设置：每进程限制为96，匹配EPYC单socket核心数
+  torch_threads: 96
+  mkl_threads: 96
+  omp_threads: 96
+
+  cpu:
+    numexpr_threads: 96
+    mkl_threads: 96
+    omp_threads: 96
+    torch_threads: 96
+    blas_threads: 96
+    interop_threads: 8
+    openblas_threads: 96
+    prefetch_distance: 64
+    cpu_affinity: true
+    thread_pool_size: 256
+    cpu_intensive_mode: true
+    max_cpu_utilization: 0.98
+    parallel_data_loading: true
+    async_data_processing: true
+    numa_aware: true
+    memory_interleaving: true
+
+  memory:
+    memory_threshold: 0.96
+    auto_batch_size: true
+    gradient_accumulation_steps: 1
+    empty_cache_frequency: 50
+    max_memory_allocated: 0.985
+    memory_fraction: 0.985
+    allow_tf32: true
+    cudnn_benchmark: true
+    aggressive_memory_usage: false
+    disable_memory_cleanup: false
+    memory_efficient: true
+    cache_dataset: false
+    preload_data: false
+    pin_memory_device: null
+    shared_memory: true
+    shared_memory_size: "64GB"
+    buffer_size: "64GB"
+    cache_all_batches: false
+    persistent_cache: false
+
+model:
+  name: SwinUNet
+  in_channels: 5
+  out_channels: 2
+  img_size: 256
+  patch_size: 4
+  window_size: 8
+  depths: [1, 1, 2, 1]
+  num_heads: [2, 4, 8, 16]
+  embed_dim: 48
+  mlp_ratio: 4.0
+  drop_rate: 0.1
+  attn_drop_rate: 0.1
+  drop_path_rate: 0.1
+
+training:
+  epochs: 100
+  batch_size: 16  # 与 data.dataloader.batch_size 对齐
+  gradient_accumulation_steps: 1
+  max_runtime_seconds: 28800
+  max_epochs: 5000
+  val_check_interval: 1.0
+  log_every_n_steps: 25
+  enable_checkpointing: true
+  enable_progress_bar: true
+  precision: "bf16-mixed"
+  channels_last: true
+  sync_batchnorm: true
+  find_unused_parameters: true
+  memory_cleanup_frequency: 2
+  auto_batch_size_reduction: true
+  memory_threshold: 0.94
+
+  optimizer:
+    name: "AdamW"
+    lr: 0.001
+    weight_decay: 0.0001
+    betas: [0.9, 0.999]
+    eps: 1e-8
+    amsgrad: false
+    fused: false
+    foreach: false
+
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 100
+    eta_min: 1e-6
+
+  gradient_clip_val: 1.0
+  gradient_clip_algorithm: norm
+  compile_model: false
+  use_fused_adam: false
+  torch_compile: false
+  torch_compile_mode: null
+  torch_compile_backend: null
+  enable_nested_tensor: false
+  use_flash_attention: true
+  gradient_checkpointing: true
+
+  amp:
+    enabled: true
+    init_scale: 65536.0
+    growth_factor: 2.0
+    backoff_factor: 0.5
+    growth_interval: 1000
+
+  curriculum:
+    enabled: false
+    stages: []
+
+  checkpoint:
+    save_best: true
+    save_last: true
+    max_keep: 3
+    monitor: val_loss
+    mode: min
+    save_every_n_epochs: 2
+
+  early_stopping:
+    enabled: false
+    patience: 10
+    monitor: val_loss
+    mode: min
+    min_delta: 1e-4
+
+loss:
+  ar_loss:
+    weight: 1.0
+    reduction: mean
+  reconstruction:
+    weight: 1.0
+  spectral:
+    weight: 0.5
+  data_consistency:
+    weight: 1.0
+  gradient_weight: 0.0
+
+validation:
+  check_val_every_n_epoch: 1
+  val_check_interval: 1.0
+  metrics: [rel_l2, mae, psnr, ssim]
+  rollout_steps: [5]
+  convergence_criteria:
+    target_rel_l2: 0.2
+    patience_for_convergence: 5
+    min_improvement: 1e-4
+
+testing:
+  enabled: true
+  run_final_test: true
+  batch_size: 16
+  save_visualizations: false
+  metrics: [rel_l2, mae]
+  rollout_steps: [5]
+
+device:
+  accelerator: cuda
+  devices: 2
+  precision: "bf16-mixed"
+  strategy: ddp
+  compile_model: false
+  channels_last: true
+  memory_management:
+    gradient_accumulation_steps: 1
+    memory_cleanup_frequency: 2
+    auto_batch_size_reduction: true
+    memory_threshold: 0.94
+    enable_memory_efficient_attention: true
+
+performance_monitoring:
+  enabled: true
+  log_gpu_utilization: true
+  log_cpu_utilization: true
+  log_iowait: true
+  report_interval_seconds: 15
+  gpu_low_threshold: 0.80
+  cpu_low_threshold: 0.60
+  iowait_high_threshold: 0.12
+  num_workers_step: 8
+  prefetch_factor_step: 4
+  batch_size_step: 16
+
+visualization:
+  enabled: false
+  save_test_visualizations: false
+  num_test_samples: 0
+  formats: ['png']
+
+benchmark:
+  enabled: false
+  warmup_steps: 10
+  measure_steps: 50
+  report_interval: 5
+  max_runtime_seconds: 900
+  run_before_training: false
+  num_batches: 0
+  observation:
+    mode: sr
+    scale_factor: 2
+    blur_sigma: 1.0
+    kernel_size: 5
+    downsample_interpolation: area
+    boundary: mirror
+    crop_size: null
+    crop_box: null

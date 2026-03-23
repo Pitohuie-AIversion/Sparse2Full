@@ -1,0 +1,286 @@
+# AR训练配置文件 - 内存密集型优化版本
+# 针对1TB系统内存进行激进优化，目标利用率50%+
+# 充分利用973GB可用内存资源
+
+experiment:
+  name: "AR-DR2D-MemoryIntensive-SwinUNet-s2025-20251102"
+  description: "内存密集型配置 - 目标50%+内存利用率"
+  device: cuda:0
+  seed: 2025
+  output_dir: runs
+  log_every_n_steps: 5
+
+# 数据配置 - 激进内存利用
+data:
+  data_path: "data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+  dataset_name: RealDiffusionReaction
+  image_size: 128
+  sample_limit: 20000  # 大幅增加样本数量
+  
+  # AR特定配置
+  T_in: 1
+  T_out: 20
+  
+  # 数据集分割配置
+  train_ratio: 0.8
+  val_ratio: 0.15
+  test_ratio: 0.05
+  
+  # 时间步配置
+  time_step_start: 0
+  time_step_end: 100
+  time_step_stride: 1
+  
+  # 观测配置
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 2
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+      downsample_mode: area
+      align_corners: false
+      antialias: true
+  
+  # 预处理
+  normalize: true
+  augmentation:
+    enabled: false
+    flip_prob: 0.0
+    rotate_prob: 0.0
+    noise_std: 0.0
+  
+  # 数据加载器 - 内存密集型配置
+  dataloader:
+    batch_size: 256  # 大幅增加批次大小以充分利用内存
+    val_batch_size: 128
+    test_batch_size: 64
+    num_workers: 192  # 保持最大工作进程数
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 512  # 激进预取 (512 * 192 = 98304个批次预加载)
+    drop_last: true
+    multiprocessing_context: 'spawn'
+    worker_init_fn: true
+
+# 硬件配置 - 内存优先策略
+hardware:
+  num_workers: 192
+  vram_threshold: 0.90  # 稍微降低VRAM阈值为系统内存让路
+  memory_cleanup_frequency: 20  # 降低清理频率以保持缓存
+  torch_threads: 192
+  mkl_threads: 192
+  omp_threads: 192
+
+# 模型配置 - 内存友好的大模型
+model:
+  name: ARWrapper
+  base_model: SwinUNet
+  in_channels: 1
+  out_channels: 1
+  img_size: 128
+  patch_size: 4
+  window_size: 8
+  depths: [8, 8, 16, 8]  # 进一步增加深度以消耗更多内存
+  num_heads: [12, 24, 48, 96]  # 大幅增加注意力头数
+  embed_dim: 384  # 大幅增加嵌入维度
+  mlp_ratio: 16.0  # 激进增加MLP比例
+  drop_rate: 0.1
+  attn_drop_rate: 0.1
+  drop_path_rate: 0.5
+  
+  # AR包装器配置
+  ar_config:
+    detach_rollout: false  # 保持梯度连接以增加内存使用
+    scheduled_sampling: true
+    teacher_forcing_ratio: 0.8
+
+# 训练配置 - 内存密集型训练
+training:
+  epochs: 1000
+  batch_size: 256  # 大批次以充分利用内存
+  gradient_accumulation_steps: 64  # 大幅增加累积步数
+  max_epochs: 1000
+  val_check_interval: 5
+  log_every_n_steps: 5
+  enable_checkpointing: true
+  enable_progress_bar: true
+  precision: "32"  # 使用32位精度增加内存使用
+  sync_batchnorm: true
+  find_unused_parameters: true
+  
+  # 优化器
+  optimizer:
+    name: adamw
+    lr: 1e-3  # 适应大批次的学习率
+    weight_decay: 1e-4
+    betas: [0.9, 0.999]
+  
+  # 学习率调度
+  scheduler:
+    name: cosine_annealing
+    T_max: 1000
+    eta_min: 1e-6
+  
+  # 训练设置
+  gradient_clip_val: 1.0
+  gradient_clip_algorithm: norm
+  
+  # GPU优化设置
+  memory_cleanup_frequency: 20  # 降低清理频率
+  auto_batch_size_reduction: false
+  memory_threshold: 0.90
+  
+  # 混合精度训练（禁用以增加内存使用）
+  amp:
+    enabled: false  # 禁用AMP以使用更多内存
+  
+  # 课程学习配置
+  curriculum:
+    enabled: true
+    stages:
+      - epochs: 200
+        T_out: 5
+        batch_size: 192
+        description: "初期阶段: 预测5步"
+      - epochs: 400
+        T_out: 10
+        batch_size: 256
+        description: "中期阶段: 预测10步"
+      - epochs: 400
+        T_out: 20
+        batch_size: 256
+        description: "后期阶段: 预测20步"
+  
+  # 检查点
+  checkpoint:
+    save_best: true
+    save_last: true
+    max_keep: 15  # 保持更多检查点在内存中
+    monitor: val_loss
+    mode: min
+    save_every_n_epochs: 25
+  
+  # 早停
+  early_stopping:
+    enabled: true
+    patience: 200
+    monitor: val_loss
+    mode: min
+    min_delta: 1e-6
+
+# AR损失配置
+loss:
+  ar_loss:
+    weight: 1.0
+    reduction: mean
+  reconstruction:
+    weight: 1.0
+  spectral:
+    weight: 0.2  # 增加频域损失权重
+  degradation_consistency:
+    weight: 0.8
+  gradient_weight: 0.2  # 启用梯度损失增加计算复杂度
+
+# 验证配置
+validation:
+  check_val_every_n_epoch: 1
+  metrics:
+    - rel_l2
+    - mae
+    - psnr
+    - ssim
+  rollout_steps: [5, 10, 15, 20, 25]  # 增加验证步数
+  convergence_criteria:
+    target_rel_l2: 0.1
+    patience_for_convergence: 20
+    min_improvement: 1e-4
+
+# 设备配置 - 内存优先
+device:
+  accelerator: gpu
+  devices: 2
+  precision: 32  # 使用32位精度消耗更多内存
+  strategy: ddp
+  compile_model: false  # 禁用编译以保持内存使用可控
+  benchmark: true
+  deterministic: false
+  sync_batchnorm: true
+  find_unused_parameters: true
+  
+  memory_management:
+    gradient_accumulation_steps: 64
+    memory_cleanup_frequency: 20  # 降低清理频率
+    auto_batch_size_reduction: false
+    memory_threshold: 0.90
+    enable_memory_efficient_attention: false  # 禁用内存高效注意力
+    gradient_checkpointing: false  # 禁用梯度检查点以使用更多内存
+
+# 日志配置
+logging:
+  experiment_name: "AR-DR2D-MemoryIntensive-SwinUNet-s2025"
+  version: null
+  default_hp_metric: false
+  log_model: false
+  
+  performance_monitoring:
+    log_gpu_memory: true
+    log_throughput: true
+    log_batch_time: true
+    memory_snapshot_frequency: 5  # 更频繁的内存快照
+  
+  tensorboard:
+    save_dir: runs/tensorboard
+    name: ar_training_memory_intensive
+    version: null
+  
+  visualization:
+    save_samples_every_n_epochs: 15
+    num_samples_to_save: 20  # 保存更多样本
+    save_training_curves: true
+    save_rollout_visualization: true
+
+# 随机种子
+seed: 2025
+
+# 测试配置
+testing:
+  enabled: true
+  run_final_test: true
+  save_predictions: true
+  compute_detailed_metrics: true
+  batch_size: 64  # 测试时也使用较大批次
+  save_visualizations: true
+  num_visualization_samples: 25  # 更多可视化样本
+  fast_mode: false
+  skip_complex_metrics: false
+  minimal_logging: false
+
+# 数据增强配置
+data_augmentation:
+  enable: false
+  random_rotation: 
+    enable: false
+    degrees: [-5, 5]
+  random_flip:
+    enable: false
+    horizontal: 0.5
+    vertical: 0.3
+  gaussian_noise:
+    enable: false
+    std: 0.01
+  normalize_per_sample: false
+  compute_statistics: false
+
+# 高级优化配置 - 内存密集型
+advanced_optimization:
+  cpu_affinity: true
+  numa_optimization: true
+  gpu_memory_fraction: 0.90  # 为系统内存让出更多GPU空间
+  allow_growth: false
+  data_pipeline_optimization: true
+  async_data_loading: true
+  torch_compile: false  # 禁用编译以保持内存使用可控
+  memory_mapped_dataset: true
+  shared_memory: true

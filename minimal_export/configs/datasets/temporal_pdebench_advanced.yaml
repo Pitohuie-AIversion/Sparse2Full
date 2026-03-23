@@ -1,0 +1,272 @@
+# 高级时序PDEBench数据集配置
+# 支持多种时序数据处理策略和增强方法
+
+_target_: datasets.temporal_pdebench.TemporalPDEBenchDataset
+
+# 数据集基本信息
+dataset_info:
+  name: "temporal_pdebench_advanced"
+  description: "高级时序PDEBench数据集，支持多种时序处理策略"
+  version: "1.0"
+
+# 数据路径配置
+data_config:
+  # 主数据路径
+  data_path: "E:/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+  
+  # 数据键名
+  data_keys:
+    input: "data"
+    target: "data"
+    time: "t"
+    spatial_coords: ["x", "y"]
+    
+  # 缓存配置
+  cache_config:
+    enabled: true
+    cache_dir: "cache/temporal_pdebench"
+    max_cache_size: "10GB"
+    cache_compression: true
+
+# 时序配置
+temporal_config:
+  # 基本时序参数
+  T_in: 4          # 输入时间步数
+  T_out: 8         # 输出时间步数
+  dt: 0.01         # 时间步长
+  total_timesteps: 100  # 总时间步数
+  
+  # 序列采样策略
+  sampling_strategy:
+    type: "sliding_window"  # sliding_window, random_segments, fixed_intervals
+    
+    # 滑动窗口采样
+    sliding_window:
+      stride: 2           # 滑动步长
+      overlap_ratio: 0.5  # 重叠比例
+      
+    # 随机片段采样
+    random_segments:
+      min_gap: 1          # 最小间隔
+      max_gap: 5          # 最大间隔
+      
+    # 固定间隔采样
+    fixed_intervals:
+      interval: 3         # 固定间隔
+      
+  # 时序增强
+  temporal_augmentation:
+    enabled: true
+    
+    # 时间扰动
+    time_perturbation:
+      enabled: true
+      jitter_std: 0.01    # 时间抖动标准差
+      
+    # 时序噪声
+    temporal_noise:
+      enabled: true
+      noise_type: "gaussian"  # gaussian, uniform
+      noise_level: 0.005
+      
+    # 时序掩码
+    temporal_masking:
+      enabled: false
+      mask_ratio: 0.1
+      mask_strategy: "random"  # random, consecutive
+      
+    # 时序插值
+    temporal_interpolation:
+      enabled: false
+      interpolation_factor: 2
+      method: "linear"  # linear, cubic, spline
+
+# 空间配置
+spatial_config:
+  # 图像尺寸
+  img_size: 128
+  
+  # 空间增强
+  spatial_augmentation:
+    enabled: true
+    
+    # 几何变换
+    geometric_transforms:
+      enabled: true
+      rotation_range: [-5, 5]      # 旋转角度范围
+      translation_range: [-0.05, 0.05]  # 平移范围
+      scale_range: [0.95, 1.05]    # 缩放范围
+      
+    # 空间噪声
+    spatial_noise:
+      enabled: true
+      noise_type: "gaussian"
+      noise_level: 0.01
+      
+    # 空间掩码
+    spatial_masking:
+      enabled: false
+      mask_ratio: 0.05
+      mask_shape: "random"  # random, rectangular, circular
+
+# 数据预处理
+preprocessing:
+  # 归一化配置
+  normalization:
+    enabled: true
+    method: "z_score"  # z_score, min_max, robust, per_sample
+    
+    # 统计信息
+    compute_stats: true
+    stats_sample_ratio: 0.1  # 用于计算统计信息的样本比例
+    
+    # 异常值处理
+    outlier_handling:
+      enabled: true
+      method: "clip"  # clip, remove, winsorize
+      threshold: 3.0  # 标准差倍数
+      
+  # 数据过滤
+  filtering:
+    enabled: true
+    
+    # 质量过滤
+    quality_filter:
+      enabled: true
+      min_variance: 1e-6    # 最小方差
+      max_nan_ratio: 0.01   # 最大NaN比例
+      
+    # 物理约束过滤
+    physics_filter:
+      enabled: false
+      conservation_tolerance: 0.1
+      boundary_tolerance: 0.05
+      
+  # 数据平滑
+  smoothing:
+    enabled: false
+    method: "gaussian"  # gaussian, median, bilateral
+    kernel_size: 3
+    sigma: 1.0
+
+# 数据分割
+split_config:
+  # 分割策略
+  split_strategy: "temporal"  # random, temporal, spatial, stratified
+  
+  # 分割比例
+  split_ratios:
+    train: 0.7
+    val: 0.15
+    test: 0.15
+    
+  # 时序分割配置
+  temporal_split:
+    # 确保时序连续性
+    ensure_continuity: true
+    # 分割点
+    split_points: [0.7, 0.85]  # 累积比例
+    
+  # 验证集配置
+  validation:
+    # 验证策略
+    strategy: "holdout"  # holdout, k_fold, time_series_cv
+    
+    # 时序交叉验证
+    time_series_cv:
+      n_splits: 5
+      test_size: 0.2
+      gap: 10  # 训练集和测试集之间的间隔
+
+# 数据加载配置
+loading_config:
+  # 批处理配置
+  batch_config:
+    batch_size: 8
+    shuffle: true
+    drop_last: false
+    
+  # 多进程配置
+  multiprocessing:
+    num_workers: 4
+    pin_memory: true
+    persistent_workers: true
+    
+  # 预取配置
+  prefetch_config:
+    enabled: true
+    prefetch_factor: 2
+    
+# 内存管理
+memory_config:
+  # 内存映射
+  memory_mapping:
+    enabled: true
+    mode: "r"  # r, r+, w+
+    
+  # 懒加载
+  lazy_loading:
+    enabled: true
+    chunk_size: 1000
+    
+  # 内存优化
+  memory_optimization:
+    enabled: true
+    dtype_optimization: true  # 自动选择最优数据类型
+    compression: true         # 数据压缩
+
+# 数据验证
+validation_config:
+  # 数据完整性检查
+  integrity_check:
+    enabled: true
+    check_shapes: true
+    check_dtypes: true
+    check_ranges: true
+    
+  # 时序一致性检查
+  temporal_consistency:
+    enabled: true
+    check_continuity: true
+    check_causality: true
+    
+  # 物理约束检查
+  physics_validation:
+    enabled: false
+    conservation_laws: []
+    boundary_conditions: []
+
+# 调试和监控
+debug_config:
+  # 调试模式
+  debug_mode: false
+  
+  # 数据可视化
+  visualization:
+    enabled: false
+    save_samples: false
+    num_samples: 5
+    
+  # 统计监控
+  statistics:
+    enabled: true
+    compute_detailed_stats: false
+    
+  # 性能监控
+  profiling:
+    enabled: false
+    profile_loading: false
+    profile_preprocessing: false
+
+# 兼容性配置
+compatibility:
+  # 向后兼容
+  backward_compatibility: true
+  
+  # 版本检查
+  version_check: true
+  
+  # 格式转换
+  format_conversion:
+    enabled: false
+    target_format: "hdf5"

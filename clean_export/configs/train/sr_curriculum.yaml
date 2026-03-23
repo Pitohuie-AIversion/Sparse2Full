@@ -1,0 +1,96 @@
+# @package train
+
+# SR任务课程学习训练配置
+# 先×2再×4的渐进式训练策略
+
+# 基础训练参数
+num_epochs: 200
+batch_size: 8
+learning_rate: 1e-3
+weight_decay: 1e-4
+
+# 课程学习配置
+curriculum_learning:
+  enabled: true
+  stages:
+    # 第一阶段：SR×2训练
+    - name: "sr_x2"
+      epochs: 80
+      sr_scale: 2
+      learning_rate: 1e-3
+      batch_size: 16  # 较小尺度可用更大batch
+      
+    # 第二阶段：SR×4训练
+    - name: "sr_x4"
+      epochs: 120
+      sr_scale: 4
+      learning_rate: 5e-4  # 降低学习率
+      batch_size: 8
+      load_from_previous: true  # 从上一阶段加载权重
+
+# 优化器配置
+optimizer:
+  type: "adamw"
+  lr: ${training.learning_rate}
+  weight_decay: ${training.weight_decay}
+  betas: [0.9, 0.999]
+  eps: 1e-8
+
+# 学习率调度
+scheduler:
+  type: "cosine"
+  warmup_steps: 1000
+  min_lr: 1e-6
+  restart_epochs: []  # 余弦重启轮数
+
+# 混合精度训练
+amp:
+  enabled: true
+  opt_level: "O1"
+  loss_scale: "dynamic"
+
+# 梯度处理
+gradient:
+  clip_norm: 1.0
+  accumulation_steps: 1
+
+# 早停策略
+early_stopping:
+  patience: 10
+  monitor: "val_rel_l2"
+  mode: "min"
+  min_delta: 1e-4
+
+# 检查点保存
+checkpoint:
+  save_top_k: 3
+  monitor: "val_rel_l2"
+  mode: "min"
+  save_last: true
+  every_n_epochs: 10
+
+# 验证配置
+validation:
+  check_val_every_n_epoch: 1
+  val_check_interval: 1.0
+
+# 日志配置
+logging:
+  log_every_n_steps: 50
+  log_gpu_memory: true
+  
+# 数据增强（SR任务特定）
+data_augmentation:
+  enabled: true
+  flip_prob: 0.5
+  rotate_prob: 0.3
+  rotate_angles: [90, 180, 270]
+  # SR特定增强
+  blur_augment:
+    enabled: true
+    sigma_range: [0.5, 2.0]
+    prob: 0.2
+  noise_augment:
+    enabled: true
+    std_range: [0.0, 0.05]
+    prob: 0.1

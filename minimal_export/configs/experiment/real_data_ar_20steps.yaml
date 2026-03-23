@@ -1,0 +1,234 @@
+# 真实扩散-反应数据AR训练配置 - 20步预测
+# 实验名称：Real-DR2D-AR-T20-128-SwinUNet-s2025
+
+defaults:
+  - /base_config
+  - _self_
+
+# 实验基本信息
+experiment:
+  name: "Real-DR2D-AR-T20-128-SwinUNet-s2025"
+  description: "真实扩散-反应数据自回归训练，预测20个时间步"
+  tags: ["AR", "real_data", "diffusion_reaction", "long_sequence"]
+  # 运行目录与随机种子（训练器期望 experiment.seed 存在）
+  output_dir: "runs"
+  seed: 2025
+
+# 数据配置
+data:
+  dataset_name: "RealDiffusionReaction2D"
+  data_path: "data/DR2D/2D_diff-react_NA_NA_small.h5"
+  data_key: "0000/data"
+  
+  # 数据参数
+  img_size: 128
+  channels: 2  # u和v两个变量
+  
+  # 时序配置
+  T_in: 1      # 输入时间步数
+  T_out: 20    # 输出时间步数（目标：预测20步）
+  
+  # 数据切分
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  
+  # 时间步采样
+  time_step_start: 0
+  time_step_end: 980  # 保留20步用于验证长序列预测
+  time_step_stride: 1
+  
+  # 数据增强
+  augmentation:
+    enabled: true
+    flip_prob: 0.5
+    rotate_prob: 0.3
+    noise_std: 0.01
+
+# 模型配置
+model:
+  name: "SwinUNet"
+  
+  # 基本参数
+  in_channels: 2
+  out_channels: 2
+  img_size: 128
+  
+  # Swin Transformer参数
+  patch_size: 4
+  window_size: 8
+  depths: [2, 2, 6, 2]
+  num_heads: [3, 6, 12, 24]
+  embed_dim: 96
+  mlp_ratio: 4.0
+  
+  # AR特定配置
+  ar_mode: true
+  temporal_encoding: true
+  recurrent_layers: 2
+  
+  # 正则化
+  drop_rate: 0.1
+  attn_drop_rate: 0.1
+  drop_path_rate: 0.2
+
+# 训练配置
+training:
+  # 基本设置
+  epochs: 200
+  batch_size: 8  # 降低批次大小以适应长序列
+  accumulate_grad_batches: 4  # 有效批次大小 = 8 * 4 = 32
+  
+  # 优化器
+  optimizer:
+    name: "AdamW"
+    lr: 5e-4  # 降低学习率以提高稳定性
+    weight_decay: 1e-4
+    betas: [0.9, 0.999]
+  
+  # 学习率调度
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 200
+    eta_min: 1e-6
+    warmup_epochs: 10
+  
+  # 梯度处理
+  gradient_clip_val: 1.0
+  gradient_clip_algorithm: "norm"
+  
+  # 混合精度
+  precision: "16-mixed"
+  
+  # 课程学习策略（逐步增加预测步数）
+  curriculum:
+    enabled: true
+    stages:
+      - epochs: 40
+        T_out: 5
+        description: "阶段1: 预测5步"
+      - epochs: 40  
+        T_out: 10
+        description: "阶段2: 预测10步"
+      - epochs: 40
+        T_out: 15
+        description: "阶段3: 预测15步"
+      - epochs: 80
+        T_out: 20
+        description: "阶段4: 预测20步（最终目标）"
+
+# 损失函数配置
+loss:
+  # 主要损失
+  reconstruction:
+    name: "MSELoss"
+    weight: 1.0
+  
+  # 频域损失（低频约束）
+  spectral:
+    name: "SpectralLoss"
+    weight: 0.3
+    freq_weight: "low_freq"
+    freq_ratio: 0.1
+  
+  # AR特定损失
+  temporal_consistency:
+    name: "TemporalConsistencyLoss"
+    weight: 0.2
+    
+  # 梯度损失（物理约束）
+  gradient:
+    name: "GradientLoss"
+    weight: 0.1
+
+# 验证配置
+validation:
+  check_val_every_n_epoch: 5
+  val_check_interval: 0.5
+  
+  # AR验证指标
+  metrics:
+    - "mse"
+    - "mae" 
+    - "rel_l2"
+    - "psnr"
+    - "ssim"
+    - "temporal_mse"  # 时序MSE
+    - "long_term_stability"  # 长期稳定性
+
+# 回调函数
+callbacks:
+  # 模型检查点
+  model_checkpoint:
+    monitor: "val_rel_l2"
+    mode: "min"
+    save_top_k: 3
+    save_last: true
+    filename: "epoch_{epoch:03d}_val_rel_l2_{val_rel_l2:.6f}"
+  
+  # 早停
+  early_stopping:
+    monitor: "val_rel_l2"
+    patience: 20
+    mode: "min"
+    min_delta: 1e-6
+  
+  # 学习率监控
+  lr_monitor:
+    logging_interval: "step"
+  
+  # AR可视化
+  ar_visualization:
+    enabled: true
+    save_interval: 10
+    num_samples: 4
+    prediction_steps: [5, 10, 15, 20]
+
+# 日志配置
+logging:
+  log_every_n_steps: 50
+  save_dir: "runs"
+  
+  # Tensorboard
+  tensorboard:
+    enabled: true
+    log_graph: false
+  
+  # 可视化
+  visualization:
+    enabled: true
+    save_predictions: true
+    save_animations: true
+    animation_fps: 5
+
+# 硬件配置
+hardware:
+  accelerator: "gpu"
+  devices: 1
+  num_workers: 4
+  pin_memory: true
+  persistent_workers: true
+
+# 显式设备配置以启用多GPU（训练器读取 device.*）
+device:
+  accelerator: "gpu"
+  devices: 2
+
+# 统一DataLoader键，避免缺失导致报错（合并到上方 data 配置块）
+# 注意：YAML不允许重复顶层键，此处将dataloader配置并入上方已有的 data 块
+
+# 测试开关，避免缺失键报错
+testing:
+  enabled: true
+  run_final_test: true
+
+# 随机种子
+seed: 2025
+
+# 调试模式
+debug:
+  enabled: false
+  fast_dev_run: false
+  overfit_batches: 0
+  limit_train_batches: 1.0
+  limit_val_batches: 1.0

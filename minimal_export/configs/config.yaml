@@ -1,0 +1,35 @@
+# @package _global_
+
+# 默认配置文件
+defaults:
+  - data: pdebench
+  - model: swin_unet
+  - train: default
+  - _self_
+
+# 实验配置
+experiment:
+  name: "SRx4-DR2D-128-SwinUNet-s2025"
+  seed: 2025
+  device: "cuda"
+  precision: 16  # AMP混合精度
+  use_amp: true  # 启用混合精度训练
+  output_dir: "runs/${experiment.name}"
+
+# 模型资源预算（用于训练与评估的统一守卫）
+model_budget:
+  max_params_m: 10
+  max_flops_g: 60
+  max_latency_ms: 50
+
+# 输出路径
+output_dir: "runs/${experiment.name}"
+checkpoint_dir: "${output_dir}/checkpoints"
+log_dir: "${output_dir}/logs"
+
+# Hydra配置
+hydra:
+  run:
+    dir: ${output_dir}
+  job:
+    chdir: true

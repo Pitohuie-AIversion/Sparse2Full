@@ -1,0 +1,66 @@
+# @package _global_
+
+# AR Swin-UNet时序预测实验配置
+defaults:
+  - /data: pdebench
+  - /model: swin_unet_ar
+  - /train: default
+  - /temporal
+  - _self_
+
+# 实验配置
+experiment:
+  name: "AR-SwinUNet-T3-DR2D-128-s2025"
+  seed: 2025
+  device: "cuda"
+  precision: 16
+  use_amp: true
+  output_dir: "runs/${experiment.name}"
+
+# 覆盖模型配置
+model:
+  T_out: 3
+  teacher_forcing_ratio: 1.0
+  scheduled_sampling: false
+
+# 覆盖数据配置（启用时序模式）
+data:
+  temporal_mode: true
+  sequence_length: 4  # T_in(1) + T_out(3)
+  
+# 覆盖训练配置
+training:
+  epochs: 100
+  batch_size: 8  # 时序数据内存占用更大
+  
+  # AR特定的课程学习
+  curriculum_learning:
+    enabled: true
+    schedule:
+      - epochs: [0, 30]
+        T_out: 1
+      - epochs: [30, 60] 
+        T_out: 2
+      - epochs: [60, 100]
+        T_out: 3
+
+# 损失配置（AR模式）
+loss:
+  rel2_weight: 1.0
+  mae_weight: 0.1
+  spectral:
+    weight: 0.0  # 暂时禁用频谱损失
+  data_consistency:
+    weight: 0.0  # 暂时禁用DC损失
+
+# 日志配置
+logging:
+  log_interval: 20
+  save_interval: 10
+  use_tensorboard: true
+  use_wandb: false
+
+# 输出路径
+output_dir: "runs/${experiment.name}"
+checkpoint_dir: "${output_dir}/checkpoints"
+log_dir: "${output_dir}/logs"

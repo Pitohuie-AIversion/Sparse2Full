@@ -1,0 +1,153 @@
+# 快速混合模型对比配置 - 支持1通道和4通道模型
+# 用于横向对比不同架构的模型性能
+
+task: "ar"
+dataset: "dr2d"
+model:
+  # 基础参数 - 根据模型类型动态调整
+  in_channels: 4    # 默认4通道 (观测+坐标+掩码)
+  out_channels: 1
+  img_size: 128
+  
+  # 模型特定配置
+  embed_dim: 96
+  depths: [2, 2, 6, 2]
+  num_heads: [3, 6, 12, 24]
+  window_size: 8
+  patch_size: 4
+  mlp_ratio: 4.0
+  qkv_bias: true
+  drop_rate: 0.0
+  drop_path_rate: 0.1
+
+training:
+  # 快速模式参数
+  epochs: 100
+  batch_size: 256
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  warmup_epochs: 5
+  
+  # 优化器设置
+  optimizer:
+    name: "adamw"
+    lr: 0.001
+    weight_decay: 0.0001
+    betas: [0.9, 0.999]
+    eps: 0.00000001
+    amsgrad: false
+    fused: false
+    foreach: false
+  scheduler: "cosine"
+  min_lr: 0.000001
+  
+  # 损失函数
+  loss_function: "mse"
+  loss_weights: {"reconstruction": 1.0, "spectral": 0.5, "dc": 1.0}
+  
+  # 训练策略
+  amp: true
+  channels_last: true
+  gradient_clipping: 1.0
+  
+  # 早停和检查点
+  early_stopping_patience: 15
+  save_frequency: 10
+
+data:
+  # 快速模式数据限制
+  sample_limit: 500
+  time_step_start: 0
+  time_step_end: 30
+  
+  # 数据预处理
+  normalization: "z_score"
+  crop_size: 128
+  use_crop: true
+  
+  # 数据增强
+  augmentation: true
+  aug_scale_range: [0.8, 1.2]
+  aug_rotation_range: [-15, 15]
+  
+  # 数据加载
+  num_workers: 4
+  pin_memory: true
+  prefetch_factor: 2
+
+validation:
+  # 验证设置
+  val_frequency: 5
+  val_samples: 50
+  
+  # 评估指标
+  metrics: ["mse", "mae", "ssim", "psnr", "rel_l2"]
+  
+  # 可视化
+  visualize_predictions: true
+  visualization_frequency: 10
+  num_visualizations: 5
+
+resources:
+  # 资源监控
+  profile_memory: true
+  profile_flops: true
+  profile_inference_time: true
+  
+  # GPU设置
+  mixed_precision: true
+  compile_model: false  # 快速模式禁用编译
+  
+  # 内存优化
+  gradient_accumulation_steps: 1
+  max_memory_gb: 8
+
+comparison:
+  # 对比实验设置
+  fair_comparison: true
+  identical_seeds: true
+  statistical_testing: true
+  
+  # 模型特定通道配置
+  model_channel_configs:
+    # 1通道模型 (仅观测数据)
+    hybrid: 1
+    vit: 1
+    mlp_mixer: 1
+    liif: 1
+    
+    # 4通道模型 (观测+坐标+掩码)
+    swin_unet: 4
+    unet: 4
+    fno2d: 4
+    segformer: 4
+    unet_plus_plus: 4
+
+logging:
+  level: "INFO"
+  save_logs: true
+  wandb: false  # 快速模式禁用W&B
+  
+  # 日志频率
+  log_frequency: 50
+  log_gradients: false
+  
+  # 实验跟踪
+  save_config: true
+  save_git_info: true
+  save_environment: true
+
+# 实验配置
+experiment:
+  name: "AR-DR2D-QuickComparison"
+  output_dir: "runs"
+  save_config: true
+  save_git_info: true
+  save_environment: true
+
+# 结果输出
+output:
+  save_predictions: false  # 快速模式不保存预测结果
+  save_model_checkpoints: true
+  save_metrics: true
+  format: ["json", "csv"]

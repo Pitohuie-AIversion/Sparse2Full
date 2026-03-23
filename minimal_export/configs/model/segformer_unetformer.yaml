@@ -1,0 +1,43 @@
+# SegFormerUNetFormer模型配置
+# SegFormer与UNetFormer混合架构
+
+name: "SegFormerUNetFormer"
+
+params:
+  in_channels: 1
+  out_channels: 1
+  img_size: 128
+  
+  kwargs:
+    # SegFormer编码器参数
+    encoder_type: "mit_b2"  # mit_b0, mit_b1, mit_b2, mit_b3, mit_b4, mit_b5
+    encoder_pretrained: false
+    
+    # UNetFormer解码器参数
+    decoder_channels: [256, 128, 64, 32]
+    decoder_use_batchnorm: true
+    
+    # Transformer参数
+    num_heads: [1, 2, 5, 8]
+    mlp_ratios: [8, 8, 4, 4]
+    sr_ratios: [8, 4, 2, 1]
+    depths: [2, 2, 2, 2]
+    
+    # 激活函数和归一化
+    activation: "gelu"
+    norm_layer: "LayerNorm"
+    
+    # Dropout
+    drop_rate: 0.0
+    attn_drop_rate: 0.0
+    drop_path_rate: 0.1
+    
+    # 上采样方式
+    upsample_mode: "bilinear"
+    
+    # 跳跃连接
+    use_skip_connections: true
+    
+    # 可选参数
+    use_deep_supervision: false
+    aux_params: null

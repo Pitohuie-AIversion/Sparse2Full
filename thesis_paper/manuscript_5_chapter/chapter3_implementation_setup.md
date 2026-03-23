@@ -106,7 +106,7 @@ class DegradationOperator(nn.Module):
 
 该模块负责从单帧或多帧输入中提取多尺度空间特征。为验证框架的通用性，本研究支持多种主流骨干网络。其中，**EDSR (Enhanced Deep Super-Resolution)** 因其去除 Batch Normalization 的设计更适合物理场数值回归，被选为本研究的核心空间骨干网络，其架构如图 3-4 所示。
 
-![图 3-4: EDSR 空间特征提取网络架构图](images/fig_edsr_auto.svg)
+![图 3-4: EDSR 空间特征提取网络架构图。该架构去除了 Batch Normalization 层以适应物理场数值回归任务，并利用深层残差块（ResBlocks）提取多尺度空间特征。](../figures_nn/build_export_j2/edsr/fig_edsr_auto.svg)
 
 1.  **基于 CNN 的模型**：
     以卷积神经网络为基础，擅长提取局部特征并利用平移不变性。
@@ -125,7 +125,7 @@ class DegradationOperator(nn.Module):
 
 针对时变物理场，在潜在特征空间引入时序模块，重点支持以下两种架构以应对不同动力学特性。其中，**Video Swin Transformer** 因其在长程依赖建模上的优势，被选为处理复杂湍流场景的核心时序模块，其架构如图 3-5 所示。
 
-![图 3-5: Video Swin Transformer 时序演化模块架构图](images/fig_videoswin_auto.svg)
+![图 3-5: Video Swin Transformer 时序演化模块架构图。该模块利用 3D 移位窗口注意力机制（3D Shifted Window Attention）在降低计算复杂度的同时捕捉时空长程依赖。](../figures_nn/build_export_j2/videoswin/fig_videoswin_auto.svg)
 
 1.  **ConvLSTM (Convolutional LSTM)**：
     将卷积操作引入 LSTM 单元，在状态转换中保留空间结构信息。适用于捕捉局部动态变化，能够有效处理具有明确对流特征的物理过程。

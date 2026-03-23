@@ -1,0 +1,119 @@
+# AR训练配置文件
+# 基于之前成功的配置，适配当前环境
+
+experiment:
+  name: "AR-DR2D-T20-SwinUNet-s2025"
+  description: "20步AR自回归训练 - 扩散反应数据"
+  device: cuda:0
+  seed: 2025
+  output_dir: runs
+  log_every_n_steps: 10
+
+# 数据配置
+data:
+  data_path: "data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+  dataset_name: RealDiffusionReaction
+  # 移除splits_dir，因为RealDiffusionReactionDataModule不使用splits文件
+  image_size: 128  # 匹配实际数据分辨率
+  sample_limit: 10000
+  
+  # AR特定配置
+  T_in: 1      # 输入时间步数
+  T_out: 20    # 输出时间步数（20步AR预测）
+  
+  # 数据集分割配置 - 匹配RealDiffusionReactionDataModule参数
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  
+  # 时间步配置
+  time_step_start: 0
+  time_step_end: 980  # 使用前980个时间步
+  time_step_stride: 1
+  
+  # 观测配置 - 降采样输入
+  observation:
+    mode: SR  # 超分辨率模式
+    scale_factor: 2        # 与训练器一致：obs_cfg.get('scale_factor')
+    blur_sigma: 1.0        # 与训练器一致：obs_cfg.get('blur_sigma')
+    kernel_size: 5         # 与退化算子一致：params['kernel_size']
+    boundary: mirror       # 与退化算子一致：boundary ∈ {mirror|wrap|zero}
+  
+  # 预处理
+  normalize: true
+  augmentation:
+    enabled: false
+    flip_prob: 0.0
+    rotate_prob: 0.0
+    noise_std: 0.0
+  
+  # 数据加载器 - 平衡CPU和内存利用
+  dataloader:
+    batch_size: 256  # 降低批次大小避免OOM，通过梯度累积保持有效批次
+    num_workers: 180  # 保持高工作进程数
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 16  # 保持高预取因子
+    drop_last: true
+    # 启用CPU密集型数据处理
+    multiprocessing_context: 'spawn'  # 优化多进程上下文
+    worker_init_fn: true  # 启用worker初始化函数
+  
+# 硬件配置 - 平衡CPU内存利用
+hardware:
+  num_workers: 180  # 与dataloader保持一致
+  vram_threshold: 0.92  # 降低VRAM使用阈值避免OOM
+  memory_cleanup_frequency: 2  # 更频繁的内存清理
+  # CPU优化设置
+  torch_threads: 8  # 设置PyTorch线程数
+  mkl_threads: 8    # 设置MKL线程数
+  omp_threads: 8    # 设置OpenMP线程数
+
+# 模型配置 - 适中复杂度以充分利用GPU算力
+model:
+  name: ARWrapper
+  base_model: SwinUNet
+  in_channels: 1  # 使用单通道数据（只使用u通道）
+  out_channels: 1
+  img_size: 128  # 匹配实际数据分辨率
+  patch_size: 4
+  window_size: 8
+  depths: [2, 2, 4, 2]  # 适中的深度
+  num_heads: [3, 6, 12, 24]  # 适中的注意力头数
+  embed_dim: 96  # 适中的嵌入维度
+  mlp_ratio: 4.0  # 标准MLP比例
+  drop_rate: 0.1
+  attn_drop_rate: 0.1
+  drop_path_rate: 0.2
+  
+  # AR包装器配置
+  ar_config:
+    detach_rollout: true
+    scheduled_sampling: false
+    teacher_forcing_ratio: 1.0
+  
+  # AR包装器使用上面的模型参数，移除重复的base_params配置
+
+# 训练配置 - 极限显存利用
+training:
+  epochs: 1  # 测试配置：仅运行1个epoch
+  batch_size: 256  # 降低批次大小避免OOM，通过梯度累积保持有效批次
+  learning_rate: 1e-3
+  weight_decay: 1e-4
+  scheduler: cosine
+  warmup_epochs: 1
+  gradient_clip_val: 1.0
+  amp:
+    enabled: true
+  distributed:
+    enabled: false  # 单卡调试
+
+# 可视化配置
+visualization:
+  enabled: true
+  save_samples_every_n_epochs: 1
+
+# 日志配置
+logging:
+  log_every_n_steps: 10
+  save_checkpoint_every_n_epochs: 1

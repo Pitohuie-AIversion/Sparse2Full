@@ -1,0 +1,297 @@
+# AR训练配置文件
+# 基于之前成功的配置，适配当前环境
+
+experiment:
+  name: "AR-DR2D-Debug-SwinUNet-s2025-20251102_145227"
+  description: "快速Debug配置 - 5步AR自回归训练"
+  device: cuda:0
+  seed: 2025
+  output_dir: runs
+  log_every_n_steps: 5  # 更频繁的日志输出
+
+# 设备与并行（DDP）
+device:
+  accelerator: cuda
+  devices: 2
+  strategy: ddp
+  precision: bf16-mixed
+
+# 显式禁用AR时序，改为空间-only模式
+ar:
+  enabled: false
+
+sequential:
+  enabled: false
+
+# 注：已存在logging段，保持单一logging配置，避免重复键
+
+# 数据配置
+data:
+  data_path: "data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+  dataset_name: RealDiffusionReaction
+  # 移除splits_dir，因为RealDiffusionReactionDataModule不使用splits文件
+  image_size: 128  # 匹配实际数据分辨率
+  sample_limit: 100  # Debug模式：大幅减少样本数量
+  
+  # AR特定配置
+  T_in: 1      # 输入时间步数
+  T_out: 1     # 纯空间预测：仅预测单帧
+  
+  # 数据集分割配置 - Debug模式：大幅减少测试集
+  train_ratio: 0.8
+  val_ratio: 0.15
+  test_ratio: 0.05  # Debug模式：仅5%用于测试（约35个样本）
+  
+  # 时间步配置
+  time_step_start: 0
+  time_step_end: 50   # Debug模式：仅使用前50个时间步
+  time_step_stride: 1
+  
+  # 观测配置 - 降采样输入
+  observation:
+    mode: SR  # 超分辨率模式，输入为降采样版本（保持SR任务大小写一致）
+    sr:
+      scale_factor: 2  # 2倍降采样，输入为64x64，目标为128x128
+      blur_sigma: 1.0  # 高斯模糊标准差
+      blur_kernel_size: 5  # 高斯核大小（必须为奇数）
+      boundary_mode: mirror  # 边界处理策略：mirror（镜像）/wrap（周期）/zero（零填充）
+      downsample_mode: area  # 下采样模式：area（面积平均，保持能量守恒）
+      align_corners: false  # 对齐规则
+      antialias: true  # 抗锯齿处理
+  
+  # 预处理
+  normalize: true
+  augmentation:
+    enabled: false
+    flip_prob: 0.0
+    rotate_prob: 0.0
+    noise_std: 0.0
+
+  # 启用合成数据模式用于调试
+  use_synthetic_data: true  # 使用合成数据避免文件路径问题
+  synthetic_data_config:
+    num_samples: 1000  # 合成数据样本数量
+    image_size: 128
+    channels: 2
+    
+  # 数据加载器（优化I/O避免阻塞）
+  dataloader:
+    batch_size: 128
+    val_batch_size: 64
+    test_batch_size: 32
+    num_workers: 4  # 减少工作进程避免I/O阻塞
+    pin_memory: true  # 启用pin_memory加速CPU-GPU传输（合成数据模式）
+    persistent_workers: true  # 启用持久工作进程减少开销
+    prefetch_factor: 4  # 增加预取因子提高吞吐量
+    drop_last: true
+    shuffle: true
+    timeout: 60  # 减少超时时间
+    # 删除不兼容字段，交由训练脚本条件设置
+  
+
+  
+hardware:
+  allow_tf32: true
+  memory:
+    cudnn_benchmark: true
+
+
+# 模型配置 - Debug模式轻量化配置
+model:
+  name: SwinUNet
+  in_channels: 2  # 使用双通道数据（u,v）与数据集一致
+  out_channels: 2
+  img_size: 128  # 匹配实际数据分辨率
+  patch_size: 4
+  window_size: 8
+  depths: [1, 1, 2, 1]  # Debug模式：减少层数
+  num_heads: [2, 4, 8, 16]  # Debug模式：减少注意力头数
+  embed_dim: 48  # Debug模式：减少嵌入维度
+  mlp_ratio: 4.0  # 标准MLP比例
+  drop_rate: 0.1
+  attn_drop_rate: 0.1
+  drop_path_rate: 0.1  # Debug模式：减少drop path率
+  
+  # AR包装器配置
+  ar_config:
+    detach_rollout: true
+    scheduled_sampling: false
+    teacher_forcing_ratio: 1.0
+  
+  # AR包装器使用上面的模型参数，移除重复的base_params配置
+
+# 训练配置 - 5000epoch长期训练
+training:
+  epochs: 50  # 增加epoch数量以获得更好的训练效果
+  batch_size: 128  # 每卡批次：128（两卡全局256）
+  gradient_accumulation_steps: 2  # 2步梯度累积，提升稳定性与吞吐
+  
+  # PyTorch编译优化配置（可提升15-30%性能）
+  torch_compile: true  # 启用torch.compile优化
+  torch_compile_backend: "inductor"  # 使用inductor后端（推荐）
+  torch_compile_mode: "reduce-overhead"  # 减少开销模式，避免autotune延迟
+  channels_last: true  # 启用channels_last内存格式优化卷积性能
+  
+  # 简化训练配置 - 移除冗余优化
+  dataloader:
+    batch_size: 128
+    val_batch_size: 64
+    test_batch_size: 32
+    num_workers: 4
+    pin_memory: true  # 启用pin_memory优化
+    persistent_workers: true  # 启用持久工作进程
+    prefetch_factor: 4  # 增加预取因子
+    drop_last: true
+    shuffle: true
+  
+  # 最小验证配置
+  validation:
+    enabled: true
+    check_val_every_n_epoch: 5
+    save_val_batch_for_viz: false
+    log_val_metrics: false  # 禁用验证日志减少开销
+  
+  # 简化优化器配置
+  optimizer:
+    name: "AdamW"
+    lr: 0.0001
+    weight_decay: 0.0001  # 减少权重衰减
+    betas: [0.9, 0.999]
+    eps: 1e-8
+    fused: false  # 禁用融合优化器避免兼容性问题
+    foreach: false
+  
+  # 简化调度器
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 50  # 匹配epoch数量
+    eta_min: 1e-6
+    warmup_epochs: 0.1  # 最小预热
+  
+  # 基本训练设置
+  gradient_clip_val: 1.0
+  gradient_clip_algorithm: norm
+  
+  # 最小AMP配置
+  amp:
+    enabled: true
+    autocast_dtype: bfloat16
+  
+  # 课程学习配置 - 长期训练阶段
+  curriculum:
+    enabled: false  # 禁用课程学习，保持空间-only
+    stages: []
+  
+  # 检查点 - 长期训练优化
+  checkpoint:
+    save_best: true
+    save_last: true
+    max_keep: 5  # 长期训练保留更多检查点
+    monitor: val_loss
+    mode: min
+    save_every_n_epochs: 10  # 周期性保存，便于回溯（Debug 保持更频繁）
+  
+  # 早停 - 长期训练配置
+  early_stopping:
+    enabled: true  # 长期训练启用早停防止过拟合
+    patience: 200  # 长期训练增加耐心值
+    monitor: val_loss
+    mode: min
+    min_delta: 1e-6
+
+# AR损失配置
+loss:
+  # AR特定损失
+  ar_loss:
+    weight: 0.0  # 禁用AR时序损失，空间-only
+    reduction: mean
+  
+  # 辅助损失
+  reconstruction:
+    weight: 1.0
+  spectral:
+    weight: 0.1
+  degradation_consistency:
+    weight: 0.5
+  gradient_weight: 0.0
+
+# 验证配置 - Debug模式简化
+validation:
+  check_val_every_n_epoch: 5
+  use_observation: false
+  
+  metrics:
+    - rel_l2  # Debug模式：仅保留核心指标
+    - mae
+  
+  # AR特定验证 - Debug模式简化
+  rollout_steps: [1]  # 空间-only：仅验证单步
+  
+  convergence_criteria:
+    target_rel_l2: 0.5  # Debug模式：更宽松的收敛标准
+    patience_for_convergence: 3  # Debug模式：快速收敛检测
+    min_improvement: 1e-3
+
+# 设备配置（统一在前文 device 段配置，避免重复键）
+
+# 日志配置 - 5000epoch长期训练监控
+logging:
+  experiment_name: "AR-DR2D-5000epoch-SwinUNet-s2025"
+  version: null
+  default_hp_metric: false
+  log_model: false  # Debug模式：不保存模型日志
+  
+  # 性能监控 - Debug模式简化
+  performance_monitoring:
+    log_gpu_memory: true
+    log_throughput: true
+    log_batch_time: true
+  
+  tensorboard:
+    save_dir: runs/tensorboard
+    name: ar_training_debug
+    version: null
+  
+  visualization:
+    save_samples_every_n_epochs: 50
+    num_samples_to_save: 5
+    save_training_curves: true
+    save_rollout_visualization: false
+
+# 随机种子
+seed: 2025
+
+# 测试配置 - Debug模式大幅优化速度
+testing:
+  enabled: true
+  run_final_test: true  # Debug模式：启用快速测试
+  save_predictions: false  # Debug模式：不保存预测结果
+  compute_detailed_metrics: false  # Debug模式：不计算详细指标
+  
+  # 测试时的特殊设置 - 大幅提升速度
+  batch_size: 32  # Debug模式：大批次测试加速
+  save_visualizations: false  # Debug模式：不保存可视化结果
+  num_visualization_samples: 0  # Debug模式：完全跳过可视化
+  
+  # 快速测试模式
+  fast_mode: true  # 启用快速测试模式
+  skip_complex_metrics: true  # 跳过复杂指标计算
+  minimal_logging: true  # 最小化日志输出
+
+# 数据增强配置 - Debug模式关闭
+data_augmentation:
+  enable: false  # Debug模式：关闭数据增强加速训练
+  # CPU密集型增强操作
+  random_rotation: 
+    enable: false
+    degrees: [-5, 5]
+  random_flip:
+    enable: false
+    horizontal: 0.5
+    vertical: 0.3
+  gaussian_noise:
+    enable: false
+    std: 0.01
+  # 数值计算密集型操作
+  normalize_per_sample: false  # Debug模式：关闭逐样本归一化
+  compute_statistics: false    # Debug模式：关闭统计计算

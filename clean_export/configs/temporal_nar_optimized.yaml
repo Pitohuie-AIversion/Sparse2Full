@@ -1,0 +1,212 @@
+# 优化后的时序NAR模型配置文件
+# 基于数据集诊断报告的修正建议
+
+# 数据配置
+data:
+  _target_: datasets.temporal_pdebench.TemporalPDEBenchDataModule
+  config:
+    # 数据路径
+    data_path: E:/2D/diffusion-reaction/2D_diff-react_NA_NA.h5
+    
+    # 扩展时间步范围，增加数据多样性
+    # 从原来的21个时间步扩展到51个时间步
+    keys: [
+      '0000', '0001', '0002', '0003', '0004', '0005', '0006', '0007', '0008', '0009',
+      '0010', '0011', '0012', '0013', '0014', '0015', '0016', '0017', '0018', '0019',
+      '0020', '0021', '0022', '0023', '0024', '0025', '0026', '0027', '0028', '0029',
+      '0030', '0031', '0032', '0033', '0034', '0035', '0036', '0037', '0038', '0039',
+      '0040', '0041', '0042', '0043', '0044', '0045', '0046', '0047', '0048', '0049',
+      '0050'
+    ]
+    
+    # 时序参数优化
+    temporal:
+      T_in: 4        # 输入时间步保持不变
+      T_out: 10      # 减少输出时间步，从20降到10，降低预测难度
+      dt: 0.1        # 时间步长
+    
+    # 数据预处理参数
+    img_size: 128    # 图像尺寸
+    in_channels: 2   # 输入通道数（扩散-反应方程的两个变量）
+    out_channels: 2  # 输出通道数
+    
+    # 裁剪策略优化
+    crop_ratio: 0.3  # 增加裁剪比例，保留更多边界信息
+    
+    # 数据增强
+    use_augmentation: true
+    augmentation:
+      horizontal_flip: 0.5
+      vertical_flip: 0.5
+      rotation: 0.2
+    
+    # 归一化策略
+    normalization:
+      method: "channel_wise"  # 分通道归一化
+      clip_range: [-5.0, 5.0]  # 裁剪异常值
+    
+    # 数据加载参数
+    batch_size: 4      # 适当增加批次大小
+    num_workers: 4     # 数据加载线程数
+    pin_memory: true   # 固定内存，加速GPU传输
+    
+    # 数据分割
+    train_ratio: 0.7
+    val_ratio: 0.2
+    test_ratio: 0.1
+    
+    # 随机种子
+    seed: 42
+
+# 模型配置
+model:
+  _target_: models.temporal_nar.TemporalNARModel
+  config:
+    # 基础参数
+    in_channels: 2
+    out_channels: 2
+    img_size: 128
+    
+    # 时序参数
+    T_in: 4
+    T_out: 10  # 与数据配置保持一致
+    
+    # 模型架构参数
+    embed_dim: 256
+    num_heads: 8
+    num_layers: 6
+    mlp_ratio: 4.0
+    
+    # Dropout和正则化
+    dropout: 0.1
+    drop_path: 0.1
+    
+    # 激活函数
+    activation: "gelu"
+    
+    # 位置编码
+    pos_encoding: "learnable"
+
+# 训练配置
+training:
+  # 优化器
+  optimizer:
+    _target_: torch.optim.AdamW
+    lr: 1e-4          # 降低学习率，提高稳定性
+    weight_decay: 1e-4
+    betas: [0.9, 0.999]
+  
+  # 学习率调度
+  scheduler:
+    _target_: torch.optim.lr_scheduler.CosineAnnealingLR
+    T_max: 300
+    eta_min: 1e-6
+  
+  # 训练参数
+  max_epochs: 300
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 1
+  
+  # 验证和保存
+  val_check_interval: 0.25
+  save_top_k: 3
+  monitor: "val/loss"
+  mode: "min"
+  
+  # 早停
+  early_stopping:
+    patience: 20
+    min_delta: 1e-6
+
+# 损失函数配置
+loss:
+  # 主要损失
+  reconstruction:
+    _target_: torch.nn.MSELoss
+    weight: 1.0
+  
+  # 频域损失（低频）
+  spectral:
+    _target_: losses.spectral_loss.SpectralLoss
+    weight: 0.5
+    freq_range: [0, 16]  # 只考虑低频成分
+  
+  # 时序一致性损失
+  temporal:
+    _target_: losses.temporal_loss.TemporalConsistencyLoss
+    weight: 0.3
+  
+  # 梯度损失（边界保持）
+  gradient:
+    _target_: losses.gradient_loss.GradientLoss
+    weight: 0.2
+
+# 可视化配置
+visualization:
+  # 可视化频率
+  log_every_n_steps: 100
+  
+  # 保存可视化结果
+  save_predictions: true
+  save_dir: "temporal_predictions_viz_optimized"
+  
+  # 可视化参数
+  num_samples: 8
+  channels_to_show: [0, 1]  # 显示两个通道
+  
+  # 颜色映射
+  colormap: "viridis"
+  vmin: -3.0
+  vmax: 3.0
+  
+  # 时序可视化
+  show_temporal_evolution: true
+  temporal_steps_to_show: [0, 2, 4, 6, 8, 9]  # 显示关键时间步
+
+# 日志和监控
+logging:
+  # Wandb配置
+  wandb:
+    project: "temporal_nar_optimized"
+    name: "diffusion_reaction_optimized"
+    tags: ["temporal", "nar", "optimized", "diffusion-reaction"]
+  
+  # 本地日志
+  save_dir: "runs"
+  name: "temporal_nar_optimized"
+  version: null
+
+# 硬件配置
+hardware:
+  gpus: 1
+  precision: 16  # 混合精度训练
+  benchmark: true
+  deterministic: false  # 为了性能可以关闭确定性
+
+# 调试配置
+debug:
+  fast_dev_run: false
+  overfit_batches: 0
+  limit_train_batches: 1.0
+  limit_val_batches: 1.0
+  
+  # 数据检查
+  check_data_consistency: true
+  log_data_stats: true
+  
+  # 模型检查
+  check_model_gradients: true
+  log_model_stats: true
+
+# 实验配置
+experiment:
+  name: "temporal_nar_diffusion_reaction_optimized"
+  description: "优化后的时序NAR模型，用于扩散-反应方程预测"
+  tags: ["temporal", "nar", "diffusion-reaction", "optimized"]
+  
+  # 种子设置
+  seed: 42
+  
+  # 可复现性
+  deterministic: true
+  benchmark: false

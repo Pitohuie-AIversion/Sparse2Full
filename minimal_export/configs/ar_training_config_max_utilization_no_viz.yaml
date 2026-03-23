@@ -1,0 +1,286 @@
+# AR训练配置文件 - 最大化硬件利用率版本 V2 (无中途可视化)
+# 针对192核CPU、2×46GB GPU显存和1TB内存优化
+# 目标：达到90%硬件使用率，避免OOM，禁用训练中途可视化
+
+experiment:
+  name: "AR-DR2D-MaxUtil-NoViz-SwinUNet-s2025-20251102"
+  description: "最大化硬件利用率配置V2 - 90%目标，避免OOM，无中途可视化"
+  device: cuda:0
+  seed: 2025
+  output_dir: runs
+  log_every_n_steps: 10
+
+# 数据配置 - 最大化数据吞吐量
+data:
+  data_path: "data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+  dataset_name: RealDiffusionReaction
+  image_size: 128
+  sample_limit: 5000
+  
+  # AR特定配置
+  T_in: 1
+  T_out: 20
+  
+  # 数据集分割配置
+  train_ratio: 0.8
+  val_ratio: 0.15
+  test_ratio: 0.05
+  
+  # 时间步配置
+  time_step_start: 0
+  time_step_end: 100
+  time_step_stride: 1
+  
+  # 观测配置
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 2
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+      downsample_mode: area
+      align_corners: false
+      antialias: true
+  
+  # 预处理
+  normalize: true
+  augmentation:
+    enabled: false
+    flip_prob: 0.0
+    rotate_prob: 0.0
+    noise_std: 0.0
+  
+  # 数据加载器 - 优化CPU和内存利用率
+  dataloader:
+    batch_size: 48  # 减少批次大小避免OOM
+    val_batch_size: 24
+    test_batch_size: 12
+    num_workers: 128  # 减少worker数量避免内存压力
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 32  # 减少预取因子
+    drop_last: true
+    multiprocessing_context: 'spawn'
+    worker_init_fn: true
+
+# 硬件配置 - 平衡硬件资源使用
+hardware:
+  num_workers: 128
+  vram_threshold: 0.90  # 降低VRAM阈值
+  memory_cleanup_frequency: 2
+  torch_threads: 128
+  mkl_threads: 128
+  omp_threads: 128
+
+# 模型配置 - 平衡模型复杂度和GPU利用率
+model:
+  name: ARWrapper
+  base_model: SwinUNet
+  in_channels: 1
+  out_channels: 1
+  img_size: 128
+  patch_size: 4
+  window_size: 8
+  depths: [3, 3, 6, 3]  # 减少模型深度
+  num_heads: [4, 8, 16, 32]  # 减少注意力头数
+  embed_dim: 128  # 减少嵌入维度
+  mlp_ratio: 6.0  # 减少MLP比例
+  drop_rate: 0.1
+  attn_drop_rate: 0.1
+  drop_path_rate: 0.2
+  
+  # AR包装器配置
+  ar_config:
+    detach_rollout: true
+    scheduled_sampling: false
+    teacher_forcing_ratio: 1.0
+
+# 训练配置 - 平衡GPU利用率和稳定性
+training:
+  epochs: 1000
+  batch_size: 48  # 减少批次大小
+  gradient_accumulation_steps: 12  # 减少累积步数
+  max_epochs: 1000
+  val_check_interval: 5
+  log_every_n_steps: 10
+  enable_checkpointing: true
+  enable_progress_bar: true
+  precision: "16-mixed"
+  sync_batchnorm: true
+  find_unused_parameters: true
+  
+  # 优化器
+  optimizer:
+    name: adamw
+    lr: 2e-3  # 稍微降低学习率
+    weight_decay: 1e-4
+    betas: [0.9, 0.999]
+  
+  # 学习率调度
+  scheduler:
+    name: cosine_annealing
+    T_max: 1000
+    eta_min: 1e-6
+  
+  # 训练设置
+  gradient_clip_val: 1.0
+  gradient_clip_algorithm: norm
+  
+  # GPU优化设置
+  memory_cleanup_frequency: 2
+  auto_batch_size_reduction: true  # 启用自动批次大小减少
+  memory_threshold: 0.90
+  
+  # 混合精度训练
+  amp:
+    enabled: true
+    opt_level: O1  # 使用更保守的混合精度级别
+    loss_scale: dynamic
+  
+  # 课程学习配置
+  curriculum:
+    enabled: true
+    stages:
+      - epochs: 200
+        T_out: 5
+        description: "初期阶段: 预测5步"
+      - epochs: 400
+        T_out: 10
+        description: "中期阶段: 预测10步"
+      - epochs: 400
+        T_out: 20
+        description: "后期阶段: 预测20步"
+  
+  # 检查点
+  checkpoint:
+    save_best: true
+    save_last: true
+    max_keep: 3
+    monitor: val_loss
+    mode: min
+    save_every_n_epochs: 50
+  
+  # 早停
+  early_stopping:
+    enabled: true
+    patience: 100
+    monitor: val_loss
+    mode: min
+    min_delta: 1e-6
+
+# AR损失配置
+loss:
+  ar_loss:
+    weight: 1.0
+    reduction: mean
+  reconstruction:
+    weight: 1.0
+  spectral:
+    weight: 0.1
+  degradation_consistency:
+    weight: 0.5
+  gradient_weight: 0.0
+
+# 验证配置
+validation:
+  check_val_every_n_epoch: 1
+  metrics:
+    - rel_l2
+    - mae
+    - psnr
+    - ssim
+  rollout_steps: [5, 10, 20]
+  convergence_criteria:
+    target_rel_l2: 0.1
+    patience_for_convergence: 10
+    min_improvement: 1e-4
+
+# 设备配置 - 双GPU DDP优化
+device:
+  accelerator: gpu
+  devices: 2
+  precision: 16
+  strategy: ddp
+  compile_model: true
+  benchmark: true
+  deterministic: false
+  sync_batchnorm: true
+  find_unused_parameters: true
+  
+  memory_management:
+    gradient_accumulation_steps: 12
+    memory_cleanup_frequency: 2
+    auto_batch_size_reduction: true
+    memory_threshold: 0.90
+    enable_memory_efficient_attention: true
+    gradient_checkpointing: false  # 关闭梯度检查点减少计算开销
+
+# 日志配置 - 禁用训练中途可视化
+logging:
+  experiment_name: "AR-DR2D-MaxUtil-NoViz-SwinUNet-s2025"
+  version: null
+  default_hp_metric: false
+  log_model: false
+  
+  performance_monitoring:
+    log_gpu_memory: true
+    log_throughput: true
+    log_batch_time: true
+    memory_snapshot_frequency: 20
+  
+  tensorboard:
+    save_dir: runs/tensorboard
+    name: ar_training_max_util_no_viz
+    version: null
+  
+  visualization:
+    save_samples_every_n_epochs: 9999  # 设置为很大的数字，实际上禁用
+    num_samples_to_save: 0  # 不保存训练样本
+    save_training_curves: false  # 禁用训练曲线可视化
+    save_rollout_visualization: false  # 禁用rollout可视化
+
+# 随机种子
+seed: 2025
+
+# 测试配置 - 保持测试阶段的可视化
+testing:
+  enabled: true
+  run_final_test: true
+  save_predictions: true
+  compute_detailed_metrics: true
+  batch_size: 12  # 测试时使用更小批次
+  save_visualizations: true  # 保持测试可视化启用
+  num_visualization_samples: 10  # 保持测试可视化样本数
+  fast_mode: false
+  skip_complex_metrics: false
+  minimal_logging: false
+
+# 数据增强配置
+data_augmentation:
+  enable: false
+  random_rotation: 
+    enable: false
+    degrees: [-5, 5]
+  random_flip:
+    enable: false
+    horizontal: 0.5
+    vertical: 0.3
+  gaussian_noise:
+    enable: false
+    std: 0.01
+  normalize_per_sample: false
+  compute_statistics: false
+
+# 高级优化配置
+advanced_optimization:
+  cpu_affinity: true
+  numa_optimization: true
+  gpu_memory_fraction: 0.90
+  allow_growth: true  # 允许GPU内存增长
+  data_pipeline_optimization: true
+  async_data_loading: true
+  torch_compile: true
+  compile_mode: "default"  # 使用默认编译模式
+  memory_mapped_dataset: true
+  shared_memory: true

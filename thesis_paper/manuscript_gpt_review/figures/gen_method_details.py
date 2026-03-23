@@ -6,75 +6,96 @@ def generate_detail_figures():
     generate_triple_loss_architecture()
 
 def generate_sequential_training_flowchart():
-    """Generates Figure 3-2: Sequential Spatiotemporal Training Strategy Flowchart"""
+    """Generates Figure 3-2: Sequential Spatiotemporal Training Strategy Flowchart (Chinese Academic Style)"""
     dot = graphviz.Digraph(comment='Sequential Training Strategy', format='svg')
-    # Optimized layout: TB for portrait page
-    # Increased spacing to prevent overlap
-    # DPI=300, concentrate edges
-    dot.attr(rankdir='TB', compound='true', splines='ortho', nodesep='1.0', ranksep='1.2', newrank='true', size='6,10', overlap='false', dpi='300', concentrate='true')
+    # Optimized layout: LR (Left-to-Right) for the 3 stages horizontally as requested
+    dot.attr(rankdir='LR', compound='true', splines='ortho', nodesep='0.6', ranksep='0.8', newrank='true', size='10,6', overlap='false', dpi='300', concentrate='true')
     
-    # Global node styles
-    # Added margin to nodes
-    # Xiaosi (Small 4) is 12pt
-    dot.attr('node', shape='box', style='rounded,filled', fontname='Times-Roman', fontsize='12', margin='0.25,0.15')
+    # Global node styles: Academic, matching other figures but using Chinese font
+    dot.attr('node', shape='box', style='rounded,filled', fontname='SimSun', fontsize='12', margin='0.2,0.1')
     
-    # Styles
-    # Use standard material colors (50-100 range for bg, 700-900 for text/border)
-    # Styles mapped to fig_3_1 for consistency
-    data_style = {'fillcolor': '#e3f2fd', 'color': '#1565c0', 'penwidth': '2.0'} # Blue 50
+    # Styles (Matching fig 3-1 and 3-3 Material Design palette)
+    data_style = {'fillcolor': '#e3f2fd', 'color': '#1565c0', 'penwidth': '2.0', 'shape': 'box'} # Blue 50
     process_style = {'fillcolor': '#fff3e0', 'color': '#e65100', 'penwidth': '2.0', 'shape': 'component'} # Orange 50
-    loss_style = {'fillcolor': '#ffebee', 'color': '#c62828', 'style': 'dashed,filled', 'penwidth': '2.0'} # Red 50
-    stage_style = {'fillcolor': '#f3e5f5', 'color': '#6a1b9a', 'penwidth': '2.0'} # Purple 50
-    
-    # Legacy mappings
-    frozen_style = {'fillcolor': '#f5f5f5', 'color': '#9e9e9e', 'fontcolor': '#616161', 'style': 'dashed,filled'}
-    active_style = stage_style # Map active modules to stage style (Purple)
+    active_style = {'fillcolor': '#f3e5f5', 'color': '#6a1b9a', 'penwidth': '2.0', 'shape': 'box'} # Purple 50, solid border
+    frozen_style = {'fillcolor': '#f5f5f5', 'color': '#9e9e9e', 'fontcolor': '#616161', 'style': 'dashed,filled', 'penwidth': '1.5', 'shape': 'box'} # Grey dashed
+    loss_style = {'fillcolor': '#ffebee', 'color': '#c62828', 'penwidth': '2.0', 'style': 'dashed,filled', 'shape': 'box'} # Red 50
     
     # Stage 1: Spatial Pretrain
     with dot.subgraph(name='cluster_S1') as s1:
-        s1.attr(label='Stage 1: Spatial Pretrain\n(Focus: Reconstruction)', style='filled', color='#eeeeee', margin='15')
-        s1.node('In_S1', 'Single Frame y_t', **data_style)
-        s1.node('Spatial_S1', 'Spatial Encoder/Decoder', **active_style)
-        s1.node('Temp_S1', 'Temporal Module', **frozen_style)
-        s1.node('Out_S1', 'Reconstruction u_t', **data_style)
+        s1.attr(label='阶段1：空间预训练\n(Spatial Pretraining)', style='filled', color='#eeeeee', margin='15', fontname='SimSun', fontsize='14')
+        s1.node('In_S1', '单帧观测 y_t', **data_style)
+        s1.node('Spatial_S1', '空间编码器 / 解码器', **active_style)
+        s1.node('Out_S1', '重建结果 û_t', **data_style)
         
-        # Vertical flow inside stage
-        s1.edge('In_S1', 'Spatial_S1', minlen='1')
-        s1.edge('Spatial_S1', 'Out_S1', xlabel='Direct Path', minlen='1')
-        s1.edge('Spatial_S1', 'Temp_S1', style='invis') 
+        # Explicitly show the frozen temporal module in Stage 1 to emphasize the architectural consistency
+        s1.node('Temp_S1', '时序模块', **frozen_style)
+        
+        s1.edge('In_S1', 'Spatial_S1')
+        s1.edge('Spatial_S1', 'Out_S1')
+        
+        # Put Temp_S1 parallel to Spatial_S1 to show it exists but is bypassed/frozen
+        s1.edge('Spatial_S1', 'Temp_S1', style='invis')
+        with s1.subgraph() as s:
+            s.attr(rank='same')
+            s.node('Spatial_S1'); s.node('Temp_S1')
 
     # Stage 2: Temporal Pretrain
     with dot.subgraph(name='cluster_S2') as s2:
-        s2.attr(label='Stage 2: Temporal Pretrain\n(Focus: Dynamics)', style='filled', color='#eeeeee', margin='15')
-        s2.node('In_S2', 'Seq y_{1:T}', **data_style)
-        s2.node('Spatial_S2', 'Spatial Encoder', **frozen_style)
-        s2.node('Temp_S2', 'Temporal Module\n(ARWrapper)', **active_style)
-        s2.node('Out_S2', 'Latent Evolution z_t', **data_style)
+        s2.attr(label='阶段2：时序预训练\n(Temporal Pretraining)', style='filled', color='#eeeeee', margin='15', fontname='SimSun', fontsize='14')
+        s2.node('In_S2', '序列观测 y_{1:T}', **data_style)
+        s2.node('Spatial_S2', '空间编码器 / 解码器', **frozen_style)
+        s2.node('Temp_S2', '时序模块', **active_style)
+        s2.node('Out_S2', '潜在特征 z_t', **data_style)
         
-        # Vertical flow inside stage
-        s2.edge('In_S2', 'Spatial_S2', minlen='1')
-        s2.edge('Spatial_S2', 'Temp_S2', xlabel='Latent Features', minlen='1')
-        s2.edge('Temp_S2', 'Out_S2', minlen='1')
+        s2.edge('In_S2', 'Spatial_S2')
+        s2.edge('Spatial_S2', 'Temp_S2')
+        s2.edge('Temp_S2', 'Out_S2')
 
     # Stage 3: Joint Finetuning
     with dot.subgraph(name='cluster_S3') as s3:
-        s3.attr(label='Stage 3: Joint Finetuning\n(Focus: Long-term Stability)', style='filled', color='#eeeeee', margin='15')
-        s3.node('In_S3', 'Long Seq y_{1:T}', **data_style)
-        s3.node('Joint_S3', 'Full Model', **active_style)
-        s3.node('Out_S3', 'Rollout Pred û_{1:T}', **data_style)
-        s3.node('Reg_S3', 'Temporal Regularization\n(Deriv + Energy)', **process_style)
+        s3.attr(label='阶段3：时空联合微调\n(Joint Fine-tuning)', style='filled', color='#eeeeee', margin='15', fontname='SimSun', fontsize='14')
+        s3.node('In_S3', '序列观测 y_{1:T}', **data_style)
+        s3.node('Joint_S3', '完整模型\n(空间 + 时序)', **active_style)
+        s3.node('Out_S3', '滚动预测 û_{1:T}', **data_style)
         
-        # Vertical flow inside stage
-        s3.edge('In_S3', 'Joint_S3', minlen='1')
-        s3.edge('Joint_S3', 'Out_S3', minlen='1')
-        s3.edge('Out_S3', 'Reg_S3', style='dashed', minlen='1')
+        # Loss constraint matching Section 3.5 formula
+        loss_label = '联合损失约束\nL_rec + λ_spec L_spec + λ_dc L_dc'
+        s3.node('Reg_S3', loss_label, **loss_style)
+        
+        # Vertical flow inside stage 3
+        s3.edge('In_S3', 'Joint_S3')
+        s3.edge('Joint_S3', 'Out_S3')
+        s3.edge('Out_S3', 'Reg_S3', style='dashed')
 
-    # Force vertical column layout: S1 | S2 | S3
-    # Use invisible edges to constrain relative positions
-    # rank=same for top nodes creates the columns
+    # Horizontal alignment across stages (align the inputs at the top)
     with dot.subgraph() as s:
         s.attr(rank='same')
         s.node('In_S1'); s.node('In_S2'); s.node('In_S3')
+
+    # Progression arrows between stages
+    dot.edge('Out_S1', 'In_S2', style='invis')
+    dot.edge('Out_S2', 'In_S3', style='invis')
+    
+    # Legend
+    # Place legend at the bottom, horizontally.
+    with dot.subgraph(name='cluster_legend') as leg:
+        leg.attr(label='图例 (Legend)', style='solid', color='#cccccc', fontname='SimSun', fontsize='12', margin='5', rankdir='LR')
+        leg.node('leg_frozen', '灰色虚框：冻结参数', **frozen_style, fontsize='10')
+        leg.node('leg_active', '深色实框：当前训练模块', **active_style, fontsize='10')
+        leg.node('leg_data', '蓝色框：输入/输出', **data_style, fontsize='10')
+        leg.node('leg_loss', '橙色框：损失约束', **loss_style, fontsize='10')
+        
+        # Horizontal layout for legend
+        with leg.subgraph() as s:
+            s.attr(rank='same')
+            s.node('leg_frozen'); s.node('leg_active'); s.node('leg_data'); s.node('leg_loss')
+            s.edge('leg_frozen', 'leg_active', style='invis')
+            s.edge('leg_active', 'leg_data', style='invis')
+            s.edge('leg_data', 'leg_loss', style='invis')
+
+    # Force legend to bottom
+    dot.edge('Reg_S3', 'leg_loss', style='invis')
 
     output_path = 'thesis_paper/manuscript_gpt_review/figures/fig_3_2_sequential_training'
     dot.render(output_path, cleanup=True)

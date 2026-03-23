@@ -1,0 +1,36 @@
+# Ablation Experiment: End-to-End Training (No Spatial Pretraining)
+# Compares against the proposed "Sequential Spatiotemporal Training" strategy.
+
+defaults:
+  - real_data_ar_20steps
+  - _self_
+
+experiment:
+  name: "Real-DR2D-Ablation-E2E-NoPretrain"
+  description: "End-to-End training from scratch without spatial pretraining"
+  tags: ["ablation", "training_strategy", "e2e"]
+
+model:
+  name: "SwinUNet"
+  # Disable loading pretrained weights (if supported by model config)
+  pretrained: false
+  
+training:
+  # Use the same total epochs but without the 'spatial' phase implicit in pretraining
+  epochs: 100
+  
+  # Adjust curriculum to start directly with temporal task
+  curriculum:
+    enabled: true
+    stages:
+      - epochs: 20
+        T_out: 5
+      - epochs: 20
+        T_out: 10
+      - epochs: 60
+        T_out: 20
+        
+  # Ensure optimizer starts fresh
+  optimizer:
+    lr: 1e-3
+    warmup_epochs: 5

@@ -1,0 +1,202 @@
+# PDEBench DarcyFlow数据集 + MLP模型 + SR×4任务 快速验证配置
+# 实验名称：SRx4-DarcyFlow-128-MLP-quick-s2025-20250111
+
+# 实验基本信息
+experiment:
+  name: "SRx4-DarcyFlow-128-MLP-quick-s2025-20250111"
+  description: "PDEBench DarcyFlow数据集上的MLP模型SR×4快速验证实验"
+  tags: ["pdebench", "darcyflow", "mlp", "sr", "quick"]
+  seed: 2025
+  device: "cuda"
+  output_dir: "runs/${experiment.name}"
+
+# 数据配置
+data:
+  _target_: datasets.pdebench.PDEBenchDataModule
+  data_path: "E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5"
+  dataset_name: "DarcyFlow_2D"
+  image_size: 128  # 匹配实际数据尺寸
+  keys: ["tensor"]
+  normalize: true
+  splits_dir: "splits"
+  train_split: "train"
+  val_split: "val"
+  test_split: "test"
+  use_official_format: false
+  
+  # SR×4观测模式
+  observation:
+    mode: "SR"
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: "mirror"
+      noise_std: 0.0
+    crop:
+      crop_size: [64, 64]
+      patch_align: 8
+      crop_strategy: "mixed"
+      boundary_mode: "mirror"
+  
+  # 小批量大小以适应快速验证
+  dataloader:
+    batch_size: 2
+    num_workers: 1
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 2
+  
+  # 数据预处理
+  preprocessing:
+    augmentation:
+      enabled: false
+      flip_prob: 0.5
+  
+  # 数据集文件映射
+  dataset_files:
+    train: "2D_DarcyFlow_beta1.0_Train.hdf5"
+    val: "2D_DarcyFlow_beta1.0_Valid.hdf5"
+    test: "2D_DarcyFlow_beta1.0_Test.hdf5"
+  
+  # 数据集元信息
+  metadata:
+    description: "PDEBench DarcyFlow数据集，包含达西流方程的解"
+    source: "https://github.com/pdebench/PDEBench"
+    license: "MIT"
+    version: "1.0"
+    spatial_resolution: [128, 128]
+    temporal_resolution: 1
+    variables: ["tensor"]
+    units: ["dimensionless"]
+
+# 模型配置
+model:
+  name: "mlp"
+  in_channels: 1  # DarcyFlow数据是单通道
+  out_channels: 1
+  img_size: 128   # 数据尺寸是128x128
+  
+  # MLP特定参数
+  hidden_dims: [128, 256, 128]  # 更小的网络用于快速验证
+  activation: "relu"
+  dropout: 0.1
+  mode: "coord"  # 使用坐标模式，更简单稳定
+  coord_encoding: "positional"
+  coord_encoding_dim: 32  # 减小编码维度
+  max_freq: 10.0
+
+# 训练配置
+training:
+  epochs: 15
+  early_stopping:
+    enabled: true
+    patience: 10
+    min_delta: 1e-6
+    monitor: "val_loss"
+  
+  # 优化器配置
+  optimizer:
+    name: "adamw"
+    params:
+      lr: 1.0e-3
+      weight_decay: 1.0e-4
+      betas: [0.9, 0.999]
+      eps: 1.0e-8
+  
+  # 学习率调度器
+  scheduler:
+    name: "cosine"
+    T_max: 15
+    eta_min: 1e-6
+    warmup_epochs: 2
+    warmup_start_factor: 0.1
+  
+  # 梯度裁剪
+  grad_clip_norm: 1.0
+  
+  # 混合精度训练
+  amp:
+    enabled: true
+    init_scale: 65536.0
+    growth_factor: 2.0
+    backoff_factor: 0.5
+    growth_interval: 2000
+  
+  # 分布式训练
+  distributed:
+    enabled: false
+    backend: "nccl"
+    init_method: "env://"
+    world_size: -1
+    rank: -1
+  
+  # 损失函数权重
+  loss_weights:
+    reconstruction: 1.0
+    spectral: 0.1
+    data_consistency: 0.5
+    gradient: 0.0
+  
+  # 关闭课程学习以简化训练
+  curriculum_learning:
+    enabled: false
+  
+  # 频谱损失配置
+  spectral_loss:
+    low_freq_modes: 16
+    use_rfft: true
+    normalize: true
+    mirror_extend: true
+  
+  # 数据一致性验证
+  verify_data_consistency: true
+  consistency_tolerance: 1e-6
+  
+  # 验证配置
+  validation:
+    frequency: 2
+    save_samples: true
+    num_samples: 3
+  
+  # 可视化设置
+  visualization:
+    enabled: true
+    save_interval: 5  # 每5个epoch保存一次可视化结果
+    num_samples: 3    # 每次可视化的样本数量
+    
+  # 日志设置
+  log_interval: 10  # 每10个batch记录一次日志
+  
+  # 检查点设置
+  checkpoint:
+    save_interval: 5  # 每5个epoch保存一次检查点
+    save_best: true   # 保存最佳模型
+    max_keep: 3       # 最多保留3个检查点
+
+# 损失函数配置
+loss:
+  rec_weight: 1.0
+  spec_weight: 0.1
+  dc_weight: 0.5
+  gradient_weight: 0.0
+  low_freq_modes: 16
+
+# 日志配置
+logging:
+  use_tensorboard: true
+  use_wandb: false
+  log_interval: 10
+  wandb_project: "pdebench-sparse2full"
+  
+  # 性能优化
+  performance:
+    pin_memory: true
+    persistent_workers: true
+    compile_model: false
+    gradient_checkpointing: false
+  
+  # 复现性设置
+  reproducibility:
+    deterministic: false
+    benchmark: true

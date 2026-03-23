@@ -1,0 +1,100 @@
+# Swin时序NAR双头模型配置
+# 基于现有SwinUNet，添加时序处理和NAR预测能力
+
+_target_: models.wrappers.ar_nar_wrapper.ARNARWrapper
+
+# 模型配置
+model_config:
+  # SwinUNet基础配置
+  base_kwargs:
+    in_channels: 1
+    out_channels: 1
+    img_size: 256
+    patch_size: 4
+    embed_dim: 96
+    depths: [2, 2, 6, 2]
+    num_heads: [3, 6, 12, 24]
+    window_size: 8
+    mlp_ratio: 4.0
+    qkv_bias: true
+    drop_rate: 0.0
+    attn_drop_rate: 0.0
+    drop_path_rate: 0.1
+    use_checkpoint: false
+    # FNO瓶颈配置（可选）
+    use_fno_bottleneck: false
+    fno_modes: 16
+    fno_width: 64
+  
+  # 时序模块配置
+  temporal:
+    enabled: true
+    type: "conv1d"  # conv1d, film, attention
+    c_out: 1  # 输出通道数，通常与in_channels相同
+    k: 3      # 卷积核大小
+    causal: true  # 因果卷积
+    dropout: 0.1
+  
+  # NAR头配置
+  nar:
+    head_type: "simple"  # simple, cross_attention
+    d_model: 96  # 特征维度，对齐SwinUNet的embed_dim
+    num_heads: 8
+    max_timesteps: 32  # 最大支持的输出时间步
+    dropout: 0.1
+  
+  # AR配置
+  ar:
+    detach_rollout: true
+    scheduled_sampling: true
+    sampling_schedule: "linear"  # linear, exponential, cosine
+  
+  # 启用开关
+  use_ar: true
+  use_nar: true
+
+# 损失配置
+loss_config:
+  # 损失权重
+  ar_weight: 1.0
+  nar_weight: 1.0
+  
+  # 权重调度策略
+  ar_weight_schedule: "decay"     # constant, decay, warmup
+  nar_weight_schedule: "increase" # constant, increase, warmup
+  
+  # 损失函数类型
+  ar_loss_type: "mse"    # mse, l1, huber
+  nar_loss_type: "mse"   # mse, l1, huber
+
+# 训练配置
+training_config:
+  # 推理模式
+  inference_mode: "nar"  # ar, nar, ensemble
+  
+  # 集成权重（ensemble模式使用）
+  ensemble_weight: 0.6  # NAR权重，AR权重为1-ensemble_weight
+  
+  # 总训练轮数
+  total_epochs: 100
+  
+  # 性能监控
+  enable_monitoring: true
+  monitoring_interval: 100
+  
+  # 课程学习
+  curriculum_learning:
+    enabled: true
+    # AR课程：从短序列到长序列
+    ar_schedule:
+      start_T_out: 1
+      end_T_out: 8
+      warmup_epochs: 20
+    # NAR课程：从简单到复杂
+    nar_schedule:
+      start_T_out: 2
+      end_T_out: 8
+      warmup_epochs: 30
+
+# 模型特定配置
+name: "swin_temporal_nar"

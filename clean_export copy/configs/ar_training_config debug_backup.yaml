@@ -1,0 +1,368 @@
+# AR训练配置文件
+# 基于之前成功的配置，适配当前环境
+
+experiment:
+  name: "AR-DR2D-Debug-SwinUNet-s2025"
+  description: "快速Debug配置 - 20步AR自回归训练"
+  device: cuda
+  seed: 2025
+  output_dir: runs
+  log_every_n_steps: 50
+
+# 数据配置
+data:
+  data_path: "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse_to_Dense_Transformer/VIVTransformer-4sh2r1-codx/pdebench_extended/data/PDEBench/pdebench/data_download/....data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+  dataset_name: RealDiffusionReaction
+  # 移除splits_dir，因为RealDiffusionReactionDataModule不使用splits文件
+  image_size: 128  # 匹配实际数据分辨率
+  # Debug模式：限制样本数量（避免过大导致加载与训练过慢）
+  sample_limit: 200
+  # 合成数据回退时的样本上限（trainer使用 data.max_samples）
+  max_samples: 512
+  
+  # AR特定配置
+  T_in: 1      # 输入时间步数
+  T_out: 5     # 降低为5步预测以减轻显存压力
+  
+  # 数据集分割配置 - Debug模式：大幅减少测试集
+  train_ratio: 0.8
+  val_ratio: 0.15
+  test_ratio: 0.05  # 保留少量测试样本
+  
+  # 时间步配置
+  time_step_start: 0
+  # 压测阶段提升时间步范围，增加IO/解码压力
+  time_step_end: 100
+  time_step_stride: 1
+  
+  # 观测配置（统一至根级 observation，移除 data.observation 重复块）
+  # 注：RealDataARTrainer 使用根级 observation，datasets/real_dr_dataset 支持从 data.observation 解析，
+  # 为避免重复与歧义，此处删除 data.observation，改用根级 observation。
+  
+  # 预处理
+  normalize: true
+  augmentation:
+    enabled: true
+    flip_prob: 0.5
+    rotate_prob: 0.3
+    noise_std: 0.01
+    cutout_prob: 0.2
+    cutout_size: 16
+    mixup_alpha: 0.2
+    color_jitter: 0.1
+  
+  # 数据加载器配置 - 从training.dataloader移动到data.dataloader以兼容数据模块
+  dataloader:
+    batch_size: 64
+    val_batch_size: 64
+    test_batch_size: 32
+    num_workers: 32
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 16
+    drop_last: true
+    timeout: 0
+    shuffle: true
+    # 数据缓存/预加载与共享内存配置
+    cache_dataset: true
+    preload_data: true
+    shared_memory: true
+    buffer_size: "32GB"
+    memory_map_dataset: true
+    preload_entire_dataset: true
+
+  # 显式声明数据键名，确保DC与反归一化使用正确通道顺序
+  keys: ["u", "v"]
+
+  # CPU燃烧参数（供 CpuBurnDataset 使用）
+  cpu_burn:
+    enabled: false
+    burn_size: 0
+    burn_repeat: 0
+
+# 观测算子（根级唯一配置，供H/DC一致使用）
+observation:
+  mode: sr
+  scale_factor: 2
+  blur_sigma: 1.0
+  kernel_size: 5
+  downsample_interpolation: area
+  boundary: mirror
+  crop_size: null
+  crop_box: null
+
+  
+# 硬件配置 - 保留原硬件配置
+hardware:
+  # 全局建议 worker 数与DataLoader一致，避免配置歧义
+  num_workers: 32
+  vram_threshold: 0.94
+  memory_cleanup_frequency: 2
+  # CPU优化设置（适配多核：避免过度竞争，设置中高并行）
+  torch_threads: 96
+  mkl_threads: 96
+  omp_threads: 96
+  
+  cpu:
+    numexpr_threads: 64
+    mkl_threads: 64
+    omp_threads: 64
+    torch_threads: 64
+    blas_threads: 64
+    # 兼容 trainer 的扩展线程配置项
+    interop_threads: 64
+    openblas_threads: 64
+    prefetch_distance: 64
+    cpu_affinity: true
+    thread_pool_size: 256
+    cpu_intensive_mode: true
+    max_cpu_utilization: 0.98
+    parallel_data_loading: true
+    async_data_processing: true
+    numa_aware: true
+    memory_interleaving: true
+  
+  memory:
+    memory_threshold: 0.96
+    auto_batch_size: true
+    gradient_accumulation_steps: 1
+    empty_cache_frequency: 50
+    max_memory_allocated: 0.985
+    memory_fraction: 0.985
+    allow_tf32: true
+    cudnn_benchmark: true
+    aggressive_memory_usage: false
+    disable_memory_cleanup: false
+    large_buffer_size: false
+    memory_efficient: true
+    cache_dataset: true
+    preload_data: true
+    cache_entire_dataset: false
+    preload_all_data: false
+    memory_map_dataset: true
+    memory_map_all: false
+    # 使用CPU端pin_memory，避免显存占用；完全禁用GPU pinning
+    pin_memory_device: null
+    shared_memory: true
+    shared_memory_size: "32GB"
+    buffer_size: "32GB"
+    cache_all_batches: false
+    persistent_cache: false
+    memory_pool_size: "0GB"
+    data_cache_size: "0GB"
+    model_cache_size: "0GB"
+    tensor_cache_size: "0GB"
+
+# 模型配置 - Debug模式轻量化配置
+model:
+  name: ARWrapper
+  base_model: SwinUNet
+  in_channels: 2  # 使用双通道数据（u和v通道）
+  out_channels: 2
+  img_size: 128  # 匹配实际数据分辨率
+  patch_size: 4
+  window_size: 8
+  depths: [1, 1, 2, 1]  # Debug模式：减少层数
+  num_heads: [2, 4, 8, 16]  # Debug模式：减少注意力头数
+  embed_dim: 48  # Debug模式：减少嵌入维度
+  mlp_ratio: 4.0  # 标准MLP比例
+  drop_rate: 0.1
+  attn_drop_rate: 0.1
+  drop_path_rate: 0.1  # Debug模式：减少drop path率
+  
+  # AR包装器配置
+  ar_config:
+    detach_rollout: true
+    scheduled_sampling: false
+    teacher_forcing_ratio: 1.0
+  
+  # AR包装器使用上面的模型参数，移除重复的base_params配置
+
+# 训练配置 - Debug模式
+training:
+  epochs: 15
+  batch_size: 64
+  gradient_accumulation_steps: 1
+  max_runtime_seconds: 1800  # 放宽最长运行时间，便于15-epoch基准
+  max_epochs: 5000    # 长期训练：最大5000个epoch
+  # 最高效率运行：关闭验证干扰
+  val_check_interval: 9999
+  log_every_n_steps: 50
+  enable_checkpointing: true
+  enable_progress_bar: true
+  precision: "bf16-mixed"
+  channels_last: true
+  # 并行计算优化
+  sync_batchnorm: false  # 关闭同步BN以简化单机调试
+  find_unused_parameters: false  # 关闭未使用参数检测以减少额外遍历
+  # GPU优化设置 - 极限显存利用
+  memory_cleanup_frequency: 2  # 更激进的内存清理以避免碎片
+  auto_batch_size_reduction: true
+  memory_threshold: 0.94  # 目标94%显存利用率
+  
+  # 优化器配置 - 适应大批次优化
+  optimizer:
+    name: "AdamW"
+    lr: 0.001
+    weight_decay: 0.01
+    betas: [0.9, 0.999]
+    eps: 1e-8
+    amsgrad: false
+    # 优化器性能参数（二者不可同时为true）
+    fused: true
+    foreach: false
+
+  # 学习率调度 - 适配训练器实现
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 3
+    eta_min: 1e-6
+    # 训练器按epoch步进，不使用额外warmup参数
+
+  # 训练设置 - 极限性能优化
+  gradient_clip_val: 1.0  # 适当放宽梯度裁剪（与黄金法则一致）
+  gradient_clip_algorithm: norm
+  
+  # 简化高级优化选项（当前训练器未使用相关开关，避免配置歧义）
+  compile_model: false
+  # channels_last 在上方已启用为 true，这里移除重复设置以避免 YAML 键冲突
+  use_fused_adam: false
+  torch_compile: false
+  torch_compile_mode: null
+  torch_compile_backend: null
+  enable_nested_tensor: false
+  use_flash_attention: false
+  gradient_checkpointing: false
+
+  # 混合精度训练 - 对齐训练器读取的字段
+  amp:
+    enabled: true
+    init_scale: 65536.0
+    growth_factor: 2.0
+    backoff_factor: 0.5
+    growth_interval: 1000
+  
+  # 课程学习配置 - 长期训练阶段
+  curriculum:
+    enabled: true
+    stages:
+      - epochs: 1000
+        T_out: 5
+        description: "初期阶段: 预测5步"
+      - epochs: 2000
+        T_out: 10
+        description: "中期阶段: 预测10步"
+      - epochs: 2000
+        T_out: 20
+        description: "后期阶段: 预测20步"
+  
+  # 检查点 - 长期训练优化
+  checkpoint:
+    save_best: true
+    save_last: true
+    max_keep: 3
+    monitor: val_loss
+    mode: min
+    save_every_n_epochs: 1
+  
+  # 早停 - 长期训练配置
+  early_stopping:
+    enabled: true
+    patience: 20
+    monitor: val_loss
+    mode: min
+    min_delta: 1e-4
+
+# AR损失配置
+loss:
+  # AR特定损失
+  ar_loss:
+    weight: 1.0
+    reduction: mean
+  
+  # 辅助损失
+  reconstruction:
+    weight: 1.0
+  spectral:
+    weight: 0.1
+  data_consistency:
+    weight: 0.5
+  gradient_weight: 0.0
+
+# 验证配置 - Debug模式简化（本轮禁用验证）
+validation:
+  check_val_every_n_epoch: 1
+  
+  metrics:
+    - rel_l2  # Debug模式：仅保留核心指标
+    - mae
+  
+  # AR特定验证 - Debug模式简化
+  rollout_steps: [5]  # Debug模式：仅验证5步预测
+  
+  convergence_criteria:
+    target_rel_l2: 0.5  # Debug模式：更宽松的收敛标准
+    patience_for_convergence: 3  # Debug模式：快速收敛检测
+    min_improvement: 1e-3
+
+# 设备配置 - 保留原双GPU配置
+
+# 测试阶段配置 - 启用最终测试与可视化
+testing:
+  enabled: true
+  run_final_test: true
+  batch_size: 16
+  save_visualizations: true
+  metrics: [rel_l2, mae]
+  rollout_steps: [5]
+
+device:
+  accelerator: gpu
+  devices: 2
+  precision: "bf16-mixed"       # 统一为BF16混合精度
+  strategy: ddp
+  compile_model: false   # 关闭模型编译以避免与当前训练器实现不一致
+  channels_last: true
+  # 内存优化 - 激进设置
+  memory_management:
+    gradient_accumulation_steps: 1   # 单卡批次足够时保持为1，如显存不足再调高
+    memory_cleanup_frequency: 50  # 降低清理频率减少开销
+    auto_batch_size_reduction: true
+    memory_threshold: 0.94  # 与训练保持一致，目标94%显存利用率
+    enable_memory_efficient_attention: true  # 启用内存高效注意力
+
+# 注意：此处移除重复的 testing 配置，避免 YAML 重复键错误
+
+# 注：移除重复的logging配置以避免YAML重复键错误（已在文件顶部定义）
+
+# 性能监控配置
+performance_monitoring:
+  enabled: true
+  log_gpu_utilization: true
+  log_cpu_utilization: true
+  log_iowait: true
+  report_interval_seconds: 15
+  # 自适应调优参数
+  gpu_low_threshold: 0.90         # GPU平均利用率低于90%尝试增大并行/批次
+  cpu_low_threshold: 0.80         # CPU低于80%时增加num_workers
+  iowait_high_threshold: 0.12     # IO等待高于12%时降低num_workers、提升预取
+  num_workers_step: 8             # 每次调整的worker步进
+  prefetch_factor_step: 4         # 预取步进
+  batch_size_step: 16             # 批次步进（同时更新training.batch_size）
+
+# 可视化配置（统一控制训练/测试阶段可视化以减少开销）
+visualization:
+  enabled: false
+  save_test_visualizations: false
+  num_test_samples: 0
+  formats: ['png']
+
+# 压测配置
+benchmark:
+  enabled: true
+  warmup_steps: 10
+  measure_steps: 50
+  report_interval: 5
+  max_runtime_seconds: 900
+  run_before_training: true
+  num_batches: 100

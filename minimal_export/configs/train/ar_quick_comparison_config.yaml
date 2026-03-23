@@ -1,0 +1,260 @@
+# 快速横向对比实验配置文件
+# 用于快速验证模型性能差异
+
+experiment:
+  name: "AR-Quick-Comparison-2025"
+  description: "快速模型对比实验 - 减少训练时间"
+  device: cuda
+  seeds: [42, 123, 456]  # 3个种子用于基本统计
+  output_dir: runs
+  log_every_n_steps: 50
+
+# 设备配置
+device:
+  accelerator: cuda
+  devices: 2
+  strategy: ddp
+  allow_data_parallel_fallback: true
+  precision: bf16-mixed
+
+# 禁用AR时序
+ar:
+  enabled: false
+
+sequential:
+  enabled: false
+
+# 数据配置 - 快速模式
+data:
+  data_path: "data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+  dataset_name: RealDiffusionReaction
+  img_size: 128
+  keys: ["data"]
+  use_official_format: true
+  splits_dir: splits
+  target_channels: 1
+  input_channels: 1
+  
+  # 快速模式：减少数据量
+  sample_limit: 500  # 限制样本数量
+  
+  # AR配置
+  T_in: 1
+  T_out: 1
+  
+  # 数据分割
+  train_ratio: 0.8
+  val_ratio: 0.15
+  test_ratio: 0.05
+  
+  # 时间步配置 - 快速模式
+  time_step_start: 0
+  time_step_end: 30   # 减少时间步数
+  time_step_stride: 1
+  
+  # 观测配置
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 2
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+      downsample_mode: area
+      align_corners: false
+      antialias: true
+  
+  # 预处理
+  normalize: true
+  augmentation:
+    enabled: false
+  
+  # 数据加载器 - 快速模式
+  dataloader:
+    batch_size: 256   # 减小批次大小
+    val_batch_size: 64
+    test_batch_size: 32
+    num_workers: 8
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 2
+    drop_last: true
+    shuffle: true
+    timeout: 60
+
+hardware:
+  allow_tf32: true
+  memory:
+    cudnn_benchmark: true
+
+# 模型配置 - 统一设置
+model:
+  name: "SwinUNet"
+  in_channels: 4    # 观测(1)+坐标(2)+掩码(1)
+  out_channels: 1
+  img_size: 128
+  
+  # 通用参数
+  patch_size: 4
+  drop_rate: 0.1
+  attn_drop_rate: 0.1
+  drop_path_rate: 0.1
+
+# 训练配置 - 快速模式
+training:
+  epochs: 100       # 大幅减少训练轮次
+  batch_size: 256   # 小批次
+  gradient_accumulation_steps: 1
+  
+  # 禁用编译确保兼容性
+  torch_compile: false
+  channels_last: true
+  
+  # 损失权重
+  loss_weights:
+    reconstruction: 1.0
+    spectral: 0.5
+    data_consistency: 1.0
+    val_batch_size: 64
+    test_batch_size: 32
+    num_workers: 4
+  
+  # 验证配置
+  validation:
+    enabled: true
+    check_val_every_n_epoch: 10
+    save_val_batch_for_viz: false
+    log_val_metrics: true
+  
+  # 优化器
+  optimizer:
+    name: "AdamW"
+    lr: 0.001
+    weight_decay: 0.0001
+    betas: [0.9, 0.999]
+    eps: 1e-8
+    fused: false
+    foreach: false
+  
+  # 学习率调度
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 100
+    eta_min: 1e-6
+    warmup_epochs: 5
+  
+  # 基本训练设置
+  gradient_clip_val: 1.0
+  gradient_clip_algorithm: norm
+  
+  # 混合精度
+  amp:
+    enabled: true
+    autocast_dtype: bfloat16
+  
+  # 课程学习
+  curriculum:
+    enabled: false
+    stages: []
+  
+  # 检查点
+  checkpoint:
+    save_best: true
+    save_last: true
+    max_keep: 2
+    monitor: val_loss
+    mode: min
+    save_every_n_epochs: 20
+  
+  # 早停
+  early_stopping:
+    enabled: false
+    patience: 50
+    monitor: val_loss
+    mode: min
+    min_delta: 1e-6
+
+# 损失配置
+loss:
+  ar_loss:
+    weight: 0.0
+    reduction: mean
+  
+  reconstruction:
+    weight: 1.0
+  spectral:
+    weight: 0.5
+  degradation_consistency:
+    weight: 1.0
+  gradient_weight: 0.0
+
+# 验证配置
+validation:
+  check_val_every_n_epoch: 10
+  use_observation: false
+  
+  metrics:
+    - rel_l2
+    - mae
+    - psnr
+    - ssim
+  
+  rollout_steps: [1]
+  
+  convergence_criteria:
+    target_rel_l2: 0.2
+    patience_for_convergence: 3
+    min_improvement: 1e-3
+
+# 日志配置
+logging:
+  experiment_name: "AR-Quick-Comparison-2025"
+  version: null
+  default_hp_metric: false
+  log_model: false
+  
+  performance_monitoring:
+    log_gpu_memory: true
+    log_throughput: true
+    log_batch_time: true
+  
+  tensorboard:
+    save_dir: runs/tensorboard
+    name: ar_quick_comparison
+    version: null
+  
+  visualization:
+    save_samples_every_n_epochs: 20
+    num_samples_to_save: 5
+    save_training_curves: true
+    save_rollout_visualization: false
+
+# 随机种子
+seed: 42
+
+# 测试配置
+testing:
+  enabled: true
+  run_final_test: true
+  save_predictions: false
+  compute_detailed_metrics: true
+  
+  batch_size: 32
+  save_visualizations: false
+  num_visualization_samples: 0
+  
+  fast_mode: true
+  skip_complex_metrics: false
+  minimal_logging: true
+
+# 数据增强
+data_augmentation:
+  enable: false
+  random_rotation: 
+    enable: false
+  random_flip:
+    enable: false
+  gaussian_noise:
+    enable: false
+  normalize_per_sample: false
+  compute_statistics: false

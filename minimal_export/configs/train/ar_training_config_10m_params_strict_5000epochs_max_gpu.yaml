@@ -1,0 +1,278 @@
+# AR训练配置文件 - 严格10M参数+5000 epochs+极致GPU利用率
+# 新实验组：严格10M参数模型+5000 epochs训练+最大化GPU利用
+
+experiment:
+  name: "AR-DR2D-10MParams-Strict-5000Epochs-MaxGPU-s2025"
+  description: "严格10M参数模型+5000 epochs+极致GPU利用率新实验"
+  device: cuda
+  seed: 2025
+  output_dir: runs
+  log_every_n_steps: 100  # 减少日志频率应对长训练
+
+# 设备与并行（DDP）- 全资源优化
+device:
+  accelerator: cuda
+  devices: 2
+  strategy: ddp
+  allow_data_parallel_fallback: true
+  precision: 16-mixed  # 使用FP16混合精度最大化性能
+
+# CPU和内存极限优化
+cpu_optimization:
+  max_threads: true       # 使用所有CPU核心
+  num_interop_threads: 0  # PyTorch自动优化
+  num_intraop_threads: 0  # PyTorch自动优化
+  
+# CUDA和硬件极限优化
+hardware:
+  allow_tf32: true              # 启用TF32大幅提升性能
+  memory:
+    cudnn_benchmark: true       # 启用CUDNN自动调优
+    cudnn_deterministic: false  # 禁用确定性算法
+    cudnn_allow_tf32: true    # 显式启用CUDNN TF32
+  cuda:
+    enable_flash_attention: false  # 禁用确保稳定性
+    enable_memory_efficient_attention: false
+
+# 显式禁用AR时序，改为空间-only模式
+ar:
+  enabled: false
+
+sequential:
+  enabled: false
+
+# 数据配置 - 100样本+极限CPU/GPU协同
+data:
+  data_path: "data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+  dataset_name: RealDiffusionReaction
+  img_size: 128  # 匹配实际数据分辨率
+  sample_limit: 100  # 仅100个样本
+  
+  # AR特定配置
+  T_in: 1      # 输入时间步数
+  T_out: 1     # 纯空间预测：仅预测单帧
+  
+  # 数据集分割配置 - 极限batch优化
+  train_ratio: 0.85    # 85个训练样本（最大化训练数据）
+  val_ratio: 0.1       # 10个验证样本  
+  test_ratio: 0.05     # 5个测试样本
+  
+  # 时间步配置 - 最大化时间步数
+  time_step_start: 0
+  time_step_end: 101   # 使用全部101个时间步
+  time_step_stride: 1
+  
+  # 观测配置 - 降采样输入
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 2
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+      downsample_mode: area
+      align_corners: false
+      antialias: true
+  
+  # 预处理
+  normalize: true
+  augmentation:
+    enabled: false  # 关闭数据增强
+    flip_prob: 0.0
+    rotate_prob: 0.0
+    noise_std: 0.0
+
+  # 数据加载器 - 针对10M模型优化大batch
+  dataloader:
+    batch_size: 1000        # 大batch大小应对10M模型+最大化GPU利用
+    val_batch_size: 10     # 验证批次=全部验证样本
+    test_batch_size: 5     # 测试批次=全部测试样本
+    num_workers: 32        # 最大工作进程数
+    pin_memory: true       # 启用页面锁定内存
+    persistent_workers: true  # 保持工作进程存活
+    prefetch_factor: 64    # 高预取因子
+    drop_last: true        # 丢弃不完整batch确保对齐
+    shuffle: true          # 保持数据打乱
+    timeout: 1200          # 合理超时时间
+    multiprocessing_context: "spawn"  # 使用spawn避免fork问题
+
+# 模型配置 - 严格10M参数模型（精确控制架构）
+model:
+  name: SwinUNet
+  in_channels: 2    # 双通道数据（u,v）
+  out_channels: 2
+  img_size: 128
+  patch_size: 8     # 标准patch大小
+  window_size: 4    # 标准窗口大小
+  depths: [2, 4, 8, 2]   # 精心调整深度 [2,4,8,2] -> ~10M参数
+  num_heads: [2, 4, 8, 16]  # 精心调整注意力头数
+  embed_dim: 64           # 精心调整嵌入维度
+  mlp_ratio: 3.0         # 精心调整MLP比例
+  drop_rate: 0.1          # 轻微dropout防止过拟合
+  attn_drop_rate: 0.1     # 注意力dropout
+  drop_path_rate: 0.15     # 适中的drop path
+  
+  # AR包装器配置
+  ar_config:
+    detach_rollout: true
+    scheduled_sampling: false
+    teacher_forcing_ratio: 1.0
+
+# 训练配置 - 5000 epochs极限训练+大batch
+training:
+  epochs: 5000            # 5000 epochs极限训练
+  batch_size: 1000        # 大batch大小最大化GPU利用
+  gradient_accumulation_steps: 1  # 双卡下直接大batch
+  
+  # PyTorch编译优化 - 启用提升性能
+  torch_compile: true     # 启用torch.compile提升性能
+  torch_compile_mode: "max-autotune"  # 极限编译优化
+  torch_compile_backend: "inductor"   # 使用inductor后端
+  channels_last: true     # 启用channels_last内存格式
+  
+  # 训练优化
+  dataloader:
+    batch_size: 1000        # 大batch大小最大化GPU利用
+    val_batch_size: 10
+    test_batch_size: 5
+    num_workers: 32        # 最大工作进程数
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 64    # 高预取因子
+    drop_last: true       # 丢弃不完整batch
+    shuffle: true
+  
+  # 验证配置 - 减少验证频率节省计算资源
+  validation:
+    enabled: true
+    check_val_every_n_epoch: 50  # 每50轮验证（应对5000 epochs）
+    save_val_batch_for_viz: true  # 保存验证批次用于可视化
+    log_val_metrics: true
+  
+  # 优化器配置 - 稳定学习率应对长训练
+  optimizer:
+    name: "AdamW"
+    lr: 0.0008             # 稍高学习率应对大batch
+    weight_decay: 0.0001
+    betas: [0.9, 0.999]
+    eps: 1e-8
+    fused: true            # 启用融合优化器提升性能
+    foreach: false         # 禁用foreach避免冲突
+  
+  # 调度器配置 - 长周期调度
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 5000           # 与总epochs一致
+    eta_min: 1e-6          # 适中的最小学习率
+    warmup_epochs: 250       # 长warmup期（5%的epochs）
+  
+  # 基本训练设置 - 严格梯度裁剪
+  gradient_clip_val: 1.5    # 稍高梯度裁剪阈值
+  gradient_clip_algorithm: norm
+  
+  # AMP配置 - 启用FP16最大化性能
+  amp:
+    enabled: true          # 启用AMP最大化性能
+    autocast_dtype: float16  # 使用FP16最大化性能
+    grad_scaler: true      # 启用梯度缩放
+    growth_factor: 2.0
+    backoff_factor: 0.5
+    growth_interval: 1500  # 梯度缩放调整间隔
+  
+  # 检查点配置 - 极限节省存储
+  checkpoint:
+    save_best: true
+    save_last: true
+    max_keep: 3           # 减少保留检查点数
+    monitor: val_loss
+    mode: min
+    save_every_n_epochs: 500  # 每500 epochs保存一次
+  
+  # 早停配置 - 禁用确保完整训练
+  early_stopping:
+    enabled: false        # 禁用早停确保完整5000 epochs训练
+    patience: 1000        # 极限耐心值
+    monitor: val_loss
+    mode: min
+    min_delta: 1e-4
+
+# 损失配置 - 仅使用R2损失（最稳定）
+loss:
+  # AR特定损失
+  ar_loss:
+    weight: 0.0           # 空间-only模式
+    reduction: mean
+  
+  # 仅使用R2损失（最稳定）
+  reconstruction:
+    weight: 1.0           # R2损失权重为1.0
+  spectral:
+    weight: 0.0           # 禁用频谱损失
+  degradation_consistency:
+    weight: 0.0           # 禁用DC一致性损失
+  gradient_weight: 0.0    # 禁用梯度损失
+
+# 验证配置
+validation:
+  check_val_every_n_epoch: 50  # 每50轮验证
+  use_observation: false
+  
+  metrics:
+    - rel_l2
+    - mae
+    - rmse
+    - psnr
+  
+  # AR特定验证
+  rollout_steps: [1]
+  
+  convergence_criteria:
+    target_rel_l2: 0.12    # 严格收敛标准
+    patience_for_convergence: 100
+    min_improvement: 1e-4
+
+# 日志配置 - 应对长训练
+logging:
+  experiment_name: "AR-DR2D-10MParams-Strict-5000Epochs-MaxGPU-s2025"
+  version: null
+  default_hp_metric: false
+  log_model: false
+  
+  # 性能监控 - 极限监控
+  performance_monitoring:
+    log_gpu_memory: true      # 监控GPU内存
+    log_throughput: true      # 监控吞吐量
+    log_batch_time: true      # 监控批次时间
+    log_gpu_utilization: true  # 监控GPU利用率
+    log_cuda_events: true    # 记录CUDA事件
+    log_cpu_usage: true      # 监控CPU使用率
+    log_memory_usage: true   # 监控内存使用率
+  
+  tensorboard:
+    save_dir: runs/tensorboard
+    name: ar_training_10m_params_strict_5000epochs_max_gpu
+    version: null
+  
+  visualization:
+    save_samples_every_n_epochs: 200  # 每200轮保存可视化
+    num_samples_to_save: 5         # 保存代表性样本
+    save_training_curves: true
+    save_rollout_visualization: true   # 保存预测效果
+
+# 随机种子
+seed: 2025
+
+# 测试配置 - 极限测试
+testing:
+  enabled: true             # 启用测试
+  run_final_test: true      # 运行最终测试
+  save_predictions: true    # 保存预测结果以验证效果
+  compute_detailed_metrics: true
+  
+  batch_size: 5             # 测试批次=全部测试样本
+  save_visualizations: true # 保存测试可视化
+  num_visualization_samples: 5  # 可视化所有测试样本
+  
+  fast_mode: false
+  skip_complex_metrics: false
+  minimal_logging: false

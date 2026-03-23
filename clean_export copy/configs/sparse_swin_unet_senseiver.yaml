@@ -1,0 +1,129 @@
+# 稀疏注意力SwinUNet训练配置示例
+# 基于Senseiver的注意力机制进行稀疏观测还原
+
+# 模型配置
+model:
+  name: "SparseSwinUNet"  # 使用稀疏注意力SwinUNet
+  params:
+    in_channels: 4  # baseline(1) + coords(2) + mask(1) = 4
+    out_channels: 1
+    img_size: 256
+    embed_dim: 96
+    
+    # 稀疏注意力编码器配置
+    sparse_encoder_config:
+      embed_dim: 256
+      num_heads: 8
+      sensor_dim: 128      # 传感器位置编码维度
+      coord_dim: 64        # 坐标编码维度
+      mask_dim: 32         # 掩码编码维度
+      dropout: 0.1
+      use_sparse_bias: true  # 启用稀疏偏置，只在观测点计算注意力
+    
+    # SwinUNet配置
+    swin_unet_config:
+      depths: [2, 2, 6, 2]
+      num_heads: [3, 6, 12, 24]
+      window_size: 8
+      mlp_ratio: 4.0
+      drop_rate: 0.1
+      attn_drop_rate: 0.1
+      drop_path_rate: 0.1
+      use_fno_bottleneck: false  # 可根据需要启用FNO瓶颈
+
+# 数据配置
+data:
+  name: "PDEBenchSR"  # 使用超分辨率数据集
+  params:
+    data_path: "data/pdebench/2D/2D_rdbt_NA_NA_256.h5"
+    keys: ["u"]
+    scale_factor: 4  # SRx4超分辨率
+    blur_sigma: 1.0
+    kernel_size: 5
+    interpolation: "bilinear"
+    boundary: "mirror"
+    normalize: true
+    train_split: 0.7
+    val_split: 0.15
+    test_split: 0.15
+
+# 训练配置
+training:
+  batch_size: 8
+  num_epochs: 200
+  learning_rate: 1e-3
+  weight_decay: 1e-4
+  warmup_epochs: 10
+  
+  # 优化器
+  optimizer:
+    name: "AdamW"
+    params:
+      lr: 1e-3
+      weight_decay: 1e-4
+      betas: [0.9, 0.999]
+  
+  # 学习率调度
+  scheduler:
+    name: "CosineAnnealingLR"
+    params:
+      T_max: 200
+      eta_min: 1e-6
+  
+  # 损失函数配置（三件套）
+  loss:
+    name: "TotalLoss"
+    params:
+      reconstruction_weight: 1.0
+      spectral_weight: 0.5
+      dc_weight: 1.0
+      
+      # 频域损失配置
+      spectral_loss:
+        kx: 16
+        ky: 16
+        low_freq_weight: 1.0
+        
+      # 数据一致性损失配置
+      dc_loss:
+        normalize_input: true  # 在z-score域计算
+        
+  # 数据一致性检查
+  dc_check:
+    enabled: true
+    tolerance: 1e-8
+    
+  # 混合精度训练
+  amp:
+    enabled: true
+    
+  # 梯度裁剪
+  gradient_clipping:
+    enabled: true
+    max_norm: 1.0
+
+# 验证配置
+validation:
+  frequency: 5  # 每5个epoch验证一次
+  metrics: ["rel_l2", "mae", "psnr", "ssim", "dc_error"]
+  save_best: true
+  save_frequency: 10
+
+# 检查点配置
+checkpoint:
+  save_dir: "runs/sparse_swin_unet_senseiver"
+  save_frequency: 10
+  keep_last: 3
+
+# 日志配置
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+# 设备配置
+device: "cuda"
+num_workers: 4
+pin_memory: true
+
+# 随机种子
+seed: 42

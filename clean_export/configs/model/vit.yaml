@@ -1,0 +1,81 @@
+# Vision Transformer (ViT) 模型配置
+# 基于标准Vision Transformer架构，适配PDEBench稀疏观测重建任务
+
+name: "ViT"
+params:
+  in_channels: 1
+  out_channels: 1
+  img_size: 128
+  
+  # Patch Embedding参数
+  patch_size: 16  # 16x16 patches
+  embed_dim: 768  # 标准ViT-Base嵌入维度
+  
+  # Transformer编码器参数
+  depth: 12  # 12层Transformer编码器
+  num_heads: 12  # 12个注意力头
+  mlp_ratio: 4.0  # MLP隐藏层扩展比例
+  qkv_bias: true  # QKV投影偏置
+  
+  # Dropout配置
+  drop_rate: 0.0  # 基础dropout率
+  attn_drop_rate: 0.0  # 注意力dropout率
+  drop_path_rate: 0.1  # 随机深度dropout率
+  
+  # 解码器参数
+  decoder_embed_dim: 512  # 解码器嵌入维度
+  decoder_depth: 8  # 解码器层数
+  decoder_num_heads: 16  # 解码器注意力头数
+  
+  # 激活函数
+  final_activation: null  # 最终激活函数 (null, 'tanh', 'sigmoid')
+
+# 训练特定配置
+training_config:
+  # 优化器配置 - 严格按照文档标准
+  optimizer:
+    name: "AdamW"
+    lr: 1.0e-3  # 学习率1e-3（文档标准）
+    weight_decay: 1.0e-4  # 权重衰减1e-4（文档标准）
+    betas: [0.9, 0.999]
+    eps: 1e-8
+  
+  # 学习率调度器 - Cosine+1k warmup（文档标准）
+  scheduler:
+    name: "cosine_warmup"
+    T_max: 200
+    warmup_steps: 1000  # 1k warmup（文档标准）
+    eta_min: 1.0e-6
+  
+  # 训练参数
+  epochs: 200
+  batch_size: 4
+  seed: 2025
+  
+  # 混合精度训练
+  use_amp: true
+  
+  # 梯度裁剪
+  grad_clip_norm: 1.0  # 标准梯度裁剪
+
+# 损失函数配置 - 三件套标准配置（文档标准：1.0/0.5/1.0）
+loss:
+  rec_weight: 1.0  # 重建损失权重（文档标准）
+  spec_weight: 0.5  # 频谱损失权重（文档标准）
+  dc_weight: 1.0  # 数据一致性损失权重（文档标准）
+  
+  # 频域损失参数 - 按照文档标准
+  low_freq_modes: 16  # 低频模式数量 kx=ky=16（文档标准）
+  mirror_padding: true  # 启用镜像延拓（非周期边界）
+
+# 模型特性
+model_info:
+  architecture: "Vision Transformer"
+  paper: "An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale"
+  description: "标准Vision Transformer架构，使用patch embedding和自注意力机制"
+  key_features:
+    - "Patch-based图像处理"
+    - "全局自注意力机制"
+    - "位置编码"
+    - "编码器-解码器架构"
+    - "适配PDEBench稀疏观测重建"

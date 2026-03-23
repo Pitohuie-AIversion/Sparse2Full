@@ -1,0 +1,155 @@
+# 100样本强制GPU配置 - 确保GPU利用率最大化
+# 保持392M参数和100样本，强制GPU执行
+
+experiment:
+  name: "ar_100samples_gpu_forced"
+  description: "100样本强制GPU训练，仅R2损失，392M参数"
+  device: "cuda:0"  # 强制指定GPU设备
+  seed: 2025
+  output_dir: "./runs/ar_100samples_gpu_forced"
+
+# 数据配置
+data:
+  data_path: "./data/PDEBench/1D-diffusion-reaction/"
+  dataset_name: PDEBenchAR
+  image_size: 128
+  sample_limit: 100
+  
+  T_in: 1
+  T_out: 1
+  
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  
+  # 最大化GPU数据供给
+  batch_size: 128  # 最大批次大小
+  num_workers: 24  # 最大工作线程
+  pin_memory: true
+  prefetch_factor: 128  # 最大预取
+  persistent_workers: true
+  drop_last: true
+  
+  observation:
+    mode: SR
+    scale_factor: 4
+    blur_sigma: 1.0
+    kernel_size: 5
+    boundary: mirror
+  
+  normalize: true
+  augmentation:
+    enabled: false
+
+# 模型配置 - 392M参数，强制GPU
+model:
+  name: "SwinUNet"
+  in_channels: 1
+  out_channels: 1
+  img_size: 128
+  embed_dim: 192
+  depths: [2, 2, 18, 2]
+  num_heads: [6, 12, 24, 48]
+  window_size: 8
+  mlp_ratio: 4.0
+  qkv_bias: true
+  drop_rate: 0.0
+  attn_drop_rate: 0.0
+  drop_path_rate: 0.1
+  patch_norm: true
+  use_checkpoint: false  # 禁用检查点提高速度
+
+# 仅R2损失
+loss:
+  reconstruction:
+    type: "rel_l2"
+    weight: 1.0
+    reduction: "mean"
+  spectral:
+    enabled: false
+  data_consistency:
+    enabled: false
+  gradient:
+    enabled: false
+  pde_residual:
+    enabled: false
+
+# 训练配置 - GPU最大化
+training:
+  epochs: 100
+  save_freq: 25
+  log_freq: 20
+  val_freq: 20
+  
+  optimizer:
+    name: "AdamW"
+    lr: 0.0004  # 提高学习率
+    weight_decay: 0.05
+    betas: [0.9, 0.999]
+    eps: 1e-8
+    fused: true
+    foreach: false
+  
+  scheduler:
+    name: "cosine_with_warmup"
+    warmup_epochs: 20
+    max_epochs: 100
+    min_lr: 1e-6
+  
+  gradient_clip_val: 2.0  # 减少裁剪开销
+  
+  amp:
+    enabled: true
+    dtype: "fp16"  # 使用FP16提高GPU吞吐量
+    init_scale: 4096.0  # 提高scale
+
+# 验证配置
+validation:
+  batch_size: 128  # 与训练相同
+  num_workers: 20
+  visualize_predictions: true
+  visualize_freq: 25
+  num_visualization_samples: 10
+  save_predictions: true
+  metrics:
+    - "rel_l2"
+    - "mae"
+    - "mse"
+
+# 系统配置 - GPU优先
+system:
+  cuda:
+    benchmark: true
+    tf32: true
+    allow_tf32: true
+    deterministic: false
+  
+  threads:
+    torch_num_threads: 24  # 最大CPU线程辅助GPU
+    omp_num_threads: 24
+    mkldnn_num_threads: 24
+    numa_enabled: true
+  
+  memory:
+    pytorch:
+      allocator:
+        backend: "native"
+        config: "expandable_segments:True"
+      cuda:
+        max_split_size_mb: 128  # 减少分割大小提高效率
+        garbage_collection_threshold: 0.8
+  
+  distributed:
+    backend: "nccl"
+    find_unused_parameters: false
+    gradient_as_bucket_view: true
+
+# 日志配置
+logging:
+  level: "INFO"
+  file:
+    enabled: true
+    max_bytes: 2097152  # 2MB
+    backup_count: 2
+  wandb:
+    enabled: false

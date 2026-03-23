@@ -1,0 +1,41 @@
+# UFNOUNet模型配置
+# U-Net与FNO混合架构
+
+name: "UFNOUNet"
+
+params:
+  in_channels: 1
+  out_channels: 1
+  img_size: 128
+  
+  kwargs:
+    # U-Net部分参数
+    base_channels: 64
+    channel_multipliers: [1, 2, 4, 8]
+    num_res_blocks: 2
+    
+    # FNO部分参数
+    fno_modes1: 16          # x方向傅里叶模态数
+    fno_modes2: 16          # y方向傅里叶模态数
+    fno_width: 64           # FNO隐藏层宽度
+    fno_layers: 2           # FNO层数
+    
+    # 混合策略
+    fusion_type: "add"      # add, concat, attention
+    use_fno_skip: true      # FNO跳跃连接
+    
+    # 激活函数和归一化
+    activation: "gelu"
+    norm: "group"
+    num_groups: 32
+    
+    # Dropout
+    dropout: 0.0
+    
+    # 上采样方式
+    upsample_mode: "bilinear"
+    
+    # 注意力机制
+    use_attention: true
+    attention_resolutions: [16, 8]
+    num_heads: 8

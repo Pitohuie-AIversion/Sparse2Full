@@ -1,0 +1,5 @@
+- [x] 成功定位并挑选出 `ob`, `prd`, `gt`, `err` 的原图目录或文件。
+- [x] 成功编写或运行拼接脚本，生成的组合结果图包含正确的子图标题（如 Observation, Ground Truth, Ours, Error）和统一的 Colorbar。
+- [x] 组合结果图已正确保存至 `thesis_paper/manuscript_5_chapter/images/` 目录。
+- [x] `chapter4_results_verification.md` 中图片链接已更新，图注准确无误，正文对图片的分析与图面一致。
+- [x] 导出的 PDF/DOCX 文件中，图 4 相关插图显示正常、清晰、排版美观。

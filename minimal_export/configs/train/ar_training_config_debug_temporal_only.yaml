@@ -1,0 +1,342 @@
+# AR训练配置文件 - 仅时序预测版本（控制变量测试）
+# 禁用空间SR处理，仅测试时序预测能力
+
+experiment:
+  name: "AR-DR2D-Debug-TemporalOnly-s2025"
+  description: "仅时序预测控制变量测试 - 无空间降采样"
+  device: cuda
+  seed: 2025
+  output_dir: runs
+  log_every_n_steps: 5
+
+# 设备与并行（单GPU）
+device:
+  accelerator: cuda
+  devices: 1
+  strategy: none
+  allow_data_parallel_fallback: true
+  precision: fp32
+
+# 启用专用时序模型 - SequentialSpatiotemporalModel
+ar:
+  enabled: true
+
+# 启用专用时序模型架构
+sequential:
+  enabled: true
+  model_type: "SequentialSpatiotemporalModel"
+  
+  # 空间配置 - 保持基础特征提取但禁用降采样
+  spatial:
+    in_channels: 1
+    spatial_feature_dim: 128
+    out_channels: 1
+    img_size: [128, 128]
+    backbone_type: "fno2d"
+    backbone_config:
+      modes1: 12
+      modes2: 12  
+      width: 64
+      n_layers: 4
+      activation: 'gelu'
+  
+  # 时序配置
+  temporal:
+    spatial_feature_dim: 128
+    temporal_dim: 256
+    out_channels: 1
+    img_size: [128, 128]
+    num_heads: 8
+    num_layers: 4
+    dropout: 0.1
+  
+  # 一致性检查配置
+  consistency:
+    enabled: true
+    spatial_temporal_consistency: true
+    feature_consistency_weight: 0.3
+  
+  # 训练配置 - 单阶段训练（仅时序）
+  training:
+    two_stage_training: false  # 禁用两阶段训练
+    stage1_epochs: 0
+    stage2_epochs: 2000
+    spatial_loss_weight: 0.0      # 禁用空间损失
+    temporal_loss_weight: 1.0     # 仅用时序损失
+
+# 禁用ARWrapper，使用专用模型
+model_wrapper:
+  enabled: false
+
+# 模型配置 - 使用FNO2D模型
+model:
+  name: fno2d
+  in_channels: 1  # 仅使用1个通道（原图输入）
+  out_channels: 1
+  img_size: 128
+  modes1: 12
+  modes2: 12  
+  width: 64
+  n_layers: 4
+  activation: 'gelu'
+
+# 数据配置 - 关键修改：禁用空间降采样
+data:
+  data_path: "data/DR2D/2D_diff-react_NA_NA.h5"
+  dataset_name: RealDiffusionReaction
+  img_size: 128
+  keys: ["data"]
+  component: u
+  use_official_format: true
+  splits_dir: splits
+  target_channels: 1
+  input_channels: 1
+  sample_limit: 10
+  
+  # AR特定配置
+  T_in: 1      # 输入时间步数
+  T_out: 5     # 目标：5步时序预测
+  
+  # 数据集分割配置
+  train_ratio: 0.8
+  val_ratio: 0.15
+  test_ratio: 0.05
+  
+  # 时间步配置
+  time_step_start: 0
+  time_step_end: 50
+  time_step_stride: 1
+  
+  # 关键修改：禁用观测降采样 - 使用原图输入
+  observation:
+    mode: identity  # 使用恒等变换，无降采样
+    # 禁用所有降采样参数
+    use_coords: false
+    use_mask: false
+  
+  # 预处理
+  normalize: true
+  augmentation:
+    enabled: false
+
+  # 启用合成数据模式用于调试
+  use_synthetic_data: false
+  synthetic_data_config:
+    num_samples: 1000
+    image_size: 128
+    channels: 2
+    
+  # 数据加载器
+  dataloader:
+    batch_size: 1024
+    val_batch_size: 1024
+    test_batch_size: 1024
+    num_workers: 0
+    pin_memory: true
+    persistent_workers: false
+    prefetch_factor: null
+    drop_last: false
+    shuffle: true
+    timeout: 0
+
+hardware:
+  allow_tf32: false
+  memory:
+    cudnn_benchmark: false
+  torch_threads: 64
+  mkl_threads: 64
+  omp_threads: 64
+  interop_threads: 64
+  blas_threads: 64
+  numexpr_threads: 64
+  vram_threshold: 0.98
+
+# 训练配置
+training:
+  epochs: 100  # 设置为100epoch
+  batch_size: 1024
+  gradient_accumulation_steps: 1
+  
+  torch_compile: false
+  torch_compile_backend: "inductor"
+  torch_compile_mode: "reduce-overhead"
+  channels_last: false
+  
+  # 专用时序模型训练配置
+  dataloader:
+    batch_size: 16
+
+  loss_weights:
+    reconstruction: 0.0    # 禁用重建损失
+    spectral: 0.0          # 禁用频谱损失
+    data_consistency: 0.0  # 禁用DC损失
+    val_batch_size: 16
+    test_batch_size: 8
+    num_workers: 2
+    pin_memory: true
+    persistent_workers: false
+    prefetch_factor: 2
+    drop_last: false
+    shuffle: true
+  
+  # 专用时序模型验证配置
+  validation:
+    enabled: true
+    check_val_every_n_epoch: 5
+    save_val_batch_for_viz: false
+    log_val_metrics: true
+  
+  # 优化器配置
+  optimizer:
+    name: "AdamW"
+    lr: 0.0003
+    weight_decay: 0.0001
+    betas: [0.9, 0.999]
+    eps: 1e-8
+    fused: false
+    foreach: false
+  
+  # 调度器配置
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 1045
+    eta_min: 1e-6
+    warmup_epochs: 5
+  
+  # 分布式训练配置
+  distributed:
+    enabled: false
+    backend: "nccl"
+    init_method: "env://"
+  
+  gradient_clip_val: 0.5
+  gradient_clip_algorithm: norm
+  
+  # AMP配置
+  amp:
+    enabled: false
+    autocast_dtype: float32
+  
+  # 课程学习 - 单阶段（仅时序）- 调整为100epoch总计
+  curriculum:
+    enabled: true
+    stages:
+      - {T_out: 1, epochs: 25}   # 先训练1步预测
+      - {T_out: 3, epochs: 35}   # 扩展到3步
+      - {T_out: 5, epochs: 40}   # 最终5步预测
+    teacher_forcing_decay: 0.95
+  
+  # 检查点配置
+  checkpoint:
+    save_best: true
+    save_last: true
+    max_keep: 3
+    monitor: val_loss
+    mode: min
+    save_every_n_epochs: 10
+  
+  # 早停配置
+  early_stopping:
+    enabled: false
+    patience: 50
+    monitor: val_loss
+    mode: min
+    min_delta: 1e-4
+
+# 损失配置 - 仅保留R2损失
+loss:
+  # AR特定损失
+  ar_loss:
+    weight: 0.0
+    reduction: mean
+  
+  # 辅助损失 - 全部禁用
+  reconstruction:
+    weight: 0.0
+  spectral:
+    weight: 0.0
+  degradation_consistency:
+    weight: 0.0
+  gradient_weight: 0.0
+  
+  # R2损失配置 - 唯一启用的损失
+  r2:
+    weight: 1.0
+    reduction: mean
+  rel2_weight: 1.0
+  mae_weight: 0.0
+
+# 验证配置
+validation:
+  check_val_every_n_epoch: 5
+  use_observation: false
+  
+  metrics:
+    - rel_l2
+    - mae
+    - degradation_consistency
+  
+  # AR特定验证 - 多时序步验证
+  rollout_steps: [1, 3, 5]
+  
+  convergence_criteria:
+    target_rel_l2: 0.3
+    patience_for_convergence: 5
+    min_improvement: 5e-4
+
+# 设备配置（统一在前文 device 段配置，避免重复键）
+
+# 日志配置
+logging:
+  experiment_name: "AR-DR2D-TemporalOnly-s2025"
+  version: null
+  default_hp_metric: false
+  log_model: false
+  
+  performance_monitoring:
+    log_gpu_memory: true
+    log_throughput: true
+    log_batch_time: true
+  
+  tensorboard:
+    save_dir: runs/tensorboard
+    name: ar_training_temporal_only
+    version: null
+  
+  visualization:
+    save_samples_every_n_epochs: 50
+    num_samples_to_save: 5
+    save_training_curves: true
+    save_rollout_visualization: false
+
+# 随机种子
+seed: 2025
+
+# 测试配置
+testing:
+  enabled: false
+  run_final_test: false
+  save_predictions: false
+  compute_detailed_metrics: false
+  
+  batch_size: 64
+  save_visualizations: false
+  num_visualization_samples: 0
+  
+  fast_mode: false
+  skip_complex_metrics: false
+  minimal_logging: false
+
+# 数据增强配置
+data_augmentation:
+  enable: false
+  # CPU密集型增强操作
+  random_rotation: 
+    enable: false
+  random_flip:
+    enable: false
+  gaussian_noise:
+    enable: false
+  # 数值计算密集型操作
+  normalize_per_sample: false
+  compute_statistics: false

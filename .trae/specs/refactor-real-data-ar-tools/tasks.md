@@ -1,0 +1,29 @@
+# Tasks
+
+- [x] Task 1: Create package structure
+    - [x] Create `real_data_ar` directory and subdirectories (`config`, `data`, `models`, `training`, `utils`).
+    - [x] Create `__init__.py` files for all directories.
+    - [x] Create `setup.py`, `requirements.txt`, and `README.md`.
+- [x] Task 2: Refactor Configuration Management
+    - [x] Extract `SpatiotemporalConfigManager` to `real_data_ar/config/manager.py`.
+    - [x] Extract default config to `real_data_ar/config/defaults.py` or a YAML file.
+- [x] Task 3: Refactor Data Management
+    - [x] Port `RealDiffusionReactionDataset` logic to `real_data_ar/data/dataset.py`.
+    - [x] Port `SpatiotemporalDataModule` to `real_data_ar/data/module.py`.
+- [x] Task 4: Refactor Model Management
+    - [x] Create `real_data_ar/models/wrapper.py` for `ARWrapper` logic.
+    - [x] Create `real_data_ar/models/factory.py` for model initialization.
+- [x] Task 5: Refactor Training Logic
+    - [x] Extract `SpatiotemporalTrainer` to `real_data_ar/training/trainer.py`.
+    - [x] Extract phase-specific logic (Spatial, Temporal, Joint) to `real_data_ar/training/phases.py` or keep in trainer if tightly coupled.
+    - [x] Extract logging and device management to `real_data_ar/utils/`.
+- [x] Task 6: Add Documentation and Typing
+    - [x] Add docstrings to all classes and functions.
+    - [x] Add type hints to all function signatures.
+- [x] Task 7: Implement Unit Tests
+    - [x] Create `tests/` directory.
+    - [x] Write tests for Config, Data, Model, and Training modules.
+    - [x] Ensure all tests pass.
+- [x] Task 8: Verification
+    - [x] Install the package in a clean environment (or verify importability).
+    - [x] Run a dummy training cycle to ensure functionality matches the original script.

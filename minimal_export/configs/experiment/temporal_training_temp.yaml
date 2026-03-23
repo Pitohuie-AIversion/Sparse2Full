@@ -1,0 +1,141 @@
+curriculum:
+  enabled: true
+  stages:
+  - T_out: 1
+    epochs: 30
+    name: stage1
+    teacher_forcing_ratio: 1.0
+  - T_out: 2
+    epochs: 40
+    name: stage2
+    teacher_forcing_ratio: 0.8
+  - T_out: 3
+    epochs: 30
+    name: stage3
+    teacher_forcing_ratio: 0.5
+data_path: e:/2d/diffusion-reaction/2D_diff-react_NA_NA.h5
+defaults:
+- ../data: temporal_pdebench
+- ../model: swin_unet
+- ../train: default
+- ../temporal
+- _self_
+eval:
+  metrics:
+  - rel_l2
+  - mae
+  - psnr
+  - ssim
+  - temporal_consistency
+  - dc_consistency
+  rollout_steps: 10
+  save_animations: true
+  save_sequences: true
+  vis_cases:
+  - 0
+  - 1
+  - 2
+experiment:
+  device: cuda
+  early_stopping:
+    mode: min
+    monitor: val/rel_l2
+    patience: 20
+  log_every_n_steps: 10
+  name: Temporal-AR-SwinUNet-T1to3-DR2D-128-s2025-fixed
+  output_dir: runs
+  precision: 16
+  save_last: true
+  save_top_k: 3
+  seed: 2025
+  use_amp: true
+  val_check_interval: 100
+image_size: 128
+keys:
+- data
+loss:
+  ar_loss:
+    mae_weight: 0.5
+    rel2_weight: 1.0
+    temporal_consistency: 0.3
+  dc_loss:
+    weight: 1.0
+  spectral_loss:
+    low_freq_weight: 1.0
+    weight: 0.5
+model:
+  ar_config:
+    T_in: 1
+    T_out: 3
+    scheduled_sampling: true
+    teacher_forcing_ratio: 1.0
+  img_size: 32
+  in_channels: 1
+  name: SwinUNet
+  out_channels: 1
+  swin_config:
+    attn_drop_rate: 0.0
+    depths:
+    - 2
+    - 2
+    - 6
+    - 2
+    drop_path_rate: 0.1
+    drop_rate: 0.0
+    embed_dim: 96
+    mlp_ratio: 4.0
+    num_heads:
+    - 3
+    - 6
+    - 12
+    - 24
+    patch_size: 4
+    window_size: 8
+scale: 4
+task: SR
+temporal:
+  T_in: 1
+  T_out: 3
+  ar:
+    scheduled_sampling: true
+# 数据处理改进
+data:
+  robust_normalization: true  # 使用鲁棒归一化
+  outlier_detection: true     # 异常值检测
+  clip_values: true          # 数值裁剪
+  clip_range: [-10.0, 10.0]  # 裁剪范围
+  dt: 0.1
+
+# 训练配置 - 数值稳定性优化
+train:
+  accumulate_grad_batches: 2  # 梯度累积
+  gradient_clip_val: 0.5      # 降低梯度裁剪阈值
+  max_epochs: 100
+  batch_size: 4               # 减小批次大小
+  nan_detection: true         # 启用NaN检测
+  optimizer:
+    name: AdamW
+    lr: 5.0e-4                # 降低学习率
+    weight_decay: 1.0e-4
+    eps: 1.0e-8               # 增加数值稳定性
+    betas:
+    - 0.9
+    - 0.999
+  scheduler:
+    T_max: 100
+    eta_min: 1e-6
+    name: CosineAnnealingLR
+    warmup_steps: 1000
+visualization:
+  enabled: true
+  results:
+    create_animations: true
+    plot_error_maps: true
+    plot_spectral_analysis: true
+    plot_temporal_profiles: true
+  save_dir: visualizations
+  training:
+    plot_losses: true
+    plot_metrics: true
+    prediction_frequency: 500
+    save_model_predictions: true

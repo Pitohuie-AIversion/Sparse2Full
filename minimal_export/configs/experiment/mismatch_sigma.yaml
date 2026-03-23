@@ -1,0 +1,89 @@
+# Mismatch Experiment (Spatial Only): Training uses sigma=2.0, Validation uses sigma=1.0 (GT)
+# This proves the "Consistency-First" claim in the spatial domain (single frame reconstruction).
+
+defaults:
+  - /base_config
+  - _self_
+
+experiment:
+  name: "Real-DR2D-Mismatch-Sigma2.0-Spatial"
+  description: "Spatial-only mismatch experiment: Train(sigma=2.0) vs Val(sigma=1.0)"
+  tags: ["mismatch", "ablation", "consistency", "spatial"]
+  output_dir: "runs"
+  seed: 2025
+
+# Data Configuration (Spatial Only)
+data:
+  dataset_name: "RealDiffusionReaction2D"
+  data_path: "data/DR2D/2D_diff-react_NA_NA_small.h5"
+  data_key: "0000/data"
+  img_size: 128
+  channels: 2
+  
+  # Single frame I/O
+  T_in: 1
+  T_out: 1
+  
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  
+  # Ground Truth Observation (Validation) -> Sigma = 1.0
+  observation:
+    mode: "sr"
+    scale_factor: 2
+    blur_sigma: 1.0
+    blur_kernel_size: 5
+    boundary_mode: "mirror"
+    downsample_interpolation: "area"
+
+# Training Configuration (Mismatch)
+training:
+  # Mismatched Degradation -> Sigma = 2.0
+  degradation:
+    mode: "sr"
+    scale_factor: 2
+    blur_sigma: 2.0  # <--- Mismatch here
+    blur_kernel_size: 5
+    boundary_mode: "mirror"
+    downsample_interpolation: "area"
+
+  epochs: 30  # Fewer epochs needed for spatial convergence
+  batch_size: 16
+  
+  optimizer:
+    name: "AdamW"
+    lr: 1e-3
+  
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 30
+
+  curriculum:
+    enabled: false  # No curriculum needed for spatial only
+
+# Model Configuration (Spatial)
+model:
+  name: "SwinUNet"
+  in_channels: 2
+  out_channels: 2
+  img_size: 128
+  ar_mode: false  # Disable AR
+  
+# Loss Configuration
+loss:
+  reconstruction:
+    weight: 1.0
+  spectral:
+    weight: 0.1
+  data_consistency:
+    weight: 1.0
+  # Disable temporal losses
+  temporal_consistency:
+    weight: 0.0
+
+# Hardware
+hardware:
+  accelerator: "gpu"
+  devices: 1
+  num_workers: 4

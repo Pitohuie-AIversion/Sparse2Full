@@ -1,0 +1,110 @@
+# 纯时序预测控制变量实验配置
+# 输入原图空间，不进行SR处理，单独检验时序预测能力
+
+experiment:
+  name: "AR-DR2D-TemporalOnly-Control-s2025"
+  description: "纯时序预测控制实验 - 原图输入无时序降采样"
+  device: cuda
+  seed: 2025
+  output_dir: runs
+  log_every_n_steps: 5
+
+# 设备与并行
+device:
+  accelerator: cuda
+  devices: 1
+  strategy: none
+  allow_data_parallel_fallback: true
+  precision: fp32
+
+# 启用专用时序模型
+ar:
+  enabled: true
+
+# 启用专用时序模型架构 - 保持与对照组一致
+sequential:
+  enabled: true
+  model_type: "SequentialSpatiotemporalModel"
+  
+  # 空间配置 - 保持与对照组一致
+  spatial:
+    in_channels: 1
+    spatial_feature_dim: 128
+    out_channels: 1
+    img_size: [128, 128]
+    backbone_type: "fno2d"
+    backbone_config:
+      modes1: 12
+      modes2: 12  
+      width: 64
+      n_layers: 4
+      activation: 'gelu'
+  
+  # 时序配置 - 保持与对照组一致
+  temporal:
+    spatial_feature_dim: 128
+    temporal_dim: 256
+    out_channels: 1
+    img_size: [128, 128]
+    num_heads: 8
+    num_layers: 4
+    dropout: 0.1
+  
+  # 一致性检查配置
+  consistency:
+    enabled: true
+    spatial_temporal_consistency: true
+    feature_consistency_weight: 0.3
+  
+  # 训练配置
+  training:
+    two_stage_training: true
+    stage1_epochs: 1000
+    stage2_epochs: 1000
+    spatial_loss_weight: 1.0
+    temporal_loss_weight: 1.0
+
+# 禁用ARWrapper
+model_wrapper:
+  enabled: false
+
+# 模型配置 - 保持与对照组一致
+model:
+  name: fno2d
+  in_channels: 1
+  out_channels: 1
+  img_size: 128
+  modes1: 12
+  modes2: 12  
+  width: 64
+  n_layers: 4
+  activation: 'gelu'
+
+# 数据配置 - 关键修改：移除SR降采样
+data:
+  data_path: "data/DR2D/2D_diff-react_NA_NA.h5"
+  dataset_name: RealDiffusionReaction
+  img_size: 128
+  keys: ["data"]
+  component: u
+  use_official_format: true
+  splits_dir: splits
+  target_channels: 1
+  input_channels: 1
+  sample_limit: 10  # Debug模式小样本
+  
+  # AR特定配置 - 关键修改：原图输入，无降采样
+  T_in: 1
+  T_out: 5
+  
+  # 数据集分割配置
+  train_ratio: 0.8
+  val_ratio: 0.15
+  test_ratio: 0.05
+  
+  # 时间步配置
+  time_step_start: 0
+  time_step_end: 50
+  time_step_stride: 1
+  
+  # 关键修改：观测配置 - 原图模式，无SR处理

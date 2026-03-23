@@ -1,0 +1,220 @@
+# AR训练配置文件 - UNet调试版本
+experiment:
+  name: "AR-DR2D-Debug100-UNet-s2025"
+  description: "100epoch调试 - UNet模型"
+  device: cuda
+  seed: 2025
+  output_dir: runs
+  log_every_n_steps: 5
+
+device:
+  accelerator: cuda
+  devices: 2
+  strategy: ddp
+  allow_data_parallel_fallback: true
+  precision: bf16-mixed
+
+ar:
+  enabled: false
+
+sequential:
+  enabled: false
+
+data:
+  data_path: "data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+  dataset_name: RealDiffusionReaction
+  img_size: 128
+  keys: ["data"]
+  use_official_format: true
+  splits_dir: splits
+  target_channels: 1
+  input_channels: 1
+  sample_limit: 100
+  T_in: 1
+  T_out: 1
+  train_ratio: 0.8
+  val_ratio: 0.15
+  test_ratio: 0.05
+  time_step_start: 0
+  time_step_end: 50
+  time_step_stride: 1
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 2
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+      downsample_mode: area
+      align_corners: false
+      antialias: true
+  normalize: true
+  augmentation:
+    enabled: false
+  use_synthetic_data: false
+  dataloader:
+    batch_size: 2048
+    val_batch_size: 735
+    test_batch_size: 245
+    num_workers: 24
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 8
+    drop_last: true
+    shuffle: true
+    timeout: 60
+
+hardware:
+  allow_tf32: true
+  memory:
+    cudnn_benchmark: true
+
+model:
+  name: UNet
+  in_channels: 4
+  out_channels: 1
+  img_size: 128
+  base_channels: 64
+  channel_multipliers: [1, 2, 4, 8]
+  num_res_blocks: 2
+  attention_resolutions: [16, 8]
+  num_heads: 8
+  activation: swish
+  norm: group
+  dropout: 0.1
+  ar_config:
+    detach_rollout: true
+    scheduled_sampling: false
+    teacher_forcing_ratio: 1.0
+
+training:
+  epochs: 100
+  batch_size: 2048
+  gradient_accumulation_steps: 1
+  torch_compile: false
+  channels_last: true
+  dataloader:
+    batch_size: 2048
+  loss_weights:
+    reconstruction: 1.0
+    spectral: 0.0
+    data_consistency: 0.0
+    val_batch_size: 64
+    test_batch_size: 32
+    num_workers: 4
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 4
+    drop_last: true
+    shuffle: true
+  validation:
+    enabled: true
+    check_val_every_n_epoch: 5
+    save_val_batch_for_viz: false
+    log_val_metrics: false
+  optimizer:
+    name: "AdamW"
+    lr: 0.001
+    weight_decay: 0.0001
+    betas: [0.9, 0.999]
+    eps: 1e-8
+    fused: false
+    foreach: false
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 95
+    eta_min: 1e-6
+    warmup_epochs: 5
+  gradient_clip_val: 1.0
+  gradient_clip_algorithm: norm
+  amp:
+    enabled: true
+    autocast_dtype: bfloat16
+  curriculum:
+    enabled: false
+    stages: []
+  checkpoint:
+    save_best: true
+    save_last: true
+    max_keep: 5
+    monitor: val_loss
+    mode: min
+    save_every_n_epochs: 20
+  early_stopping:
+    enabled: false
+    patience: 200
+    monitor: val_loss
+    mode: min
+    min_delta: 1e-6
+
+loss:
+  ar_loss:
+    weight: 0.0
+    reduction: mean
+  reconstruction:
+    weight: 1.0
+  spectral:
+    weight: 0.0
+  degradation_consistency:
+    weight: 0.0
+  gradient_weight: 0.0
+
+validation:
+  check_val_every_n_epoch: 5
+  use_observation: false
+  metrics:
+    - rel_l2
+    - mae
+  rollout_steps: [1]
+  convergence_criteria:
+    target_rel_l2: 0.5
+    patience_for_convergence: 3
+    min_improvement: 1e-3
+
+logging:
+  experiment_name: "AR-DR2D-100epoch-UNet-s2025"
+  version: null
+  default_hp_metric: false
+  log_model: false
+  performance_monitoring:
+    log_gpu_memory: true
+    log_throughput: true
+    log_batch_time: true
+  tensorboard:
+    save_dir: runs/tensorboard
+    name: ar_training_debug_unet
+    version: null
+  visualization:
+    save_samples_every_n_epochs: 20
+    num_samples_to_save: 5
+    save_training_curves: true
+    save_rollout_visualization: false
+
+seed: 2025
+
+testing:
+  enabled: false
+  run_final_test: false
+  save_predictions: false
+  compute_detailed_metrics: false
+  batch_size: 32
+  save_visualizations: false
+  num_visualization_samples: 0
+  fast_mode: false
+  skip_complex_metrics: false
+  minimal_logging: false
+
+data_augmentation:
+  enable: false
+  random_rotation: 
+    enable: false
+    degrees: [-5, 5]
+  random_flip:
+    enable: false
+    horizontal: 0.5
+    vertical: 0.3
+  gaussian_noise:
+    enable: false
+    std: 0.01
+  normalize_per_sample: false
+  compute_statistics: false

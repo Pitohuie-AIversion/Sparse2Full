@@ -1,0 +1,44 @@
+# Sequential Training Configuration
+defaults:
+  - ar_training_config
+  - _self_
+
+experiment:
+  name: "Sequential-Swin-Transformer"
+
+# 空间模型配置 (Swin-UNet)
+model:
+  spatial:
+    in_channels: 1  # 会被自动计算覆盖
+    img_size: 128
+    patch_size: 4
+    window_size: 8
+    depths: [2, 2, 2]
+    num_heads: [4, 8, 16]
+    embed_dim: 96
+    hidden_dim: 128 # 空间特征维度
+
+# 时序模型配置 (Transformer)
+temporal:
+  encoder_type: "transformer" # or "conv1d"
+  d_model: 256
+  nhead: 4
+  num_layers: 2
+  dim_feedforward: 512
+  dropout: 0.1
+  use_spatial_features: true
+  
+# 损失权重
+loss:
+  spatial_weight: 1.0
+  temporal_weight: 1.0
+
+# 训练参数覆盖
+training:
+  batch_size: 8
+  epochs: 50
+  lr: 1e-4
+  
+data:
+  T_in: 1
+  T_out: 10 # 时序预测长度

@@ -1,0 +1,125 @@
+# 评测配置文件
+# PDEBench稀疏观测重建系统评测
+
+# 数据配置
+data:
+  _target_: datasets.pdebench.PDEBenchDataModule
+  data_path: "data/pdebench/data/sample_data_0.h5"
+  dataset_name: "data"
+  splits_dir: "splits"
+  keys: ["u"]
+  image_size: 256
+  use_official_format: false
+  train_split: "train"
+  val_split: "val"
+  test_split: "test"
+  
+  # 观测模式配置
+  observation:
+    mode: "SR"
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: "mirror"
+      noise_std: 0.0
+    crop:
+      crop_size: [64, 64]
+      patch_align: 8
+      crop_strategy: "mixed"
+      boundary_mode: "mirror"
+  
+  # 数据加载器配置
+  dataloader:
+    batch_size: 16
+    num_workers: 0
+    pin_memory: true
+    persistent_workers: false
+
+# 模型配置
+model:
+  checkpoint_path: null  # 将在运行时指定
+  device: "cuda"
+
+# 评测指标配置
+metrics:
+  # 基础指标
+  basic_metrics:
+    - "rel_l2"      # 相对L2误差
+    - "mae"         # 平均绝对误差
+    - "psnr"        # 峰值信噪比
+    - "ssim"        # 结构相似性
+  
+  # 频域指标
+  frequency_metrics:
+    - "frmse_low"   # 低频RMSE (k≤16)
+    - "frmse_mid"   # 中频RMSE (16<k≤64)
+    - "frmse_high"  # 高频RMSE (k>64)
+  
+  # 边界指标
+  boundary_metrics:
+    - "brmse"       # 边界RMSE (16px边界带)
+  
+  # 一致性指标
+  consistency_metrics:
+    - "dc_error"    # 数据一致性误差 ||H(ŷ)-y||
+    - "crmse"       # 裁剪区域RMSE
+  
+  # 频域参数
+  frequency_params:
+    low_freq_threshold: 16
+    mid_freq_threshold: 64
+    boundary_width: 16
+
+# 统计分析配置
+statistics:
+  # 多种子统计
+  compute_statistics: true
+  min_seeds: 3
+  confidence_level: 0.95
+  
+  # 显著性检验
+  significance_test:
+    method: "paired_t_test"  # paired_t_test, independent_t_test
+    alpha: 0.05
+    effect_size: "cohen_d"
+  
+  # 基线比较
+  baseline_model: null  # 将在运行时指定
+
+# 输出配置
+output:
+  save_dir: "eval_results"
+  save_formats: ["json", "csv", "markdown"]
+  
+  # 详细输出
+  save_per_case_metrics: true
+  save_predictions: false  # 是否保存预测结果
+  save_visualizations: true
+  
+  # 可视化配置
+  visualization:
+    num_samples: 5  # 可视化样本数
+    save_error_maps: true
+    save_frequency_plots: true
+    save_boundary_analysis: true
+
+# 一致性验证配置
+consistency_check:
+  enable: true
+  tolerance: 1e-8  # 数值精度容忍度
+  num_samples: 100  # 随机抽样验证数量
+
+# 资源统计配置
+resource_profiling:
+  enable: true
+  profile_memory: true
+  profile_flops: true
+  profile_latency: true
+  warmup_runs: 5
+  benchmark_runs: 20
+
+# 日志配置
+logging:
+  level: "INFO"
+  save_logs: true

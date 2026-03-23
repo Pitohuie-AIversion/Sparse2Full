@@ -1,0 +1,162 @@
+# AR训练配置文件 - 临时版本（减少workers）
+# 基于之前成功的配置，适配当前环境
+
+experiment:
+  name: "AR-DR2D-T20-SwinUNet-s2025"
+  description: "20步AR自回归训练 - 扩散反应数据"
+  device: cuda:0
+  seed: 2025
+  output_dir: runs
+  log_every_n_steps: 10
+
+# 数据配置
+data:
+  data_path: "data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+  dataset_name: PDEBench
+  keys: ["tensor"]
+  splits_dir: splits
+  image_size: 128
+  sample_limit: 10000
+  
+  # AR特定配置
+  T_in: 1      # 输入时间步数
+  T_out: 20    # 输出时间步数（20步AR预测）
+  
+  # 观测配置
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 2
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+  
+  # 预处理
+  preprocessing:
+    normalize: true
+    cache_data: false
+    augmentation:
+      enabled: false
+      flip_prob: 0.0
+      rotate_prob: 0.0
+      noise_std: 0.0
+  
+  # 数据加载器 - 减少workers避免错误
+  dataloader:
+    batch_size: 512  # 双GPU，每卡256，总批次512
+    num_workers: 8   # 减少worker数量避免错误
+    pin_memory: true
+    persistent_workers: true  # 启用持久化worker提升性能
+    prefetch_factor: 4  # 预取更多批次
+
+# 模型配置
+model:
+  name: SwinUNet
+  in_channels: 1
+  out_channels: 1
+  img_size: 128
+  patch_size: 4
+  embed_dim: 96
+  depths: [2, 2, 6, 2]
+  num_heads: [3, 6, 12, 24]
+  window_size: 7
+  mlp_ratio: 4.0
+  qkv_bias: true
+  drop_rate: 0.0
+  attn_drop_rate: 0.0
+  drop_path_rate: 0.1
+  norm_layer: LayerNorm
+  ape: false
+  patch_norm: true
+  use_checkpoint: false
+  
+  # AR包装器配置
+  ar:
+    T_in: 1
+    T_out: 20
+    teacher_forcing_ratio: 0.5  # 50%概率使用teacher forcing
+
+# 训练配置
+training:
+  epochs: 50
+  warmup_epochs: 5
+  
+  # 优化器
+  optimizer:
+    name: AdamW
+    lr: 1e-4
+    weight_decay: 1e-4
+    betas: [0.9, 0.999]
+    eps: 1e-8
+  
+  # 学习率调度
+  scheduler:
+    name: CosineAnnealingLR
+    T_max: 50
+    eta_min: 1e-6
+  
+  # 混合精度
+  amp:
+    enabled: true
+    
+  # 梯度裁剪
+  grad_clip:
+    enabled: true
+    max_norm: 1.0
+  
+  # 课程学习
+  curriculum:
+    enabled: true
+    start_T_out: 5     # 从5步开始
+    end_T_out: 20      # 最终20步
+    growth_epochs: 20  # 20个epoch内逐步增长
+  
+  # 自适应批次大小
+  adaptive_batch_size:
+    enabled: true
+    min_batch_size: 32
+    max_batch_size: 512
+    oom_patience: 3
+
+# 损失配置
+loss:
+  reconstruction:
+    name: MSELoss
+    weight: 1.0
+  
+  spectral:
+    enabled: true
+    weight: 0.5
+    low_freq_modes: 16
+  
+  degradation_consistency:
+    enabled: true
+    weight: 1.0
+
+# 验证配置
+validation:
+  every_n_epochs: 1
+  metrics: ["rel_l2", "mae", "psnr", "ssim"]
+
+# 测试配置
+test:
+  enabled: true
+  metrics: ["rel_l2", "mae", "psnr", "ssim", "frmse_low", "frmse_mid", "frmse_high"]
+  save_predictions: true
+  num_visualizations: 5
+
+# 检查点配置
+checkpoint:
+  save_every_n_epochs: 5
+  save_best: true
+  monitor_metric: "val_rel_l2"
+  mode: "min"
+
+# 日志配置
+logging:
+  level: INFO
+  tensorboard: true
+  wandb:
+    enabled: false
+    project: "sparse2full"
+    entity: null

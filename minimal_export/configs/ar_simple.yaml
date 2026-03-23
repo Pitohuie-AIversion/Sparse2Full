@@ -1,0 +1,143 @@
+# 简单AR训练配置
+# 基于现有的train.py架构
+
+experiment:
+  name: "AR-DR2D-T20-SwinUNet-s2025"
+  device: cuda:0
+  seed: 2025
+  output_dir: runs
+
+data:
+  data_path: "E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5"
+  dataset_name: PDEBench
+  keys: ["tensor"]
+  splits_dir: splits
+  image_size: 128
+  sample_limit: 1000  # 使用小数据集测试
+  
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 2
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+  
+  preprocessing:
+    normalize: true
+    cache_data: false
+  
+  dataloader:
+    batch_size: 2
+    num_workers: 2
+    pin_memory: true
+    persistent_workers: false
+
+model:
+  name: SwinUNet
+  params:
+    in_channels: 5
+    out_channels: 2
+    img_size: 128
+    kwargs:
+      patch_size: 4
+      window_size: 8
+      depths: [2, 2, 6, 2]
+      num_heads: [3, 6, 12, 24]
+      embed_dim: 96
+      mlp_ratio: 4.0
+      drop_rate: 0.0
+      attn_drop_rate: 0.0
+      drop_path_rate: 0.1
+
+# AR特定配置
+ar:
+  enabled: true
+  T_in: 1
+  T_out: 20
+  detach_rollout: true
+  teacher_forcing_ratio: 1.0
+
+training:
+  epochs: 50
+  optimizer:
+    name: adamw
+    lr: 5e-5
+    weight_decay: 1e-4
+    betas: [0.9, 0.999]
+  
+  scheduler:
+    name: reduce_lr_on_plateau
+    mode: min
+    factor: 0.5
+    patience: 10
+    min_lr: 1e-7
+    threshold: 1e-4
+    threshold_mode: rel
+    cooldown: 3
+    verbose: true
+  
+  gradient_clip_val: 0.5
+  gradient_clip_algorithm: norm
+  
+  amp:
+    enabled: true
+    opt_level: O1
+  
+  checkpoint:
+    save_best: true
+    save_last: true
+    max_keep: 3
+    monitor: val_loss
+    mode: min
+  
+  early_stopping:
+    enabled: true
+    patience: 15
+    monitor: val_loss
+    mode: min
+    min_delta: 1e-6
+
+loss:
+  reconstruction:
+    weight: 1.0
+  spectral:
+    weight: 0.1
+  degradation_consistency:
+    weight: 0.5
+  gradient_weight: 0.0
+
+validation:
+  metrics:
+    - rel_l2
+    - mae
+    - psnr
+    - ssim
+  
+  convergence_criteria:
+    target_rel_l2: 0.3
+    patience_for_convergence: 10
+    min_improvement: 1e-4
+
+device:
+  accelerator: gpu
+  devices: 1
+  precision: 16
+
+logging:
+  experiment_name: "AR-DR2D-T20-SwinUNet-s2025"
+  version: null
+  default_hp_metric: false
+  log_model: true
+  
+  tensorboard:
+    save_dir: runs/tensorboard
+    name: ar_training
+    version: null
+  
+  visualization:
+    save_samples_every_n_epochs: 5
+    num_samples_to_save: 3
+    save_training_curves: true
+
+seed: 2025

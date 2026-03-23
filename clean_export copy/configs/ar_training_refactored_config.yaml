@@ -1,0 +1,445 @@
+# 真实扩散-反应数据AR训练配置 - 重构版本
+# 基于模块化架构的高性能训练配置
+
+experiment:
+  name: "Real-DR2D-AR-T20-128-SwinUNet-s2025"
+  seed: 2025
+  seeds: [42, 123, 456]  # 多种子训练
+  use_multi_seeds: false
+  output_dir: "runs"
+  device: "cuda"
+  precision: "16-mixed"  # 16-mixed, bf16-mixed, 32
+  log_every_n_steps: 10
+  save_config_snapshot: true
+  
+  # 分布式训练设置
+  distributed:
+    backend: "nccl"
+    find_unused_parameters: false
+    gradient_as_bucket_view: true
+    static_graph: true
+
+data:
+  # 数据路径和基本参数
+  data_path: "E:/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+  T_in: 1
+  T_out: 20
+  img_size: 128
+  channels: 2
+  
+  # 数据分割
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  
+  # 时间步设置
+  time_step_start: 0
+  time_step_end: 980
+  time_step_stride: 1
+  
+  # 数据预处理
+  normalize: true
+  max_samples: 512  # 限制最大样本数用于测试
+  
+  # 数据增强
+  augmentation:
+    enabled: true
+    flip_prob: 0.5
+    rotate_prob: 0.3
+    noise_std: 0.01
+    
+  # 数据键名
+  keys: ["u", "v"]
+  
+  # 数据加载器配置
+  dataloader:
+    batch_size: 8
+    val_batch_size: 8
+    test_batch_size: 1
+    num_workers: 0  # 根据硬件调整
+    pin_memory: false  # 根据硬件调整
+    persistent_workers: false  # 根据num_workers自动调整
+    prefetch_factor: null  # 根据num_workers自动调整
+    drop_last: true
+    shuffle: true
+
+model:
+  name: "SwinUNet"
+  
+  # 输入输出通道
+  in_channels: 2
+  out_channels: 2
+  
+  # 图像尺寸
+  img_size: 128
+  
+  # Swin Transformer参数
+  patch_size: 4
+  window_size: 8
+  depths: [2, 2, 6, 2]
+  num_heads: [3, 6, 12, 24]
+  embed_dim: 96
+  mlp_ratio: 4.0
+  
+  # Dropout参数
+  drop_rate: 0.1
+  attn_drop_rate: 0.1
+  drop_path_rate: 0.2
+  
+  # 其他参数
+  norm_layer: "LayerNorm"
+  ape: false  # 绝对位置编码
+  patch_norm: true
+  use_checkpoint: false  # 梯度检查点
+
+training:
+  epochs: 100
+  batch_size: 8
+  accumulate_grad_batches: 1
+  
+  # 优化器配置
+  optimizer:
+    name: "AdamW"
+    lr: 1e-4
+    weight_decay: 1e-4
+    betas: [0.9, 0.999]
+    eps: 1e-8
+    amsgrad: false
+  
+  # 学习率调度器
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 100  # 通常等于epochs
+    eta_min: 1e-6
+    warmup_epochs: 10
+    warmup_start_lr: 1e-6
+  
+  # 梯度裁剪
+  gradient_clip_val: 1.0
+  
+  # 自动混合精度(AMP)
+  amp:
+    enabled: true
+    opt_level: "O1"  # apex风格
+    dtype: "float16"  # float16, bfloat16
+    
+  # 课程学习
+  curriculum:
+    enabled: true
+    stages:
+      - epochs: 20
+        T_out: 5
+        description: "阶段1: 预测5步"
+        lr_factor: 1.0
+      - epochs: 40
+        T_out: 10
+        description: "阶段2: 预测10步"
+        lr_factor: 1.0
+      - epochs: 40
+        T_out: 15
+        description: "阶段3: 预测15步"
+        lr_factor: 1.0
+      - epochs: 80
+        T_out: 20
+        description: "阶段4: 预测20步（最终目标）"
+        lr_factor: 1.0
+  
+  # 早停
+  early_stopping:
+    enabled: true
+    patience: 50
+    min_delta: 1e-4
+    monitor: "val_loss"
+    mode: "min"
+    verbose: true
+  
+  # 检查点保存
+  checkpoint:
+    save_last: true
+    save_best: true
+    save_every_n_epochs: 0  # 0表示不额外保存
+    max_keep: 2  # 保留的检查点数量
+    monitor: "val_loss"
+    mode: "min"
+
+loss:
+  # 重构损失
+  reconstruction:
+    weight: 1.0
+    loss_type: "mse"  # mse, l1, huber
+    reduction: "mean"
+  
+  # 频域损失
+  spectral:
+    weight: 0.5
+    low_freq_modes: 16
+    use_rfft: false
+    normalize: false
+    boundary_mode: "mirror"  # mirror, zero, wrap
+  
+  # 数据一致性损失
+  data_consistency:
+    weight: 1.0
+    loss_type: "mse"
+    reduction: "mean"
+  
+  # 退化一致性损失
+  degradation_consistency:
+    weight: 0.0
+    loss_type: "mse"
+    reduction: "mean"
+  
+  # 梯度损失
+  gradient_weight: 0.0
+  gradient_loss_type: "l1"
+  gradient_reduction: "mean"
+
+observation:
+  # 观测模式
+  mode: "sr"  # sr (超分辨率), crop (裁剪), identity (恒等)
+  
+  # 超分辨率参数
+  scale_factor: 2
+  blur_sigma: 1.0
+  kernel_size: 5
+  boundary: "mirror"  # mirror, zero, wrap
+  downsample_interpolation: "area"  # area, bilinear, nearest
+  
+  # 裁剪参数
+  crop_size: null  # 例如: [64, 64]
+  crop_box: null   # 例如: [32, 32, 96, 96]
+  
+  # 其他参数
+  normalize_input: true
+  add_noise: false
+  noise_std: 0.01
+
+validation:
+  # 验证频率
+  check_val_every_n_epoch: 5
+  val_check_interval: 0.5  # 每0.5个epoch验证一次
+  
+  # 验证指标
+  metrics:
+    - "mse"
+    - "mae"
+    - "rel_l2"
+    - "psnr"
+    - "ssim"
+    - "temporal_mse"
+    - "long_term_stability"
+    - "energy_conservation"
+  
+  # 验证数据比例
+  val_data_ratio: 1.0  # 使用全部验证数据
+  
+  # 验证可视化
+  visualization:
+    enabled: true
+    num_samples: 4
+    save_plots: true
+    plot_formats: ["png", "pdf"]
+
+performance_monitoring:
+  enabled: true
+  report_interval_seconds: 30
+  
+  # 性能阈值
+  gpu_low_threshold: 0.90
+  iowait_high_threshold: 0.12
+  cpu_low_threshold: 0.80
+  
+  # 自动调整参数
+  num_workers_step: 4
+  prefetch_factor_step: 2
+  batch_size_step: 8
+  
+  # 资源监控
+  monitor_gpu_memory: true
+  monitor_cpu_usage: true
+  monitor_disk_io: true
+  monitor_network_io: false
+  
+  # 性能优化建议
+  auto_optimization: true
+  optimization_level: "balanced"  # conservative, balanced, aggressive
+
+hardware:
+  # 数据加载硬件设置
+  num_workers: 0  # 0表示自动选择
+  pin_memory: false
+  persistent_workers: false
+  
+  # CUDA设置
+  allow_tf32: true
+  cudnn_benchmark: true
+  cudnn_deterministic: false
+  
+  # 内存优化
+  max_split_size_mb: 512
+  garbage_collection_threshold: 0.6
+  
+  # 其他设置
+  omp_num_threads: null  # null表示使用默认值
+  mkldnn_enabled: true
+
+testing:
+  enabled: true
+  run_final_test: true
+  batch_size: 1
+  
+  # 测试数据比例
+  test_data_ratio: 1.0  # 使用全部测试数据
+  
+  # 测试可视化
+  visualization:
+    enabled: true
+    num_samples: 8
+    save_plots: true
+    plot_formats: ["png", "pdf"]
+    include_spectrum: true
+    include_error_map: true
+
+paper_package:
+  auto_generate: true
+  
+  # 生成内容
+  generate_checkpoints: true
+  generate_metrics: true
+  generate_plots: true
+  generate_config: true
+  
+  # 数据卡
+  data_cards:
+    enabled: true
+    include_source_info: true
+    include_license_info: true
+  
+  # 实验信息
+  include_git_info: true
+  include_environment_info: true
+  include_hardware_info: true
+  
+  # 输出格式
+  output_formats: ["json", "yaml", "csv"]
+  
+  # 盲审模式
+  blind_review_mode: false
+  anonymize_paths: false
+
+# 日志配置
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  date_format: "%Y-%m-%d %H:%M:%S"
+  
+  # 日志文件
+  save_to_file: true
+  max_file_size_mb: 100
+  backup_count: 5
+  
+  # 控制台输出
+  console_output: true
+  console_level: "INFO"
+  
+  # 性能日志
+  performance_log_enabled: true
+  performance_log_interval: 60  # 秒
+
+# 可视化配置
+visualization:
+  enabled: true
+  backend: "matplotlib"  # matplotlib, plotly
+  style: "seaborn-v0_8"  # matplotlib样式
+  figsize: [12, 8]
+  dpi: 150
+  
+  # 颜色配置
+  colormap: "viridis"
+  error_colormap: "RdBu_r"
+  
+  # 保存选项
+  save_format: "png"
+  save_dpi: 300
+  bbox_inches: "tight"
+  
+  # 交互式可视化
+  interactive: false
+  show_plots: false
+
+# 实验重现性
+reproducibility:
+  # 随机种子
+  torch_deterministic: false
+  torch_benchmark: false
+  
+  # CUDA确定性
+  cuda_deterministic: false
+  
+  # 环境变量
+  set_pythonhashseed: false
+  
+  # 数据加载
+  deterministic_dataloader: false
+  
+  # 警告处理
+  suppress_warnings: false
+  warning_categories: ["UserWarning", "FutureWarning"]
+
+# 调试配置
+debug:
+  enabled: false
+  
+  # 调试选项
+  verbose_logging: false
+  save_intermediate_results: false
+  check_gradients: false
+  check_numerics: false
+  
+  # 内存调试
+  memory_profiling: false
+  memory_snapshot_interval: 100
+  
+  # 性能调试
+  profile_training: false
+  profile_inference: false
+  
+  # 断点调试
+  enable_breakpoints: false
+  breakpoint_conditions: []
+
+# 资源限制
+resource_limits:
+  # 内存限制 (GB)
+  max_memory_gb: 32
+  
+  # 时间限制 (小时)
+  max_training_hours: 48
+  
+  # 检查点限制
+  max_checkpoints: 10
+  
+  # 日志文件限制 (MB)
+  max_log_size_mb: 1000
+  
+  # 临时文件限制
+  max_temp_size_mb: 5000
+
+# 兼容性设置
+compatibility:
+  # PyTorch版本兼容性
+  min_pytorch_version: "2.1.0"
+  max_pytorch_version: "2.2.0"
+  
+  # CUDA版本兼容性
+  min_cuda_version: "11.8"
+  max_cuda_version: "12.2"
+  
+  # Python版本兼容性
+  min_python_version: "3.10"
+  max_python_version: "3.12"
+  
+  # 操作系统兼容性
+  supported_os: ["Linux", "Windows", "macOS"]
+  
+ 

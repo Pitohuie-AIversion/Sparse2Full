@@ -1,0 +1,353 @@
+# AR训练配置文件 - FNO2D空间模型版本
+# 基于之前成功的配置，适配FNO2D模型避免复数运算问题
+
+experiment:
+  name: "AR-DR2D-Debug-FNO2D-Staged-s2025"
+  description: "FNO2D分阶段AR训练 - 避免复数运算问题"
+  device: cuda
+  seed: 2025
+  output_dir: runs
+  log_every_n_steps: 5  # 更频繁的日志输出
+
+# 设备与并行（单GPU）- 避免DDP复数问题
+device:
+  accelerator: cuda
+  devices: 2
+  strategy: ddp
+  allow_data_parallel_fallback: true
+  precision: fp32  # 使用FP32避免BF16复数问题
+
+ar:
+  enabled: true                   # 开启AR训练路径
+
+sequential:
+  enabled: false                  # 关闭分阶段NAR路径，改用ARWrapper
+  model_type: "SequentialSpatiotemporalModel"
+  
+  # 训练控制仅保留在全局 training 段，避免重复键
+  
+  # 一致性检查配置
+  consistency:
+    enabled: true
+    spatial_temporal_consistency: true
+    feature_consistency_weight: 0.3
+  temporal:
+    backend: tcn
+    temporal_dim: 256
+    out_channels: 1
+    img_size: [128, 128]
+    num_layers: 6
+    dropout: 0.3
+    reduce_spatial: avg_pool
+    reduce_size: [64, 64]
+    kernel_size: 3
+    dilation_base: 2
+    use_positional_encoding: true
+  
+  # 训练配置
+  training:
+    two_stage_training: true
+    stage1_epochs: 0
+    stage2_epochs: 30
+    spatial_loss_weight: 1.0      # 空间损失权重
+    temporal_loss_weight: 1.0     # 时序损失权重
+  
+# 禁用ARWrapper，使用专用模型
+model_wrapper:
+  enabled: false                 # 禁用ARWrapper
+
+model:
+  name: fno2d  # 使用FNO2D作为空间特征骨干（与128分辨率一致）
+  in_channels: 1
+  out_channels: 1
+  img_size: 128
+  modes1: 8
+  modes2: 8
+  width: 32
+  n_layers: 3
+  activation: 'gelu'
+
+# 注：已存在logging段，保持单一logging配置，避免重复键
+
+# 数据配置
+data:
+  data_path: "data/DR2D/2D_diff-react_NA_NA.h5"
+  dataset_name: RealDiffusionReaction
+  # 移除splits_dir，因为RealDiffusionReactionDataModule不使用splits文件
+  img_size: 128  # 匹配实际数据分辨率
+  keys: []
+  component: u        # 选择u分量（第1通道），可改为v选择第2通道
+  use_official_format: true
+  splits_dir: splits  # 启用z-score统计（保存/加载norm_stat.npz）
+  target_channels: 1  # 单通道预测
+  input_channels: 1   # 单通道观测
+  sample_limit: 100
+  
+  # AR特定配置 - 分阶段时序预测
+  T_in: 9
+  T_out: 5     # 目标：5步时序预测（课程学习逐步增加）
+  # channels: 1  # 注释掉，不需要用于ARWrapper
+  
+  # 数据集分割配置 - Debug模式：大幅减少测试集
+  train_ratio: 0.8
+  val_ratio: 0.15
+  test_ratio: 0.05  # Debug模式：仅5%用于测试（约35个样本）
+  
+  # 时间步配置
+  time_step_start: 0
+  time_step_end: 101  # 使用全部101个时间步（0..100），stride=1
+  time_step_stride: 1
+  
+  # 观测配置 - 降采样输入
+  observation:
+    mode: none
+    sr: {}
+    # 禁用额外的坐标、掩码通道（仅使用1个观测通道）
+    use_coords: false
+    use_mask: false
+  
+  # 预处理
+  normalize: true
+  augmentation:
+    enabled: false
+    flip_prob: 0.0
+    rotate_prob: 0.0
+    noise_std: 0.0
+
+  # 启用合成数据模式用于调试
+  use_synthetic_data: false
+  synthetic_data_config:
+    num_samples: 1000  # 合成数据样本数量
+    image_size: 128
+    channels: 2
+    
+  # 数据加载器（优化I/O避免阻塞）
+  dataloader:
+    batch_size: 128
+    val_batch_size: 128
+    test_batch_size: 128
+    num_workers: 0
+    pin_memory: false
+    persistent_workers: false
+    prefetch_factor: 1
+    drop_last: false
+    shuffle: true
+    timeout: 0
+    # 删除不兼容字段，交由训练脚本条件设置
+  
+
+  
+hardware:
+  allow_tf32: false    # 禁用TF32确保FNO2D精度
+  memory:
+    cudnn_benchmark: false    # 禁用cudnn benchmark避免复数问题
+  torch_threads: 64
+  mkl_threads: 64
+  omp_threads: 64
+  interop_threads: 64
+  numexpr_threads: 64
+  blas_threads: 64
+  vram_threshold: 0.98
+
+# 训练配置 - SequentialSpatiotemporalModel专用配置
+training:
+  epochs: 30
+  batch_size: 32
+  gradient_accumulation_steps: 3
+  memory_threshold: 0.85
+  memory_cleanup_frequency: 5
+  
+  # 专用时序模型优化配置
+  torch_compile: false  # 保持禁用确保稳定性
+  torch_compile_backend: "inductor"
+  torch_compile_mode: "reduce-overhead"
+  channels_last: true   # 启用channels_last以提升显存与吞吐
+  
+  # 专用时序模型训练配置
+  dataloader:
+    batch_size: 64
+    num_workers: 0
+    pin_memory: false
+    persistent_workers: false
+    prefetch_factor: 1
+
+  loss_weights:
+    reconstruction: 1.0
+    spectral: 0.0
+    data_consistency: 0.0
+    derivative_consistency: 0.3
+    energy_consistency: 0.2
+  
+  # 专用时序模型验证配置
+  validation:
+    enabled: true
+    check_val_every_n_epoch: 1
+    save_val_batch_for_viz: false
+    log_val_metrics: true  # 启用详细验证日志
+  
+  # 专用时序模型优化器配置 - 适配Transformer
+  optimizer:
+    name: "AdamW"
+    lr: 0.001
+    weight_decay: 0.0001
+    betas: [0.9, 0.999]
+    eps: 1e-8
+    fused: false
+    foreach: false
+  
+  # 专用时序模型调度器配置
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 1045
+    eta_min: 1e-6
+    warmup_epochs: 5    # 增加warmup epochs for Transformer
+  
+  # 分布式训练配置
+  distributed:
+    enabled: false
+    backend: "nccl"
+    init_method: "env://"
+  
+  # 基本训练设置
+  gradient_clip_val: 0.5
+  gradient_clip_algorithm: norm
+  
+  # AMP配置 - 适配专用时序模型
+  amp:
+    enabled: false    # 保持禁用确保稳定性
+    autocast_dtype: float32
+  
+  # 专用时序模型训练策略 - 基于sequential配置
+  curriculum:
+    enabled: true
+    stages:
+      - {T_out: 1, epochs: 10}
+      - {T_out: 3, epochs: 10}
+      - {T_out: 5, epochs: 10}
+    teacher_forcing_decay: 0.65
+    freeze_spatial: true
+    two_stage_training: true
+    stage1_epochs: 0
+    spatial_loss_weight: 0.0
+    temporal_loss_weight: 1.0
+  
+  # 检查点配置
+  checkpoint:
+    save_best: true
+    save_last: true
+    max_keep: 3    # 减少保留的检查点数量
+    monitor: val_loss
+    mode: min
+    save_every_n_epochs: 10    # 增加保存频率便于调试
+  
+  # 早停配置
+  early_stopping:
+    enabled: false
+    patience: 50    # 减少耐心值
+    monitor: val_loss
+    mode: min
+    min_delta: 1e-4
+
+# AR损失配置 - 仅使用R2损失，其他损失权重设为0
+loss:
+  # AR特定损失 - 时序预测损失 (权重设为0)
+  ar_loss:
+    weight: 0.0                     # 禁用AR时序损失
+    reduction: mean
+  
+  # 辅助损失 - 仅保留R2损失，其他设为0
+  reconstruction:
+    weight: 0.0                     # 禁用重建损失
+  spectral:
+    weight: 0.0                     # 禁用频谱损失
+  degradation_consistency:
+    weight: 0.0                     # 禁用DC一致性损失
+  gradient_weight: 0.0              # 禁用梯度损失
+  
+  # R2损失配置 - 仅使用R2损失
+  r2:
+    weight: 1.0                     # 启用R2损失作为唯一损失函数
+    reduction: mean
+  rel2_weight: 1.0
+  mae_weight: 0.1
+
+# 验证配置 - 分阶段收敛标准
+validation:
+  check_val_every_n_epoch: 5    # 每5个epoch验证一次
+  use_observation: false
+  
+  metrics:
+    - rel_l2                     # 核心指标：相对L2误差
+    - mae                        # 平均绝对误差
+  
+  # AR特定验证 - 多时序步验证
+  rollout_steps: [1, 3, 5]      # 验证1步、3步、5步预测效果
+  
+  convergence_criteria:
+    target_rel_l2: 0.3          # 空间阶段目标：Rel-L2 ≤ 0.3
+    patience_for_convergence: 5   # 连续5次改进不足则进入下一阶段
+    min_improvement: 5e-4         # 最小改进阈值
+
+# 设备配置（统一在前文 device 段配置，避免重复键）
+
+# 日志配置 - 分阶段训练监控
+logging:
+  experiment_name: "AR-DR2D-FNO-Staged-s2025"    # 更新实验名称：FNO分阶段训练
+  version: null
+  default_hp_metric: false
+  log_model: false  # Debug模式：不保存模型日志
+  
+  # 性能监控 - Debug模式简化
+  performance_monitoring:
+    log_gpu_memory: true
+    log_throughput: true
+    log_batch_time: true
+  
+  tensorboard:
+    save_dir: runs/tensorboard
+    name: ar_training_debug
+    version: null
+  
+  visualization:
+    save_samples_every_n_epochs: 2
+    num_samples_to_save: 3
+    save_training_curves: true
+    save_rollout_visualization: false
+
+# 随机种子
+seed: 2025
+
+# 测试配置 - Debug模式大幅优化速度
+testing:
+  enabled: false  # 长跑期间关闭最终测试，专注训练
+  run_final_test: false  # 关闭最终测试以避免best.ckpt加载提示
+  save_predictions: false  # Debug模式：不保存预测结果
+  compute_detailed_metrics: false  # Debug模式：不计算详细指标
+  
+  # 测试时的特殊设置 - 大幅提升速度
+  batch_size: 64  # Debug模式：更大批次测试加速
+  save_visualizations: false  # Debug模式：不保存可视化结果
+  num_visualization_samples: 0  # Debug模式：完全跳过可视化
+  
+  # 快速测试模式
+  fast_mode: false
+  skip_complex_metrics: false
+  minimal_logging: false
+
+# 数据增强配置 - Debug模式关闭
+data_augmentation:
+  enable: false  # Debug模式：关闭数据增强加速训练
+  # CPU密集型增强操作
+  random_rotation: 
+    enable: false
+    degrees: [-5, 5]
+  random_flip:
+    enable: false
+    horizontal: 0.5
+    vertical: 0.3
+  gaussian_noise:
+    enable: false
+    std: 0.01
+  # 数值计算密集型操作
+  normalize_per_sample: false  # Debug模式：关闭逐样本归一化
+  compute_statistics: false    # Debug模式：关闭统计计算

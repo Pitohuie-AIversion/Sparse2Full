@@ -1,0 +1,82 @@
+# 最小可运行的真实数据AR快速测试配置
+experiment:
+  name: "Quick-Real-DR2D-AR-Test"
+  output_dir: "runs"
+  seed: 2025
+  device: "cuda"
+
+data:
+  data_path: "test_data.h5"
+  T_in: 1
+  T_out: 5
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  normalize: true
+  augmentation:
+    enabled: false
+  keys: ["u", "v"]
+  dataloader:
+    val_batch_size: 2
+
+hardware:
+  num_workers: 0
+  pin_memory: false
+  persistent_workers: false
+
+model:
+  name: "SwinUNet"
+  in_channels: 2
+  out_channels: 2
+  img_size: 64
+  patch_size: 4
+  window_size: 8
+  depths: [2,2,2,2]
+  num_heads: [2,4,8,8]
+  embed_dim: 64
+  mlp_ratio: 4.0
+  drop_rate: 0.0
+  attn_drop_rate: 0.0
+  drop_path_rate: 0.1
+
+training:
+  epochs: 1
+  batch_size: 2
+  optimizer:
+    name: "AdamW"
+    lr: 1.0e-3
+    weight_decay: 1.0e-4
+    betas: [0.9, 0.999]
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 1
+    eta_min: 1.0e-6
+  gradient_clip_val: 1.0
+  amp:
+    enabled: false
+
+loss:
+  reconstruction:
+    weight: 1.0
+  spectral:
+    weight: 0.0  # 禁用频域损失
+  data_consistency:
+    weight: 0.0  # 暂时禁用DC
+  gradient_weight: 0.0
+
+observation:
+  mode: "sr"
+  scale_factor: 2
+  blur_sigma: 1.0
+  kernel_size: 5
+  boundary: "mirror"
+
+validation:
+  check_val_every_n_epoch: 1
+  metrics: ["rel_l2", "mae", "psnr", "ssim"]
+
+testing:
+  enabled: true
+  run_final_test: true
+  batch_size: 2
+  save_predictions: false

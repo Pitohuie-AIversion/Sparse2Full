@@ -1,0 +1,145 @@
+# 100样本简化配置 - 最大化GPU利用率
+# 专为快速验证和预测效果设计
+
+experiment:
+  name: "ar_100samples_simple"
+  description: "100样本快速训练，仅R2损失，最大化GPU利用率"
+  device: cuda:0
+  seed: 2025
+  output_dir: "./runs/ar_100samples_simple"
+
+# 数据配置 - 仅100个样本
+data:
+  data_path: "./data/PDEBench/1D-diffusion-reaction/"
+  dataset_name: PDEBenchAR
+  image_size: 128
+  sample_limit: 100  # 限制100个样本
+  
+  # AR特定配置
+  T_in: 1      # 输入时间步数
+  T_out: 1     # 输出时间步数（单步预测）
+  
+  # 数据集分割配置
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  
+  # 数据加载器优化
+  batch_size: 64  # 平衡内存和速度
+  num_workers: 16  # 最大化CPU辅助
+  pin_memory: true
+  prefetch_factor: 32
+  persistent_workers: true
+  
+  # 观测配置
+  observation:
+    mode: SR
+    scale_factor: 4
+    blur_sigma: 1.0
+    kernel_size: 5
+    boundary: mirror
+  
+  # 预处理
+  normalize: true
+  augmentation:
+    enabled: false
+
+# 模型配置 - 内存优化
+model:
+  name: "SwinUNet"
+  in_channels: 1
+  out_channels: 1
+  img_size: 128
+  embed_dim: 192  # 降低维度减少内存
+  depths: [2, 2, 18, 2]  # 减少深度避免OOM
+  num_heads: [6, 12, 24, 48]
+  window_size: 8
+  mlp_ratio: 4.0
+  qkv_bias: true
+  drop_rate: 0.0  # 禁用dropout提高稳定性
+  attn_drop_rate: 0.0
+  drop_path_rate: 0.1
+  patch_norm: true
+  use_checkpoint: true  # 梯度检查点节省内存
+
+# 仅使用R2损失 - 如用户要求
+loss:
+  reconstruction:
+    type: "rel_l2"  # R2损失
+    weight: 1.0
+    reduction: "mean"
+  spectral:
+    enabled: false
+  data_consistency:
+    enabled: false
+  gradient:
+    enabled: false
+  pde_residual:
+    enabled: false
+
+# 训练配置
+training:
+  epochs: 50  # 足够的训练周期
+  save_freq: 10
+  log_freq: 5
+  val_freq: 5  # 每5轮验证一次
+  
+  # 优化器
+  optimizer:
+    name: "AdamW"
+    lr: 0.0002
+    weight_decay: 0.05
+    betas: [0.9, 0.999]
+    fused: true  # 加速优化
+    foreach: false
+  
+  # 调度器
+  scheduler:
+    name: "cosine_with_warmup"
+    warmup_epochs: 10
+    max_epochs: 50
+    min_lr: 1e-6
+  
+  # 梯度优化
+  gradient_clip_val: 0.5
+  
+  # AMP配置
+  amp:
+    enabled: true
+    dtype: "fp16"  # 使用FP16提高性能
+    init_scale: 1024.0
+
+# 验证配置
+validation:
+  batch_size: 64
+  num_workers: 8
+  visualize_predictions: true
+  visualize_freq: 5
+  num_visualization_samples: 16
+  save_predictions: true
+  metrics:
+    - "rel_l2"
+    - "mae"
+    - "mse"
+    - "psnr"
+    - "ssim"
+
+# 系统优化
+system:
+  cuda:
+    benchmark: true
+    tf32: true
+    allow_tf32: true
+  threads:
+    torch_num_threads: 16
+    omp_num_threads: 16
+  distributed:
+    backend: "nccl"
+    find_unused_parameters: false
+    gradient_as_bucket_view: true
+
+# 日志
+logging:
+  level: "INFO"
+  wandb:
+    enabled: false  # 禁用以减少开销

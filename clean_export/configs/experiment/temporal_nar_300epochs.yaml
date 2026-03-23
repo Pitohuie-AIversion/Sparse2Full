@@ -1,0 +1,233 @@
+# 实验配置：时序NAR模型300轮训练
+# 基于2D扩散反应数据集的时序预测任务
+
+# 基础配置
+defaults:
+  - ../datasets/temporal_2d_diff_react_na_na_crop_20
+  - _self_
+
+# 实验信息
+experiment:
+  name: "TemporalNAR-DR2D-128-300epochs-s2025"
+  description: "时序NAR模型在2D扩散反应数据集上的300轮训练"
+  tags: ["temporal", "nar", "diffusion-reaction", "300epochs"]
+
+# 设备配置
+device: cuda
+mixed_precision: true
+
+# 输出配置
+output:
+  base_dir: runs
+  exp_dir: temporal_nar_300epochs
+  save_top_k: 5
+  monitor: val_rel_l2
+  mode: min
+
+# 检查点配置
+checkpoint:
+  save_every_n_epochs: 10
+  save_last: true
+  save_top_k: 5
+  monitor: val_rel_l2
+  mode: min
+  dirpath: runs/temporal_nar_300epochs/checkpoints
+  filename: "temporal_nar-{epoch:03d}-{val_rel_l2:.4f}"
+
+# 数据配置
+data:
+  _target_: datasets.temporal_pdebench.TemporalPDEBenchDataModule
+  config:
+    data_path: E:\2D\diffusion-reaction\2D_diff-react_NA_NA.h5
+    dataset_name: 2D_diff-react_NA_NA
+    batch_size: 4
+    image_size: 128
+    task: Crop
+    crop_ratio: 0.2
+    num_workers: 4
+    pin_memory: true
+    use_official_format: false
+    keys:
+      - '0000'
+      - '0001'
+      - '0002'
+      - '0003'
+      - '0004'
+      - '0005'
+      - '0006'
+      - '0007'
+      - '0008'
+      - '0009'
+      - '0010'
+      - '0011'
+      - '0012'
+      - '0013'
+      - '0014'
+      - '0015'
+      - '0016'
+      - '0017'
+      - '0018'
+      - '0019'
+      - '0020'
+    temporal:
+      T_in: 4
+      T_out: 20
+      dt: 0.1
+      ar:
+        teacher_forcing_ratio: 0.8
+        scheduled_sampling: true
+        sampling_decay: 0.99  # 逐步减少teacher forcing
+
+# 模型配置
+model:
+  # SwinUNet基础配置
+  base_kwargs:
+    in_channels: 2  # 修改为2通道，匹配diff-reaction数据集
+    out_channels: 2  # 修改为2通道，匹配diff-reaction数据集
+    img_size: 128
+    patch_size: 4
+    embed_dim: 96
+    depths: [2, 2, 6, 2]
+    num_heads: [3, 6, 12, 24]
+    window_size: 8
+    mlp_ratio: 4.0
+    drop_rate: 0.0
+    attn_drop_rate: 0.0
+    drop_path_rate: 0.1
+    use_fno_bottleneck: true
+  
+  # 时序模块配置
+  temporal:
+    enabled: false  # 禁用时序模块以避免维度不匹配问题
+    type: "disabled"
+    c_out: 2  # 修改为2通道，匹配diff-reaction数据集
+    k: 3
+    causal: true
+    dropout: 0.1
+  
+  # NAR头配置
+  nar:
+    head_type: "simple"
+    d_model: 96
+    c_out: 2  # 修改为2通道，匹配diff-reaction数据集
+    num_heads: 8
+    max_timesteps: 32  # 增加到32以支持更大的T_out值
+    dropout: 0.1
+  
+  # AR配置
+  ar:
+    detach_rollout: true
+    scheduled_sampling: true
+    sampling_schedule: "linear"
+  
+  # 启用开关
+  use_ar: true
+  use_nar: true
+
+# 损失配置
+loss:
+  # 双头损失权重
+  ar_weight: 1.0
+  nar_weight: 1.0
+  
+  # 权重调度（训练过程中动态调整）
+  ar_weight_schedule: "cosine"  # 余弦调度
+  nar_weight_schedule: "linear"  # 线性增长
+  
+  # 损失类型
+  ar_loss_type: "mse"
+  nar_loss_type: "mse"
+  
+  # 其他损失
+  spectral_loss:
+    weight: 0.5
+    low_freq_weight: 1.0
+    high_freq_weight: 0.3
+  
+  dc_loss:
+    weight: 1.0
+    
+  # 梯度损失（可选）
+  gradient_loss:
+    weight: 0.1
+    enabled: true
+
+# 训练配置
+train:
+  max_epochs: 300  # 增加到300轮
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 1
+  
+  # 优化器
+  optimizer:
+    name: "AdamW"
+    lr: 1e-3
+    weight_decay: 1e-4
+    betas: [0.9, 0.999]
+    eps: 1e-8
+  
+  # 学习率调度器（优化为长轮次训练）
+  scheduler:
+    name: "CosineAnnealingWarmRestarts"
+    T_0: 50  # 增加初始周期
+    T_mult: 2  # 周期倍增因子
+    eta_min: 1e-7  # 降低最小学习率
+    warmup_steps: 2000  # 增加warmup步数
+    warmup_lr: 1e-5
+  
+  # 早停配置（放宽条件）
+  early_stopping:
+    monitor: "val/rel_l2"
+    patience: 30  # 增加patience
+    mode: "min"
+    min_delta: 1e-6  # 降低最小改进阈值
+    
+  # 验证配置
+  validation:
+    check_val_every_n_epoch: 2
+    val_split: 0.1
+    
+  # 数据增强
+  augmentation:
+    enabled: true
+    flip_prob: 0.5
+    rotate_prob: 0.3
+    noise_std: 0.01
+
+# 监控配置（增强版）
+monitoring:
+  # TensorBoard日志
+  tensorboard:
+    enabled: true
+    log_dir: "runs/temporal_nar_300epochs/tensorboard"
+    
+  # 指标监控
+  metrics:
+    - "train/ar_loss"
+    - "train/nar_loss" 
+    - "train/total_loss"
+    - "train/spectral_loss"
+    - "train/dc_loss"
+    - "val/rel_l2"
+    - "val/mae"
+    - "val/psnr"
+    - "val/ssim"
+    - "val/temporal_consistency"
+    - "train/lr"  # 学习率监控
+    - "train/grad_norm"  # 梯度范数监控
+    
+  # 学习率监控
+  lr_monitor:
+    logging_interval: "step"
+    
+  # 可视化配置
+  visualization:
+    enabled: true
+    save_every_n_epochs: 20  # 每20轮保存可视化结果
+    num_samples: 3  # 可视化样本数
+    
+  # 性能监控
+  performance:
+    log_memory_usage: true
+    log_gpu_utilization: true
+    profile_training: false  # 生产环境关闭profiling

@@ -1,0 +1,105 @@
+"""
+示例配置文件：调试配置
+"""
+
+model:
+  name: "SwinTemporalNAR"
+  input_channels: 1
+  hidden_dim: 32
+  num_layers: 1
+  num_heads: 2
+  window_size: 4
+  time_steps: 5
+  prediction_steps: 2
+  spatial_resolution: [16, 16]
+  temporal_encoding_type: "sinusoidal"
+  dropout: 0.0
+  activation: "relu"
+
+training:
+  batch_size: 2
+  num_epochs: 3
+  learning_rate: 1e-2
+  weight_decay: 0.0
+  warmup_epochs: 0
+  mixed_precision: false  # 禁用混合精度以简化调试
+  compile_model: false
+  gradient_accumulation_steps: 1
+  gradient_clipping: 0.0
+  scheduler: "linear"
+  
+data:
+  data_dir: "./data/debug"
+  time_steps: 5
+  prediction_steps: 2
+  spatial_resolution: [16, 16]
+  normalize: false  # 禁用归一化
+  cache_data: false
+  num_workers: 0  # 禁用多进程
+  prefetch_factor: 0
+  pin_memory: false
+  data_format: "numpy"  # 使用简单的numpy格式
+  
+hardware:
+  device: "cpu"  # 强制使用CPU
+  num_workers: 0
+  pin_memory: false
+  numa_aware: false
+  gpu_memory_fraction: 0.0
+  allow_growth: true
+  
+distributed:
+  enabled: false  # 禁用分布式训练
+  backend: "gloo"
+  strategy: "ddp"
+  world_size: 1
+  rank: 0
+  local_rank: 0
+  master_addr: "localhost"
+  master_port: "12355"
+  
+monitoring:
+  enable_monitoring: true
+  log_dir: "./debug_logs"
+  monitoring_interval: 0.1
+  enable_tensorboard: false  # 禁用TensorBoard
+  enable_json_logging: true
+  log_level: "DEBUG"  # 详细日志级别
+  save_model_checkpoints: true
+  checkpoint_interval: 1
+  
+optimization:
+  numa_memory_manager:
+    enabled: false  # 禁用NUMA优化
+    memory_policy: "interleave"
+    
+  gpu_optimizer:
+    enabled: false  # 禁用GPU优化
+    tensor_core_optimization: false
+    cuda_stream_optimization: false
+    memory_optimization: false
+    
+  mixed_precision:
+    enabled: false  # 禁用混合精度
+    loss_scale: 1.0
+    init_scale: 1.0
+    growth_factor: 1.0
+    backoff_factor: 1.0
+    growth_interval: 1
+    
+  data_pipeline:
+    enabled: false  # 禁用高性能数据管道
+    numa_aware: false
+    gpu_optimized: false
+    cache_size: 0
+    preload_factor: 0.0
+    memory_mapping: false
+    
+performance:
+  benchmark_mode: false
+  profile_memory: true  # 启用内存分析
+  profile_performance: true
+  benchmark_iterations: 10
+  warmup_iterations: 2
+  max_memory_usage: "1GB"
+  target_throughput: 10

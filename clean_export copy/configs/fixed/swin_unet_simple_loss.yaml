@@ -1,0 +1,91 @@
+# @package _global_
+
+# 简化损失配置 - 只使用普通MSE损失
+experiment:
+  name: "SRx4-PDEBench-128-SwinUNet-SimpleLoss-s2025-20251014"
+  device: "cuda"
+  seed: 2025
+  output_dir: "runs"
+
+# 数据配置
+data:
+  _target_: datasets.pdebench.PDEBenchDataModule
+  data_path: "data/pdebench/data/sample_data_0.h5"
+  data_dir: "data/pdebench/data"
+  keys: ["u"]
+  normalize: true
+  image_size: 128
+  dataloader:
+    batch_size: 4
+    num_workers: 0
+    pin_memory: false
+
+# 观测模式
+observation:
+  mode: "SR"
+  scale_factor: 4
+
+# 日志配置
+logging:
+  log_level: "INFO"
+  log_dir: "logs"
+
+# 简化损失配置 - 只使用重建损失
+loss:
+  rec_weight: 1.0
+  spec_weight: 0.0  # 完全关闭频谱损失
+  dc_weight: 0.0    # 完全关闭DC损失
+  gradient_weight: 0.0  # 关闭梯度损失
+  
+  # 重建损失配置
+  reconstruction:
+    type: "mse"  # 使用简单的MSE损失
+    weight: 1.0
+
+# 模型配置
+model:
+  name: "SwinUNet"
+  _target_: models.swin_unet.SwinUNet
+  params:
+    attention_dropout: 0.0
+    depths: [2, 2, 6, 2]
+    drop_path_rate: 0.1
+    drop_rate: 0.0
+    embed_dim: 96
+    img_size: 128
+    in_channels: 1
+    mlp_ratio: 4.0
+    num_heads: [3, 6, 12, 24]
+    out_channels: 1
+    patch_size: 4
+    window_size: 8
+
+# 训练配置
+training:
+  early_stopping:
+    patience: 10
+    min_delta: 0.001
+  epochs: 200
+  gradient_clip_val: 1.0
+  mixed_precision: true
+  reproducibility:
+    deterministic: false
+    benchmark: true
+  log_interval: 10
+  
+  optimizer:
+    _target_: torch.optim.AdamW
+    lr: 0.001
+    weight_decay: 0.0001
+  
+  scheduler:
+    _target_: torch.optim.lr_scheduler.CosineAnnealingLR
+    T_max: 200
+    eta_min: 0.00001
+
+# 验证指标
+val_metrics:
+  - "rel_l2"
+  - "mae"
+  - "psnr"
+  - "ssim"

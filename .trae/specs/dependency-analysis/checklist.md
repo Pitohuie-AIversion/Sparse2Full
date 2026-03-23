@@ -1,0 +1,6 @@
+- [x] `docs/TRAINING_DEPENDENCIES.md` exists
+- [x] Python dependencies listed with versions
+- [x] Dataset dependencies and paths described
+- [x] Configuration system structure explained
+- [x] Environment variables documented
+- [x] Dependency tree visualization included

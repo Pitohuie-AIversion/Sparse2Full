@@ -1,0 +1,263 @@
+# 优化版300轮时序NAR训练配置
+# 针对GPU利用率和训练效率进行优化
+
+defaults:
+  - ../config
+  - _self_
+
+# 实验配置
+experiment:
+  name: "TemporalNAR-DR2D-128-300epochs-optimized-s2025"
+  seed: 2025
+  device: "cuda"
+  use_amp: true  # 启用混合精度训练
+  
+  # 输出目录
+  output_dir: "runs/temporal_nar_300epochs_optimized"
+  save_top_k: 5
+  save_last: true
+  
+  # 训练模式设置
+  test_mode: false
+  quick_test: false
+  
+  # 日志设置 - 优化频率
+  log_every_n_steps: 10  # 进一步减少日志频率，提高训练效率
+  val_check_interval: 100  # 进一步减少验证频率
+  
+  # 检查点设置
+  checkpoint:
+    monitor: "val/rel_l2"
+    mode: "min"
+    save_top_k: 5
+    every_n_epochs: 20  # 减少保存频率
+    filename: "temporal_nar_opt-{epoch:03d}-{val_rel_l2:.4f}"
+
+# 优化的数据配置
+data:
+  _target_: datasets.PDEBenchDataModule
+  data_path: "e:/2d/diffusion-reaction/2D_diff-react_NA_NA.h5"
+  keys: ["0000", "0001", "0002", "0003", "0004", "0005", "0006", "0007"]  # 使用更多数据
+  
+  # 性能优化参数
+  batch_size: 16  # 进一步增加batch size以提高GPU利用率
+  num_workers: 12  # 增加数据加载线程
+  pin_memory: true  # 启用内存固定
+  persistent_workers: true  # 保持worker进程
+  prefetch_factor: 6  # 增加预取因子
+  
+  use_official_format: false
+  image_size: 128
+  task: "Crop"
+  crop_ratio: 0.2
+  
+  # 数据加载优化
+  drop_last: true  # 丢弃最后不完整的batch
+  shuffle: true
+  
+  # 时序配置
+  temporal:
+    T_in: 4
+    T_out: 3
+    dt: 0.1
+    
+    # AR模型设置
+    ar:
+      teacher_forcing_ratio: 0.8
+      scheduled_sampling: true
+      sampling_decay: 0.99
+
+# 模型配置
+model:
+  # SwinUNet基础配置 - 优化版
+  base_kwargs:
+    in_channels: 1
+    out_channels: 1
+    img_size: 128
+    patch_size: 4
+    embed_dim: 96
+    depths: [2, 2, 6, 2]
+    num_heads: [3, 6, 12, 24]
+    window_size: 8
+    mlp_ratio: 4.0
+    drop_rate: 0.0
+    attn_drop_rate: 0.0
+    drop_path_rate: 0.1
+    use_fno_bottleneck: true
+    
+    # 性能优化
+    use_checkpoint: false  # 关闭梯度检查点以提高速度
+    fused_window_process: true  # 启用融合窗口处理
+  
+  # 时序模块配置
+  temporal:
+    enabled: true
+    type: "conv1d"
+    c_out: 1
+    k: 3
+    causal: true
+    dropout: 0.1
+  
+  # NAR头配置
+  nar:
+    head_type: "simple"
+    d_model: 96
+    num_heads: 8
+    max_timesteps: 16
+    dropout: 0.1
+  
+  # AR配置
+  ar:
+    detach_rollout: true
+    scheduled_sampling: true
+    sampling_schedule: "linear"
+  
+  # 启用开关
+  use_ar: true
+  use_nar: true
+
+# 损失配置
+loss:
+  # 双头损失权重
+  ar_weight: 1.0
+  nar_weight: 1.0
+  
+  # 权重调度
+  ar_weight_schedule: "cosine"
+  nar_weight_schedule: "linear"
+  
+  # 损失类型
+  ar_loss_type: "mse"
+  nar_loss_type: "mse"
+  
+  # 其他损失
+  spectral_loss:
+    weight: 0.5
+    low_freq_weight: 1.0
+    high_freq_weight: 0.3
+  
+  dc_loss:
+    weight: 1.0
+    
+  # 梯度损失
+  gradient_loss:
+    weight: 0.1
+    enabled: true
+
+# 优化的训练配置
+train:
+  max_epochs: 300  # 确保300轮训练
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 1  # 不使用梯度累积以提高速度
+  
+  # 性能优化
+  deterministic: false  # 关闭确定性以提高性能
+  benchmark: true  # 启用cudnn benchmark
+  
+  # 优化器 - 调整学习率
+  optimizer:
+    name: "AdamW"
+    lr: 2e-3  # 调整学习率以配合更大的batch size
+    weight_decay: 1e-4
+    betas: [0.9, 0.999]
+    eps: 1e-8
+    fused: true  # 启用融合优化器（如果支持）
+  
+  # 学习率调度器 - 优化为长轮次训练
+  scheduler:
+    name: "CosineAnnealingWarmRestarts"
+    T_0: 50  # 增加初始周期
+    T_mult: 2
+    eta_min: 1e-7
+    warmup_steps: 2000
+    warmup_lr: 1e-5
+  
+  # 早停配置 - 放宽条件
+  early_stopping:
+    monitor: "val/rel_l2"
+    patience: 50  # 增加patience
+    mode: "min"
+    min_delta: 1e-6
+    
+  # 验证配置 - 优化频率
+  validation:
+    check_val_every_n_epoch: 5  # 减少验证频率
+    val_split: 0.1
+    
+  # 数据增强 - 简化以提高速度
+  augmentation:
+    enabled: false  # 暂时关闭数据增强以提高速度
+    flip_prob: 0.5
+    rotate_prob: 0.3
+    noise_std: 0.01
+
+# 增强的监控配置
+monitoring:
+  # TensorBoard日志
+  tensorboard:
+    enabled: true
+    log_dir: "runs/temporal_nar_300epochs_optimized/tensorboard"
+    
+  # GPU性能监控
+  gpu_monitoring:
+    enabled: true
+    log_interval: 100  # 每100步记录一次GPU状态
+    
+  # 指标监控
+  metrics:
+    - "train/ar_loss"
+    - "train/nar_loss" 
+    - "train/total_loss"
+    - "train/spectral_loss"
+    - "train/dc_loss"
+    - "val/rel_l2"
+    - "val/mae"
+    - "val/psnr"
+    - "val/ssim"
+    - "val/temporal_consistency"
+    - "train/lr"
+    - "train/grad_norm"
+    - "system/gpu_utilization"  # GPU利用率
+    - "system/gpu_memory"       # GPU内存使用
+    - "system/batch_time"       # 批处理时间
+    - "system/data_time"        # 数据加载时间
+    
+  # 学习率监控
+  lr_monitor:
+    logging_interval: "step"
+    
+  # 可视化配置 - 优化频率
+  visualization:
+    enabled: true
+    save_every_n_epochs: 25  # 减少可视化频率
+    num_samples: 2  # 减少可视化样本数
+    
+  # 性能监控
+  performance:
+    log_memory_usage: true
+    log_gpu_utilization: true
+    log_throughput: true  # 记录训练吞吐量
+    profile_training: false
+
+# 系统优化配置
+system:
+  # CUDA优化
+  cuda:
+    empty_cache_steps: 100  # 每100步清理CUDA缓存
+    max_split_size_mb: 512  # 限制CUDA内存分割大小
+    
+  # 多进程优化
+  multiprocessing:
+    sharing_strategy: "file_system"  # 使用文件系统共享策略
+    
+  # 内存优化
+  memory:
+    pin_memory_device: "cuda"
+    non_blocking: true
+
+# 调试和诊断
+debug:
+  enabled: false  # 生产环境关闭调试
+  detect_anomaly: false  # 关闭异常检测以提高性能
+  profile_memory: false
+  log_nan_inf: false

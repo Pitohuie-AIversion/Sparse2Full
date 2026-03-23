@@ -1,0 +1,69 @@
+# @package _global_
+
+# 时序预测配置
+temporal:
+  # 时序数据设置
+  T_in: 1      # 输入时间步数
+  T_out: 3     # 输出时间步数
+  dt: 0.1      # 时间步长
+  
+  # AR模型设置
+  ar:
+    teacher_forcing_ratio: 1.0  # Teacher forcing比例
+    scheduled_sampling: false   # 是否启用scheduled sampling
+    sampling_schedule: "linear" # 采样调度策略
+
+    # Scheduled sampling参数
+    sampling_decay_steps: 1000  # 衰减步数
+    min_sampling_ratio: 0.0     # 最小采样比例
+    
+  # 损失函数权重
+  loss_weights:
+    rel2_weight: 1.0    # 相对L2损失权重
+    mae_weight: 0.1     # MAE损失权重
+    temporal_consistency: 0.5  # 时序一致性损失权重
+
+# 模型配置覆盖
+model:
+  name: "SwinUNet"
+  in_channels: 1
+  out_channels: 1
+  img_size: 128
+  ar_config:
+    T_in: 1
+    T_out: 3
+    teacher_forcing_ratio: 1.0
+    scheduled_sampling: true
+  swin_config:
+    patch_size: 4
+    window_size: 8
+    embed_dim: 96
+    depths: [2, 2, 6, 2]
+    num_heads: [3, 6, 12, 24]
+    mlp_ratio: 4.0
+    drop_rate: 0.0
+    attn_drop_rate: 0.0
+    drop_path_rate: 0.1
+    
+  # 评估设置
+  eval:
+    rollout_steps: 10   # Roll-out评估步数
+    save_sequences: true # 是否保存序列可视化
+    
+# 数据加载器设置（时序数据）
+dataloader:
+  temporal_mode: true   # 启用时序模式
+  sequence_length: 4    # 序列长度（T_in + T_out）
+  overlap_ratio: 0.5    # 序列重叠比例
+  
+# 课程学习（时序）
+curriculum:
+  temporal:
+    enabled: true
+    stages:
+      - T_out: 1
+        epochs: 20
+      - T_out: 2  
+        epochs: 30
+      - T_out: 3
+        epochs: 50

@@ -1,0 +1,156 @@
+# @package _global_
+
+# 1000样本20步AR训练配置 - 快速验证流程稳定性
+# 目标：使用小数据集验证训练流程，解决内存和稳定性问题
+
+defaults:
+  - _self_
+
+# 实验配置
+experiment:
+  name: "Real-DR2D-AR-T20-1k-SwinUNet-test"
+  description: "1000样本20步AR训练 - 验证流程稳定性"
+  tags: ["real_data", "autoregressive", "1k_samples", "test"]
+
+# 数据配置
+data:
+  _target_: datasets.real_dr_dataset.RealDiffusionReactionDataModule
+  data_path: "E:/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+  T_in: 1
+  T_out: 20
+  batch_size: 1  # 减小批次大小
+  num_workers: 0  # 禁用多进程
+  pin_memory: false
+  persistent_workers: false
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  normalize: true
+  augmentation: false  # 禁用数据增强
+  time_step_start: 0
+  time_step_end: 980
+  sample_limit: 1000  # 限制使用1000个样本
+
+# 模型配置
+model:
+  _target_: models.swin_unet.SwinUNet
+  in_channels: 2
+  out_channels: 2
+  img_size: 128
+  patch_size: 4
+  embed_dim: 96
+  depths: [2, 2, 6, 2]
+  num_heads: [3, 6, 12, 24]
+  window_size: 7
+  mlp_ratio: 4.0
+  qkv_bias: true
+  drop_rate: 0.0
+  attn_drop_rate: 0.0
+  drop_path_rate: 0.1
+  norm_layer: "LayerNorm"
+  patch_norm: true
+  use_checkpoint: false
+
+# 训练配置
+trainer:
+  max_epochs: 5  # 减少epoch数
+  accelerator: "gpu"
+  devices: 1
+  precision: "16-mixed"
+  gradient_clip_val: 0.5  # 更严格的梯度裁剪
+  accumulate_grad_batches: 1
+  log_every_n_steps: 1
+  val_check_interval: 1.0
+  check_val_every_n_epoch: 1
+  enable_checkpointing: true
+  enable_progress_bar: true
+  enable_model_summary: true
+  deterministic: false
+  benchmark: true
+
+# 优化器配置
+optimizer:
+  _target_: torch.optim.AdamW
+  lr: 5e-5  # 降低学习率
+  weight_decay: 1e-4
+  betas: [0.9, 0.999]
+  eps: 1e-8
+
+# 学习率调度器
+scheduler:
+  _target_: torch.optim.lr_scheduler.CosineAnnealingLR
+  T_max: ${trainer.max_epochs}
+  eta_min: 1e-7
+
+# 损失函数配置
+loss:
+  _target_: losses.combined_loss.CombinedLoss
+  mse_weight: 1.0
+  l1_weight: 0.0
+  spectral_weight: 0.1  # 降低频域损失权重
+  gradient_weight: 0.0
+  reduction: "mean"
+
+# 回调函数
+callbacks:
+  model_checkpoint:
+    _target_: pytorch_lightning.callbacks.ModelCheckpoint
+    dirpath: ${paths.output_dir}/checkpoints
+    filename: "epoch_{epoch:03d}"
+    monitor: "val/loss"
+    mode: "min"
+    save_top_k: 3
+    save_last: true
+    auto_insert_metric_name: false
+
+  early_stopping:
+    _target_: pytorch_lightning.callbacks.EarlyStopping
+    monitor: "val/loss"
+    mode: "min"
+    patience: 10
+    min_delta: 1e-6
+
+  learning_rate_monitor:
+    _target_: pytorch_lightning.callbacks.LearningRateMonitor
+    logging_interval: "step"
+
+  model_summary:
+    _target_: pytorch_lightning.callbacks.ModelSummary
+    max_depth: 2
+
+# 日志配置
+logger:
+  tensorboard:
+    _target_: pytorch_lightning.loggers.TensorBoardLogger
+    save_dir: ${paths.output_dir}/tensorboard
+    name: ${experiment.name}
+    version: null
+    default_hp_metric: false
+
+# 路径配置
+paths:
+  root_dir: "F:/Zhaoyang/Sparse2Full"
+  data_dir: ${paths.root_dir}/data
+  log_dir: ${paths.root_dir}/logs
+  output_dir: ${paths.root_dir}/runs/${experiment.name}
+  work_dir: ${hydra:runtime.cwd}
+
+# Hydra配置
+hydra:
+  job:
+    chdir: false
+  run:
+    dir: ${paths.output_dir}
+  sweep:
+    dir: ${paths.output_dir}
+    subdir: ${hydra.job.num}
+
+# 随机种子
+seed: 2025
+
+# 调试配置
+debug:
+  enabled: true
+  log_level: "DEBUG"
+  profile: false
+  detect_anomaly: false
