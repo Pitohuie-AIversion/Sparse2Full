@@ -7,8 +7,6 @@
 
 from __future__ import annotations
 
-from typing import List, Optional, Tuple, Dict
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -36,18 +34,22 @@ def _align_like(src: torch.Tensor, ref: torch.Tensor) -> torch.Tensor:
     if pad_y > 0 or pad_x > 0:
         src = F.pad(
             src,
-            [max(pad_x // 2, 0), max(pad_x - pad_x // 2, 0),
-             max(pad_y // 2, 0), max(pad_y - pad_y // 2, 0)],
+            [
+                max(pad_x // 2, 0),
+                max(pad_x - pad_x // 2, 0),
+                max(pad_y // 2, 0),
+                max(pad_y - pad_y // 2, 0),
+            ],
         )
 
     # crop if needed
     hs, ws = src.shape[-2], src.shape[-1]
     if hs > hr:
         y0 = (hs - hr) // 2
-        src = src[:, :, y0:y0 + hr, :]
+        src = src[:, :, y0 : y0 + hr, :]
     if ws > wr:
         x0 = (ws - wr) // 2
-        src = src[:, :, :, x0:x0 + wr]
+        src = src[:, :, :, x0 : x0 + wr]
 
     return src
 
@@ -60,9 +62,13 @@ class DoubleConv(nn.Module):
 
     def __init__(self, in_channels: int, out_channels: int, dropout: float = 0.0):
         super().__init__()
-        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, bias=False)
+        self.conv1 = nn.Conv2d(
+            in_channels, out_channels, kernel_size=3, padding=1, bias=False
+        )
         self.bn1 = nn.BatchNorm2d(out_channels)
-        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1, bias=False)
+        self.conv2 = nn.Conv2d(
+            out_channels, out_channels, kernel_size=3, padding=1, bias=False
+        )
         self.bn2 = nn.BatchNorm2d(out_channels)
         self.relu = nn.ReLU(inplace=True)
         self.drop = nn.Dropout2d(dropout) if dropout and dropout > 0 else nn.Identity()
@@ -93,7 +99,14 @@ class Up(nn.Module):
     - bilinear=False: ConvTranspose2d -> concat(skip) -> DoubleConv
     """
 
-    def __init__(self, in_ch: int, skip_ch: int, out_ch: int, bilinear: bool = True, dropout: float = 0.0):
+    def __init__(
+        self,
+        in_ch: int,
+        skip_ch: int,
+        out_ch: int,
+        bilinear: bool = True,
+        dropout: float = 0.0,
+    ):
         super().__init__()
         self.bilinear = bilinear
 
@@ -147,13 +160,13 @@ class UNet(BaseModel):
 
     def __init__(
         self,
-        in_channels: Optional[int] = None,
-        out_channels: Optional[int] = None,
-        img_size: Optional[int] = None,
-        features: Optional[List[int]] = None,
+        in_channels: int | None = None,
+        out_channels: int | None = None,
+        img_size: int | None = None,
+        features: list[int] | None = None,
         bilinear: bool = True,
         dropout: float = 0.0,
-        final_activation: Optional[str] = None,  # None | "tanh" | "sigmoid"
+        final_activation: str | None = None,  # None | "tanh" | "sigmoid"
         **kwargs,
     ):
         # 兼容 Hydra/旧字段
@@ -180,13 +193,17 @@ class UNet(BaseModel):
 
         self.down_blocks = nn.ModuleList()
         for i in range(1, len(self.features)):
-            self.down_blocks.append(Down(self.features[i - 1], self.features[i], dropout=self.dropout))
+            self.down_blocks.append(
+                Down(self.features[i - 1], self.features[i], dropout=self.dropout)
+            )
 
         # Bottleneck: 再下采样一次（经典 U-Net 的 bottleneck 更常见）
         # bilinear 版本为了节省显存，常用 factor=2 缩减 bottleneck 通道
         factor = 2 if self.bilinear else 1
         self.bottleneck_channels = (self.features[-1] * 2) // factor
-        self.bottleneck = Down(self.features[-1], self.bottleneck_channels, dropout=self.dropout)
+        self.bottleneck = Down(
+            self.features[-1], self.bottleneck_channels, dropout=self.dropout
+        )
 
         # Decoder: 对应 features 反向逐级上采样（总共 len(features) 次 up）
         self.up_blocks = nn.ModuleList()
@@ -195,8 +212,15 @@ class UNet(BaseModel):
         # skip 从 encoder 最深层开始：features[-1], features[-2], ..., features[0]
         for skip_ch in reversed(self.features):
             out_ch = skip_ch
-            self.up_blocks.append(Up(in_ch=in_ch, skip_ch=skip_ch, out_ch=out_ch,
-                                     bilinear=self.bilinear, dropout=self.dropout))
+            self.up_blocks.append(
+                Up(
+                    in_ch=in_ch,
+                    skip_ch=skip_ch,
+                    out_ch=out_ch,
+                    bilinear=self.bilinear,
+                    dropout=self.dropout,
+                )
+            )
             in_ch = out_ch
 
         self.outc = OutConv(self.features[0], self.out_channels)
@@ -229,15 +253,15 @@ class UNet(BaseModel):
             y: [B, C_out, H, W]
         """
         # Encoder feature maps for skip connections
-        skips: List[torch.Tensor] = []
+        skips: list[torch.Tensor] = []
 
-        x0 = self.inc(x)          # level 0
+        x0 = self.inc(x)  # level 0
         skips.append(x0)
 
         xi = x0
         for down in self.down_blocks:
             xi = down(xi)
-            skips.append(xi)      # levels 1..L-1
+            skips.append(xi)  # levels 1..L-1
 
         # Bottleneck (extra down)
         xb = self.bottleneck(xi)
@@ -252,11 +276,11 @@ class UNet(BaseModel):
         y = self.final_activation(y)
         return y
 
-    def get_feature_maps(self, x: torch.Tensor) -> List[torch.Tensor]:
+    def get_feature_maps(self, x: torch.Tensor) -> list[torch.Tensor]:
         """返回 encoder 侧各层特征（用于可视化/调试）"""
         self.eval()
         with torch.no_grad():
-            feats: List[torch.Tensor] = []
+            feats: list[torch.Tensor] = []
             x0 = self.inc(x)
             feats.append(x0)
             xi = x0
@@ -275,7 +299,7 @@ class UNet(BaseModel):
         for p in self.bottleneck.parameters():
             p.requires_grad = False
 
-    def compute_flops(self, input_shape: Tuple[int, ...] = None) -> int:
+    def compute_flops(self, input_shape: tuple[int, ...] = None) -> int:
         """
         简化 FLOPs 估算（用于相对对比，不用于精确论文统计）
         """

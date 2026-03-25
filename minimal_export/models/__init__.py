@@ -14,13 +14,12 @@
 from typing import Dict
 
 # 空间预测模型
-from . import spatial
-
-# 时间预测模型  
-from . import temporal
+# 时间预测模型
+from . import spatial, temporal
 
 # 基础模型和工具
 from .base import BaseModel
+
 # 这些模型已经移动到spatial文件夹，从那里导入
 try:
     from .spatial.mlp import MLPModel
@@ -34,41 +33,70 @@ except ImportError:
 
 # 向后兼容的导入
 from .spatial import (
-    UNet, UNetPlusPlus, FNO2d, UFNOUNet,
-    SegFormer, UNetFormer, SegFormerUNetFormer,
-    MLPMixer, LIIFModel,
-    SwinUNet, VisionTransformer, SwinTransformerTiny, Transformer,
-    SparseAttentionEncoder, SparseSwinUNet
+    FNO2d,
+    LIIFModel,
+    MLPMixer,
+    SegFormer,
+    SegFormerUNetFormer,
+    SparseAttentionEncoder,
+    SparseSwinUNet,
+    SwinTransformerTiny,
+    SwinUNet,
+    Transformer,
+    UFNOUNet,
+    UNet,
+    UNetFormer,
+    UNetPlusPlus,
+    VisionTransformer,
 )
-
 from .temporal import (
-    ARWrapper, SwinTemporal, SwinTemporalNAR,
-    TemporalEncoder, TemporalBlock, NARPredictionHead,
-    SequentialSpatiotemporal, SequentialTrainer, SequentialDCConsistency
+    ARWrapper,
+    NARPredictionHead,
+    SequentialDCConsistency,
+    SequentialSpatiotemporal,
+    SequentialTrainer,
+    SwinTemporal,
+    SwinTemporalNAR,
+    TemporalBlock,
+    TemporalEncoder,
 )
 
 __all__ = [
     # 模块分类
     "spatial",
     "temporal",
-    
     # 基础模型
     "BaseModel",
-    "MLPModel", 
+    "MLPModel",
     "HybridModel",
-    
     # 空间预测模型
-    "UNet", "UNetPlusPlus", "FNO2d", "UFNOUNet",
-    "SegFormer", "UNetFormer", "SegFormerUNetFormer",
-    "MLPMixer", "LIIFModel",
-    "SwinUNet", "VisionTransformer", "SwinTransformerTiny", "Transformer",
-    "SparseAttentionEncoder", "SparseSwinUNet",
-    
+    "UNet",
+    "UNetPlusPlus",
+    "FNO2d",
+    "UFNOUNet",
+    "SegFormer",
+    "UNetFormer",
+    "SegFormerUNetFormer",
+    "MLPMixer",
+    "LIIFModel",
+    "SwinUNet",
+    "VisionTransformer",
+    "SwinTransformerTiny",
+    "Transformer",
+    "SparseAttentionEncoder",
+    "SparseSwinUNet",
     # 时间预测模型
-    "ARWrapper", "SwinTemporal", "SwinTemporalNAR",
-    "TemporalEncoder", "TemporalBlock", "NARPredictionHead",
-    "SequentialSpatiotemporal", "SequentialTrainer", "SequentialDCConsistency"
+    "ARWrapper",
+    "SwinTemporal",
+    "SwinTemporalNAR",
+    "TemporalEncoder",
+    "TemporalBlock",
+    "NARPredictionHead",
+    "SequentialSpatiotemporal",
+    "SequentialTrainer",
+    "SequentialDCConsistency",
 ]
+
 
 # 工厂函数 - 保持向后兼容
 def create_model(model_name_or_config, **kwargs):

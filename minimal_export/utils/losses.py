@@ -3,7 +3,7 @@
 提供损失函数的便捷导入和计算功能，并兼容测试期望的接口。
 """
 
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -11,17 +11,18 @@ import torch.nn.functional as F
 
 from ops.degradation import apply_degradation_operator
 from ops.loss import (
-    TotalLoss as OpsTotalLoss,
+    DataConsistencyLoss as OpsDataConsistencyLoss,
+)
+from ops.loss import (
     ReconstructionLoss,
     SpectralLoss,
-    DataConsistencyLoss as OpsDataConsistencyLoss,
-    compute_total_loss,
     compute_gradient_loss,
     compute_pde_residual_loss,
+    compute_total_loss,
 )
 
 
-def _normalize_h_params(params: Dict[str, Any]) -> Dict[str, Any]:
+def _normalize_h_params(params: dict[str, Any]) -> dict[str, Any]:
     """统一化H算子参数键，兼容测试中的别名。
 
     - task: 支持 'super_resolution'/'crop_reconstruction' 别名
@@ -31,34 +32,40 @@ def _normalize_h_params(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     if params is None:
         # 统一使用大写任务键，与 ops.degradation.apply_degradation_operator 保持一致
-        return {'task': 'SR', 'scale': 2, 'sigma': 1.0, 'kernel_size': 5, 'boundary': 'mirror'}
+        return {
+            "task": "SR",
+            "scale": 2,
+            "sigma": 1.0,
+            "kernel_size": 5,
+            "boundary": "mirror",
+        }
 
-    norm: Dict[str, Any] = dict(params)
+    norm: dict[str, Any] = dict(params)
 
     # 任务别名
-    task = norm.get('task', norm.get('task_type', 'sr'))
+    task = norm.get("task", norm.get("task_type", "sr"))
     if isinstance(task, (list, tuple)):
         task = task[0]
     task_str = str(task).lower()
-    if task_str in ('super_resolution', 'sr'):
-        norm['task'] = 'SR'
-    elif task_str in ('crop_reconstruction', 'crop', 'cropping'):
-        norm['task'] = 'Crop'
+    if task_str in ("super_resolution", "sr"):
+        norm["task"] = "SR"
+    elif task_str in ("crop_reconstruction", "crop", "cropping"):
+        norm["task"] = "Crop"
     else:
         # 保留原值，但确保是字符串
         # 若原值是小写别名，仍提升为兼容的大写
-        if task_str == 'sr':
-            norm['task'] = 'SR'
-        elif task_str == 'crop':
-            norm['task'] = 'Crop'
+        if task_str == "sr":
+            norm["task"] = "SR"
+        elif task_str == "crop":
+            norm["task"] = "Crop"
         else:
-            norm['task'] = task_str
+            norm["task"] = task_str
 
     # 键名别名映射
-    if 'scale_factor' in norm and 'scale' not in norm:
-        norm['scale'] = norm['scale_factor']
-    if 'boundary_mode' in norm and 'boundary' not in norm:
-        norm['boundary'] = norm['boundary_mode']
+    if "scale_factor" in norm and "scale" not in norm:
+        norm["scale"] = norm["scale_factor"]
+    if "boundary_mode" in norm and "boundary" not in norm:
+        norm["boundary"] = norm["boundary_mode"]
 
     return norm
 
@@ -74,21 +81,21 @@ class DataConsistencyLoss(nn.Module):
 
     def __init__(
         self,
-        config: Optional[Dict[str, Any]] = None,
+        config: dict[str, Any] | None = None,
         *,
-        mean: Optional[torch.Tensor] = None,
-        std: Optional[torch.Tensor] = None,
-        loss_type: str = 'l2',
-        reduction: str = 'mean',
+        mean: torch.Tensor | None = None,
+        std: torch.Tensor | None = None,
+        loss_type: str = "l2",
+        reduction: str = "mean",
     ) -> None:
         super().__init__()
-        self.h_params: Dict[str, Any] = _normalize_h_params(config or {})
+        self.h_params: dict[str, Any] = _normalize_h_params(config or {})
         self.mean = mean
         self.std = std
         self.reduction = reduction
         self.loss_type = str(loss_type).lower()
 
-        if self.loss_type == 'l1':
+        if self.loss_type == "l1":
             self._loss_fn = nn.L1Loss(reduction=reduction)
         else:  # 默认l2
             self._loss_fn = nn.MSELoss(reduction=reduction)
@@ -104,11 +111,14 @@ class DataConsistencyLoss(nn.Module):
         pred_observed = apply_degradation_operator(pred_original, self.h_params)
 
         # 尺寸对齐（若不一致则将observation对齐到pred_observed）
-        if tuple(pred_observed.shape[-2:]) != tuple(observation.shape[-2:]) or pred_observed.shape[1] != observation.shape[1]:
+        if (
+            tuple(pred_observed.shape[-2:]) != tuple(observation.shape[-2:])
+            or pred_observed.shape[1] != observation.shape[1]
+        ):
             observation = F.interpolate(
                 observation,
                 size=pred_observed.shape[-2:],
-                mode='bilinear',
+                mode="bilinear",
                 align_corners=False,
             )
 
@@ -138,14 +148,14 @@ class TotalLoss(nn.Module):
         rec_weight: float = 1.0,
         spec_weight: float = 0.5,
         dc_weight: float = 1.0,
-        rec_loss_type: str = 'l2',
-        spec_loss_type: str = 'l2',
-        dc_loss_type: str = 'l2',
+        rec_loss_type: str = "l2",
+        spec_loss_type: str = "l2",
+        dc_loss_type: str = "l2",
         low_freq_modes: int = 16,
-        spec_config: Optional[Dict[str, Any]] = None,
-        dc_config: Optional[Dict[str, Any]] = None,
-        mean: Optional[torch.Tensor] = None,
-        std: Optional[torch.Tensor] = None,
+        spec_config: dict[str, Any] | None = None,
+        dc_config: dict[str, Any] | None = None,
+        mean: torch.Tensor | None = None,
+        std: torch.Tensor | None = None,
     ) -> None:
         super().__init__()
         self.rec_weight = rec_weight
@@ -164,42 +174,46 @@ class TotalLoss(nn.Module):
         )
 
         # DC的反归一化函数（若提供mean/std）
-        denorm_fn: Optional[callable] = None
+        denorm_fn: callable | None = None
         if mean is not None and std is not None:
             denorm_fn = lambda x: x * std + mean  # noqa: E731
         self.dc_loss = OpsDataConsistencyLoss(dc_loss_type, denormalize_fn=denorm_fn)
 
-        self.h_params: Dict[str, Any] = _normalize_h_params(dc_config or {})
+        self.h_params: dict[str, Any] = _normalize_h_params(dc_config or {})
 
     def forward(
         self,
         pred: torch.Tensor,
         target: torch.Tensor,
         observation: torch.Tensor,
-    ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
+    ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         # 各项损失
         rec_loss = self.rec_loss(pred, target)
         spec_loss = self.spec_loss(pred, target)
         dc_loss = self.dc_loss(pred, observation, self.h_params)
 
         # 权重合成
-        total = self.rec_weight * rec_loss + self.spec_weight * spec_loss + self.dc_weight * dc_loss
+        total = (
+            self.rec_weight * rec_loss
+            + self.spec_weight * spec_loss
+            + self.dc_weight * dc_loss
+        )
 
         # 返回测试期望的键名
         loss_dict = {
-            'rec_loss': rec_loss,
-            'spec_loss': spec_loss,
-            'dc_loss': dc_loss,
+            "rec_loss": rec_loss,
+            "spec_loss": spec_loss,
+            "dc_loss": dc_loss,
         }
         return total, loss_dict
 
 
 __all__ = [
-    'TotalLoss',
-    'ReconstructionLoss',
-    'SpectralLoss',
-    'DataConsistencyLoss',
-    'compute_total_loss',
-    'compute_gradient_loss',
-    'compute_pde_residual_loss',
+    "TotalLoss",
+    "ReconstructionLoss",
+    "SpectralLoss",
+    "DataConsistencyLoss",
+    "compute_total_loss",
+    "compute_gradient_loss",
+    "compute_pde_residual_loss",
 ]

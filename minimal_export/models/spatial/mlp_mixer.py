@@ -12,10 +12,9 @@ Notes:
     - 原始 MLP-Mixer 用于分类；此实现通过 PatchRestore 适配 dense prediction / reconstruction。
 """
 
-from typing import Optional, Tuple
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+
 from ..base import BaseModel
 from ..registry import register_model
 
@@ -26,8 +25,8 @@ class MLP(nn.Module):
     def __init__(
         self,
         in_features: int,
-        hidden_features: Optional[int] = None,
-        out_features: Optional[int] = None,
+        hidden_features: int | None = None,
+        out_features: int | None = None,
         act_layer: nn.Module = nn.GELU,
         drop: float = 0.0,
     ):
@@ -69,7 +68,7 @@ class MixerBlock(nn.Module):
         self,
         dim: int,
         seq_len: int,
-        mlp_ratio: Tuple[float, float] = (0.5, 4.0),
+        mlp_ratio: tuple[float, float] = (0.5, 4.0),
         act_layer: nn.Module = nn.GELU,
         drop: float = 0.0,
         drop_path: float = 0.0,
@@ -95,7 +94,9 @@ class MixerBlock(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # Token-mixing
-        x = x + self.drop_path(self.mlp_tokens(self.norm1(x).transpose(1, 2)).transpose(1, 2))
+        x = x + self.drop_path(
+            self.mlp_tokens(self.norm1(x).transpose(1, 2)).transpose(1, 2)
+        )
         # Channel-mixing
         x = x + self.drop_path(self.mlp_channels(self.norm2(x)))
         return x
@@ -110,15 +111,19 @@ class PatchEmbed(nn.Module):
         self.patch_size = patch_size
         self.grid_size = img_size // patch_size
         self.num_patches = self.grid_size * self.grid_size
-        self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size)
+        self.proj = nn.Conv2d(
+            in_chans, embed_dim, kernel_size=patch_size, stride=patch_size
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         B, C, H, W = x.shape
         # 为保持 MixerBlock 的 seq_len 固定，本实现要求输入尺寸固定为 img_size
         if (H != self.img_size) or (W != self.img_size):
-            raise ValueError(f"Input size {(H, W)} must match img_size {(self.img_size, self.img_size)}")
-        x = self.proj(x)                      # [B, C', H/P, W/P]
-        x = x.flatten(2).transpose(1, 2)      # [B, N, C']
+            raise ValueError(
+                f"Input size {(H, W)} must match img_size {(self.img_size, self.img_size)}"
+            )
+        x = self.proj(x)  # [B, C', H/P, W/P]
+        x = x.flatten(2).transpose(1, 2)  # [B, N, C']
         return x
 
 
@@ -136,10 +141,14 @@ class PatchRestore(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         B, N, C = x.shape
         if N != self.num_patches:
-            raise ValueError(f"Token length {N} must match num_patches {self.num_patches}")
+            raise ValueError(
+                f"Token length {N} must match num_patches {self.num_patches}"
+            )
 
         x = self.proj(x)  # [B, N, out_chans * P^2]
-        x = x.reshape(B, self.grid_size, self.grid_size, -1, self.patch_size, self.patch_size)
+        x = x.reshape(
+            B, self.grid_size, self.grid_size, -1, self.patch_size, self.patch_size
+        )
         x = x.permute(0, 3, 1, 4, 2, 5).contiguous()
         x = x.reshape(B, -1, self.img_size, self.img_size)
         return x
@@ -157,7 +166,7 @@ class MLPMixer(BaseModel):
         patch_size: int = 16,
         embed_dim: int = 512,
         depth: int = 8,
-        mlp_ratio: Tuple[float, float] = (0.5, 4.0),
+        mlp_ratio: tuple[float, float] = (0.5, 4.0),
         drop_rate: float = 0.0,
         drop_path_rate: float = 0.0,
         **kwargs,
@@ -165,7 +174,9 @@ class MLPMixer(BaseModel):
         super().__init__(in_channels, out_channels, img_size, **kwargs)
 
         if img_size % patch_size != 0:
-            raise ValueError(f"img_size={img_size} must be divisible by patch_size={patch_size}")
+            raise ValueError(
+                f"img_size={img_size} must be divisible by patch_size={patch_size}"
+            )
 
         self.patch_size = patch_size
         self.embed_dim = embed_dim
@@ -180,10 +191,14 @@ class MLPMixer(BaseModel):
         self.patch_embed = PatchEmbed(img_size, patch_size, in_channels, embed_dim)
 
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]
-        self.blocks = nn.ModuleList([
-            MixerBlock(embed_dim, self.num_patches, mlp_ratio, nn.GELU, drop_rate, dpr[i])
-            for i in range(depth)
-        ])
+        self.blocks = nn.ModuleList(
+            [
+                MixerBlock(
+                    embed_dim, self.num_patches, mlp_ratio, nn.GELU, drop_rate, dpr[i]
+                )
+                for i in range(depth)
+            ]
+        )
 
         self.norm = nn.LayerNorm(embed_dim)
         self.patch_restore = PatchRestore(img_size, patch_size, embed_dim, out_channels)
@@ -205,7 +220,7 @@ class MLPMixer(BaseModel):
                     nn.init.constant_(m.bias, 0)
 
     def forward_features(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.patch_embed(x)   # [B, N, C]
+        x = self.patch_embed(x)  # [B, N, C]
         for blk in self.blocks:
             x = blk(x)
         x = self.norm(x)
@@ -216,7 +231,7 @@ class MLPMixer(BaseModel):
         x = self.patch_restore(x)  # [B, out_channels, H, W]
         return x
 
-    def compute_flops(self, input_shape: Tuple[int, ...] = None) -> int:
+    def compute_flops(self, input_shape: tuple[int, ...] = None) -> int:
         """
         简化 FLOPs 估算（不含激活/Norm/Dropout）：
         - PatchEmbed: Conv: Cin*C*P^2*N

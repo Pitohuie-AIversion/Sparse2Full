@@ -14,14 +14,14 @@ References (出处):
       https://arxiv.org/abs/1803.08494
 """
 
+import math
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Optional, Tuple
-import math
 
-from ..registry import register_model
 from ..base import BaseModel
+from ..registry import register_model
 
 
 class SparseAttentionEncoder(nn.Module):
@@ -48,7 +48,7 @@ class SparseAttentionEncoder(nn.Module):
         coord_dim: int = 64,
         mask_dim: int = 32,
         dropout: float = 0.1,
-        use_sparse_bias: bool = True
+        use_sparse_bias: bool = True,
     ):
         super().__init__()
 
@@ -56,7 +56,9 @@ class SparseAttentionEncoder(nn.Module):
         self.num_heads = num_heads
         self.use_sparse_bias = use_sparse_bias
         self.head_dim = embed_dim // num_heads
-        assert self.head_dim * num_heads == embed_dim, "embed_dim must be divisible by num_heads"
+        assert (
+            self.head_dim * num_heads == embed_dim
+        ), "embed_dim must be divisible by num_heads"
 
         # 输入投影层（1x1卷积通道投影）
         # Reference (出处):
@@ -69,9 +71,11 @@ class SparseAttentionEncoder(nn.Module):
         #   (Senseiver paper / concept; please replace with the exact citation/URL you intend to use)
         self.sensor_embedding = nn.Sequential(
             nn.Conv2d(1, sensor_dim, kernel_size=1),
-            nn.GroupNorm(num_groups=8, num_channels=sensor_dim),  # GroupNorm: https://arxiv.org/abs/1803.08494
+            nn.GroupNorm(
+                num_groups=8, num_channels=sensor_dim
+            ),  # GroupNorm: https://arxiv.org/abs/1803.08494
             nn.GELU(),
-            nn.Conv2d(sensor_dim, sensor_dim, kernel_size=1)
+            nn.Conv2d(sensor_dim, sensor_dim, kernel_size=1),
         )
 
         # 坐标编码（对x,y坐标做可学习嵌入）
@@ -81,9 +85,11 @@ class SparseAttentionEncoder(nn.Module):
         #   (Senseiver paper / concept; please replace with the exact citation/URL you intend to use)
         self.coord_embedding = nn.Sequential(
             nn.Conv2d(2, coord_dim, kernel_size=1),  # x, y坐标
-            nn.GroupNorm(num_groups=8, num_channels=coord_dim),  # https://arxiv.org/abs/1803.08494
+            nn.GroupNorm(
+                num_groups=8, num_channels=coord_dim
+            ),  # https://arxiv.org/abs/1803.08494
             nn.GELU(),
-            nn.Conv2d(coord_dim, coord_dim, kernel_size=1)
+            nn.Conv2d(coord_dim, coord_dim, kernel_size=1),
         )
 
         # 掩码编码（观测可用性/稀疏mask的可学习嵌入）
@@ -92,9 +98,11 @@ class SparseAttentionEncoder(nn.Module):
         #   (Senseiver paper / concept; please replace with the exact citation/URL you intend to use)
         self.mask_embedding = nn.Sequential(
             nn.Conv2d(1, mask_dim, kernel_size=1),
-            nn.GroupNorm(num_groups=8, num_channels=mask_dim),  # https://arxiv.org/abs/1803.08494
+            nn.GroupNorm(
+                num_groups=8, num_channels=mask_dim
+            ),  # https://arxiv.org/abs/1803.08494
             nn.GELU(),
-            nn.Conv2d(mask_dim, mask_dim, kernel_size=1)
+            nn.Conv2d(mask_dim, mask_dim, kernel_size=1),
         )
 
         # 组合特征投影（特征拼接后用1x1卷积融合）
@@ -103,9 +111,11 @@ class SparseAttentionEncoder(nn.Module):
         total_feature_dim = embed_dim + sensor_dim + coord_dim + mask_dim
         self.feature_fusion = nn.Sequential(
             nn.Conv2d(total_feature_dim, embed_dim, kernel_size=1),
-            nn.GroupNorm(num_groups=8, num_channels=embed_dim),  # https://arxiv.org/abs/1803.08494
+            nn.GroupNorm(
+                num_groups=8, num_channels=embed_dim
+            ),  # https://arxiv.org/abs/1803.08494
             nn.GELU(),
-            nn.Dropout(dropout)
+            nn.Dropout(dropout),
         )
 
         # 多头自注意力（QKV 1x1卷积投影 + 全局注意力）
@@ -115,8 +125,7 @@ class SparseAttentionEncoder(nn.Module):
         self.qkv_proj = nn.Conv2d(embed_dim, embed_dim * 3, kernel_size=1)
         self.attn_dropout = nn.Dropout(dropout)
         self.out_proj = nn.Sequential(
-            nn.Conv2d(embed_dim, embed_dim, kernel_size=1),
-            nn.Dropout(dropout)
+            nn.Conv2d(embed_dim, embed_dim, kernel_size=1), nn.Dropout(dropout)
         )
 
         # 前馈网络（Transformer FFN 的卷积化实现）
@@ -128,7 +137,7 @@ class SparseAttentionEncoder(nn.Module):
             nn.GELU(),
             nn.Dropout(dropout),
             nn.Conv2d(embed_dim * 4, embed_dim, kernel_size=1),
-            nn.Dropout(dropout)
+            nn.Dropout(dropout),
         )
 
         # 归一化（Transformer常见为LayerNorm；此处工程化采用GroupNorm）
@@ -158,7 +167,9 @@ class SparseAttentionEncoder(nn.Module):
                 nn.init.constant_(m.bias, 0)
                 nn.init.constant_(m.weight, 1.0)
 
-    def _create_sparse_attention_mask(self, mask: torch.Tensor, window_size: int = 7) -> torch.Tensor:
+    def _create_sparse_attention_mask(
+        self, mask: torch.Tensor, window_size: int = 7
+    ) -> torch.Tensor:
         """创建稀疏注意力掩码
 
         只在观测点（mask > 0）及其邻域内计算注意力，减少计算量。
@@ -180,7 +191,9 @@ class SparseAttentionEncoder(nn.Module):
             obs_mask = (obs_mask > 0).float()
 
         obs_mask_flat = obs_mask.view(B, H * W)  # [B, H*W]
-        sparse_mask = obs_mask_flat.unsqueeze(2) * obs_mask_flat.unsqueeze(1)  # [B, H*W, H*W]
+        sparse_mask = obs_mask_flat.unsqueeze(2) * obs_mask_flat.unsqueeze(
+            1
+        )  # [B, H*W, H*W]
 
         attention_mask = torch.zeros_like(sparse_mask)
         attention_mask[sparse_mask == 0] = -1e4  # 以大负数近似 -inf（数值稳定工程做法）
@@ -190,9 +203,9 @@ class SparseAttentionEncoder(nn.Module):
     def forward(
         self,
         x: torch.Tensor,
-        coords: Optional[torch.Tensor] = None,
-        mask: Optional[torch.Tensor] = None,
-        return_attention: bool = False
+        coords: torch.Tensor | None = None,
+        mask: torch.Tensor | None = None,
+        return_attention: bool = False,
     ) -> torch.Tensor:
         """前向传播
 
@@ -259,7 +272,7 @@ class SparseAttentionEncoder(nn.Module):
         k_flat = k.view(B, self.num_heads, self.head_dim, H * W)
         v_flat = v.view(B, self.num_heads, self.head_dim, H * W)
 
-        attn = torch.einsum('bhdi,bhdj->bhij', q_flat, k_flat) * scale
+        attn = torch.einsum("bhdi,bhdj->bhij", q_flat, k_flat) * scale
 
         # mask作为attention bias（稀疏注意力近似）
         if self.use_sparse_bias and mask is not None:
@@ -269,7 +282,7 @@ class SparseAttentionEncoder(nn.Module):
         attn = F.softmax(attn, dim=-1)
         attn = self.attn_dropout(attn)
 
-        out_flat = torch.einsum('bhij,bhdj->bhdi', attn, v_flat)
+        out_flat = torch.einsum("bhij,bhdj->bhdi", attn, v_flat)
         attn_out = out_flat.reshape(B, self.num_heads * self.head_dim, H, W)
 
         attn_out = self.out_proj(attn_out)
@@ -284,7 +297,7 @@ class SparseAttentionEncoder(nn.Module):
         output = self.output_proj(x)
 
         if return_attention:
-            return output, attn if 'attn' in locals() else None
+            return output, attn if "attn" in locals() else None
 
         return output
 
@@ -296,13 +309,30 @@ class SparseAttentionEncoder(nn.Module):
           https://arxiv.org/abs/2103.14030
         """
         B, num_heads, head_dim, H, W = x.shape
-        x = x.view(B, num_heads, head_dim, H // window_size, window_size, W // window_size, window_size)
-        windows = x.permute(0, 1, 3, 5, 4, 6, 2).contiguous().reshape(
-            B * (H // window_size) * (W // window_size), num_heads, window_size * window_size, head_dim
+        x = x.view(
+            B,
+            num_heads,
+            head_dim,
+            H // window_size,
+            window_size,
+            W // window_size,
+            window_size,
+        )
+        windows = (
+            x.permute(0, 1, 3, 5, 4, 6, 2)
+            .contiguous()
+            .reshape(
+                B * (H // window_size) * (W // window_size),
+                num_heads,
+                window_size * window_size,
+                head_dim,
+            )
         )
         return windows
 
-    def _window_reverse(self, windows: torch.Tensor, window_size: int, H: int, W: int) -> torch.Tensor:
+    def _window_reverse(
+        self, windows: torch.Tensor, window_size: int, H: int, W: int
+    ) -> torch.Tensor:
         """窗口合并
 
         Reference (出处):
@@ -312,8 +342,20 @@ class SparseAttentionEncoder(nn.Module):
         B_num_windows, num_heads, window_size_sq, head_dim = windows.shape
         B = B_num_windows // ((H // window_size) * (W // window_size))
 
-        windows = windows.view(B, H // window_size, W // window_size, num_heads, window_size, window_size, head_dim)
-        x = windows.permute(0, 3, 1, 4, 2, 5, 6).contiguous().reshape(B, num_heads, head_dim, H, W)
+        windows = windows.view(
+            B,
+            H // window_size,
+            W // window_size,
+            num_heads,
+            window_size,
+            window_size,
+            head_dim,
+        )
+        x = (
+            windows.permute(0, 3, 1, 4, 2, 5, 6)
+            .contiguous()
+            .reshape(B, num_heads, head_dim, H, W)
+        )
         return x
 
     def _compute_window_attention(
@@ -322,7 +364,7 @@ class SparseAttentionEncoder(nn.Module):
         k_windows: torch.Tensor,
         v_windows: torch.Tensor,
         scale: float,
-        mask: Optional[torch.Tensor] = None
+        mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """计算窗口内注意力
 
@@ -335,10 +377,10 @@ class SparseAttentionEncoder(nn.Module):
         B_windows, num_heads, window_size_sq, head_dim = q_windows.shape
 
         # 计算注意力分数（注意：此处einsum公式为工程占位；如需严格窗口注意力请按Swin实现修正）
-        attn = torch.einsum('bhni,bhnj->bhnj', q_windows, k_windows) * scale
+        attn = torch.einsum("bhni,bhnj->bhnj", q_windows, k_windows) * scale
         attn = F.softmax(attn, dim=-1)
 
-        out = torch.einsum('bhnj,bhnk->bhnk', attn, v_windows)
+        out = torch.einsum("bhnj,bhnk->bhnk", attn, v_windows)
 
         return out
 
@@ -346,7 +388,7 @@ class SparseAttentionEncoder(nn.Module):
 @register_model(name="sparse_swin_unet", aliases=["SparseSwinUNet"])
 class SparseSwinUNet(BaseModel):
     """集成稀疏注意力编码的Swin-UNet
-    
+
     References (出处):
     - Senseiver（在SwinUNet前引入稀疏传感器注意力编码的思路）
       (Senseiver paper / concept; please replace with the exact citation/URL you intend to use)
@@ -360,9 +402,9 @@ class SparseSwinUNet(BaseModel):
         out_channels: int,
         img_size: int = 256,
         embed_dim: int = 96,
-        sparse_encoder_config: Optional[dict] = None,
-        swin_unet_config: Optional[dict] = None,
-        **kwargs  # Accept extra arguments
+        sparse_encoder_config: dict | None = None,
+        swin_unet_config: dict | None = None,
+        **kwargs,  # Accept extra arguments
     ):
         super().__init__(
             in_channels=in_channels,
@@ -371,32 +413,31 @@ class SparseSwinUNet(BaseModel):
             embed_dim=embed_dim,
             sparse_encoder_config=sparse_encoder_config,
             swin_unet_config=swin_unet_config,
-            **kwargs
+            **kwargs,
         )
 
         if sparse_encoder_config is None:
             sparse_encoder_config = {
-                'embed_dim': 256,
-                'num_heads': 8,
-                'sensor_dim': 128,
-                'coord_dim': 64,
-                'mask_dim': 32,
-                'dropout': 0.1,
-                'use_sparse_bias': True
+                "embed_dim": 256,
+                "num_heads": 8,
+                "sensor_dim": 128,
+                "coord_dim": 64,
+                "mask_dim": 32,
+                "dropout": 0.1,
+                "use_sparse_bias": True,
             }
 
         if swin_unet_config is None:
             swin_unet_config = {
-                'depths': [2, 2, 6, 2],
-                'num_heads': [3, 6, 12, 24],
-                'window_size': 8,
-                'mlp_ratio': 4.0
+                "depths": [2, 2, 6, 2],
+                "num_heads": [3, 6, 12, 24],
+                "window_size": 8,
+                "mlp_ratio": 4.0,
             }
 
         # 稀疏注意力编码头：Senseiver风格
         self.sparse_encoder = SparseAttentionEncoder(
-            in_channels=in_channels,
-            **sparse_encoder_config
+            in_channels=in_channels, **sparse_encoder_config
         )
 
         # SwinUNet主体：窗口注意力U-Net式结构（依赖外部实现）
@@ -404,12 +445,13 @@ class SparseSwinUNet(BaseModel):
         # - Swin Transformer: Hierarchical Vision Transformer using Shifted Windows
         #   https://arxiv.org/abs/2103.14030
         from .swin_unet import SwinUNet
+
         self.swin_unet = SwinUNet(
-            in_channels=sparse_encoder_config['embed_dim'],
+            in_channels=sparse_encoder_config["embed_dim"],
             out_channels=out_channels,
             img_size=img_size,
             embed_dim=embed_dim,
-            **swin_unet_config
+            **swin_unet_config,
         )
 
         self.residual_scale = nn.Parameter(torch.tensor(0.0))
@@ -427,7 +469,7 @@ class SparseSwinUNet(BaseModel):
         residual = self.swin_unet(sparse_features)
 
         if x.shape[1] >= self.out_channels:
-            baseline = x[:, :self.out_channels]
+            baseline = x[:, : self.out_channels]
         else:
             baseline = torch.zeros(
                 x.shape[0],

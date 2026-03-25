@@ -11,8 +11,6 @@ Reference:
 
 from __future__ import annotations
 
-from typing import List, Optional, Tuple
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -26,6 +24,7 @@ from ..registry import register_model
 try:
     from .fno2d import SpectralConv2d  # type: ignore
 except Exception:
+
     class SpectralConv2d(nn.Module):
         """
         FNO-style 2D spectral convolution (fallback implementation).
@@ -34,7 +33,9 @@ except Exception:
         FFT -> multiply low-frequency modes -> IFFT
         """
 
-        def __init__(self, in_channels: int, out_channels: int, modes1: int, modes2: int):
+        def __init__(
+            self, in_channels: int, out_channels: int, modes1: int, modes2: int
+        ):
             super().__init__()
             self.in_channels = int(in_channels)
             self.out_channels = int(out_channels)
@@ -43,12 +44,26 @@ except Exception:
 
             # complex weights for top-left and bottom-left frequency blocks
             scale = 1 / (self.in_channels * self.out_channels)
-            self.weights1 = nn.Parameter(scale * torch.randn(
-                self.in_channels, self.out_channels, self.modes1, self.modes2, dtype=torch.cfloat
-            ))
-            self.weights2 = nn.Parameter(scale * torch.randn(
-                self.in_channels, self.out_channels, self.modes1, self.modes2, dtype=torch.cfloat
-            ))
+            self.weights1 = nn.Parameter(
+                scale
+                * torch.randn(
+                    self.in_channels,
+                    self.out_channels,
+                    self.modes1,
+                    self.modes2,
+                    dtype=torch.cfloat,
+                )
+            )
+            self.weights2 = nn.Parameter(
+                scale
+                * torch.randn(
+                    self.in_channels,
+                    self.out_channels,
+                    self.modes1,
+                    self.modes2,
+                    dtype=torch.cfloat,
+                )
+            )
 
         @staticmethod
         def compl_mul2d(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
@@ -67,9 +82,13 @@ except Exception:
             m2 = min(self.modes2, W // 2 + 1)
 
             # top-left
-            out_ft[:, :, :m1, :m2] = self.compl_mul2d(x_ft[:, :, :m1, :m2], self.weights1[:, :, :m1, :m2])
+            out_ft[:, :, :m1, :m2] = self.compl_mul2d(
+                x_ft[:, :, :m1, :m2], self.weights1[:, :, :m1, :m2]
+            )
             # bottom-left
-            out_ft[:, :, -m1:, :m2] = self.compl_mul2d(x_ft[:, :, -m1:, :m2], self.weights2[:, :, :m1, :m2])
+            out_ft[:, :, -m1:, :m2] = self.compl_mul2d(
+                x_ft[:, :, -m1:, :m2], self.weights2[:, :, :m1, :m2]
+            )
 
             x = torch.fft.irfft2(out_ft, s=(H, W), norm="ortho")
             return x
@@ -81,7 +100,9 @@ except Exception:
 class DoubleConv(nn.Module):
     """(Conv3x3 -> BN -> ReLU) * 2"""
 
-    def __init__(self, in_channels: int, out_channels: int, mid_channels: Optional[int] = None):
+    def __init__(
+        self, in_channels: int, out_channels: int, mid_channels: int | None = None
+    ):
         super().__init__()
         mid = out_channels if mid_channels is None else int(mid_channels)
         self.net = nn.Sequential(
@@ -135,7 +156,9 @@ class Up(nn.Module):
         else:
             # transposed conv can also keep channels; typical U-Net halves channels here,
             # but we keep it simple and stable.
-            self.up = nn.ConvTranspose2d(self.in_ch, self.in_ch, kernel_size=2, stride=2)
+            self.up = nn.ConvTranspose2d(
+                self.in_ch, self.in_ch, kernel_size=2, stride=2
+            )
             self.reduce = nn.Identity()
 
         self.conv = DoubleConv(self.in_ch + self.skip_ch, self.out_ch)
@@ -149,8 +172,10 @@ class Up(nn.Module):
         diff_y = x2.size(-2) - x1.size(-2)
         diff_x = x2.size(-1) - x1.size(-1)
         if diff_y != 0 or diff_x != 0:
-            x1 = F.pad(x1, [diff_x // 2, diff_x - diff_x // 2,
-                            diff_y // 2, diff_y - diff_y // 2])
+            x1 = F.pad(
+                x1,
+                [diff_x // 2, diff_x - diff_x // 2, diff_y // 2, diff_y - diff_y // 2],
+            )
 
         x = torch.cat([x2, x1], dim=1)  # [B, skip_ch+in_ch, H, W]
         return self.conv(x)
@@ -190,20 +215,28 @@ class FNOBottleneck(nn.Module):
         else:
             raise ValueError(f"Unsupported activation: {activation}")
 
-        self.spectral = nn.ModuleList([
-            SpectralConv2d(self.channels, self.channels, self.modes1, self.modes2)
-            for _ in range(self.n_layers)
-        ])
-        self.pointwise = nn.ModuleList([
-            nn.Conv2d(self.channels, self.channels, kernel_size=1)
-            for _ in range(self.n_layers)
-        ])
+        self.spectral = nn.ModuleList(
+            [
+                SpectralConv2d(self.channels, self.channels, self.modes1, self.modes2)
+                for _ in range(self.n_layers)
+            ]
+        )
+        self.pointwise = nn.ModuleList(
+            [
+                nn.Conv2d(self.channels, self.channels, kernel_size=1)
+                for _ in range(self.n_layers)
+            ]
+        )
 
         norm = norm.lower()
         if norm == "bn":
-            self.norms = nn.ModuleList([nn.BatchNorm2d(self.channels) for _ in range(self.n_layers)])
+            self.norms = nn.ModuleList(
+                [nn.BatchNorm2d(self.channels) for _ in range(self.n_layers)]
+            )
         elif norm == "gn":
-            self.norms = nn.ModuleList([nn.GroupNorm(8, self.channels) for _ in range(self.n_layers)])
+            self.norms = nn.ModuleList(
+                [nn.GroupNorm(8, self.channels) for _ in range(self.n_layers)]
+            )
         else:
             raise ValueError(f"Unsupported norm: {norm}")
 
@@ -239,7 +272,7 @@ class UFNOUNet(BaseModel):
         in_channels: int = 1,
         out_channels: int = 1,
         img_size: int = 128,
-        features: Optional[List[int]] = None,
+        features: list[int] | None = None,
         fno_modes1: int = 16,
         fno_modes2: int = 16,
         fno_layers: int = 2,
@@ -247,7 +280,7 @@ class UFNOUNet(BaseModel):
         dropout: float = 0.0,
         fno_activation: str = "gelu",
         fno_norm: str = "bn",
-        final_activation: Optional[str] = None,  # None | "tanh" | "sigmoid"
+        final_activation: str | None = None,  # None | "tanh" | "sigmoid"
         **kwargs,
     ):
         super().__init__(in_channels, out_channels, img_size, **kwargs)
@@ -282,17 +315,21 @@ class UFNOUNet(BaseModel):
             norm=fno_norm,
         )
 
-        self.dropout_layer = nn.Dropout2d(self.dropout) if self.dropout > 0 else nn.Identity()
+        self.dropout_layer = (
+            nn.Dropout2d(self.dropout) if self.dropout > 0 else nn.Identity()
+        )
 
         # Decoder channel plan:
         # up1: in=bottleneck_ch,  skip=f3 -> out=f3
         # up2: in=f3,            skip=f2 -> out=f2
         # up3: in=f2,            skip=f1 -> out=f1
         # up4: in=f1,            skip=f0 -> out=f0
-        self.up1 = Up(in_ch=bottleneck_ch, skip_ch=f3, out_ch=f3, bilinear=self.bilinear)
-        self.up2 = Up(in_ch=f3,           skip_ch=f2, out_ch=f2, bilinear=self.bilinear)
-        self.up3 = Up(in_ch=f2,           skip_ch=f1, out_ch=f1, bilinear=self.bilinear)
-        self.up4 = Up(in_ch=f1,           skip_ch=f0, out_ch=f0, bilinear=self.bilinear)
+        self.up1 = Up(
+            in_ch=bottleneck_ch, skip_ch=f3, out_ch=f3, bilinear=self.bilinear
+        )
+        self.up2 = Up(in_ch=f3, skip_ch=f2, out_ch=f2, bilinear=self.bilinear)
+        self.up3 = Up(in_ch=f2, skip_ch=f1, out_ch=f1, bilinear=self.bilinear)
+        self.up4 = Up(in_ch=f1, skip_ch=f0, out_ch=f0, bilinear=self.bilinear)
 
         self.outc = nn.Conv2d(f0, out_channels, kernel_size=1)
 
@@ -327,11 +364,11 @@ class UFNOUNet(BaseModel):
             y: [B, C_out, H, W]
         """
         # Encoder
-        x1 = self.inc(x)      # f0
-        x2 = self.down1(x1)   # f1
-        x3 = self.down2(x2)   # f2
-        x4 = self.down3(x3)   # f3
-        x5 = self.down4(x4)   # 2*f3
+        x1 = self.inc(x)  # f0
+        x2 = self.down1(x1)  # f1
+        x3 = self.down2(x2)  # f2
+        x4 = self.down3(x3)  # f3
+        x5 = self.down4(x4)  # 2*f3
 
         # FNO bottleneck
         x5 = self.fno_bottleneck(x5)
@@ -339,9 +376,9 @@ class UFNOUNet(BaseModel):
 
         # Decoder
         x = self.up1(x5, x4)
-        x = self.up2(x,  x3)
-        x = self.up3(x,  x2)
-        x = self.up4(x,  x1)
+        x = self.up2(x, x3)
+        x = self.up3(x, x2)
+        x = self.up4(x, x1)
 
         y = self.outc(x)
         y = self.final_activation(y)

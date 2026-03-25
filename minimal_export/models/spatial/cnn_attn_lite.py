@@ -44,15 +44,16 @@ class ChannelAttention(nn.Module):
     Source: Squeeze-and-Excitation Networks (Hu et al., arXiv:1709.01507)
     Mechanism: GAP -> bottleneck -> gate (sigmoid) -> channel-wise reweighting.
     """
+
     def __init__(self, dim, reduction=4):
         super().__init__()
         r = max(1, dim // reduction)
         self.avg = nn.AdaptiveAvgPool2d(1)  # global average pooling
         self.fc = nn.Sequential(
-            nn.Conv2d(dim, r, 1),          # squeeze to r channels
+            nn.Conv2d(dim, r, 1),  # squeeze to r channels
             nn.GELU(),
-            nn.Conv2d(r, dim, 1),          # excite back to dim channels
-            nn.Sigmoid(),                  # channel gate
+            nn.Conv2d(r, dim, 1),  # excite back to dim channels
+            nn.Sigmoid(),  # channel gate
         )
 
     def forward(self, x):
@@ -66,10 +67,11 @@ class DepthwisePointwise(nn.Module):
     Source: MobileNet (Howard et al., arXiv:1704.04861)
     Structure: DW conv (groups=dim) + PW 1x1 conv.
     """
+
     def __init__(self, dim):
         super().__init__()
         self.dw = nn.Conv2d(dim, dim, 3, padding=1, groups=dim)  # depthwise 3x3
-        self.pw = nn.Conv2d(dim, dim, 1)                        # pointwise 1x1
+        self.pw = nn.Conv2d(dim, dim, 1)  # pointwise 1x1
         self.act = nn.GELU()
 
     def forward(self, x):
@@ -88,6 +90,7 @@ class CNNAttnBlock(nn.Module):
     - Pointwise "FFN-like" conv stack (1x1 -> GELU -> 1x1), inspired by MLP/FFN pattern
       (Note: not a Transformer FFN; here it is purely 1x1 conv in spatial feature maps.)
     """
+
     def __init__(self, dim):
         super().__init__()
         self.norm1 = nn.BatchNorm2d(dim)
@@ -116,7 +119,7 @@ class CNNAttnBlock(nn.Module):
     name="cnn_attn_lite",
     # 注意：aliases 里不需要重复写 "cnn_attn_lite"（name 已经覆盖了）
     # 只保留对人更友好的别名即可
-    aliases=["CNNAttnLite"]
+    aliases=["CNNAttnLite"],
 )
 class CNNAttnLite(BaseModel):
     """
@@ -131,6 +134,7 @@ class CNNAttnLite(BaseModel):
     - If you previously used "RestormerLite" to refer to this model, migrate that name
       via a deprecation shim elsewhere (recommended), rather than keeping a misleading alias.
     """
+
     def __init__(
         self,
         in_channels: int,
@@ -138,9 +142,14 @@ class CNNAttnLite(BaseModel):
         img_size: int,
         embed_dim: int = 48,
         depth: int = 6,
-        **kwargs
+        **kwargs,
     ):
-        super().__init__(in_channels=in_channels, out_channels=out_channels, img_size=img_size, **kwargs)
+        super().__init__(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            img_size=img_size,
+            **kwargs,
+        )
         self.stem = nn.Conv2d(in_channels, embed_dim, 3, padding=1)
         self.blocks = nn.Sequential(*[CNNAttnBlock(embed_dim) for _ in range(depth)])
         self.head = nn.Conv2d(embed_dim, out_channels, 3, padding=1)

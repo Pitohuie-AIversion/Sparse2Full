@@ -18,7 +18,6 @@ Reference:
 
 from __future__ import annotations
 
-from typing import List, Optional, Tuple
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -47,19 +46,22 @@ class PartialConv2d(nn.Module):
         padding: int = 1,
         dilation: int = 1,
         bias: bool = True,
-        return_mask: bool = True  # 新增标志，是否返回更新后的 mask
+        return_mask: bool = True,  # 新增标志，是否返回更新后的 mask
     ):
         super().__init__()
         self.out_channels = out_channels  # 保存 out_channels 属性
         self.conv = nn.Conv2d(
-            in_channels, out_channels,
+            in_channels,
+            out_channels,
             kernel_size=kernel_size,
             stride=stride,
             padding=padding,
             dilation=dilation,
-            bias=bias
+            bias=bias,
         )
-        self.kernel_size = kernel_size if isinstance(kernel_size, int) else kernel_size[0]
+        self.kernel_size = (
+            kernel_size if isinstance(kernel_size, int) else kernel_size[0]
+        )
         self.stride = stride if isinstance(stride, int) else stride[0]
         self.padding = padding if isinstance(padding, int) else padding[0]
         self.dilation = dilation if isinstance(dilation, int) else dilation[0]
@@ -67,7 +69,9 @@ class PartialConv2d(nn.Module):
 
         # 用于计算 valid_count 的 ones kernel（注册为 buffer，不参与训练）
         # mask 统一压到 1 通道后计算
-        self.register_buffer("weight_mask", torch.ones(1, 1, self.kernel_size, self.kernel_size))
+        self.register_buffer(
+            "weight_mask", torch.ones(1, 1, self.kernel_size, self.kernel_size)
+        )
 
     @staticmethod
     def _to_1ch_mask(mask: torch.Tensor) -> torch.Tensor:
@@ -77,17 +81,21 @@ class PartialConv2d(nn.Module):
                 mask = mask.squeeze(1)
             else:
                 raise ValueError("mask must be a 4D tensor [B,1,H,W] or [B,C,H,W].")
-                
+
         if mask.shape[1] == 1:
             return (mask > 0).float()
         # 多通道 mask：只要任一通道有效就算有效
         return (mask.sum(dim=1, keepdim=True) > 0).float()
 
-    def forward(self, x: torch.Tensor, mask: torch.Tensor = None) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+    def forward(
+        self, x: torch.Tensor, mask: torch.Tensor = None
+    ) -> Union[torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
         if mask is None:
             # 如果未提供 mask，默认为全 1 mask
-            mask = torch.ones(x.shape[0], 1, x.shape[2], x.shape[3], device=x.device, dtype=x.dtype)
-            
+            mask = torch.ones(
+                x.shape[0], 1, x.shape[2], x.shape[3], device=x.device, dtype=x.dtype
+            )
+
         mask1 = self._to_1ch_mask(mask).to(dtype=x.dtype, device=x.device)
 
         # masked input
@@ -119,31 +127,30 @@ class PartialConv2d(nn.Module):
 
         # mask output
         out = out * new_mask
-        
+
         if self.return_mask:
             # 兼容 PartialConv2d 单独使用时需要返回 mask，但作为 outc 时只返回 out
             return out, new_mask
         else:
             return out
 
-# 再次修复：PartialConv2d 被直接用作模型时，forward 会被调用。
-# 如果 return_mask=True (默认)，它返回 (out, mask)。
-# 训练脚本期望 forward 返回 out。
-# 我们需要确保当 PartialConv2d 被实例化为"模型"时，它的行为符合预期。
-# 或者，我们在 PartialConv2d 的 forward 里做类似 PartialConvUNet 的处理？
-# 不，PartialConv2d 是一个层，它的设计就是返回 mask 以便级联。
-# 如果用户直接把 PartialConv2d 当作模型跑，那它就是一个只有一层的模型。
-# 在这种情况下，我们可能不需要 mask。
-# 但 PartialConv2d 并没有 "I am running as a model" 的标志。
-# 更好的方法是在 model_loader 里排除 PartialConv2d，因为它只是一个层组件。
-# 或者，如果非要跑它，就在 wrapper 里处理。
-# 但最简单的，是把它排除掉，因为它显然不是一个完整的预测模型（没有 encoder-decoder 结构）。
+    # 再次修复：PartialConv2d 被直接用作模型时，forward 会被调用。
+    # 如果 return_mask=True (默认)，它返回 (out, mask)。
+    # 训练脚本期望 forward 返回 out。
+    # 我们需要确保当 PartialConv2d 被实例化为"模型"时，它的行为符合预期。
+    # 或者，我们在 PartialConv2d 的 forward 里做类似 PartialConvUNet 的处理？
+    # 不，PartialConv2d 是一个层，它的设计就是返回 mask 以便级联。
+    # 如果用户直接把 PartialConv2d 当作模型跑，那它就是一个只有一层的模型。
+    # 在这种情况下，我们可能不需要 mask。
+    # 但 PartialConv2d 并没有 "I am running as a model" 的标志。
+    # 更好的方法是在 model_loader 里排除 PartialConv2d，因为它只是一个层组件。
+    # 或者，如果非要跑它，就在 wrapper 里处理。
+    # 但最简单的，是把它排除掉，因为它显然不是一个完整的预测模型（没有 encoder-decoder 结构）。
 
-            
     # 添加 ndim 属性以兼容 check_model_health 等工具的检查
     @property
     def ndim(self):
-        return 4 # 假设输出通常是4维 [B, C, H, W]
+        return 4  # 假设输出通常是4维 [B, C, H, W]
 
 
 # -------------------------
@@ -155,17 +162,23 @@ class PConvDoubleConv(nn.Module):
     def __init__(self, in_ch: int, out_ch: int, bias: bool = True):
         super().__init__()
         self.pconv1 = PartialConv2d(in_ch, out_ch, 3, 1, 1, bias=bias, return_mask=True)
-        self.pconv2 = PartialConv2d(out_ch, out_ch, 3, 1, 1, bias=bias, return_mask=True)
+        self.pconv2 = PartialConv2d(
+            out_ch, out_ch, 3, 1, 1, bias=bias, return_mask=True
+        )
         self.act = nn.ReLU(inplace=True)
 
-    def forward(self, x: torch.Tensor, mask: torch.Tensor = None) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(
+        self, x: torch.Tensor, mask: torch.Tensor = None
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         if mask is None:
-             # 如果未提供 mask，默认为全 1 mask
-             mask = torch.ones(x.shape[0], 1, x.shape[2], x.shape[3], device=x.device, dtype=x.dtype)
-             
+            # 如果未提供 mask，默认为全 1 mask
+            mask = torch.ones(
+                x.shape[0], 1, x.shape[2], x.shape[3], device=x.device, dtype=x.dtype
+            )
+
         mask1 = PartialConv2d._to_1ch_mask(mask).to(dtype=x.dtype, device=x.device)
-        
-        x, m = self.pconv1(x, mask1) # 这里需要传入 mask
+
+        x, m = self.pconv1(x, mask1)  # 这里需要传入 mask
         x = self.act(x)
         x, m = self.pconv2(x, m)
         x = self.act(x)
@@ -180,7 +193,9 @@ class PConvDown(nn.Module):
         self.pool = nn.MaxPool2d(2)
         self.conv = PConvDoubleConv(in_ch, out_ch, bias=bias)
 
-    def forward(self, x: torch.Tensor, m: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(
+        self, x: torch.Tensor, m: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         x = self.pool(x)
         m = self.pool(m)
         return self.conv(x, m)
@@ -189,7 +204,9 @@ class PConvDown(nn.Module):
 class PConvUp(nn.Module):
     """Up: Upsample + concat + DoubleConv（mask 最近邻上采样，concat 后取 OR）"""
 
-    def __init__(self, in_ch: int, out_ch: int, bilinear: bool = True, bias: bool = True):
+    def __init__(
+        self, in_ch: int, out_ch: int, bilinear: bool = True, bias: bool = True
+    ):
         super().__init__()
         self.bilinear = bilinear
         if bilinear:
@@ -207,14 +224,14 @@ class PConvUp(nn.Module):
         diffY = ref.size(2) - x.size(2)
         diffX = ref.size(3) - x.size(3)
         if diffY != 0 or diffX != 0:
-            x = F.pad(x, [diffX // 2, diffX - diffX // 2, diffY // 2, diffY - diffY // 2])
+            x = F.pad(
+                x, [diffX // 2, diffX - diffX // 2, diffY // 2, diffY - diffY // 2]
+            )
         return x
 
     def forward(
-        self,
-        x1: torch.Tensor, m1: torch.Tensor,
-        x2: torch.Tensor, m2: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        self, x1: torch.Tensor, m1: torch.Tensor, x2: torch.Tensor, m2: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         x1 = self.up(x1)
         m1 = self.upm(m1)
 
@@ -253,10 +270,10 @@ class PartialConvUNet(BaseModel):
         in_channels: int | None = None,
         out_channels: int | None = None,
         img_size: int | None = None,
-        features: Optional[List[int]] = None,
+        features: list[int] | None = None,
         bilinear: bool = True,
         bias: bool = True,
-        add_input_residual: Optional[bool] = None,
+        add_input_residual: bool | None = None,
         input_includes_mask: bool = False,
         **kwargs,
     ):
@@ -277,7 +294,7 @@ class PartialConvUNet(BaseModel):
         self.input_includes_mask = input_includes_mask
 
         if add_input_residual is None:
-            self.add_input_residual = (in_channels == out_channels)
+            self.add_input_residual = in_channels == out_channels
         else:
             self.add_input_residual = bool(add_input_residual)
 
@@ -296,12 +313,37 @@ class PartialConvUNet(BaseModel):
         self.down4 = PConvDown(features[3], features[3] * 2 // factor, bias=bias)
         bott = features[3] * 2 // factor
 
-        self.up1 = PConvUp(bott + features[3], features[3] // factor, bilinear=bilinear, bias=bias)
-        self.up2 = PConvUp((features[3] // factor) + features[2], features[2] // factor, bilinear=bilinear, bias=bias)
-        self.up3 = PConvUp((features[2] // factor) + features[1], features[1] // factor, bilinear=bilinear, bias=bias)
-        self.up4 = PConvUp((features[1] // factor) + features[0], features[0], bilinear=bilinear, bias=bias)
+        self.up1 = PConvUp(
+            bott + features[3], features[3] // factor, bilinear=bilinear, bias=bias
+        )
+        self.up2 = PConvUp(
+            (features[3] // factor) + features[2],
+            features[2] // factor,
+            bilinear=bilinear,
+            bias=bias,
+        )
+        self.up3 = PConvUp(
+            (features[2] // factor) + features[1],
+            features[1] // factor,
+            bilinear=bilinear,
+            bias=bias,
+        )
+        self.up4 = PConvUp(
+            (features[1] // factor) + features[0],
+            features[0],
+            bilinear=bilinear,
+            bias=bias,
+        )
 
-        self.outc = PartialConv2d(features[0], out_channels, kernel_size=1, stride=1, padding=0, bias=bias, return_mask=False)
+        self.outc = PartialConv2d(
+            features[0],
+            out_channels,
+            kernel_size=1,
+            stride=1,
+            padding=0,
+            bias=bias,
+            return_mask=False,
+        )
 
         self._init_weights()
 
@@ -316,22 +358,24 @@ class PartialConvUNet(BaseModel):
         # Handle input_includes_mask: Always extract from x if configured
         # This fixes the issue where smoke_test passes target_seq as 2nd arg (captured by mask)
         if self.input_includes_mask:
-             # Assume mask is the last channel
-             if x.dim() == 4 and x.shape[1] > 1:
-                 mask = x[:, -1:, :, :]
-                 x = x[:, :-1, :, :]
-        
+            # Assume mask is the last channel
+            if x.dim() == 4 and x.shape[1] > 1:
+                mask = x[:, -1:, :, :]
+                x = x[:, :-1, :, :]
+
         # Fallback: Check for channel mismatch (e.g. x=4ch, model=3ch)
         # This handles cases where input_includes_mask might be False but mismatch exists
         elif mask is None and x.dim() == 4:
             expected_in = self.inc.pconv1.conv.in_channels
             if x.shape[1] == expected_in + 1:
-                 mask = x[:, -1:, :, :]
-                 x = x[:, :-1, :, :]
+                mask = x[:, -1:, :, :]
+                x = x[:, :-1, :, :]
 
         if mask is None:
-            mask = torch.ones((x.shape[0], 1, x.shape[2], x.shape[3]), device=x.device, dtype=x.dtype)
-             
+            mask = torch.ones(
+                (x.shape[0], 1, x.shape[2], x.shape[3]), device=x.device, dtype=x.dtype
+            )
+
         mask = PartialConv2d._to_1ch_mask(mask).to(dtype=x.dtype, device=x.device)
 
         inp = x
@@ -356,8 +400,9 @@ class PartialConvUNet(BaseModel):
         if self.add_input_residual:
             if inp.shape == out.shape:
                 out = out + inp
-            
+
         return out
+
 
 # 包装 PartialConvUNet 的输出，使其看起来像一个 Tensor 但带有 ndim 属性（如果它是 tuple 的话）
 # 但实际上 PartialConvUNet 的 forward 已经确保返回 Tensor 了。
@@ -376,7 +421,6 @@ class PartialConvUNet(BaseModel):
 # 可能原因：旧的 pycache 或者 import 问题？
 # 或者之前的修改没生效？
 # 让我们再次确认修改是否成功。
-
 
 
 # alias

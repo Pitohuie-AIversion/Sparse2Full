@@ -1,9 +1,10 @@
 import torch
 import torch.nn as nn
-from ..encoders.sparse_input_encoder import SparseInputEncoder
-from .swin_t import SwinTransformerTiny as SwinT
-from ..registry import register_model
+
 from ..base import BaseModel
+from ..encoders.sparse_input_encoder import SparseInputEncoder
+from ..registry import register_model
+from .swin_t import SwinTransformerTiny as SwinT
 
 # References (出处):
 # - Swin Transformer: Hierarchical Vision Transformer using Shifted Windows
@@ -11,6 +12,7 @@ from ..base import BaseModel
 # - LIIF: Learning Continuous Image Representation with Local Implicit Image Function
 #   https://arxiv.org/abs/2012.09161
 # - “SparseInputEncoder” 属于工程内自定义模块（请在你的论文/代码仓库中给出其来源：自研/改写自哪篇或哪份实现）
+
 
 @register_model(name="swin_t_with_encoder", aliases=["SwinTWithEncoder"])
 class SwinTWithEncoder(BaseModel):
@@ -31,11 +33,11 @@ class SwinTWithEncoder(BaseModel):
         drop_rate: float = 0.0,
         attn_drop_rate: float = 0.0,
         drop_path_rate: float = 0.1,
-        norm_layer: str = 'LayerNorm',
+        norm_layer: str = "LayerNorm",
         ape: bool = False,
         patch_norm: bool = True,
         use_checkpoint: bool = False,
-        final_upsample: str = 'expand_first',
+        final_upsample: str = "expand_first",
         mlp_ratio: float = 4.0,
         qkv_bias: bool = True,
         qk_scale: float | None = None,
@@ -43,7 +45,7 @@ class SwinTWithEncoder(BaseModel):
         post_conv3x3: bool = False,
         use_liif_decoder: bool = False,
         liif_mlp_hidden: int = 64,
-        **kwargs  # Accept extra arguments
+        **kwargs,  # Accept extra arguments
     ):
         super().__init__(
             in_channels=in_channels,
@@ -73,7 +75,7 @@ class SwinTWithEncoder(BaseModel):
             post_conv3x3=post_conv3x3,
             use_liif_decoder=use_liif_decoder,
             liif_mlp_hidden=liif_mlp_hidden,
-            **kwargs
+            **kwargs,
         )
         # 通用编码器消费 img/coords/mask/(pe)
         # References (出处):
@@ -122,7 +124,8 @@ class SwinTWithEncoder(BaseModel):
         # - CNN-based restoration 中常见的后处理卷积（通用工程策略）
         self.post_conv = (
             nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1)
-            if post_conv3x3 else nn.Identity()
+            if post_conv3x3
+            else nn.Identity()
         )
 
         # 可选 LIIF 解码器：坐标+邻域特征查询（简化版）
@@ -131,11 +134,15 @@ class SwinTWithEncoder(BaseModel):
         #   https://arxiv.org/abs/2012.09161
         # - 这里使用“特征 + 2D坐标 -> MLP -> 像素值”的基本范式（简化实现，未显式做局部邻域采样）
         self.use_liif = bool(use_liif_decoder)
-        self.liif_mlp = nn.Sequential(
-            nn.Linear(out_channels + 2, liif_mlp_hidden),
-            nn.GELU(),
-            nn.Linear(liif_mlp_hidden, out_channels)
-        ) if self.use_liif else None
+        self.liif_mlp = (
+            nn.Sequential(
+                nn.Linear(out_channels + 2, liif_mlp_hidden),
+                nn.GELU(),
+                nn.Linear(liif_mlp_hidden, out_channels),
+            )
+            if self.use_liif
+            else None
+        )
 
         self.img_size = img_size
 
@@ -144,17 +151,17 @@ class SwinTWithEncoder(BaseModel):
         # Reference (出处):
         # - “输入中显式携带坐标与mask通道”的接口设计属于工程约定（通用做法）
         B, C, H, W = x.shape
-        x_img = x[:, :self.in_img_channels]
+        x_img = x[:, : self.in_img_channels]
         offset = self.in_img_channels
         coords = None
         mask = None
         pe = None
 
         if self.use_coords and (offset + 2) <= C:
-            coords = x[:, offset:offset+2]
+            coords = x[:, offset : offset + 2]
             offset += 2
         if self.use_mask and (offset + 1) <= C:
-            mask = x[:, offset:offset+1]
+            mask = x[:, offset : offset + 1]
             offset += 1
         if self.use_pe and offset < C:
             pe = x[:, offset:]
@@ -186,7 +193,7 @@ class SwinTWithEncoder(BaseModel):
             # - 坐标对齐/插值为多尺度网络常见处理（通用工程策略）
             if coords.shape[-2:] != (Hh, Wh):
                 coord = torch.nn.functional.interpolate(
-                    coords, size=(Hh, Wh), mode='bilinear', align_corners=False
+                    coords, size=(Hh, Wh), mode="bilinear", align_corners=False
                 )
             else:
                 coord = coords
@@ -196,7 +203,7 @@ class SwinTWithEncoder(BaseModel):
             # - 归一化坐标网格为隐式表示/坐标网络常用做法（通用）
             ys = torch.linspace(-1, 1, Hh, device=device)
             xs = torch.linspace(-1, 1, Wh, device=device)
-            yy, xx = torch.meshgrid(ys, xs, indexing='ij')
+            yy, xx = torch.meshgrid(ys, xs, indexing="ij")
             coord = torch.stack([xx, yy], dim=0).unsqueeze(0).expand(B, -1, Hh, Wh)
 
         # 简化邻域特征：直接使用 y 的当前像素特征（可扩展为 grid_sample 邻域）

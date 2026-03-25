@@ -16,8 +16,6 @@ Note:
 
 from __future__ import annotations
 
-from typing import Optional, List, Tuple, Dict
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -49,17 +47,21 @@ def _align_like(src: torch.Tensor, ref: torch.Tensor) -> torch.Tensor:
     if pad_y > 0 or pad_x > 0:
         src = F.pad(
             src,
-            [max(pad_x // 2, 0), max(pad_x - pad_x // 2, 0),
-             max(pad_y // 2, 0), max(pad_y - pad_y // 2, 0)],
+            [
+                max(pad_x // 2, 0),
+                max(pad_x - pad_x // 2, 0),
+                max(pad_y // 2, 0),
+                max(pad_y - pad_y // 2, 0),
+            ],
         )
 
     hs, ws = src.shape[-2], src.shape[-1]
     if hs > hr:
         y0 = (hs - hr) // 2
-        src = src[:, :, y0:y0 + hr, :]
+        src = src[:, :, y0 : y0 + hr, :]
     if ws > wr:
         x0 = (ws - wr) // 2
-        src = src[:, :, :, x0:x0 + wr]
+        src = src[:, :, :, x0 : x0 + wr]
     return src
 
 
@@ -89,7 +91,7 @@ class ConvBlock(nn.Module):
 # Transformer components (SR Attention)
 # =========================================================
 class MLP(nn.Module):
-    def __init__(self, dim: int, hidden_dim: Optional[int] = None, drop: float = 0.0):
+    def __init__(self, dim: int, hidden_dim: int | None = None, drop: float = 0.0):
         super().__init__()
         hidden_dim = hidden_dim or int(dim * 4)
         self.fc1 = nn.Linear(dim, hidden_dim)
@@ -129,14 +131,16 @@ class SRAttention(nn.Module):
         self.dim = dim
         self.num_heads = num_heads
         self.head_dim = dim // num_heads
-        self.scale = self.head_dim ** -0.5
+        self.scale = self.head_dim**-0.5
         self.sr_ratio = int(sr_ratio)
 
         self.q = nn.Linear(dim, dim, bias=qkv_bias)
         self.kv = nn.Linear(dim, dim * 2, bias=qkv_bias)
 
         if self.sr_ratio > 1:
-            self.sr = nn.Conv2d(dim, dim, kernel_size=self.sr_ratio, stride=self.sr_ratio, bias=False)
+            self.sr = nn.Conv2d(
+                dim, dim, kernel_size=self.sr_ratio, stride=self.sr_ratio, bias=False
+            )
             self.sr_norm = nn.LayerNorm(dim)
         else:
             self.sr = None
@@ -152,13 +156,15 @@ class SRAttention(nn.Module):
         """
         B, N, C = x.shape
 
-        q = self.q(x).reshape(B, N, self.num_heads, self.head_dim).permute(0, 2, 1, 3)  # [B,h,N,hd]
+        q = (
+            self.q(x).reshape(B, N, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
+        )  # [B,h,N,hd]
 
         if self.sr_ratio > 1:
-            x_ = x.transpose(1, 2).reshape(B, C, H, W)          # [B,C,H,W]
-            x_ = self.sr(x_)                                   # [B,C,H',W']
+            x_ = x.transpose(1, 2).reshape(B, C, H, W)  # [B,C,H,W]
+            x_ = self.sr(x_)  # [B,C,H',W']
             Hk, Wk = x_.shape[-2], x_.shape[-1]
-            x_ = x_.reshape(B, C, Hk * Wk).transpose(1, 2)      # [B,Nk,C]
+            x_ = x_.reshape(B, C, Hk * Wk).transpose(1, 2)  # [B,Nk,C]
             x_ = self.sr_norm(x_)
             kv = self.kv(x_)
             Nk = x_.shape[1]
@@ -167,13 +173,13 @@ class SRAttention(nn.Module):
             Nk = N
 
         kv = kv.reshape(B, Nk, 2, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4)
-        k, v = kv[0], kv[1]                                     # [B,h,Nk,hd]
+        k, v = kv[0], kv[1]  # [B,h,Nk,hd]
 
-        attn = (q @ k.transpose(-2, -1)) * self.scale            # [B,h,N,Nk]
+        attn = (q @ k.transpose(-2, -1)) * self.scale  # [B,h,N,Nk]
         attn = attn.softmax(dim=-1)
         attn = self.attn_drop(attn)
 
-        out = (attn @ v).transpose(1, 2).reshape(B, N, C)        # [B,N,C]
+        out = (attn @ v).transpose(1, 2).reshape(B, N, C)  # [B,N,C]
         out = self.proj_drop(self.proj(out))
         return out
 
@@ -190,7 +196,13 @@ class TransformerBlock(nn.Module):
     ):
         super().__init__()
         self.norm1 = nn.LayerNorm(dim)
-        self.attn = SRAttention(dim, num_heads=num_heads, sr_ratio=sr_ratio, attn_drop=attn_drop, proj_drop=drop)
+        self.attn = SRAttention(
+            dim,
+            num_heads=num_heads,
+            sr_ratio=sr_ratio,
+            attn_drop=attn_drop,
+            proj_drop=drop,
+        )
         self.norm2 = nn.LayerNorm(dim)
         self.mlp = MLP(dim, hidden_dim=int(dim * mlp_ratio), drop=drop)
 
@@ -233,7 +245,7 @@ class TransformerConvBlock(nn.Module):
 
         # Transformer branch
         B, C, H, W = x.shape
-        tokens = x.flatten(2).transpose(1, 2)    # [B, H*W, C]
+        tokens = x.flatten(2).transpose(1, 2)  # [B, H*W, C]
         tokens = self.trans(tokens, H, W)
         trans_out = tokens.transpose(1, 2).reshape(B, C, H, W)
 
@@ -268,16 +280,16 @@ class UNetFormer(BaseModel):
         out_channels: int = 1,
         img_size: int = 128,
         base_channels: int = 64,
-        num_stages: int = 4,              # 2/3/4
+        num_stages: int = 4,  # 2/3/4
         num_heads: int = 8,
         mlp_ratio: float = 4.0,
         drop_rate: float = 0.0,
         attn_drop_rate: float = 0.0,
-        dropout: float = 0.0,             # CNN dropout
+        dropout: float = 0.0,  # CNN dropout
         # SR ratios per stage (shallow -> deep), tuned for memory safety
-        sr_ratios: Optional[List[int]] = None,
+        sr_ratios: list[int] | None = None,
         # how many hybrid blocks each stage uses
-        depths: Optional[List[int]] = None,
+        depths: list[int] | None = None,
         **kwargs,
     ):
         # Common aliases
@@ -295,21 +307,33 @@ class UNetFormer(BaseModel):
 
         # default depths
         if depths is None:
-            depths = [1, 1] if self.num_stages == 2 else ([1, 1, 2] if self.num_stages == 3 else [2, 2, 4, 2])
+            depths = (
+                [1, 1]
+                if self.num_stages == 2
+                else ([1, 1, 2] if self.num_stages == 3 else [2, 2, 4, 2])
+            )
         if len(depths) != self.num_stages:
-            raise ValueError(f"depths length must equal num_stages ({self.num_stages}).")
+            raise ValueError(
+                f"depths length must equal num_stages ({self.num_stages})."
+            )
         self.depths = [int(d) for d in depths]
 
         # default SR ratios (important for memory)
         # stage1 has the largest H*W -> use larger sr_ratio
         if sr_ratios is None:
-            sr_ratios = [8, 4] if self.num_stages == 2 else ([8, 4, 2] if self.num_stages == 3 else [8, 4, 2, 1])
+            sr_ratios = (
+                [8, 4]
+                if self.num_stages == 2
+                else ([8, 4, 2] if self.num_stages == 3 else [8, 4, 2, 1])
+            )
         if len(sr_ratios) != self.num_stages:
-            raise ValueError(f"sr_ratios length must equal num_stages ({self.num_stages}).")
+            raise ValueError(
+                f"sr_ratios length must equal num_stages ({self.num_stages})."
+            )
         self.sr_ratios = [int(r) for r in sr_ratios]
 
         # channel plan per stage
-        chs = [self.base_channels * (2 ** i) for i in range(self.num_stages)]
+        chs = [self.base_channels * (2**i) for i in range(self.num_stages)]
         self.chs = chs
 
         # -------- Encoder --------
@@ -410,7 +434,9 @@ class UNetFormer(BaseModel):
         in_ch = bott_out
         for stage in reversed(range(self.num_stages)):
             out_ch = chs[stage]
-            self.up_convs.append(nn.ConvTranspose2d(in_ch, out_ch, kernel_size=2, stride=2))
+            self.up_convs.append(
+                nn.ConvTranspose2d(in_ch, out_ch, kernel_size=2, stride=2)
+            )
             # concat with skip => out_ch + out_ch
             self.dec_blocks.append(
                 nn.Sequential(
@@ -419,7 +445,11 @@ class UNetFormer(BaseModel):
                     TransformerConvBlock(
                         out_ch,
                         num_heads=self.num_heads,
-                        sr_ratio=max(self.sr_ratios[stage], 2) if stage == 0 else max(self.sr_ratios[stage], 1),
+                        sr_ratio=(
+                            max(self.sr_ratios[stage], 2)
+                            if stage == 0
+                            else max(self.sr_ratios[stage], 1)
+                        ),
                         mlp_ratio=mlp_ratio,
                         drop=drop_rate,
                         attn_drop=attn_drop_rate,
@@ -436,7 +466,11 @@ class UNetFormer(BaseModel):
     def _init_weights(self, m: nn.Module):
         if isinstance(m, nn.Linear):
             # 小标准差更稳
-            nn.init.trunc_normal_(m.weight, std=0.02) if hasattr(nn.init, "trunc_normal_") else nn.init.normal_(m.weight, std=0.02)
+            (
+                nn.init.trunc_normal_(m.weight, std=0.02)
+                if hasattr(nn.init, "trunc_normal_")
+                else nn.init.normal_(m.weight, std=0.02)
+            )
             if m.bias is not None:
                 nn.init.zeros_(m.bias)
         elif isinstance(m, (nn.Conv2d, nn.ConvTranspose2d)):
@@ -483,18 +517,20 @@ class UNetFormer(BaseModel):
         out = self.final_conv(d)
         return out
 
-    def get_model_info(self) -> Dict:
+    def get_model_info(self) -> dict:
         info = super().get_model_info()
-        info.update({
-            "name": "UNetFormer",
-            "type": "Hybrid(CNN+Transformer-SR)",
-            "base_channels": self.base_channels,
-            "num_stages": self.num_stages,
-            "channels_per_stage": self.chs,
-            "depths": self.depths,
-            "sr_ratios": self.sr_ratios,
-            "num_heads": self.num_heads,
-        })
+        info.update(
+            {
+                "name": "UNetFormer",
+                "type": "Hybrid(CNN+Transformer-SR)",
+                "base_channels": self.base_channels,
+                "num_stages": self.num_stages,
+                "channels_per_stage": self.chs,
+                "depths": self.depths,
+                "sr_ratios": self.sr_ratios,
+                "num_heads": self.num_heads,
+            }
+        )
         return info
 
 

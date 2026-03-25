@@ -11,8 +11,7 @@ Reference (出处):
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import List, Optional, Tuple
-import math
+
 from ..base import BaseModel
 from ..registry import register_model
 
@@ -24,17 +23,19 @@ class PatchEmbed(nn.Module):
     - SegFormer: Simple and Efficient Design for Semantic Segmentation with Transformers
       https://arxiv.org/abs/2105.15203
     """
-    
+
     def __init__(self, img_size=224, patch_size=16, in_chans=3, embed_dim=768):
         super().__init__()
         self.img_size = img_size
-        
+
         # 确保patch_size不会超过输入尺寸（工程适配）
         if isinstance(patch_size, int):
             patch_size = min(patch_size, img_size)
-        
+
         self.patch_size = patch_size
-        self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size)
+        self.proj = nn.Conv2d(
+            in_chans, embed_dim, kernel_size=patch_size, stride=patch_size
+        )
         self.norm = nn.LayerNorm(embed_dim)
 
     def forward(self, x):
@@ -51,15 +52,26 @@ class Attention(nn.Module):
     - SegFormer: Simple and Efficient Design for Semantic Segmentation with Transformers
       https://arxiv.org/abs/2105.15203
     """
-    
-    def __init__(self, dim, num_heads=8, qkv_bias=False, qk_scale=None, attn_drop=0., proj_drop=0., sr_ratio=1):
+
+    def __init__(
+        self,
+        dim,
+        num_heads=8,
+        qkv_bias=False,
+        qk_scale=None,
+        attn_drop=0.0,
+        proj_drop=0.0,
+        sr_ratio=1,
+    ):
         super().__init__()
-        assert dim % num_heads == 0, f"dim {dim} should be divided by num_heads {num_heads}."
+        assert (
+            dim % num_heads == 0
+        ), f"dim {dim} should be divided by num_heads {num_heads}."
 
         self.dim = dim
         self.num_heads = num_heads
         head_dim = dim // num_heads
-        self.scale = qk_scale or head_dim ** -0.5
+        self.scale = qk_scale or head_dim**-0.5
 
         self.q = nn.Linear(dim, dim, bias=qkv_bias)
         self.kv = nn.Linear(dim, dim * 2, bias=qkv_bias)
@@ -74,15 +86,27 @@ class Attention(nn.Module):
 
     def forward(self, x, H, W):
         B, N, C = x.shape
-        q = self.q(x).reshape(B, N, self.num_heads, C // self.num_heads).permute(0, 2, 1, 3)
+        q = (
+            self.q(x)
+            .reshape(B, N, self.num_heads, C // self.num_heads)
+            .permute(0, 2, 1, 3)
+        )
 
         if self.sr_ratio > 1:
             x_ = x.permute(0, 2, 1).reshape(B, C, H, W)
             x_ = self.sr(x_).reshape(B, C, -1).permute(0, 2, 1)
             x_ = self.norm(x_)
-            kv = self.kv(x_).reshape(B, -1, 2, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
+            kv = (
+                self.kv(x_)
+                .reshape(B, -1, 2, self.num_heads, C // self.num_heads)
+                .permute(2, 0, 3, 1, 4)
+            )
         else:
-            kv = self.kv(x).reshape(B, -1, 2, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
+            kv = (
+                self.kv(x)
+                .reshape(B, -1, 2, self.num_heads, C // self.num_heads)
+                .permute(2, 0, 3, 1, 4)
+            )
         k, v = kv[0], kv[1]
 
         attn = (q @ k.transpose(-2, -1)) * self.scale
@@ -105,8 +129,15 @@ class MLP(nn.Module):
     - Attention Is All You Need（FFN基本形式）
       https://arxiv.org/abs/1706.03762
     """
-    
-    def __init__(self, in_features, hidden_features=None, out_features=None, act_layer=nn.GELU, drop=0.):
+
+    def __init__(
+        self,
+        in_features,
+        hidden_features=None,
+        out_features=None,
+        act_layer=nn.GELU,
+        drop=0.0,
+    ):
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
@@ -133,24 +164,47 @@ class TransformerBlock(nn.Module):
     - Attention Is All You Need（Transformer基本结构）
       https://arxiv.org/abs/1706.03762
     """
-    
-    def __init__(self, dim, num_heads, mlp_ratio=4., qkv_bias=False, qk_scale=None, drop=0., attn_drop=0.,
-                 drop_path=0., act_layer=nn.GELU, norm_layer=nn.LayerNorm, sr_ratio=1):
+
+    def __init__(
+        self,
+        dim,
+        num_heads,
+        mlp_ratio=4.0,
+        qkv_bias=False,
+        qk_scale=None,
+        drop=0.0,
+        attn_drop=0.0,
+        drop_path=0.0,
+        act_layer=nn.GELU,
+        norm_layer=nn.LayerNorm,
+        sr_ratio=1,
+    ):
         super().__init__()
         self.norm1 = norm_layer(dim)
         self.attn = Attention(
-            dim, num_heads=num_heads, qkv_bias=qkv_bias, qk_scale=qk_scale,
-            attn_drop=attn_drop, proj_drop=drop, sr_ratio=sr_ratio)
+            dim,
+            num_heads=num_heads,
+            qkv_bias=qkv_bias,
+            qk_scale=qk_scale,
+            attn_drop=attn_drop,
+            proj_drop=drop,
+            sr_ratio=sr_ratio,
+        )
 
         # Stochastic Depth / DropPath 的思想来源（工程实现这里用Dropout近似）
         # Reference (出处):
         # - Deep Networks with Stochastic Depth
         #   https://arxiv.org/abs/1603.09382
-        self.drop_path = nn.Identity() if drop_path <= 0. else nn.Dropout(drop_path)
+        self.drop_path = nn.Identity() if drop_path <= 0.0 else nn.Dropout(drop_path)
 
         self.norm2 = norm_layer(dim)
         mlp_hidden_dim = int(dim * mlp_ratio)
-        self.mlp = MLP(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer, drop=drop)
+        self.mlp = MLP(
+            in_features=dim,
+            hidden_features=mlp_hidden_dim,
+            act_layer=act_layer,
+            drop=drop,
+        )
 
     def forward(self, x, H, W):
         x = x + self.drop_path(self.attn(self.norm1(x), H, W))
@@ -166,7 +220,7 @@ class SegFormer(BaseModel):
     - SegFormer: Simple and Efficient Design for Semantic Segmentation with Transformers
       https://arxiv.org/abs/2105.15203
     """
-    
+
     def __init__(
         self,
         in_channels: int = 1,
@@ -179,12 +233,12 @@ class SegFormer(BaseModel):
         sr_ratios: list = [8, 4, 2, 1],
         drop_rate: float = 0.0,
         drop_path_rate: float = 0.1,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(in_channels, out_channels, img_size, **kwargs)
-        
+
         self.embed_dims = embed_dims
-        
+
         # Patch嵌入层：此处对小尺寸输入做了patch size工程性调整（非SegFormer论文固定配置）
         # Reference (出处):
         # - SegFormer提出分层编码器与patch embedding + SR attention框架
@@ -193,60 +247,108 @@ class SegFormer(BaseModel):
             patch_sizes = [4, 2, 2, 2]
         else:
             patch_sizes = [7, 3, 3, 3]
-        
+
         current_size = img_size
         adjusted_patch_sizes = []
         for base_size in patch_sizes:
             patch_size = min(base_size, max(1, current_size))
             adjusted_patch_sizes.append(patch_size)
             current_size = max(1, current_size // patch_size)
-        
+
         self.patch_sizes = adjusted_patch_sizes
-        self.patch_embed1 = PatchEmbed(img_size, adjusted_patch_sizes[0], in_channels, embed_dims[0])
-        
+        self.patch_embed1 = PatchEmbed(
+            img_size, adjusted_patch_sizes[0], in_channels, embed_dims[0]
+        )
+
         size_after_1 = img_size // adjusted_patch_sizes[0]
-        self.patch_embed2 = PatchEmbed(size_after_1, adjusted_patch_sizes[1], embed_dims[0], embed_dims[1])
-        
+        self.patch_embed2 = PatchEmbed(
+            size_after_1, adjusted_patch_sizes[1], embed_dims[0], embed_dims[1]
+        )
+
         size_after_2 = size_after_1 // adjusted_patch_sizes[1]
-        self.patch_embed3 = PatchEmbed(size_after_2, adjusted_patch_sizes[2], embed_dims[1], embed_dims[2])
-        
+        self.patch_embed3 = PatchEmbed(
+            size_after_2, adjusted_patch_sizes[2], embed_dims[1], embed_dims[2]
+        )
+
         size_after_3 = size_after_2 // adjusted_patch_sizes[2]
-        self.patch_embed4 = PatchEmbed(size_after_3, adjusted_patch_sizes[3], embed_dims[2], embed_dims[3])
-        
+        self.patch_embed4 = PatchEmbed(
+            size_after_3, adjusted_patch_sizes[3], embed_dims[2], embed_dims[3]
+        )
+
         # Transformer块（MiT encoder的核心堆叠）
         # Reference (出处):
         # - SegFormer: Simple and Efficient Design for Semantic Segmentation with Transformers
         #   https://arxiv.org/abs/2105.15203
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(depths))]
         cur = 0
-        
-        self.block1 = nn.ModuleList([TransformerBlock(
-            dim=embed_dims[0], num_heads=num_heads[0], mlp_ratio=mlp_ratios[0],
-            drop=drop_rate, attn_drop=0.0, drop_path=dpr[cur + i],
-            sr_ratio=sr_ratios[0]) for i in range(depths[0])])
+
+        self.block1 = nn.ModuleList(
+            [
+                TransformerBlock(
+                    dim=embed_dims[0],
+                    num_heads=num_heads[0],
+                    mlp_ratio=mlp_ratios[0],
+                    drop=drop_rate,
+                    attn_drop=0.0,
+                    drop_path=dpr[cur + i],
+                    sr_ratio=sr_ratios[0],
+                )
+                for i in range(depths[0])
+            ]
+        )
         self.norm1 = nn.LayerNorm(embed_dims[0])
-        
+
         cur += depths[0]
-        self.block2 = nn.ModuleList([TransformerBlock(
-            dim=embed_dims[1], num_heads=num_heads[1], mlp_ratio=mlp_ratios[1],
-            drop=drop_rate, attn_drop=0.0, drop_path=dpr[cur + i],
-            sr_ratio=sr_ratios[1]) for i in range(depths[1])])
+        self.block2 = nn.ModuleList(
+            [
+                TransformerBlock(
+                    dim=embed_dims[1],
+                    num_heads=num_heads[1],
+                    mlp_ratio=mlp_ratios[1],
+                    drop=drop_rate,
+                    attn_drop=0.0,
+                    drop_path=dpr[cur + i],
+                    sr_ratio=sr_ratios[1],
+                )
+                for i in range(depths[1])
+            ]
+        )
         self.norm2 = nn.LayerNorm(embed_dims[1])
-        
+
         cur += depths[1]
-        self.block3 = nn.ModuleList([TransformerBlock(
-            dim=embed_dims[2], num_heads=num_heads[2], mlp_ratio=mlp_ratios[2],
-            drop=drop_rate, attn_drop=0.0, drop_path=dpr[cur + i],
-            sr_ratio=sr_ratios[2]) for i in range(depths[2])])
+        self.block3 = nn.ModuleList(
+            [
+                TransformerBlock(
+                    dim=embed_dims[2],
+                    num_heads=num_heads[2],
+                    mlp_ratio=mlp_ratios[2],
+                    drop=drop_rate,
+                    attn_drop=0.0,
+                    drop_path=dpr[cur + i],
+                    sr_ratio=sr_ratios[2],
+                )
+                for i in range(depths[2])
+            ]
+        )
         self.norm3 = nn.LayerNorm(embed_dims[2])
-        
+
         cur += depths[2]
-        self.block4 = nn.ModuleList([TransformerBlock(
-            dim=embed_dims[3], num_heads=num_heads[3], mlp_ratio=mlp_ratios[3],
-            drop=drop_rate, attn_drop=0.0, drop_path=dpr[cur + i],
-            sr_ratio=sr_ratios[3]) for i in range(depths[3])])
+        self.block4 = nn.ModuleList(
+            [
+                TransformerBlock(
+                    dim=embed_dims[3],
+                    num_heads=num_heads[3],
+                    mlp_ratio=mlp_ratios[3],
+                    drop=drop_rate,
+                    attn_drop=0.0,
+                    drop_path=dpr[cur + i],
+                    sr_ratio=sr_ratios[3],
+                )
+                for i in range(depths[3])
+            ]
+        )
         self.norm4 = nn.LayerNorm(embed_dims[3])
-        
+
         # 轻量解码头（融合多尺度特征后输出）
         # 这里用Conv-BN-ReLU-Conv的工程实现来完成SegFormer“轻量解码器”思想的重建适配
         # Reference (出处):
@@ -257,11 +359,11 @@ class SegFormer(BaseModel):
             nn.BatchNorm2d(256),
             nn.ReLU(inplace=True),
             nn.Dropout2d(0.1),
-            nn.Conv2d(256, out_channels, kernel_size=1)
+            nn.Conv2d(256, out_channels, kernel_size=1),
         )
-        
+
         self.apply(self._init_weights)
-    
+
     def _init_weights(self, m):
         """权重初始化（工程实现）
 
@@ -269,19 +371,19 @@ class SegFormer(BaseModel):
         - SegFormer论文给出架构设计；具体初始化细节通常在官方实现中给出。
         """
         if isinstance(m, nn.Linear):
-            nn.init.trunc_normal_(m.weight, std=.02)
+            nn.init.trunc_normal_(m.weight, std=0.02)
             if isinstance(m, nn.Linear) and m.bias is not None:
                 nn.init.constant_(m.bias, 0)
         elif isinstance(m, nn.LayerNorm):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
         elif isinstance(m, nn.Conv2d):
-            nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
-    
+            nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
+
     def forward_features(self, x):
         B = x.shape[0]
         outs = []
-        
+
         # Stage 1
         x, H, W = self.patch_embed1(x)
         for blk in self.block1:
@@ -289,7 +391,7 @@ class SegFormer(BaseModel):
         x = self.norm1(x)
         x = x.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous()
         outs.append(x)
-        
+
         # Stage 2
         x, H, W = self.patch_embed2(x)
         for blk in self.block2:
@@ -297,7 +399,7 @@ class SegFormer(BaseModel):
         x = self.norm2(x)
         x = x.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous()
         outs.append(x)
-        
+
         # Stage 3
         x, H, W = self.patch_embed3(x)
         for blk in self.block3:
@@ -305,7 +407,7 @@ class SegFormer(BaseModel):
         x = self.norm3(x)
         x = x.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous()
         outs.append(x)
-        
+
         # Stage 4（工程性保护：当特征图过小则跳过或降维）
         if x.shape[2] >= 3 and x.shape[3] >= 3:
             x, H, W = self.patch_embed4(x)
@@ -318,9 +420,9 @@ class SegFormer(BaseModel):
             x = nn.functional.adaptive_avg_pool2d(x, (1, 1))
             x = x.expand(-1, -1, 1, 1)
             outs.append(x)
-        
+
         return outs
-    
+
     def forward(self, x):
         """前向传播
 
@@ -329,34 +431,38 @@ class SegFormer(BaseModel):
           https://arxiv.org/abs/2105.15203
         """
         features = self.forward_features(x)
-        
+
         # 上采样所有特征到相同尺寸（以Stage1为目标）
         upsampled_features = []
         target_size = features[0].shape[2:]
-        
+
         for feat in features:
             if feat.shape[2:] != target_size:
-                feat = F.interpolate(feat, size=target_size, mode='bilinear', align_corners=False)
+                feat = F.interpolate(
+                    feat, size=target_size, mode="bilinear", align_corners=False
+                )
             upsampled_features.append(feat)
-        
+
         # 特征融合
         x = torch.cat(upsampled_features, dim=1)
-        
+
         # 解码输出
         x = self.decode_head(x)
-        
+
         # 上采样到输入尺寸
-        x = F.interpolate(x, size=(self.img_size, self.img_size), mode='bilinear', align_corners=False)
-        
+        x = F.interpolate(
+            x, size=(self.img_size, self.img_size), mode="bilinear", align_corners=False
+        )
+
         return x
-    
+
     def get_model_info(self) -> dict:
         """获取模型信息"""
         return {
-            'name': 'SegFormer',
-            'type': 'Transformer',
-            'in_channels': self.in_channels,
-            'out_channels': self.out_channels,
-            'img_size': self.img_size,
-            'embed_dims': self.embed_dims
+            "name": "SegFormer",
+            "type": "Transformer",
+            "in_channels": self.in_channels,
+            "out_channels": self.out_channels,
+            "img_size": self.img_size,
+            "embed_dims": self.embed_dims,
         }

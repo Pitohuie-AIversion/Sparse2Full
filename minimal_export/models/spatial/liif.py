@@ -20,8 +20,6 @@ Reference (Official implementation by authors):
 
 from __future__ import annotations
 
-from typing import Optional, Tuple, List, Dict, Any
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -31,11 +29,11 @@ from ..registry import register_model
 
 
 def make_coord(
-    shape: Tuple[int, int],
+    shape: tuple[int, int],
     *,
     device: torch.device,
     dtype: torch.dtype = torch.float32,
-    ranges: Optional[List[List[float]]] = None,
+    ranges: list[list[float]] | None = None,
     flatten: bool = True,
 ) -> torch.Tensor:
     """
@@ -73,7 +71,7 @@ class MLP(nn.Module):
         self,
         in_dim: int,
         out_dim: int,
-        hidden_list: Optional[List[int]] = None,
+        hidden_list: list[int] | None = None,
         activation: str = "relu",
     ):
         super().__init__()
@@ -90,7 +88,7 @@ class MLP(nn.Module):
         else:
             raise ValueError(f"Unsupported activation: {activation}")
 
-        layers: List[nn.Module] = []
+        layers: list[nn.Module] = []
         lastv = in_dim
         for h in hidden_list:
             layers.append(nn.Linear(lastv, h))
@@ -142,7 +140,7 @@ class LIIFCore(nn.Module):
         *,
         encoder: nn.Module,
         out_dim: int,
-        imnet_hidden: Optional[List[int]] = None,
+        imnet_hidden: list[int] | None = None,
         local_ensemble: bool = True,
         feat_unfold: bool = True,
         cell_decode: bool = True,
@@ -172,7 +170,9 @@ class LIIFCore(nn.Module):
         )
 
     @torch.no_grad()
-    def _feat_coord(self, h: int, w: int, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
+    def _feat_coord(
+        self, h: int, w: int, device: torch.device, dtype: torch.dtype
+    ) -> torch.Tensor:
         # [H,W,2] -> [1,2,H,W]
         coord = make_coord((h, w), device=device, dtype=dtype, flatten=False)  # [H,W,2]
         coord = coord.permute(2, 0, 1).unsqueeze(0).contiguous()  # [1,2,H,W]
@@ -185,7 +185,7 @@ class LIIFCore(nn.Module):
         self,
         feat_or_inp: torch.Tensor,
         coord: torch.Tensor,
-        cell: Optional[torch.Tensor] = None,
+        cell: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -214,7 +214,11 @@ class LIIFCore(nn.Module):
         if self.cell_decode:
             if cell is None:
                 raise ValueError("cell_decode=True 时，cell 不能为空。")
-            if cell.dim() != 3 or cell.shape[:2] != coord.shape[:2] or cell.shape[-1] != 2:
+            if (
+                cell.dim() != 3
+                or cell.shape[:2] != coord.shape[:2]
+                or cell.shape[-1] != 2
+            ):
                 raise ValueError("cell 需要是 [B, N, 2]，并与 coord 的 [B, N] 对齐。")
 
         feat = feat.contiguous()
@@ -238,10 +242,12 @@ class LIIFCore(nn.Module):
         ry = 1.0 / w
 
         # feat_coord: [B,2,H,W]
-        feat_coord = self._feat_coord(h, w, feat.device, feat.dtype).expand(b, -1, -1, -1)
+        feat_coord = self._feat_coord(h, w, feat.device, feat.dtype).expand(
+            b, -1, -1, -1
+        )
 
-        preds: List[torch.Tensor] = []
-        areas: List[torch.Tensor] = []
+        preds: list[torch.Tensor] = []
+        areas: list[torch.Tensor] = []
 
         for vx in vx_lst:
             for vy in vy_lst:
@@ -254,13 +260,17 @@ class LIIFCore(nn.Module):
 
                 # q_feat: [B,N,C]
                 q_feat = (
-                    F.grid_sample(feat, grid, mode="nearest", align_corners=False)[:, :, 0, :]
+                    F.grid_sample(feat, grid, mode="nearest", align_corners=False)[
+                        :, :, 0, :
+                    ]
                     .permute(0, 2, 1)
                     .contiguous()
                 )
                 # q_coord: [B,N,2]
                 q_coord = (
-                    F.grid_sample(feat_coord, grid, mode="nearest", align_corners=False)[:, :, 0, :]
+                    F.grid_sample(
+                        feat_coord, grid, mode="nearest", align_corners=False
+                    )[:, :, 0, :]
                     .permute(0, 2, 1)
                     .contiguous()
                 )
@@ -315,7 +325,7 @@ class LIIFModel(BaseModel):
         out_channels: int = 1,
         img_size: int = 128,
         encoder_dim: int = 256,
-        imnet_hidden: Optional[List[int]] = None,
+        imnet_hidden: list[int] | None = None,
         local_ensemble: bool = True,
         feat_unfold: bool = True,
         cell_decode: bool = True,
@@ -349,7 +359,9 @@ class LIIFModel(BaseModel):
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
 
-    def _make_cell(self, b: int, h: int, w: int, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
+    def _make_cell(
+        self, b: int, h: int, w: int, device: torch.device, dtype: torch.dtype
+    ) -> torch.Tensor:
         # cell 大小：在 [-1,1] 坐标系中每个像素覆盖范围约为 (2/H, 2/W)
         n = h * w
         cell = torch.empty((b, n, 2), device=device, dtype=dtype)
@@ -372,10 +384,14 @@ class LIIFModel(BaseModel):
         """
         b = x.shape[0]
         device = x.device
-        dtype = x.dtype if x.dtype in (torch.float16, torch.float32, torch.float64) else torch.float32
+        dtype = (
+            x.dtype
+            if x.dtype in (torch.float16, torch.float32, torch.float64)
+            else torch.float32
+        )
 
-        coord: Optional[torch.Tensor] = kwargs.get("coord", None)
-        cell: Optional[torch.Tensor] = kwargs.get("cell", None)
+        coord: torch.Tensor | None = kwargs.get("coord", None)
+        cell: torch.Tensor | None = kwargs.get("cell", None)
 
         feat = self.core.gen_feat(x)
 
@@ -392,7 +408,9 @@ class LIIFModel(BaseModel):
         out_h = int(self.img_size)
         out_w = int(self.img_size)
 
-        coord_grid = make_coord((out_h, out_w), device=device, dtype=dtype, flatten=True)  # [N,2]
+        coord_grid = make_coord(
+            (out_h, out_w), device=device, dtype=dtype, flatten=True
+        )  # [N,2]
         coord_grid = coord_grid.unsqueeze(0).expand(b, -1, -1).contiguous()  # [B,N,2]
 
         if self.core.cell_decode:
@@ -401,5 +419,9 @@ class LIIFModel(BaseModel):
             cell = None
 
         pred = self.core.query_rgb(feat, coord_grid, cell)  # [B,N,C_out]
-        pred = pred.view(b, out_h, out_w, self.out_channels).permute(0, 3, 1, 2).contiguous()
+        pred = (
+            pred.view(b, out_h, out_w, self.out_channels)
+            .permute(0, 3, 1, 2)
+            .contiguous()
+        )
         return pred

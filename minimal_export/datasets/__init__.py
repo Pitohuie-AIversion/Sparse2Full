@@ -29,13 +29,13 @@ except Exception:
 
 def get_dataset(dataset_name, **kwargs):
     """获取数据集实例（惰性判断可用性）"""
-    if dataset_name == 'darcy_flow':
+    if dataset_name == "darcy_flow":
         if DarcyFlowDataset is None:
-            raise ImportError('DarcyFlowDataset 未可用：模块导入失败或缺失')
+            raise ImportError("DarcyFlowDataset 未可用：模块导入失败或缺失")
         return DarcyFlowDataset(**kwargs)
-    elif dataset_name == 'pde_bench':
+    elif dataset_name == "pde_bench":
         if PDEBenchDataset is None:
-            raise ImportError('PDEBenchDataset 未可用：模块导入失败或缺失')
+            raise ImportError("PDEBenchDataset 未可用：模块导入失败或缺失")
         return PDEBenchDataset(**kwargs)
     else:
         raise ValueError(f"Unknown dataset: {dataset_name}")
@@ -43,12 +43,14 @@ def get_dataset(dataset_name, **kwargs):
 
 # 仅导出可用符号
 __all__ = [
-    name for name in (
-        'PDEBenchDataset',
-        'create_dataloader',
-        'PDEBenchDataModule',
-        'TemporalPDEBenchDataModule',
-        'DarcyFlowDataset',
-        'get_dataset',
-    ) if globals().get(name) is not None
+    name
+    for name in (
+        "PDEBenchDataset",
+        "create_dataloader",
+        "PDEBenchDataModule",
+        "TemporalPDEBenchDataModule",
+        "DarcyFlowDataset",
+        "get_dataset",
+    )
+    if globals().get(name) is not None
 ]

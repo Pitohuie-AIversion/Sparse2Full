@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Any
 
 from torch.utils.data import DataLoader
 
@@ -13,16 +14,16 @@ class PDEBenchDataset(PDEBenchBase):
 
 
 def create_dataloader(
-    data_path: Union[str, Path],
+    data_path: str | Path,
     keys: Sequence[str],
     split: str,
     batch_size: int,
     num_workers: int = 0,
     shuffle: bool = False,
-    splits_dir: Optional[Union[str, Path]] = None,
+    splits_dir: str | Path | None = None,
     normalize: bool = False,
-    image_size: Optional[int] = None,
-    **kwargs: Dict[str, Any],
+    image_size: int | None = None,
+    **kwargs: dict[str, Any],
 ) -> DataLoader:
     dataset = PDEBenchDataset(
         data_path=data_path,
@@ -38,4 +39,3 @@ def create_dataloader(
         shuffle=bool(shuffle),
         num_workers=int(num_workers),
     )
-

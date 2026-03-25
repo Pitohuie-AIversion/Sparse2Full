@@ -1,8 +1,8 @@
 """
 Standard MLP Model (Pointwise / 1x1 Conv)
 """
+
 from __future__ import annotations
-from typing import List, Optional, Union
 
 import torch
 import torch.nn as nn
@@ -15,12 +15,12 @@ from ..registry import register_model
 class MLP(BaseModel):
     """
     Standard MLP baseline.
-    
+
     By default, implements a Pointwise MLP (1x1 Convolutions) which is translation equivariant
     and operates on each grid point independently. This is a strong baseline for dense prediction tasks.
-    
+
     If `flatten=True`, it behaves as a global MLP (Flatten -> Dense -> Unflatten).
-    
+
     Unified interface:
         forward(x[B,C_in,H,W]) -> y[B,C_out,H,W]
     """
@@ -30,7 +30,7 @@ class MLP(BaseModel):
         in_channels: int | None = None,
         out_channels: int | None = None,
         img_size: int | None = None,
-        hidden_features: Optional[Union[int, List[int]]] = None,
+        hidden_features: int | list[int] | None = None,
         num_layers: int = 4,
         act_layer: str = "gelu",
         drop: float = 0.0,
@@ -43,17 +43,17 @@ class MLP(BaseModel):
             out_channels = kwargs.pop("out_ch", kwargs.pop("num_classes", 1))
         if img_size is None:
             img_size = kwargs.get("img_size", 128)
-            
+
         super().__init__(in_channels, out_channels, img_size, **kwargs)
-        
+
         self.flatten = flatten
-        
+
         # Resolve hidden features
         if hidden_features is None:
             hidden_features = [64] * (num_layers - 1)
         elif isinstance(hidden_features, int):
             hidden_features = [hidden_features] * (num_layers - 1)
-            
+
         self.hidden_features = hidden_features
         self.num_layers = num_layers
         self.act_layer = act_layer
@@ -62,7 +62,7 @@ class MLP(BaseModel):
         # Build layers
         layers = []
         in_dim = in_channels
-        
+
         # Activation
         if act_layer == "relu":
             act_fn = nn.ReLU(inplace=True)
@@ -80,10 +80,10 @@ class MLP(BaseModel):
             if drop > 0.0:
                 layers.append(self._make_dropout(drop))
             in_dim = hidden_dim
-            
+
         # Output layer
         layers.append(self._make_layer(in_dim, out_channels))
-        
+
         self.model = nn.Sequential(*layers)
         self._init_weights()
 
@@ -102,7 +102,7 @@ class MLP(BaseModel):
     def _init_weights(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.Linear):
@@ -120,8 +120,9 @@ class MLP(BaseModel):
         else:
             # [B, C, H, W] -> 1x1 Conv -> [B, C_out, H, W]
             x = self.model(x)
-            
+
         return x
+
 
 # Alias for compatibility
 MLPModel = MLP

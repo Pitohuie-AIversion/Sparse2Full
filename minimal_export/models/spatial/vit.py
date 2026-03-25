@@ -31,7 +31,6 @@ Implementation notes:
 from __future__ import annotations
 
 import math
-from typing import Optional, Tuple, Dict
 
 import torch
 import torch.nn as nn
@@ -95,7 +94,7 @@ class PatchEmbedding(nn.Module):
         patch_size: int = 16,
         in_channels: int = 3,
         embed_dim: int = 768,
-        norm_layer: Optional[nn.Module] = None,
+        norm_layer: nn.Module | None = None,
     ):
         super().__init__()
         self.img_size = int(img_size)
@@ -112,7 +111,7 @@ class PatchEmbedding(nn.Module):
         )
         self.norm = norm_layer(embed_dim) if norm_layer else nn.Identity()
 
-    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, Tuple[int, int]]:
+    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, tuple[int, int]]:
         """
         Args:
             x: [B,C,H,W]
@@ -122,7 +121,9 @@ class PatchEmbedding(nn.Module):
         """
         B, C, H, W = x.shape
         if (H % self.patch_size) != 0 or (W % self.patch_size) != 0:
-            raise ValueError(f"H,W must be divisible by patch_size={self.patch_size}, got {(H, W)}")
+            raise ValueError(
+                f"H,W must be divisible by patch_size={self.patch_size}, got {(H, W)}"
+            )
 
         x = self.proj(x)  # [B,D,Hp,Wp]
         Hp, Wp = x.shape[-2], x.shape[-1]
@@ -163,14 +164,20 @@ class SRAttention(nn.Module):
         self.dim = int(dim)
         self.num_heads = int(num_heads)
         self.head_dim = self.dim // self.num_heads
-        self.scale = self.head_dim ** -0.5
+        self.scale = self.head_dim**-0.5
         self.sr_ratio = int(sr_ratio)
 
         self.q = nn.Linear(self.dim, self.dim, bias=qkv_bias)
         self.kv = nn.Linear(self.dim, self.dim * 2, bias=qkv_bias)
 
         if self.sr_ratio > 1:
-            self.sr = nn.Conv2d(self.dim, self.dim, kernel_size=self.sr_ratio, stride=self.sr_ratio, bias=False)
+            self.sr = nn.Conv2d(
+                self.dim,
+                self.dim,
+                kernel_size=self.sr_ratio,
+                stride=self.sr_ratio,
+                bias=False,
+            )
             self.sr_norm = nn.LayerNorm(self.dim)
         else:
             self.sr = None
@@ -180,7 +187,9 @@ class SRAttention(nn.Module):
         self.proj = nn.Linear(self.dim, self.dim)
         self.proj_drop = nn.Dropout(proj_drop)
 
-    def forward(self, x: torch.Tensor, Hp: int, Wp: int, has_cls: bool = False) -> torch.Tensor:
+    def forward(
+        self, x: torch.Tensor, Hp: int, Wp: int, has_cls: bool = False
+    ) -> torch.Tensor:
         """
         x: [B, N(+1), C]
         If has_cls=True: first token is cls, remaining are patch tokens.
@@ -193,7 +202,9 @@ class SRAttention(nn.Module):
             tok = x
 
         B, N, C = tok.shape
-        q = self.q(tok).reshape(B, N, self.num_heads, self.head_dim).permute(0, 2, 1, 3)  # [B,h,N,hd]
+        q = (
+            self.q(tok).reshape(B, N, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
+        )  # [B,h,N,hd]
 
         if self.sr_ratio > 1:
             t2d = tok.transpose(1, 2).reshape(B, C, Hp, Wp)
@@ -205,7 +216,11 @@ class SRAttention(nn.Module):
             tok_kv = tok
 
         Nk = tok_kv.shape[1]
-        kv = self.kv(tok_kv).reshape(B, Nk, 2, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4)
+        kv = (
+            self.kv(tok_kv)
+            .reshape(B, Nk, 2, self.num_heads, self.head_dim)
+            .permute(2, 0, 3, 1, 4)
+        )
         k, v = kv[0], kv[1]  # [B,h,Nk,hd]
 
         attn = (q @ k.transpose(-2, -1)) * self.scale  # [B,h,N,Nk]
@@ -277,11 +292,15 @@ class TransformerBlock(nn.Module):
             attn_drop=attn_drop,
             proj_drop=drop,
         )
-        self.drop_path = DropPath(drop_path) if drop_path and drop_path > 0 else nn.Identity()
+        self.drop_path = (
+            DropPath(drop_path) if drop_path and drop_path > 0 else nn.Identity()
+        )
         self.norm2 = norm_layer(dim)
         self.mlp = MLP(dim=dim, mlp_ratio=mlp_ratio, act_layer=act_layer, drop=drop)
 
-    def forward(self, x: torch.Tensor, Hp: int, Wp: int, has_cls: bool = False) -> torch.Tensor:
+    def forward(
+        self, x: torch.Tensor, Hp: int, Wp: int, has_cls: bool = False
+    ) -> torch.Tensor:
         x = x + self.drop_path(self.attn(self.norm1(x), Hp, Wp, has_cls=has_cls))
         x = x + self.drop_path(self.mlp(self.norm2(x)))
         return x
@@ -321,13 +340,13 @@ class VisionTransformer(BaseModel):
         sr_ratio_enc: int = 1,
         sr_ratio_dec: int = 1,
         # decoder
-        decoder_embed_dim: Optional[int] = None,
+        decoder_embed_dim: int | None = None,
         decoder_depth: int = 8,
         decoder_num_heads: int = 16,
         # cls token
         use_cls_token: bool = False,
         # final activation
-        final_activation: Optional[str] = None,
+        final_activation: str | None = None,
         **kwargs,
     ):
         super().__init__(in_channels, out_channels, img_size, **kwargs)
@@ -339,9 +358,13 @@ class VisionTransformer(BaseModel):
 
         self.use_cls_token = bool(use_cls_token)
 
-        self.decoder_embed_dim = int(decoder_embed_dim) if decoder_embed_dim is not None else self.embed_dim
+        self.decoder_embed_dim = (
+            int(decoder_embed_dim) if decoder_embed_dim is not None else self.embed_dim
+        )
         self.decoder_depth = int(decoder_depth)
-        self.decoder_num_heads = _make_divisible_heads(self.decoder_embed_dim, _as_int(decoder_num_heads, 16))
+        self.decoder_num_heads = _make_divisible_heads(
+            self.decoder_embed_dim, _as_int(decoder_num_heads, 16)
+        )
 
         self.sr_ratio_enc = int(sr_ratio_enc)
         self.sr_ratio_dec = int(sr_ratio_dec)
@@ -356,68 +379,82 @@ class VisionTransformer(BaseModel):
         )
 
         # Default num patches at model init resolution (pos_embed will be interpolated if input differs)
-        num_patches_default = (self.img_size // self.patch_size) * (self.img_size // self.patch_size)
+        num_patches_default = (self.img_size // self.patch_size) * (
+            self.img_size // self.patch_size
+        )
 
         # Positional embedding (learnable). Interpolation is a standard practice for resolution transfer in ViT.
         self.pos_drop = nn.Dropout(p=float(drop_rate))
 
         if self.use_cls_token:
             self.cls_token = nn.Parameter(torch.zeros(1, 1, self.embed_dim))
-            self.pos_embed = nn.Parameter(torch.zeros(1, num_patches_default + 1, self.embed_dim))
+            self.pos_embed = nn.Parameter(
+                torch.zeros(1, num_patches_default + 1, self.embed_dim)
+            )
         else:
             self.cls_token = None
-            self.pos_embed = nn.Parameter(torch.zeros(1, num_patches_default, self.embed_dim))
+            self.pos_embed = nn.Parameter(
+                torch.zeros(1, num_patches_default, self.embed_dim)
+            )
 
         # Encoder blocks (ViT-style, optional SR attention)
         dpr = torch.linspace(0, float(drop_path_rate), self.depth).tolist()
-        self.blocks = nn.ModuleList([
-            TransformerBlock(
-                dim=self.embed_dim,
-                num_heads=self.num_heads,
-                sr_ratio=self.sr_ratio_enc,
-                mlp_ratio=mlp_ratio,
-                qkv_bias=qkv_bias,
-                drop=drop_rate,
-                attn_drop=attn_drop_rate,
-                drop_path=dpr[i],
-                norm_layer=norm_layer,
-                act_layer=act_layer,
-            )
-            for i in range(self.depth)
-        ])
+        self.blocks = nn.ModuleList(
+            [
+                TransformerBlock(
+                    dim=self.embed_dim,
+                    num_heads=self.num_heads,
+                    sr_ratio=self.sr_ratio_enc,
+                    mlp_ratio=mlp_ratio,
+                    qkv_bias=qkv_bias,
+                    drop=drop_rate,
+                    attn_drop=attn_drop_rate,
+                    drop_path=dpr[i],
+                    norm_layer=norm_layer,
+                    act_layer=act_layer,
+                )
+                for i in range(self.depth)
+            ]
+        )
         self.norm = norm_layer(self.embed_dim)
 
         # Encoder -> Decoder projection (MAE-style encoder/decoder split pattern)
         if self.decoder_embed_dim != self.embed_dim:
-            self.decoder_embed = nn.Linear(self.embed_dim, self.decoder_embed_dim, bias=True)
+            self.decoder_embed = nn.Linear(
+                self.embed_dim, self.decoder_embed_dim, bias=True
+            )
         else:
             self.decoder_embed = nn.Identity()
 
         # Decoder positional embedding (MAE-style)
-        self.decoder_pos_embed = nn.Parameter(torch.zeros(1, num_patches_default, self.decoder_embed_dim))
+        self.decoder_pos_embed = nn.Parameter(
+            torch.zeros(1, num_patches_default, self.decoder_embed_dim)
+        )
 
         # Decoder blocks
-        self.decoder_blocks = nn.ModuleList([
-            TransformerBlock(
-                dim=self.decoder_embed_dim,
-                num_heads=self.decoder_num_heads,
-                sr_ratio=self.sr_ratio_dec,
-                mlp_ratio=mlp_ratio,
-                qkv_bias=qkv_bias,
-                drop=drop_rate,
-                attn_drop=attn_drop_rate,
-                drop_path=0.0,
-                norm_layer=norm_layer,
-                act_layer=act_layer,
-            )
-            for _ in range(self.decoder_depth)
-        ])
+        self.decoder_blocks = nn.ModuleList(
+            [
+                TransformerBlock(
+                    dim=self.decoder_embed_dim,
+                    num_heads=self.decoder_num_heads,
+                    sr_ratio=self.sr_ratio_dec,
+                    mlp_ratio=mlp_ratio,
+                    qkv_bias=qkv_bias,
+                    drop=drop_rate,
+                    attn_drop=attn_drop_rate,
+                    drop_path=0.0,
+                    norm_layer=norm_layer,
+                    act_layer=act_layer,
+                )
+                for _ in range(self.decoder_depth)
+            ]
+        )
         self.decoder_norm = norm_layer(self.decoder_embed_dim)
 
         # Per-patch pixel predictor (MAE-style: predict p^2 * C_out per patch)
         self.decoder_pred = nn.Linear(
             self.decoder_embed_dim,
-            (self.patch_size ** 2) * self.out_channels,
+            (self.patch_size**2) * self.out_channels,
             bias=True,
         )
 
@@ -431,7 +468,9 @@ class VisionTransformer(BaseModel):
 
         self._init_weights()
 
-    def _interpolate_pos_embed(self, pos_embed: torch.Tensor, Hp: int, Wp: int, has_cls: bool) -> torch.Tensor:
+    def _interpolate_pos_embed(
+        self, pos_embed: torch.Tensor, Hp: int, Wp: int, has_cls: bool
+    ) -> torch.Tensor:
         """
         Interpolate positional embeddings to match (Hp, Wp).
         This is a common ViT practice when transferring to different resolutions.
@@ -449,7 +488,9 @@ class VisionTransformer(BaseModel):
             return pos_embed
 
         patch_pos_2d = patch_pos.reshape(1, H0, W0, C).permute(0, 3, 1, 2)
-        patch_pos_2d = F.interpolate(patch_pos_2d, size=(Hp, Wp), mode="bicubic", align_corners=False)
+        patch_pos_2d = F.interpolate(
+            patch_pos_2d, size=(Hp, Wp), mode="bicubic", align_corners=False
+        )
         patch_pos_new = patch_pos_2d.permute(0, 2, 3, 1).reshape(1, Hp * Wp, C)
 
         if has_cls:
@@ -489,7 +530,7 @@ class VisionTransformer(BaseModel):
 
         self.apply(_init)
 
-    def forward_encoder(self, x: torch.Tensor) -> Tuple[torch.Tensor, Tuple[int, int]]:
+    def forward_encoder(self, x: torch.Tensor) -> tuple[torch.Tensor, tuple[int, int]]:
         tokens, (Hp, Wp) = self.patch_embed(x)
 
         if self.use_cls_token:
@@ -512,11 +553,15 @@ class VisionTransformer(BaseModel):
 
         return tokens, (Hp, Wp)
 
-    def forward_decoder(self, tokens: torch.Tensor, grid: Tuple[int, int]) -> torch.Tensor:
+    def forward_decoder(
+        self, tokens: torch.Tensor, grid: tuple[int, int]
+    ) -> torch.Tensor:
         Hp, Wp = grid
         tokens = self.decoder_embed(tokens)
 
-        dec_pos = self._interpolate_pos_embed(self.decoder_pos_embed, Hp, Wp, has_cls=False)
+        dec_pos = self._interpolate_pos_embed(
+            self.decoder_pos_embed, Hp, Wp, has_cls=False
+        )
         tokens = tokens + dec_pos
 
         for blk in self.decoder_blocks:
@@ -526,7 +571,9 @@ class VisionTransformer(BaseModel):
         pred = self.decoder_pred(tokens)
         return pred
 
-    def unpatchify(self, patch_pixels: torch.Tensor, grid: Tuple[int, int]) -> torch.Tensor:
+    def unpatchify(
+        self, patch_pixels: torch.Tensor, grid: tuple[int, int]
+    ) -> torch.Tensor:
         """
         Patch tokens -> image (unpatchify).
         This follows the MAE-style reconstruction pattern (He et al., CVPR 2022).
@@ -552,28 +599,30 @@ class VisionTransformer(BaseModel):
         y = self.final_activation(y)
         return y
 
-    def get_model_info(self) -> Dict:
+    def get_model_info(self) -> dict:
         info = super().get_model_info()
-        info.update({
-            "name": "VisionTransformer",
-            "type": "ViT(AE) + SR-Attention",
-            "patch_size": self.patch_size,
-            "embed_dim": self.embed_dim,
-            "depth": self.depth,
-            "num_heads": self.num_heads,
-            "decoder_embed_dim": self.decoder_embed_dim,
-            "decoder_depth": self.decoder_depth,
-            "decoder_num_heads": self.decoder_num_heads,
-            "sr_ratio_enc": self.sr_ratio_enc,
-            "sr_ratio_dec": self.sr_ratio_dec,
-            "use_cls_token": self.use_cls_token,
-        })
+        info.update(
+            {
+                "name": "VisionTransformer",
+                "type": "ViT(AE) + SR-Attention",
+                "patch_size": self.patch_size,
+                "embed_dim": self.embed_dim,
+                "depth": self.depth,
+                "num_heads": self.num_heads,
+                "decoder_embed_dim": self.decoder_embed_dim,
+                "decoder_depth": self.decoder_depth,
+                "decoder_num_heads": self.decoder_num_heads,
+                "sr_ratio_enc": self.sr_ratio_enc,
+                "sr_ratio_dec": self.sr_ratio_dec,
+                "use_cls_token": self.use_cls_token,
+            }
+        )
         return info
 
     def get_num_params(self) -> int:
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
-    def get_flops(self, input_shape: Tuple[int, int, int, int]) -> int:
+    def get_flops(self, input_shape: tuple[int, int, int, int]) -> int:
         """
         Rough FLOPs estimation.
         For SR attention: cost scales ~ O(N * N/sr^2), inspired by PVT SR-attention complexity.
@@ -582,23 +631,49 @@ class VisionTransformer(BaseModel):
         Hp, Wp = H // self.patch_size, W // self.patch_size
         N = Hp * Wp
 
-        patch_flops = C * (self.patch_size ** 2) * self.embed_dim * N
+        patch_flops = C * (self.patch_size**2) * self.embed_dim * N
 
         sr_e = max(self.sr_ratio_enc, 1)
         Nk_e = max(N // (sr_e * sr_e), 1)
-        enc_attn = self.depth * (self.num_heads * N * Nk_e * (self.embed_dim // self.num_heads))
-        enc_proj = self.depth * (3 * self.embed_dim * self.embed_dim * N + self.embed_dim * self.embed_dim * N)
+        enc_attn = self.depth * (
+            self.num_heads * N * Nk_e * (self.embed_dim // self.num_heads)
+        )
+        enc_proj = self.depth * (
+            3 * self.embed_dim * self.embed_dim * N
+            + self.embed_dim * self.embed_dim * N
+        )
         enc_mlp = self.depth * (2 * self.embed_dim * int(self.embed_dim * 4.0) * N)
 
         sr_d = max(self.sr_ratio_dec, 1)
         Nk_d = max(N // (sr_d * sr_d), 1)
-        dec_attn = self.decoder_depth * (self.decoder_num_heads * N * Nk_d * (self.decoder_embed_dim // self.decoder_num_heads))
-        dec_proj = self.decoder_depth * (3 * self.decoder_embed_dim * self.decoder_embed_dim * N + self.decoder_embed_dim * self.decoder_embed_dim * N)
-        dec_mlp = self.decoder_depth * (2 * self.decoder_embed_dim * int(self.decoder_embed_dim * 4.0) * N)
+        dec_attn = self.decoder_depth * (
+            self.decoder_num_heads
+            * N
+            * Nk_d
+            * (self.decoder_embed_dim // self.decoder_num_heads)
+        )
+        dec_proj = self.decoder_depth * (
+            3 * self.decoder_embed_dim * self.decoder_embed_dim * N
+            + self.decoder_embed_dim * self.decoder_embed_dim * N
+        )
+        dec_mlp = self.decoder_depth * (
+            2 * self.decoder_embed_dim * int(self.decoder_embed_dim * 4.0) * N
+        )
 
-        out_flops = N * self.decoder_embed_dim * (self.patch_size ** 2) * self.out_channels
+        out_flops = (
+            N * self.decoder_embed_dim * (self.patch_size**2) * self.out_channels
+        )
 
-        total = patch_flops + enc_attn + enc_proj + enc_mlp + dec_attn + dec_proj + dec_mlp + out_flops
+        total = (
+            patch_flops
+            + enc_attn
+            + enc_proj
+            + enc_mlp
+            + dec_attn
+            + dec_proj
+            + dec_mlp
+            + out_flops
+        )
         return int(total * B)
 
 

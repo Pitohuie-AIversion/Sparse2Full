@@ -11,8 +11,6 @@ Reference:
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Tuple
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -40,18 +38,22 @@ def _align_like(src: torch.Tensor, ref: torch.Tensor) -> torch.Tensor:
     if pad_y > 0 or pad_x > 0:
         src = F.pad(
             src,
-            [max(pad_x // 2, 0), max(pad_x - pad_x // 2, 0),
-             max(pad_y // 2, 0), max(pad_y - pad_y // 2, 0)],
+            [
+                max(pad_x // 2, 0),
+                max(pad_x - pad_x // 2, 0),
+                max(pad_y // 2, 0),
+                max(pad_y - pad_y // 2, 0),
+            ],
         )
 
     # crop if needed
     hs, ws = src.shape[-2], src.shape[-1]
     if hs > hr:
         y0 = (hs - hr) // 2
-        src = src[:, :, y0:y0 + hr, :]
+        src = src[:, :, y0 : y0 + hr, :]
     if ws > wr:
         x0 = (ws - wr) // 2
-        src = src[:, :, :, x0:x0 + wr]
+        src = src[:, :, :, x0 : x0 + wr]
 
     return src
 
@@ -64,9 +66,13 @@ class ConvBlock(nn.Module):
 
     def __init__(self, in_channels: int, out_channels: int, dropout: float = 0.0):
         super().__init__()
-        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, bias=False)
+        self.conv1 = nn.Conv2d(
+            in_channels, out_channels, kernel_size=3, padding=1, bias=False
+        )
         self.bn1 = nn.BatchNorm2d(out_channels)
-        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1, bias=False)
+        self.conv2 = nn.Conv2d(
+            out_channels, out_channels, kernel_size=3, padding=1, bias=False
+        )
         self.bn2 = nn.BatchNorm2d(out_channels)
         self.relu = nn.ReLU(inplace=True)
         self.drop = nn.Dropout2d(dropout) if dropout and dropout > 0 else nn.Identity()
@@ -110,10 +116,10 @@ class UNetPlusPlus(BaseModel):
         in_channels: int = 1,
         out_channels: int = 1,
         img_size: int = 128,
-        features: Optional[List[int]] = None,
+        features: list[int] | None = None,
         deep_supervision: bool = False,
         dropout: float = 0.0,
-        final_activation: Optional[str] = None,  # None | "tanh" | "sigmoid"
+        final_activation: str | None = None,  # None | "tanh" | "sigmoid"
         **kwargs,
     ):
         super().__init__(in_channels, out_channels, img_size, **kwargs)
@@ -130,33 +136,46 @@ class UNetPlusPlus(BaseModel):
 
         # Encoder conv blocks for x_{i,0}
         self.encoders = nn.ModuleList()
-        self.encoders.append(ConvBlock(in_channels, self.features[0], dropout=self.dropout))
+        self.encoders.append(
+            ConvBlock(in_channels, self.features[0], dropout=self.dropout)
+        )
         for i in range(1, self.num_layers):
-            self.encoders.append(ConvBlock(self.features[i - 1], self.features[i], dropout=self.dropout))
+            self.encoders.append(
+                ConvBlock(self.features[i - 1], self.features[i], dropout=self.dropout)
+            )
 
         # Pools between encoder levels
-        self.pools = nn.ModuleList([nn.MaxPool2d(kernel_size=2, stride=2) for _ in range(self.num_layers - 1)])
+        self.pools = nn.ModuleList(
+            [nn.MaxPool2d(kernel_size=2, stride=2) for _ in range(self.num_layers - 1)]
+        )
 
         # Up-samplers: from level (i+1) to level i, channel map features[i+1] -> features[i]
-        self.ups = nn.ModuleList([
-            UpSample(self.features[i + 1], self.features[i]) for i in range(self.num_layers - 1)
-        ])
+        self.ups = nn.ModuleList(
+            [
+                UpSample(self.features[i + 1], self.features[i])
+                for i in range(self.num_layers - 1)
+            ]
+        )
 
         # Nested conv blocks for x_{i,j}, j>=1
         # x_{i,j} input channels = features[i] * (j + 1)   (concat of: x_{i,0..j-1} plus up(x_{i+1,j-1}))
         self.nested_convs = nn.ModuleDict()
-        for j in range(1, self.num_layers):                # depth of nesting
-            for i in range(0, self.num_layers - j):        # spatial level
+        for j in range(1, self.num_layers):  # depth of nesting
+            for i in range(0, self.num_layers - j):  # spatial level
                 in_ch = self.features[i] * (j + 1)
                 out_ch = self.features[i]
-                self.nested_convs[self._key(i, j)] = ConvBlock(in_ch, out_ch, dropout=self.dropout)
+                self.nested_convs[self._key(i, j)] = ConvBlock(
+                    in_ch, out_ch, dropout=self.dropout
+                )
 
         # Output heads: deep supervision uses x_{0,1..depth}
         if self.deep_supervision:
-            self.heads = nn.ModuleList([
-                nn.Conv2d(self.features[0], out_channels, kernel_size=1)
-                for _ in range(1, self.num_layers)  # x_{0,1} ... x_{0,num_layers-1}
-            ])
+            self.heads = nn.ModuleList(
+                [
+                    nn.Conv2d(self.features[0], out_channels, kernel_size=1)
+                    for _ in range(1, self.num_layers)  # x_{0,1} ... x_{0,num_layers-1}
+                ]
+            )
         else:
             self.head = nn.Conv2d(self.features[0], out_channels, kernel_size=1)
 
@@ -190,7 +209,7 @@ class UNetPlusPlus(BaseModel):
         Returns:
             y: [B, C_out, H, W]
         """
-        feat: Dict[str, torch.Tensor] = {}
+        feat: dict[str, torch.Tensor] = {}
 
         # -------------------------
         # Encoder: x_{i,0}
@@ -208,7 +227,9 @@ class UNetPlusPlus(BaseModel):
         for j in range(1, self.num_layers):
             for i in range(0, self.num_layers - j):
                 # upsample x_{i+1, j-1} to level i
-                up = self.ups[i](feat[self._key(i + 1, j - 1)], ref=feat[self._key(i, 0)])
+                up = self.ups[i](
+                    feat[self._key(i + 1, j - 1)], ref=feat[self._key(i, 0)]
+                )
 
                 # concat all previous nodes at same level i: x_{i,0..j-1}, plus up
                 cat_list = [feat[self._key(i, k)] for k in range(0, j)]
@@ -235,10 +256,10 @@ class UNetPlusPlus(BaseModel):
         return y
 
     # Optional: feature extraction for visualization/debug
-    def get_feature_maps(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
+    def get_feature_maps(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
         self.eval()
         with torch.no_grad():
-            feat: Dict[str, torch.Tensor] = {}
+            feat: dict[str, torch.Tensor] = {}
             feat[self._key(0, 0)] = self.encoders[0](x)
             for i in range(1, self.num_layers):
                 pooled = self.pools[i - 1](feat[self._key(i - 1, 0)])
@@ -246,7 +267,9 @@ class UNetPlusPlus(BaseModel):
 
             for j in range(1, self.num_layers):
                 for i in range(0, self.num_layers - j):
-                    up = self.ups[i](feat[self._key(i + 1, j - 1)], ref=feat[self._key(i, 0)])
+                    up = self.ups[i](
+                        feat[self._key(i + 1, j - 1)], ref=feat[self._key(i, 0)]
+                    )
                     cat_list = [feat[self._key(i, k)] for k in range(0, j)]
                     cat_list.append(up)
                     concat = torch.cat(cat_list, dim=1)
@@ -258,7 +281,7 @@ class UNetPlusPlus(BaseModel):
             for p in enc.parameters():
                 p.requires_grad = False
 
-    def compute_flops(self, input_shape: Tuple[int, ...] = None) -> int:
+    def compute_flops(self, input_shape: tuple[int, ...] = None) -> int:
         """
         简化 FLOPs 估算（用于对比，不用于论文精确统计）
         """

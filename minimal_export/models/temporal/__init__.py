@@ -19,13 +19,18 @@
 """
 
 # 基础时序模型类（新增）
-from .base_temporal import BaseTemporalModel, ARMixin, NARMixin, TemporalConsistencyMixin
+from .base_temporal import (
+    ARMixin,
+    BaseTemporalModel,
+    NARMixin,
+    TemporalConsistencyMixin,
+)
 
 # AR包装器
 try:
     from models.ar.wrapper import ARWrapper
 except ImportError as e:
-    logger = __import__('logging').getLogger(__name__)
+    logger = __import__("logging").getLogger(__name__)
     logger.warning(f"Failed to import ARWrapper: {e}")
     ARWrapper = None
 
@@ -40,7 +45,7 @@ SwinTemporalNAR = None
 try:
     from models.temporal.components.temporal_encoder import TemporalEncoder
 except ImportError as e:
-    logger = __import__('logging').getLogger(__name__)
+    logger = __import__("logging").getLogger(__name__)
     logger.warning(f"Failed to import TemporalEncoder: {e}")
     TemporalEncoder = None
 
@@ -48,9 +53,11 @@ try:
     from models.temporal.components.temporal_block import TemporalBlock
 except ImportError:
     try:
-        from models.temporal.components.temporal_block import FiLMTemporalBlock as TemporalBlock
+        from models.temporal.components.temporal_block import (
+            FiLMTemporalBlock as TemporalBlock,
+        )
     except ImportError as e:
-        logger = __import__('logging').getLogger(__name__)
+        logger = __import__("logging").getLogger(__name__)
         logger.warning(f"Failed to import TemporalBlock: {e}")
         TemporalBlock = None
 
@@ -58,19 +65,25 @@ try:
     from models.temporal.components.nar_prediction_head import NARPredictionHead
 except ImportError:
     try:
-        from models.temporal.components.nar_prediction_head import CrossAttnTimeQueryHead as NARPredictionHead
+        from models.temporal.components.nar_prediction_head import (
+            CrossAttnTimeQueryHead as NARPredictionHead,
+        )
     except ImportError as e:
-        logger = __import__('logging').getLogger(__name__)
+        logger = __import__("logging").getLogger(__name__)
         logger.warning(f"Failed to import NARPredictionHead: {e}")
         NARPredictionHead = None
 
 try:
-    from models.temporal.components.sequential_spatiotemporal import SequentialSpatiotemporal
+    from models.temporal.components.sequential_spatiotemporal import (
+        SequentialSpatiotemporal,
+    )
 except ImportError:
     try:
-        from models.temporal.components.sequential_spatiotemporal import SequentialSpatiotemporalModel as SequentialSpatiotemporal
+        from models.temporal.components.sequential_spatiotemporal import (
+            SequentialSpatiotemporalModel as SequentialSpatiotemporal,
+        )
     except ImportError as e:
-        logger = __import__('logging').getLogger(__name__)
+        logger = __import__("logging").getLogger(__name__)
         logger.warning(f"Failed to import SequentialSpatiotemporal: {e}")
         SequentialSpatiotemporal = None
 
@@ -78,36 +91,36 @@ try:
     from models.temporal.components.sequential_trainer import SequentialTrainer
 except ImportError:
     try:
-        from models.temporal.components.sequential_trainer import SequentialSpatiotemporalTrainer as SequentialTrainer
+        from models.temporal.components.sequential_trainer import (
+            SequentialSpatiotemporalTrainer as SequentialTrainer,
+        )
     except ImportError as e:
-        logger = __import__('logging').getLogger(__name__)
+        logger = __import__("logging").getLogger(__name__)
         logger.warning(f"Failed to import SequentialTrainer: {e}")
         SequentialTrainer = None
 
 try:
-    from models.temporal.components.sequential_dc_consistency import SequentialDCConsistency
+    from models.temporal.components.sequential_dc_consistency import (
+        SequentialDCConsistency,
+    )
 except ImportError as e:
-    logger = __import__('logging').getLogger(__name__)
+    logger = __import__("logging").getLogger(__name__)
     logger.warning(f"Failed to import SequentialDCConsistency: {e}")
     SequentialDCConsistency = None
 
 __all__ = [
     # 基础类
     "BaseTemporalModel",
-    "ARMixin", 
+    "ARMixin",
     "NARMixin",
     "TemporalConsistencyMixin",
-    
     # AR包装器
     "ARWrapper",
-    
     # 时序Swin模型
     "SwinTemporal",
-    "SwinTemporalNAR", 
-    
+    "SwinTemporalNAR",
     # 混合包装器
     # "ARNARWrapper", # 暂时禁用
-    
     # 时序组件
     "TemporalEncoder",
     "TemporalBlock",
@@ -119,4 +132,5 @@ __all__ = [
 
 # 导入工厂函数
 from models.temporal.factory import create_model
+
 __all__.append("create_model")

@@ -11,12 +11,13 @@ Stabilized FNO 2D 模型（工程增强版）
   "FNO-style spectral operator with stability-oriented engineering safeguards."
 """
 
-from typing import Tuple
-from contextlib import nullcontext
 import math
+from contextlib import nullcontext
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 from ..base import BaseModel
 
 
@@ -48,7 +49,9 @@ class StableSpectralConv2d(nn.Module):
         # 对 complex 也适用：会检查实部/虚部
         return torch.isfinite(x).all().item()
 
-    def stable_compl_mul2d(self, input: torch.Tensor, weights: torch.Tensor) -> torch.Tensor:
+    def stable_compl_mul2d(
+        self, input: torch.Tensor, weights: torch.Tensor
+    ) -> torch.Tensor:
         """数值稳定的复数乘法：einsum 实现"""
         if not self._isfinite(input):
             input = torch.nan_to_num(input, nan=0.0, posinf=1e6, neginf=-1e6)
@@ -82,14 +85,20 @@ class StableSpectralConv2d(nn.Module):
             try:
                 x_ft = torch.fft.rfft2(x_work, norm="ortho")
             except Exception:
-                return torch.zeros(B, self.out_channels, H, W, dtype=torch.float32, device=x.device)
+                return torch.zeros(
+                    B, self.out_channels, H, W, dtype=torch.float32, device=x.device
+                )
 
             if not self._isfinite(x_ft):
                 x_ft = torch.nan_to_num(x_ft, nan=0.0, posinf=1e6, neginf=-1e6)
 
             out_ft = torch.zeros(
-                B, self.out_channels, H, W // 2 + 1,
-                dtype=torch.complex128, device=x.device
+                B,
+                self.out_channels,
+                H,
+                W // 2 + 1,
+                dtype=torch.complex128,
+                device=x.device,
             )
 
             m1 = min(self.modes1, H)
@@ -114,7 +123,9 @@ class StableSpectralConv2d(nn.Module):
                 y = torch.fft.irfft2(out_ft, s=(H, W), norm="ortho")
                 y = y.float()
             except Exception:
-                return torch.zeros(B, self.out_channels, H, W, dtype=torch.float32, device=x.device)
+                return torch.zeros(
+                    B, self.out_channels, H, W, dtype=torch.float32, device=x.device
+                )
 
         return y
 
@@ -134,7 +145,7 @@ class StableFNO2d(BaseModel):
         activation: str = "gelu",
         spectral_norm: bool = True,
         gradient_clip: float = 1.0,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(in_channels, out_channels, img_size, **kwargs)
         self.modes1 = modes1
@@ -163,12 +174,16 @@ class StableFNO2d(BaseModel):
         self.layer_norms = nn.ModuleList()
 
         for _ in range(self.n_layers):
-            self.conv_layers.append(StableSpectralConv2d(self.width, self.width, self.modes1, self.modes2))
+            self.conv_layers.append(
+                StableSpectralConv2d(self.width, self.width, self.modes1, self.modes2)
+            )
             conv1x1 = nn.Conv2d(self.width, self.width, 1)
             if self.spectral_norm:
                 conv1x1 = nn.utils.spectral_norm(conv1x1)
             self.w_layers.append(conv1x1)
-            self.layer_norms.append(nn.GroupNorm(num_groups=self.width, num_channels=self.width))
+            self.layer_norms.append(
+                nn.GroupNorm(num_groups=self.width, num_channels=self.width)
+            )
 
         self.fc1 = nn.Linear(self.width, 64)
         self.fc2 = nn.Linear(64, out_channels)
@@ -183,14 +198,26 @@ class StableFNO2d(BaseModel):
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu", a=0.1)
+                nn.init.kaiming_normal_(
+                    m.weight, mode="fan_out", nonlinearity="relu", a=0.1
+                )
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
 
-    def get_grid(self, shape: Tuple[int, int, int, int], device: torch.device) -> torch.Tensor:
+    def get_grid(
+        self, shape: tuple[int, int, int, int], device: torch.device
+    ) -> torch.Tensor:
         B, _, H, W = shape
-        gridx = torch.linspace(-1, 1, H, device=device, dtype=torch.float32).view(1, H, 1, 1).repeat(B, 1, W, 1)
-        gridy = torch.linspace(-1, 1, W, device=device, dtype=torch.float32).view(1, 1, W, 1).repeat(B, H, 1, 1)
+        gridx = (
+            torch.linspace(-1, 1, H, device=device, dtype=torch.float32)
+            .view(1, H, 1, 1)
+            .repeat(B, 1, W, 1)
+        )
+        gridy = (
+            torch.linspace(-1, 1, W, device=device, dtype=torch.float32)
+            .view(1, 1, W, 1)
+            .repeat(B, H, 1, 1)
+        )
         return torch.cat((gridx, gridy), dim=-1)
 
     def forward(self, x: torch.Tensor, **kwargs) -> torch.Tensor:
@@ -200,13 +227,13 @@ class StableFNO2d(BaseModel):
 
         grid = self.get_grid(x.shape, x.device)
 
-        x = x.permute(0, 2, 3, 1)           # [B,H,W,C]
-        x = torch.cat((x, grid), dim=-1)    # [B,H,W,C+2]
+        x = x.permute(0, 2, 3, 1)  # [B,H,W,C]
+        x = torch.cat((x, grid), dim=-1)  # [B,H,W,C+2]
 
         x = self.fc0(x)
         x = self.input_norm(x)
         x = self.dropout(x)
-        x = x.permute(0, 3, 1, 2)           # [B,width,H,W]
+        x = x.permute(0, 3, 1, 2)  # [B,width,H,W]
 
         x_residual = x  # 不要 clone；节省显存/时间
 

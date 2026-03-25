@@ -4,6 +4,7 @@
 """
 
 from .temporal_encoder import TemporalEncoder
+
 try:
     from .temporal_block import TemporalBlock
 except ImportError:
@@ -15,7 +16,9 @@ except ImportError:
 try:
     from .sequential_spatiotemporal import SequentialSpatiotemporal
 except ImportError:
-    from .sequential_spatiotemporal import SequentialSpatiotemporalModel as SequentialSpatiotemporal
+    from .sequential_spatiotemporal import (
+        SequentialSpatiotemporalModel as SequentialSpatiotemporal,
+    )
 try:
     from .sequential_trainer import SequentialTrainer
 except ImportError:
@@ -25,8 +28,8 @@ from .sequential_dc_consistency import SequentialDCConsistency
 __all__ = [
     "TemporalEncoder",
     "TemporalBlock",
-    "NARPredictionHead", 
+    "NARPredictionHead",
     "SequentialSpatiotemporal",
     "SequentialTrainer",
-    "SequentialDCConsistency"
+    "SequentialDCConsistency",
 ]

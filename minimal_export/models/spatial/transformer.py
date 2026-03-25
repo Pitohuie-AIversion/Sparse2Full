@@ -8,7 +8,6 @@
 """
 
 import math
-from typing import Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -33,8 +32,13 @@ class PositionalEncoding(nn.Module):
             raise ValueError("d_model must be positive.")
 
         pe = torch.zeros(max_len, d_model, dtype=torch.float32)  # [max_len, D]
-        position = torch.arange(0, max_len, dtype=torch.float32).unsqueeze(1)  # [max_len,1]
-        div_term = torch.exp(torch.arange(0, d_model, 2, dtype=torch.float32) * (-math.log(10000.0) / d_model))
+        position = torch.arange(0, max_len, dtype=torch.float32).unsqueeze(
+            1
+        )  # [max_len,1]
+        div_term = torch.exp(
+            torch.arange(0, d_model, 2, dtype=torch.float32)
+            * (-math.log(10000.0) / d_model)
+        )
 
         pe[:, 0::2] = torch.sin(position * div_term)  # even
         pe[:, 1::2] = torch.cos(position * div_term)  # odd
@@ -44,7 +48,9 @@ class PositionalEncoding(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if x.ndim != 3:
-            raise ValueError(f"PositionalEncoding expects [B,N,D], got shape={tuple(x.shape)}")
+            raise ValueError(
+                f"PositionalEncoding expects [B,N,D], got shape={tuple(x.shape)}"
+            )
         n = x.size(1)
         if n > self.pe.size(1):
             raise ValueError(f"Sequence length N={n} exceeds max_len={self.pe.size(1)}")
@@ -57,14 +63,18 @@ class PositionalEncoding(nn.Module):
 class MultiHeadAttention(nn.Module):
     """多头注意力（batch-first）"""
 
-    def __init__(self, d_model: int, num_heads, dropout: float = 0.1, use_sdpa: bool = True):
+    def __init__(
+        self, d_model: int, num_heads, dropout: float = 0.1, use_sdpa: bool = True
+    ):
         super().__init__()
         if isinstance(num_heads, (list, tuple)):
             num_heads = num_heads[0]
         num_heads = int(num_heads)
 
         if d_model % num_heads != 0:
-            raise ValueError(f"d_model ({d_model}) must be divisible by num_heads ({num_heads}).")
+            raise ValueError(
+                f"d_model ({d_model}) must be divisible by num_heads ({num_heads})."
+            )
 
         self.d_model = int(d_model)
         self.num_heads = num_heads
@@ -87,7 +97,7 @@ class MultiHeadAttention(nn.Module):
         query: torch.Tensor,
         key: torch.Tensor,
         value: torch.Tensor,
-        attn_mask: Optional[torch.Tensor] = None,
+        attn_mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -114,14 +124,18 @@ class MultiHeadAttention(nn.Module):
             # q,k,v: [B, heads, N, d_k]
             # attn_mask: bool or float additive, broadcastable to [B, heads, N, S]
             out = F.scaled_dot_product_attention(
-                Q, K, V,
+                Q,
+                K,
+                V,
                 attn_mask=attn_mask,
                 dropout_p=self.dropout.p if self.training else 0.0,
                 is_causal=False,
             )
         else:
             # 手写 attention
-            scores = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(self.d_k)  # [B,heads,N,S]
+            scores = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(
+                self.d_k
+            )  # [B,heads,N,S]
             if attn_mask is not None:
                 # bool mask: False -> -inf
                 if attn_mask.dtype == torch.bool:
@@ -143,7 +157,9 @@ class MultiHeadAttention(nn.Module):
 class FeedForward(nn.Module):
     """前馈网络"""
 
-    def __init__(self, d_model: int, d_ff: int, dropout: float = 0.1, activation: str = "relu"):
+    def __init__(
+        self, d_model: int, d_ff: int, dropout: float = 0.1, activation: str = "relu"
+    ):
         super().__init__()
         self.linear1 = nn.Linear(d_model, d_ff)
         self.linear2 = nn.Linear(d_ff, d_model)
@@ -164,17 +180,28 @@ class FeedForward(nn.Module):
 # Encoder / Decoder layers (post-LN,与你原版一致)
 # =========================================================
 class TransformerEncoderLayer(nn.Module):
-    def __init__(self, d_model: int, num_heads, d_ff: int, dropout: float = 0.1, use_sdpa: bool = True):
+    def __init__(
+        self,
+        d_model: int,
+        num_heads,
+        d_ff: int,
+        dropout: float = 0.1,
+        use_sdpa: bool = True,
+    ):
         super().__init__()
         if isinstance(num_heads, (list, tuple)):
             num_heads = num_heads[0]
-        self.self_attn = MultiHeadAttention(d_model, int(num_heads), dropout, use_sdpa=use_sdpa)
+        self.self_attn = MultiHeadAttention(
+            d_model, int(num_heads), dropout, use_sdpa=use_sdpa
+        )
         self.ffn = FeedForward(d_model, d_ff, dropout, activation="relu")
         self.norm1 = nn.LayerNorm(d_model)
         self.norm2 = nn.LayerNorm(d_model)
         self.drop = nn.Dropout(dropout)
 
-    def forward(self, x: torch.Tensor, src_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(
+        self, x: torch.Tensor, src_mask: torch.Tensor | None = None
+    ) -> torch.Tensor:
         attn = self.self_attn(x, x, x, attn_mask=src_mask)
         x = self.norm1(x + self.drop(attn))
         ffn = self.ffn(x)
@@ -183,12 +210,23 @@ class TransformerEncoderLayer(nn.Module):
 
 
 class TransformerDecoderLayer(nn.Module):
-    def __init__(self, d_model: int, num_heads, d_ff: int, dropout: float = 0.1, use_sdpa: bool = True):
+    def __init__(
+        self,
+        d_model: int,
+        num_heads,
+        d_ff: int,
+        dropout: float = 0.1,
+        use_sdpa: bool = True,
+    ):
         super().__init__()
         if isinstance(num_heads, (list, tuple)):
             num_heads = num_heads[0]
-        self.self_attn = MultiHeadAttention(d_model, int(num_heads), dropout, use_sdpa=use_sdpa)
-        self.cross_attn = MultiHeadAttention(d_model, int(num_heads), dropout, use_sdpa=use_sdpa)
+        self.self_attn = MultiHeadAttention(
+            d_model, int(num_heads), dropout, use_sdpa=use_sdpa
+        )
+        self.cross_attn = MultiHeadAttention(
+            d_model, int(num_heads), dropout, use_sdpa=use_sdpa
+        )
         self.ffn = FeedForward(d_model, d_ff, dropout, activation="relu")
         self.norm1 = nn.LayerNorm(d_model)
         self.norm2 = nn.LayerNorm(d_model)
@@ -199,8 +237,8 @@ class TransformerDecoderLayer(nn.Module):
         self,
         x: torch.Tensor,
         memory: torch.Tensor,
-        tgt_mask: Optional[torch.Tensor] = None,
-        mem_mask: Optional[torch.Tensor] = None,
+        tgt_mask: torch.Tensor | None = None,
+        mem_mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
         self_attn = self.self_attn(x, x, x, attn_mask=tgt_mask)
         x = self.norm1(x + self.drop(self_attn))
@@ -220,9 +258,13 @@ class PatchEmbedding(nn.Module):
     def __init__(self, patch_size: int, in_channels: int, d_model: int):
         super().__init__()
         self.patch_size = int(patch_size)
-        self.proj = nn.Conv2d(in_channels, d_model, kernel_size=self.patch_size, stride=self.patch_size)
+        self.proj = nn.Conv2d(
+            in_channels, d_model, kernel_size=self.patch_size, stride=self.patch_size
+        )
 
-    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, Tuple[int, int, int, int], Tuple[int, int]]:
+    def forward(
+        self, x: torch.Tensor
+    ) -> tuple[torch.Tensor, tuple[int, int, int, int], tuple[int, int]]:
         """
         Returns:
             tokens: [B, N, D]
@@ -250,9 +292,16 @@ class PatchReconstruction(nn.Module):
         super().__init__()
         self.patch_size = int(patch_size)
         self.out_channels = int(out_channels)
-        self.proj = nn.Linear(d_model, self.out_channels * self.patch_size * self.patch_size)
+        self.proj = nn.Linear(
+            d_model, self.out_channels * self.patch_size * self.patch_size
+        )
 
-    def forward(self, x: torch.Tensor, grid_hw: Tuple[int, int], pad_hw: Tuple[int, int, int, int]) -> torch.Tensor:
+    def forward(
+        self,
+        x: torch.Tensor,
+        grid_hw: tuple[int, int],
+        pad_hw: tuple[int, int, int, int],
+    ) -> torch.Tensor:
         """
         Args:
             x: [B, N, D]
@@ -288,7 +337,7 @@ class Transformer(BaseModel):
         self,
         in_channels: int = 1,
         out_channels: int = 1,
-        img_size: int = 128,          # 仅用于BaseModel登记；forward支持任意H,W
+        img_size: int = 128,  # 仅用于BaseModel登记；forward支持任意H,W
         patch_size: int = 16,
         d_model: int = 512,
         num_encoder_layers: int = 6,
@@ -296,9 +345,9 @@ class Transformer(BaseModel):
         num_heads=8,
         d_ff: int = 2048,
         dropout: float = 0.1,
-        max_len: int = 20000,         # 位置编码最大长度（>= 最大 patch 数）
+        max_len: int = 20000,  # 位置编码最大长度（>= 最大 patch 数）
         use_sdpa: bool = True,
-        final_activation: Optional[str] = None,  # None | "tanh" | "sigmoid"
+        final_activation: str | None = None,  # None | "tanh" | "sigmoid"
         **kwargs,
     ):
         super().__init__(in_channels, out_channels, img_size, **kwargs)
@@ -311,22 +360,34 @@ class Transformer(BaseModel):
         self.d_model = int(d_model)
         self.num_heads = num_heads
 
-        self.patch_embedding = PatchEmbedding(self.patch_size, in_channels, self.d_model)
+        self.patch_embedding = PatchEmbedding(
+            self.patch_size, in_channels, self.d_model
+        )
         self.pos_encoding = PositionalEncoding(self.d_model, max_len=max_len)
 
         self.encoder_layers = nn.ModuleList(
-            [TransformerEncoderLayer(self.d_model, num_heads, d_ff, dropout, use_sdpa=use_sdpa)
-             for _ in range(int(num_encoder_layers))]
+            [
+                TransformerEncoderLayer(
+                    self.d_model, num_heads, d_ff, dropout, use_sdpa=use_sdpa
+                )
+                for _ in range(int(num_encoder_layers))
+            ]
         )
         self.decoder_layers = nn.ModuleList(
-            [TransformerDecoderLayer(self.d_model, num_heads, d_ff, dropout, use_sdpa=use_sdpa)
-             for _ in range(int(num_decoder_layers))]
+            [
+                TransformerDecoderLayer(
+                    self.d_model, num_heads, d_ff, dropout, use_sdpa=use_sdpa
+                )
+                for _ in range(int(num_decoder_layers))
+            ]
         )
 
         # learned query embedding：长度在forward里由N动态决定（避免强绑定img_size）
         self.query_embed = nn.Embedding(max_len, self.d_model)
 
-        self.patch_reconstruction = PatchReconstruction(self.d_model, self.patch_size, out_channels)
+        self.patch_reconstruction = PatchReconstruction(
+            self.d_model, self.patch_size, out_channels
+        )
         self.drop = nn.Dropout(dropout)
 
         if final_activation == "tanh":
@@ -352,7 +413,9 @@ class Transformer(BaseModel):
                 nn.init.ones_(m.weight)
                 nn.init.zeros_(m.bias)
 
-    def encode(self, x: torch.Tensor, src_mask: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, Tuple[int,int,int,int], Tuple[int,int]]:
+    def encode(
+        self, x: torch.Tensor, src_mask: torch.Tensor | None = None
+    ) -> tuple[torch.Tensor, tuple[int, int, int, int], tuple[int, int]]:
         tokens, pad_hw, grid_hw = self.patch_embedding(x)  # [B,N,D]
         tokens = self.pos_encoding(tokens)
         tokens = self.drop(tokens)
@@ -363,12 +426,14 @@ class Transformer(BaseModel):
     def decode(
         self,
         memory: torch.Tensor,
-        tgt_mask: Optional[torch.Tensor] = None,
-        mem_mask: Optional[torch.Tensor] = None,
+        tgt_mask: torch.Tensor | None = None,
+        mem_mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
         B, N, D = memory.shape
         if N > self.query_embed.num_embeddings:
-            raise ValueError(f"N={N} exceeds query_embed.max_len={self.query_embed.num_embeddings}")
+            raise ValueError(
+                f"N={N} exceeds query_embed.max_len={self.query_embed.num_embeddings}"
+            )
 
         # learned queries: [B,N,D]
         idx = torch.arange(N, device=memory.device)
@@ -400,14 +465,16 @@ class Transformer(BaseModel):
 
     def get_model_info(self) -> dict:
         info = super().get_model_info()
-        info.update({
-            "patch_size": self.patch_size,
-            "d_model": self.d_model,
-            "num_heads": self.num_heads,
-            "encoder_layers": len(self.encoder_layers),
-            "decoder_layers": len(self.decoder_layers),
-            "query_embed_max_len": self.query_embed.num_embeddings,
-        })
+        info.update(
+            {
+                "patch_size": self.patch_size,
+                "d_model": self.d_model,
+                "num_heads": self.num_heads,
+                "encoder_layers": len(self.encoder_layers),
+                "decoder_layers": len(self.decoder_layers),
+                "query_embed_max_len": self.query_embed.num_embeddings,
+            }
+        )
         return info
 
 

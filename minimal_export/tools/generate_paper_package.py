@@ -2,10 +2,13 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+
 class PaperPackageGenerator:
     def __init__(self, config: Any, paper_root: Any = None):
         self.config = config
-        self.paper_root = Path(paper_root) if paper_root is not None else Path("paper_package")
+        self.paper_root = (
+            Path(paper_root) if paper_root is not None else Path("paper_package")
+        )
 
     def _latest_run(self) -> Path:
         runs = sorted(Path("runs").glob("*"))
@@ -20,10 +23,19 @@ class PaperPackageGenerator:
 
         src = Path(results_dir) if results_dir is not None else self._latest_run()
         if src.exists():
-            for candidate in ["results.json", "workflow_results.json", "metrics.jsonl", "config_merged.yaml"]:
+            for candidate in [
+                "results.json",
+                "workflow_results.json",
+                "metrics.jsonl",
+                "config_merged.yaml",
+            ]:
                 p = src / candidate
                 if p.exists():
-                    target = root / ("configs" if candidate.endswith(".yaml") else "metrics") / p.name
+                    target = (
+                        root
+                        / ("configs" if candidate.endswith(".yaml") else "metrics")
+                        / p.name
+                    )
                     target.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(p, target)
 
@@ -33,6 +45,8 @@ class PaperPackageGenerator:
 
         return str(root)
 
-    def generate_complete_package(self, trainer=None, validation_results=None, checkpoints=None, seed_results=None) -> Path:
+    def generate_complete_package(
+        self, trainer=None, validation_results=None, checkpoints=None, seed_results=None
+    ) -> Path:
         root = self.generate_package()
         return root

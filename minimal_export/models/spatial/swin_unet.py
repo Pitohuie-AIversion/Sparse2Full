@@ -6,7 +6,6 @@ Swin-UNet模型实现
 """
 
 import math
-from typing import Optional, Tuple, List
 
 import torch
 import torch.nn as nn
@@ -54,6 +53,7 @@ except ModuleNotFoundError as err:  # pragma: no cover
 
     class DropPath(nn.Module):
         """Lightweight DropPath compatible with timm."""
+
         def __init__(self, drop_prob: float = 0.0, scale_by_keep: bool = True) -> None:
             super().__init__()
             self.drop_prob = float(drop_prob)
@@ -64,7 +64,9 @@ except ModuleNotFoundError as err:  # pragma: no cover
                 return x
             keep_prob = 1 - self.drop_prob
             shape = (x.shape[0],) + (1,) * (x.ndim - 1)
-            random_tensor = keep_prob + torch.rand(shape, dtype=x.dtype, device=x.device)
+            random_tensor = keep_prob + torch.rand(
+                shape, dtype=x.dtype, device=x.device
+            )
             random_tensor.floor_()
             if self.scale_by_keep and keep_prob > 0.0:
                 x = x / keep_prob
@@ -77,8 +79,13 @@ except ModuleNotFoundError as err:  # pragma: no cover
             return tuple(value)
         return (value, value)
 
-    def trunc_normal_(tensor: torch.Tensor, mean: float = 0.0, std: float = 1.0,
-                      a: float = -2.0, b: float = 2.0) -> torch.Tensor:
+    def trunc_normal_(
+        tensor: torch.Tensor,
+        mean: float = 0.0,
+        std: float = 1.0,
+        a: float = -2.0,
+        b: float = 2.0,
+    ) -> torch.Tensor:
         return torch.nn.init.trunc_normal_(tensor, mean=mean, std=std, a=a, b=b)
 
 
@@ -88,8 +95,9 @@ except ModuleNotFoundError as err:  # pragma: no cover
 try:
     from ..base import BaseModel
 except ImportError:
-    import sys
     import os
+    import sys
+
     current_dir = os.path.dirname(os.path.abspath(__file__))
     if current_dir not in sys.path:
         sys.path.insert(0, current_dir)
@@ -99,7 +107,9 @@ except ImportError:
 # =========================================================
 # Utils: window partition/reverse (FIXED, symmetric)
 # =========================================================
-def window_partition(x: torch.Tensor, window_size: int) -> Tuple[torch.Tensor, Tuple[int, int, int, int]]:
+def window_partition(
+    x: torch.Tensor, window_size: int
+) -> tuple[torch.Tensor, tuple[int, int, int, int]]:
     """
     Split feature map into non-overlapping windows with padding.
     Args:
@@ -118,11 +128,15 @@ def window_partition(x: torch.Tensor, window_size: int) -> Tuple[torch.Tensor, T
     Hp, Wp = H + pad_b, W + pad_r
 
     x = x.view(B, Hp // window_size, window_size, Wp // window_size, window_size, C)
-    windows = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, window_size, window_size, C)
+    windows = (
+        x.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, window_size, window_size, C)
+    )
     return windows, (H, W, Hp, Wp)
 
 
-def window_reverse(windows: torch.Tensor, window_size: int, pad_info: Tuple[int, int, int, int]) -> torch.Tensor:
+def window_reverse(
+    windows: torch.Tensor, window_size: int, pad_info: tuple[int, int, int, int]
+) -> torch.Tensor:
     """
     Reverse windows to feature map and crop padding.
     Args:
@@ -133,7 +147,9 @@ def window_reverse(windows: torch.Tensor, window_size: int, pad_info: Tuple[int,
     """
     H, W, Hp, Wp = pad_info
     B = int(windows.shape[0] / (Hp * Wp / window_size / window_size))
-    x = windows.view(B, Hp // window_size, Wp // window_size, window_size, window_size, -1)
+    x = windows.view(
+        B, Hp // window_size, Wp // window_size, window_size, window_size, -1
+    )
     x = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(B, Hp, Wp, -1)
     if Hp != H or Wp != W:
         x = x[:, :H, :W, :]
@@ -147,10 +163,10 @@ class Mlp(nn.Module):
     def __init__(
         self,
         in_features: int,
-        hidden_features: Optional[int] = None,
-        out_features: Optional[int] = None,
+        hidden_features: int | None = None,
+        out_features: int | None = None,
         act_layer: nn.Module = nn.GELU,
-        drop: float = 0.0
+        drop: float = 0.0,
     ):
         super().__init__()
         out_features = out_features or in_features
@@ -175,23 +191,25 @@ class WindowAttention(nn.Module):
     def __init__(
         self,
         dim: int,
-        window_size: Tuple[int, int],
+        window_size: tuple[int, int],
         num_heads: int,
         qkv_bias: bool = True,
-        qk_scale: Optional[float] = None,
+        qk_scale: float | None = None,
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
         use_sdpa: bool = False,
-        sdpa_kernel: str = "auto"
+        sdpa_kernel: str = "auto",
     ):
         super().__init__()
         if dim % num_heads != 0:
-            raise ValueError(f"dim ({dim}) must be divisible by num_heads ({num_heads}).")
+            raise ValueError(
+                f"dim ({dim}) must be divisible by num_heads ({num_heads})."
+            )
         self.dim = dim
         self.window_size = window_size
         self.num_heads = num_heads
         head_dim = dim // num_heads
-        self.scale = qk_scale or head_dim ** -0.5
+        self.scale = qk_scale or head_dim**-0.5
 
         self.use_sdpa = bool(use_sdpa)
         self.sdpa_kernel = str(sdpa_kernel).lower()
@@ -204,15 +222,21 @@ class WindowAttention(nn.Module):
         # Relative position index
         coords_h = torch.arange(window_size[0])
         coords_w = torch.arange(window_size[1])
-        coords = torch.stack(torch.meshgrid(coords_h, coords_w, indexing='ij'))  # [2, Wh, Ww]
+        coords = torch.stack(
+            torch.meshgrid(coords_h, coords_w, indexing="ij")
+        )  # [2, Wh, Ww]
         coords_flatten = torch.flatten(coords, 1)  # [2, N]
-        relative_coords = coords_flatten[:, :, None] - coords_flatten[:, None, :]  # [2, N, N]
+        relative_coords = (
+            coords_flatten[:, :, None] - coords_flatten[:, None, :]
+        )  # [2, N, N]
         relative_coords = relative_coords.permute(1, 2, 0).contiguous()  # [N, N, 2]
         relative_coords[:, :, 0] += window_size[0] - 1
         relative_coords[:, :, 1] += window_size[1] - 1
         relative_coords[:, :, 0] *= 2 * window_size[1] - 1
         relative_position_index = relative_coords.sum(-1)  # [N, N]
-        self.register_buffer("relative_position_index", relative_position_index, persistent=False)
+        self.register_buffer(
+            "relative_position_index", relative_position_index, persistent=False
+        )
 
         self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
         self.attn_drop = nn.Dropout(attn_drop)
@@ -229,7 +253,9 @@ class WindowAttention(nn.Module):
         rel = rel.view(N, N, -1).permute(2, 0, 1).contiguous()
         return rel
 
-    def forward(self, x: torch.Tensor, attn_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(
+        self, x: torch.Tensor, attn_mask: torch.Tensor | None = None
+    ) -> torch.Tensor:
         """
         Args:
             x: [B*nW, N, C]
@@ -245,7 +271,7 @@ class WindowAttention(nn.Module):
         # SDPA path (optional)
         if self.use_sdpa and hasattr(F, "scaled_dot_product_attention"):
             head_dim = C // self.num_heads
-            scale_adjust = self.scale * (head_dim ** 0.5)
+            scale_adjust = self.scale * (head_dim**0.5)
             if scale_adjust != 1.0:
                 q = q * scale_adjust
 
@@ -254,27 +280,43 @@ class WindowAttention(nn.Module):
                 # [nW, N, N] -> [nW, 1, N, N] then add rel_bias [1, heads, N, N]
                 combined = attn_mask.unsqueeze(1) + rel_bias.unsqueeze(0)
                 combined = combined.unsqueeze(0).expand(B_ // nW, -1, -1, -1, -1)
-                combined = combined.reshape(-1, self.num_heads, N, N)  # [B_, heads, N, N]
+                combined = combined.reshape(
+                    -1, self.num_heads, N, N
+                )  # [B_, heads, N, N]
             else:
                 combined = rel_bias.unsqueeze(0).expand(B_, -1, -1, -1)
 
             def _sdpa(q_, k_, v_, mask_):
                 return F.scaled_dot_product_attention(
-                    q_, k_, v_,
+                    q_,
+                    k_,
+                    v_,
                     attn_mask=mask_,
                     dropout_p=self.attn_drop.p if self.training else 0.0,
-                    is_causal=False
+                    is_causal=False,
                 )
 
-            use_ctx = hasattr(torch.backends, 'cuda') and hasattr(torch.backends.cuda, 'sdp_kernel')
+            use_ctx = hasattr(torch.backends, "cuda") and hasattr(
+                torch.backends.cuda, "sdp_kernel"
+            )
             if use_ctx and self.sdpa_kernel in ("flash", "flash_attention", "fa"):
-                with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=False, enable_mem_efficient=False):
+                with torch.backends.cuda.sdp_kernel(
+                    enable_flash=True, enable_math=False, enable_mem_efficient=False
+                ):
                     out = _sdpa(q, k, v, combined)
-            elif use_ctx and self.sdpa_kernel in ("mem_efficient", "memory_efficient", "me"):
-                with torch.backends.cuda.sdp_kernel(enable_flash=False, enable_math=False, enable_mem_efficient=True):
+            elif use_ctx and self.sdpa_kernel in (
+                "mem_efficient",
+                "memory_efficient",
+                "me",
+            ):
+                with torch.backends.cuda.sdp_kernel(
+                    enable_flash=False, enable_math=False, enable_mem_efficient=True
+                ):
                     out = _sdpa(q, k, v, combined)
             elif use_ctx and self.sdpa_kernel in ("math", "naive"):
-                with torch.backends.cuda.sdp_kernel(enable_flash=False, enable_math=True, enable_mem_efficient=False):
+                with torch.backends.cuda.sdp_kernel(
+                    enable_flash=False, enable_math=True, enable_mem_efficient=False
+                ):
                     out = _sdpa(q, k, v, combined)
             else:
                 out = _sdpa(q, k, v, combined)
@@ -286,7 +328,7 @@ class WindowAttention(nn.Module):
 
         # Classic path
         q = q * self.scale
-        attn = (q @ k.transpose(-2, -1))  # [B_, heads, N, N]
+        attn = q @ k.transpose(-2, -1)  # [B_, heads, N, N]
         attn = attn + rel_bias.unsqueeze(0)
 
         if attn_mask is not None:
@@ -310,24 +352,26 @@ class SwinTransformerBlock(nn.Module):
     def __init__(
         self,
         dim: int,
-        input_resolution: Tuple[int, int],
+        input_resolution: tuple[int, int],
         num_heads: int,
         window_size: int = 8,
         shift_size: int = 0,
         mlp_ratio: float = 4.0,
         qkv_bias: bool = True,
-        qk_scale: Optional[float] = None,
+        qk_scale: float | None = None,
         drop: float = 0.0,
         attn_drop: float = 0.0,
         drop_path: float = 0.0,
         act_layer: nn.Module = nn.GELU,
         norm_layer: nn.Module = nn.LayerNorm,
         use_sdpa: bool = False,
-        sdpa_kernel: str = "auto"
+        sdpa_kernel: str = "auto",
     ):
         super().__init__()
         if dim % num_heads != 0:
-            raise ValueError(f"dim ({dim}) must be divisible by num_heads ({num_heads}).")
+            raise ValueError(
+                f"dim ({dim}) must be divisible by num_heads ({num_heads})."
+            )
 
         self.dim = dim
         self.input_resolution = input_resolution
@@ -351,7 +395,7 @@ class SwinTransformerBlock(nn.Module):
             attn_drop=attn_drop,
             proj_drop=drop,
             use_sdpa=use_sdpa,
-            sdpa_kernel=sdpa_kernel
+            sdpa_kernel=sdpa_kernel,
         )
         self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
         self.norm2 = norm_layer(dim)
@@ -359,13 +403,13 @@ class SwinTransformerBlock(nn.Module):
             in_features=dim,
             hidden_features=int(dim * mlp_ratio),
             act_layer=act_layer,
-            drop=drop
+            drop=drop,
         )
 
         # precompute attn_mask for shifted windows (depends on resolution, set later via set_resolution)
         self.register_buffer("attn_mask", None, persistent=False)
 
-    def set_resolution(self, resolution: Tuple[int, int]) -> None:
+    def set_resolution(self, resolution: tuple[int, int]) -> None:
         """Update input_resolution & attn_mask for shifted window attention."""
         self.input_resolution = resolution
         H, W = resolution
@@ -387,8 +431,8 @@ class SwinTransformerBlock(nn.Module):
         if self.attn_mask is not None:
             device = self.attn_mask.device
         else:
-            device = self.norm1.weight.device if hasattr(self, 'norm1') else None
-            
+            device = self.norm1.weight.device if hasattr(self, "norm1") else None
+
         img_mask = torch.zeros((1, Hp, Wp, 1), device=device)
         h_slices = (
             slice(0, -self.window_size),
@@ -409,7 +453,9 @@ class SwinTransformerBlock(nn.Module):
         mask_windows, _ = window_partition(img_mask, self.window_size)
         mask_windows = mask_windows.view(-1, self.window_size * self.window_size)
         attn_mask = mask_windows.unsqueeze(1) - mask_windows.unsqueeze(2)
-        attn_mask = attn_mask.masked_fill(attn_mask != 0, float(-100.0)).masked_fill(attn_mask == 0, float(0.0))
+        attn_mask = attn_mask.masked_fill(attn_mask != 0, (-100.0)).masked_fill(
+            attn_mask == 0, 0.0
+        )
         self.attn_mask = attn_mask
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -458,14 +504,19 @@ class SwinTransformerBlock(nn.Module):
 class PatchMerging(nn.Module):
     """Patch Merging: (H,W,C) -> (H/2,W/2,2C) in token form."""
 
-    def __init__(self, input_resolution: Tuple[int, int], dim: int, norm_layer: nn.Module = nn.LayerNorm):
+    def __init__(
+        self,
+        input_resolution: tuple[int, int],
+        dim: int,
+        norm_layer: nn.Module = nn.LayerNorm,
+    ):
         super().__init__()
         self.input_resolution = input_resolution
         self.dim = dim
         self.reduction = nn.Linear(4 * dim, 2 * dim, bias=False)
         self.norm = norm_layer(4 * dim)
 
-    def set_resolution(self, resolution: Tuple[int, int]) -> None:
+    def set_resolution(self, resolution: tuple[int, int]) -> None:
         self.input_resolution = resolution
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -499,7 +550,13 @@ class PatchMerging(nn.Module):
 class PatchExpanding(nn.Module):
     """Patch Expanding: inverse of PatchMerging (token upsample by 2)."""
 
-    def __init__(self, input_resolution: Tuple[int, int], dim: int, dim_scale: int = 2, norm_layer: nn.Module = nn.LayerNorm):
+    def __init__(
+        self,
+        input_resolution: tuple[int, int],
+        dim: int,
+        dim_scale: int = 2,
+        norm_layer: nn.Module = nn.LayerNorm,
+    ):
         super().__init__()
         if dim_scale != 2:
             raise ValueError("PatchExpanding currently supports dim_scale=2 only.")
@@ -508,7 +565,7 @@ class PatchExpanding(nn.Module):
         self.expand = nn.Linear(dim, 2 * dim, bias=False)
         self.norm = norm_layer(dim // 2)
 
-    def set_resolution(self, resolution: Tuple[int, int]) -> None:
+    def set_resolution(self, resolution: tuple[int, int]) -> None:
         self.input_resolution = resolution
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -537,18 +594,23 @@ class PatchEmbed(nn.Module):
         patch_size: int = 4,
         in_chans: int = 3,
         embed_dim: int = 96,
-        norm_layer: Optional[nn.Module] = None
+        norm_layer: nn.Module | None = None,
     ):
         super().__init__()
         self.img_size = to_2tuple(img_size)
         self.patch_size = to_2tuple(patch_size)
-        self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=self.patch_size, stride=self.patch_size)
+        self.proj = nn.Conv2d(
+            in_chans, embed_dim, kernel_size=self.patch_size, stride=self.patch_size
+        )
         self.norm = norm_layer(embed_dim) if norm_layer is not None else None
 
         # base resolution for absolute_pos_embed
-        self.patches_resolution = (self.img_size[0] // self.patch_size[0], self.img_size[1] // self.patch_size[1])
+        self.patches_resolution = (
+            self.img_size[0] // self.patch_size[0],
+            self.img_size[1] // self.patch_size[1],
+        )
         self.num_patches = self.patches_resolution[0] * self.patches_resolution[1]
-        self.current_resolution: Optional[Tuple[int, int]] = None
+        self.current_resolution: tuple[int, int] | None = None
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.proj(x)  # [B, C, Ph, Pw]
@@ -565,18 +627,18 @@ class BasicLayer(nn.Module):
     def __init__(
         self,
         dim: int,
-        input_resolution: Tuple[int, int],
+        input_resolution: tuple[int, int],
         depth: int,
         num_heads: int,
         window_size: int,
         mlp_ratio: float = 4.0,
         qkv_bias: bool = True,
-        qk_scale: Optional[float] = None,
+        qk_scale: float | None = None,
         drop: float = 0.0,
         attn_drop: float = 0.0,
         drop_path: float = 0.0,
         norm_layer: nn.Module = nn.LayerNorm,
-        downsample: Optional[nn.Module] = None,
+        downsample: nn.Module | None = None,
         use_checkpoint: bool = False,
         use_sdpa: bool = False,
         sdpa_kernel: str = "auto",
@@ -612,9 +674,13 @@ class BasicLayer(nn.Module):
             )
             self.blocks.append(blk)
 
-        self.downsample = downsample(input_resolution, dim=dim, norm_layer=norm_layer) if downsample is not None else None
+        self.downsample = (
+            downsample(input_resolution, dim=dim, norm_layer=norm_layer)
+            if downsample is not None
+            else None
+        )
 
-    def set_resolution(self, resolution: Tuple[int, int]) -> None:
+    def set_resolution(self, resolution: tuple[int, int]) -> None:
         self.input_resolution = resolution
         for blk in self.blocks:
             blk.set_resolution(resolution)
@@ -644,20 +710,20 @@ class SwinUNetDecoder(nn.Module):
 
     def __init__(
         self,
-        encoder_channels: List[int],
-        decoder_channels: List[int],
-        depths: List[int],
-        num_heads: List[int],
+        encoder_channels: list[int],
+        decoder_channels: list[int],
+        depths: list[int],
+        num_heads: list[int],
         window_size: int = 8,
         mlp_ratio: float = 4.0,
         qkv_bias: bool = True,
-        qk_scale: Optional[float] = None,
+        qk_scale: float | None = None,
         drop_rate: float = 0.0,
         attn_drop_rate: float = 0.0,
         drop_path_rate: float = 0.1,
         norm_layer: nn.Module = nn.LayerNorm,
         skip_connections: bool = True,
-        patches_resolution: Tuple[int, int] = (64, 64),
+        patches_resolution: tuple[int, int] = (64, 64),
         use_checkpoint: bool = False,
         use_sdpa: bool = False,
         sdpa_kernel: str = "auto",
@@ -667,15 +733,21 @@ class SwinUNetDecoder(nn.Module):
         self.patches_resolution = patches_resolution
 
         num_layers = len(depths)
-        assert len(num_heads) == num_layers, "decoder num_heads length must match depths length"
-        assert len(decoder_channels) == num_layers, "decoder_channels length must match depths length"
+        assert (
+            len(num_heads) == num_layers
+        ), "decoder num_heads length must match depths length"
+        assert (
+            len(decoder_channels) == num_layers
+        ), "decoder_channels length must match depths length"
 
         # decoder resolutions from deepest to shallowest
         # deepest res = patches_resolution // 2^(num_layers-1), then upsample by 2 each stage
-        self.stage_resolutions: List[Tuple[int, int]] = []
+        self.stage_resolutions: list[tuple[int, int]] = []
         for i in range(num_layers):
             scale = 2 ** (num_layers - 1 - i)
-            self.stage_resolutions.append((patches_resolution[0] // scale, patches_resolution[1] // scale))
+            self.stage_resolutions.append(
+                (patches_resolution[0] // scale, patches_resolution[1] // scale)
+            )
 
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(depths))]
 
@@ -689,11 +761,15 @@ class SwinUNetDecoder(nn.Module):
             res = self.stage_resolutions[i]
             heads = num_heads[i]
             if out_dim % heads != 0:
-                raise ValueError(f"Decoder stage {i}: out_dim={out_dim} must be divisible by heads={heads}")
+                raise ValueError(
+                    f"Decoder stage {i}: out_dim={out_dim} must be divisible by heads={heads}"
+                )
 
             # fuse (skip only for i>0)
             if self.skip_connections and i > 0:
-                skip_dim = encoder_channels[num_layers - 1 - i]  # match: i=1 -> encoder stage num_layers-2
+                skip_dim = encoder_channels[
+                    num_layers - 1 - i
+                ]  # match: i=1 -> encoder stage num_layers-2
                 # FIX: Previous stage output was expanded (dim/2), so input to fuse is halved.
                 in_dim = decoder_channels[i - 1] // 2
                 fuse = nn.Sequential(
@@ -706,7 +782,7 @@ class SwinUNetDecoder(nn.Module):
 
             # swin layer at this resolution
             stage_depth = depths[i]
-            stage_dp = dpr[dp_cursor: dp_cursor + stage_depth]
+            stage_dp = dpr[dp_cursor : dp_cursor + stage_depth]
             dp_cursor += stage_depth
 
             swin = BasicLayer(
@@ -731,12 +807,22 @@ class SwinUNetDecoder(nn.Module):
 
             # expand except last stage
             if i < num_layers - 1:
-                expand = PatchExpanding(input_resolution=res, dim=out_dim, dim_scale=2, norm_layer=norm_layer)
+                expand = PatchExpanding(
+                    input_resolution=res,
+                    dim=out_dim,
+                    dim_scale=2,
+                    norm_layer=norm_layer,
+                )
             else:
                 expand = None
             self.expand_layers.append(expand if expand is not None else nn.Identity())
 
-    def forward(self, x: torch.Tensor, skip_features: Optional[List[torch.Tensor]], start_resolution: Tuple[int, int]) -> torch.Tensor:
+    def forward(
+        self,
+        x: torch.Tensor,
+        skip_features: list[torch.Tensor] | None,
+        start_resolution: tuple[int, int],
+    ) -> torch.Tensor:
         """
         Args:
             x: [B, N, C] (deepest tokens)
@@ -755,19 +841,24 @@ class SwinUNetDecoder(nn.Module):
 
             # fuse skip for i>0
             if self.skip_connections and i > 0 and skip_features is not None:
-                skip_idx = (num_layers - 1 - i)  # i=1 -> stage2 (for 4 stages)
+                skip_idx = num_layers - 1 - i  # i=1 -> stage2 (for 4 stages)
                 skip = skip_features[skip_idx]
-                
+
                 # DEBUG INFO
                 # print(f"DEBUG Fuse i={i}: x={x.shape}, skip={skip.shape}")
-                
+
                 if skip.shape[1] != x.shape[1]:
                     # resize skip tokens to current resolution
                     B, N_skip, C_skip = skip.shape
                     Hs = int(math.sqrt(N_skip))
                     Ws = N_skip // Hs
                     skip_img = skip.transpose(1, 2).reshape(B, C_skip, Hs, Ws)
-                    skip_img = F.interpolate(skip_img, size=(cur_h, cur_w), mode="bilinear", align_corners=False)
+                    skip_img = F.interpolate(
+                        skip_img,
+                        size=(cur_h, cur_w),
+                        mode="bilinear",
+                        align_corners=False,
+                    )
                     skip = skip_img.reshape(B, C_skip, cur_h * cur_w).transpose(1, 2)
 
                 x = torch.cat([x, skip], dim=-1)
@@ -794,7 +885,9 @@ class SwinUNetDecoder(nn.Module):
 
         # ensure patch resolution match
         if feat.shape[-2:] != self.patches_resolution:
-            feat = F.interpolate(feat, size=self.patches_resolution, mode="bilinear", align_corners=False)
+            feat = F.interpolate(
+                feat, size=self.patches_resolution, mode="bilinear", align_corners=False
+            )
         return feat
 
 
@@ -815,7 +908,9 @@ class FNOBottleneck(nn.Module):
         self.weights1 = nn.Parameter(torch.view_as_complex(w1))
         self.weights2 = nn.Parameter(torch.view_as_complex(w2))
 
-    def forward(self, x: torch.Tensor, resolution: Optional[Tuple[int, int]] = None) -> torch.Tensor:
+    def forward(
+        self, x: torch.Tensor, resolution: tuple[int, int] | None = None
+    ) -> torch.Tensor:
         """
         Args:
             x: [B, N, C]
@@ -874,12 +969,12 @@ class SwinUNet(BaseModel):
         img_size: int = 256,
         patch_size: int = 4,
         embed_dim: int = 96,
-        depths: List[int] = [2, 2, 6, 2],
-        num_heads: List[int] = [3, 6, 12, 24],
+        depths: list[int] = [2, 2, 6, 2],
+        num_heads: list[int] = [3, 6, 12, 24],
         window_size: int = 8,
         mlp_ratio: float = 4.0,
         qkv_bias: bool = True,
-        qk_scale: Optional[float] = None,
+        qk_scale: float | None = None,
         drop_rate: float = 0.0,
         attn_drop_rate: float = 0.0,
         drop_path_rate: float = 0.1,
@@ -887,18 +982,18 @@ class SwinUNet(BaseModel):
         patch_norm: bool = True,
         use_checkpoint: bool = False,
         # decoder configs (default symmetric)
-        decoder_depths: Optional[List[int]] = None,
-        decoder_num_heads: Optional[List[int]] = None,
+        decoder_depths: list[int] | None = None,
+        decoder_num_heads: list[int] | None = None,
         skip_connections: bool = True,
         # optional FNO bottleneck
         use_fno_bottleneck: bool = False,
         fno_modes: int = 16,
         # output activation
-        final_activation: Optional[str] = None,  # None, 'tanh', 'sigmoid'
+        final_activation: str | None = None,  # None, 'tanh', 'sigmoid'
         # sdpa configs
         use_sdpa: bool = False,
         sdpa_kernel: str = "auto",
-        **kwargs
+        **kwargs,
     ):
         super().__init__(in_channels, out_channels, img_size, **kwargs)
 
@@ -927,13 +1022,15 @@ class SwinUNet(BaseModel):
             patch_size=patch_size,
             in_chans=in_channels,
             embed_dim=embed_dim,
-            norm_layer=norm_layer if patch_norm else None
+            norm_layer=norm_layer if patch_norm else None,
         )
         base_ph, base_pw = self.patch_embed.patches_resolution
         self.patches_resolution = (base_ph, base_pw)
 
         # Absolute pos embed (base grid), interpolated to current grid at runtime
-        self.absolute_pos_embed = nn.Parameter(torch.zeros(1, self.patch_embed.num_patches, embed_dim))
+        self.absolute_pos_embed = nn.Parameter(
+            torch.zeros(1, self.patch_embed.num_patches, embed_dim)
+        )
         trunc_normal_(self.absolute_pos_embed, std=0.02)
         self.pos_drop = nn.Dropout(p=drop_rate)
 
@@ -943,23 +1040,27 @@ class SwinUNet(BaseModel):
         # Encoder stages
         self.encoder_layers = nn.ModuleList()
         dp_cursor = 0
-        encoder_channels: List[int] = []
+        encoder_channels: list[int] = []
         cur_dim = embed_dim
 
         for i_layer in range(len(self.depths)):
             heads = self.num_heads[i_layer]
             if cur_dim % heads != 0:
-                raise ValueError(f"Encoder stage {i_layer}: dim={cur_dim} must be divisible by heads={heads}")
+                raise ValueError(
+                    f"Encoder stage {i_layer}: dim={cur_dim} must be divisible by heads={heads}"
+                )
             encoder_channels.append(cur_dim)
 
             stage_depth = self.depths[i_layer]
-            stage_dpr = dpr[dp_cursor: dp_cursor + stage_depth]
+            stage_dpr = dpr[dp_cursor : dp_cursor + stage_depth]
             dp_cursor += stage_depth
 
             layer = BasicLayer(
                 dim=cur_dim,
-                input_resolution=(self.patches_resolution[0] // (2 ** i_layer),
-                                  self.patches_resolution[1] // (2 ** i_layer)),
+                input_resolution=(
+                    self.patches_resolution[0] // (2**i_layer),
+                    self.patches_resolution[1] // (2**i_layer),
+                ),
                 depth=stage_depth,
                 num_heads=heads,
                 window_size=self.window_size,
@@ -980,18 +1081,26 @@ class SwinUNet(BaseModel):
                 cur_dim *= 2
 
         # Norm at deepest
-        self.final_encoder_dim = encoder_channels[-1] * (2 ** (len(self.depths) - 1)) // (2 ** (len(self.depths) - 1))
+        self.final_encoder_dim = (
+            encoder_channels[-1]
+            * (2 ** (len(self.depths) - 1))
+            // (2 ** (len(self.depths) - 1))
+        )
         # Actually deepest dim is embed_dim * 2^(L-1)
         self.final_encoder_dim = embed_dim * (2 ** (len(self.depths) - 1))
         # Because we enforced divisibility stage-by-stage, this is safe.
         self.norm = norm_layer(self.final_encoder_dim)
 
         # Optional FNO bottleneck
-        self.fno_bottleneck = FNOBottleneck(self.final_encoder_dim, fno_modes) if use_fno_bottleneck else None
+        self.fno_bottleneck = (
+            FNOBottleneck(self.final_encoder_dim, fno_modes)
+            if use_fno_bottleneck
+            else None
+        )
 
         # Build decoder channels (symmetric)
         # encoder_channels list: [embed, 2embed, 4embed, 8embed] (for 4 stages)
-        enc_ch = [embed_dim * (2 ** i) for i in range(len(self.depths))]
+        enc_ch = [embed_dim * (2**i) for i in range(len(self.depths))]
         dec_ch = [enc_ch[-1]] + [enc_ch[-(i + 1)] for i in range(1, len(self.depths))]
         dec_ch[-1] = embed_dim  # final decoder stage outputs embed_dim tokens
 
@@ -1057,13 +1166,17 @@ class SwinUNet(BaseModel):
 
         # interpolate abs pos embed to current patch grid
         base_ph, base_pw = self.patches_resolution
-        pos = self.absolute_pos_embed.view(1, base_ph, base_pw, self.embed_dim).permute(0, 3, 1, 2)  # [1,C,ph,pw]
-        pos = F.interpolate(pos, size=(cur_ph, cur_pw), mode="bilinear", align_corners=False)
+        pos = self.absolute_pos_embed.view(1, base_ph, base_pw, self.embed_dim).permute(
+            0, 3, 1, 2
+        )  # [1,C,ph,pw]
+        pos = F.interpolate(
+            pos, size=(cur_ph, cur_pw), mode="bilinear", align_corners=False
+        )
         pos = pos.permute(0, 2, 3, 1).reshape(1, cur_ph * cur_pw, self.embed_dim)
         tokens = self.pos_drop(tokens + pos)
 
         # encoder forward + collect skips (before downsample at each stage)
-        skips: List[torch.Tensor] = []
+        skips: list[torch.Tensor] = []
         cur_h, cur_w = cur_ph, cur_pw
         for i, layer in enumerate(self.encoder_layers):
             layer.set_resolution((cur_h, cur_w))
@@ -1071,7 +1184,9 @@ class SwinUNet(BaseModel):
                 skips.append(tokens)
             tokens = layer(tokens)
             if layer.downsample is not None:
-                cur_h, cur_w = (cur_h + (cur_h % 2)) // 2, (cur_w + (cur_w % 2)) // 2  # robust when odd
+                cur_h, cur_w = (cur_h + (cur_h % 2)) // 2, (
+                    cur_w + (cur_w % 2)
+                ) // 2  # robust when odd
 
         tokens = self.norm(tokens)
 
@@ -1080,14 +1195,20 @@ class SwinUNet(BaseModel):
             tokens = self.fno_bottleneck(tokens, resolution=(cur_h, cur_w))
 
         # decoder: start from deepest resolution (cur_h, cur_w)
-        feat = self.decoder(tokens, skips if self.skip_connections else None, start_resolution=(cur_h, cur_w))  # [B, embed_dim, ph, pw]
+        feat = self.decoder(
+            tokens,
+            skips if self.skip_connections else None,
+            start_resolution=(cur_h, cur_w),
+        )  # [B, embed_dim, ph, pw]
 
         # final conv
         y = self.final_conv(feat)
 
         # ensure output matches input spatial size (strict interface)
         if y.shape[-2:] != (H_in, W_in):
-            y = F.interpolate(y, size=(H_in, W_in), mode="bilinear", align_corners=False)
+            y = F.interpolate(
+                y, size=(H_in, W_in), mode="bilinear", align_corners=False
+            )
 
         y = self.final_activation(y)
         return y

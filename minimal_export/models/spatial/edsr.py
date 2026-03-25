@@ -15,7 +15,6 @@ Reference:
 
 from __future__ import annotations
 
-from typing import Tuple, Optional
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -96,7 +95,7 @@ class EDSR(BaseModel):
         res_scale: float = 0.1,
         upscale: int = 1,
         bias: bool = True,
-        add_input_residual: Optional[bool] = None,
+        add_input_residual: bool | None = None,
         residual_interp_mode: str = "bicubic",
         **kwargs,
     ):
@@ -119,7 +118,7 @@ class EDSR(BaseModel):
 
         if add_input_residual is None:
             # restoration 常用：同通道时直接 residual learning
-            self.add_input_residual = (in_channels == out_channels)
+            self.add_input_residual = in_channels == out_channels
         else:
             self.add_input_residual = bool(add_input_residual)
 
@@ -129,12 +128,19 @@ class EDSR(BaseModel):
         self.head = nn.Conv2d(in_channels, self.n_feats, 3, 1, 1, bias=self.bias)
 
         # Body
-        body = [ResBlock(self.n_feats, res_scale=self.res_scale, bias=self.bias) for _ in range(self.n_resblocks)]
+        body = [
+            ResBlock(self.n_feats, res_scale=self.res_scale, bias=self.bias)
+            for _ in range(self.n_resblocks)
+        ]
         body.append(nn.Conv2d(self.n_feats, self.n_feats, 3, 1, 1, bias=self.bias))
         self.body = nn.Sequential(*body)
 
         # Upsample (optional)
-        self.upsampler = Upsampler(self.upscale, self.n_feats, bias=self.bias) if self.upscale != 1 else nn.Identity()
+        self.upsampler = (
+            Upsampler(self.upscale, self.n_feats, bias=self.bias)
+            if self.upscale != 1
+            else nn.Identity()
+        )
 
         # Tail
         self.tail = nn.Conv2d(self.n_feats, out_channels, 3, 1, 1, bias=self.bias)
@@ -160,34 +166,35 @@ class EDSR(BaseModel):
 
         # feature extraction
         x = self.head(x)
-        
+
         # Body with gradient checkpointing
         if self.grad_checkpointing and self.training:
-             from torch.utils.checkpoint import checkpoint
-             
-             # Split body into chunks
-             # 32 blocks -> 4 chunks of 8 blocks
-             num_chunks = 4
-             chunks = []
-             chunk_size = len(self.body) // num_chunks
-             if chunk_size < 1: chunk_size = 1
-             
-             # Convert Sequential to list for slicing
-             body_layers = list(self.body)
-             
-             current_x = x
-             for i in range(0, len(body_layers), chunk_size):
-                 segment = nn.Sequential(*body_layers[i:i+chunk_size])
-                 
-                 def run_segment(input_feats, s=segment):
-                     return s(input_feats)
-                     
-                 current_x = checkpoint(run_segment, current_x, use_reentrant=False)
-                 
-             res = current_x
+            from torch.utils.checkpoint import checkpoint
+
+            # Split body into chunks
+            # 32 blocks -> 4 chunks of 8 blocks
+            num_chunks = 4
+            chunks = []
+            chunk_size = len(self.body) // num_chunks
+            if chunk_size < 1:
+                chunk_size = 1
+
+            # Convert Sequential to list for slicing
+            body_layers = list(self.body)
+
+            current_x = x
+            for i in range(0, len(body_layers), chunk_size):
+                segment = nn.Sequential(*body_layers[i : i + chunk_size])
+
+                def run_segment(input_feats, s=segment):
+                    return s(input_feats)
+
+                current_x = checkpoint(run_segment, current_x, use_reentrant=False)
+
+            res = current_x
         else:
-             res = self.body(x)
-             
+            res = self.body(x)
+
         x = x + res  # global residual in feature space
 
         # upsample if needed
@@ -206,7 +213,11 @@ class EDSR(BaseModel):
                     inp,
                     scale_factor=self.upscale,
                     mode=self.residual_interp_mode,
-                    align_corners=False if self.residual_interp_mode in ("bilinear", "bicubic") else None,
+                    align_corners=(
+                        False
+                        if self.residual_interp_mode in ("bilinear", "bicubic")
+                        else None
+                    ),
                 )
                 out = out + inp_up
 

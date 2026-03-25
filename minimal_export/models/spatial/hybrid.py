@@ -19,7 +19,6 @@ Related (inspiration for window/shifted-window attention masking strategy):
   https://arxiv.org/abs/2103.14030
 """
 
-from typing import Optional, List, Tuple, Dict
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -56,7 +55,7 @@ class HybridModel(BaseModel):
         # 融合参数
         fusion_method: str = "concat",  # 'concat', 'add', 'attention'
         fusion_channels: int = 256,
-        **kwargs
+        **kwargs,
     ):
         if in_channels is None:
             in_channels = kwargs.pop("in_ch", 1)
@@ -67,7 +66,11 @@ class HybridModel(BaseModel):
 
         super().__init__(in_channels, out_channels, img_size, **kwargs)
 
-        assert fusion_method in {"concat", "add", "attention"}, f"Unsupported fusion_method={fusion_method}"
+        assert fusion_method in {
+            "concat",
+            "add",
+            "attention",
+        }, f"Unsupported fusion_method={fusion_method}"
         self.use_attention_branch = use_attention_branch
         self.use_fno_branch = use_fno_branch
         self.use_unet_branch = use_unet_branch
@@ -77,7 +80,7 @@ class HybridModel(BaseModel):
         self.input_proj = nn.Conv2d(self.in_channels, fusion_channels, kernel_size=1)
 
         self.branches = nn.ModuleDict()
-        branch_out_channels: List[int] = []
+        branch_out_channels: list[int] = []
 
         if use_attention_branch:
             self.branches["attention"] = AttentionBranch(
@@ -116,7 +119,9 @@ class HybridModel(BaseModel):
             self.branch_align = nn.ModuleDict()
             for name, out_ch in zip(self.branches.keys(), branch_out_channels):
                 if out_ch != fusion_in_channels:
-                    self.branch_align[name] = nn.Conv2d(out_ch, fusion_in_channels, kernel_size=1)
+                    self.branch_align[name] = nn.Conv2d(
+                        out_ch, fusion_in_channels, kernel_size=1
+                    )
         else:  # 'attention'
             fusion_in_channels = fusion_channels
             self.fusion_attention = CrossBranchAttention(
@@ -138,7 +143,7 @@ class HybridModel(BaseModel):
     def forward(self, x: torch.Tensor, **kwargs) -> torch.Tensor:
         x = self.input_proj(x)  # [B, fusion_channels, H, W]
 
-        outputs: Dict[str, torch.Tensor] = {}
+        outputs: dict[str, torch.Tensor] = {}
         for name, branch in self.branches.items():
             outputs[name] = branch(x)
 
@@ -179,17 +184,21 @@ class AttentionBranch(nn.Module):
 
         # 注意：这里使用“绝对位置参数图”，会随 img_size 增大显著增加参数量；
         # 若你想更接近 Swin，可改为相对位置偏置（relative position bias）。
-        self.pos_embed = nn.Parameter(torch.randn(1, embed_dim, img_size, img_size) * 0.02)
+        self.pos_embed = nn.Parameter(
+            torch.randn(1, embed_dim, img_size, img_size) * 0.02
+        )
 
-        self.layers = nn.ModuleList([
-            WindowAttentionLayer(
-                dim=embed_dim,
-                num_heads=num_heads,
-                window_size=window_size,
-                shift_size=0 if i % 2 == 0 else window_size // 2,
-            )
-            for i in range(num_layers)
-        ])
+        self.layers = nn.ModuleList(
+            [
+                WindowAttentionLayer(
+                    dim=embed_dim,
+                    num_heads=num_heads,
+                    window_size=window_size,
+                    shift_size=0 if i % 2 == 0 else window_size // 2,
+                )
+                for i in range(num_layers)
+            ]
+        )
 
         self.output_proj = nn.Conv2d(embed_dim, embed_dim, kernel_size=1)
 
@@ -198,7 +207,9 @@ class AttentionBranch(nn.Module):
         x = self.input_proj(x)
 
         if (H, W) != (self.img_size, self.img_size):
-            pos = F.interpolate(self.pos_embed, size=(H, W), mode="bilinear", align_corners=False)
+            pos = F.interpolate(
+                self.pos_embed, size=(H, W), mode="bilinear", align_corners=False
+            )
         else:
             pos = self.pos_embed
         x = x + pos
@@ -239,7 +250,9 @@ class WindowAttentionLayer(nn.Module):
         )
 
     @torch.no_grad()
-    def _build_attn_mask(self, H: int, W: int, pad_h: int, pad_w: int, device: torch.device) -> torch.Tensor:
+    def _build_attn_mask(
+        self, H: int, W: int, pad_h: int, pad_w: int, device: torch.device
+    ) -> torch.Tensor:
         """
         构造 shifted-window attention mask，避免 roll 后窗口跨区相互注意力（Swin 典型做法）
         返回: [nW, ws*ws, ws*ws]，其中 nW = (H_pad/ws)*(W_pad/ws)
@@ -258,9 +271,15 @@ class WindowAttentionLayer(nn.Module):
                 cnt += 1
 
         mask_windows = img_mask.view(1, H_pad // ws, ws, W_pad // ws, ws, 1)
-        mask_windows = mask_windows.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, ws * ws)  # [nW, ws*ws]
-        attn_mask = mask_windows.unsqueeze(1) - mask_windows.unsqueeze(2)  # [nW, ws*ws, ws*ws]
-        attn_mask = attn_mask.masked_fill(attn_mask != 0, float(-100.0)).masked_fill(attn_mask == 0, float(0.0))
+        mask_windows = (
+            mask_windows.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, ws * ws)
+        )  # [nW, ws*ws]
+        attn_mask = mask_windows.unsqueeze(1) - mask_windows.unsqueeze(
+            2
+        )  # [nW, ws*ws, ws*ws]
+        attn_mask = attn_mask.masked_fill(attn_mask != 0, (-100.0)).masked_fill(
+            attn_mask == 0, 0.0
+        )
         return attn_mask
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -274,7 +293,9 @@ class WindowAttentionLayer(nn.Module):
         attn_mask = None
         if self.shift_size > 0:
             x_img = x_seq.view(B, H, W, C)
-            x_img = torch.roll(x_img, shifts=(-self.shift_size, -self.shift_size), dims=(1, 2))
+            x_img = torch.roll(
+                x_img, shifts=(-self.shift_size, -self.shift_size), dims=(1, 2)
+            )
             x_seq = x_img.view(B, H * W, C)
 
             pad_h = (ws - H % ws) % ws
@@ -296,7 +317,9 @@ class WindowAttentionLayer(nn.Module):
         # reverse shift
         if self.shift_size > 0:
             x_img = x_seq.view(B, H, W, C)
-            x_img = torch.roll(x_img, shifts=(self.shift_size, self.shift_size), dims=(1, 2))
+            x_img = torch.roll(
+                x_img, shifts=(self.shift_size, self.shift_size), dims=(1, 2)
+            )
             x_seq = x_img.view(B, H * W, C)
 
         # [B, H*W, C] -> [B, C, H, W]
@@ -308,17 +331,21 @@ class WindowMultiHeadAttention(nn.Module):
 
     def __init__(self, dim: int, num_heads: int, window_size: int):
         super().__init__()
-        assert dim % num_heads == 0, f"dim={dim} must be divisible by num_heads={num_heads}"
+        assert (
+            dim % num_heads == 0
+        ), f"dim={dim} must be divisible by num_heads={num_heads}"
         self.dim = dim
         self.num_heads = num_heads
         self.window_size = window_size
         self.head_dim = dim // num_heads
-        self.scale = self.head_dim ** -0.5
+        self.scale = self.head_dim**-0.5
 
         self.qkv = nn.Linear(dim, dim * 3)
         self.proj = nn.Linear(dim, dim)
 
-    def forward(self, x: torch.Tensor, H: int, W: int, attn_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(
+        self, x: torch.Tensor, H: int, W: int, attn_mask: torch.Tensor | None = None
+    ) -> torch.Tensor:
         """
         x: [B, N, C], N=H*W
         attn_mask: [nW, ws*ws, ws*ws] or None
@@ -330,7 +357,9 @@ class WindowMultiHeadAttention(nn.Module):
         pad_h = (ws - H % ws) % ws
         pad_w = (ws - W % ws) % ws
         if pad_h > 0 or pad_w > 0:
-            x_img = F.pad(x_img, (0, 0, 0, pad_w, 0, pad_h))  # pad C(0,0), W(0,pad_w), H(0,pad_h)
+            x_img = F.pad(
+                x_img, (0, 0, 0, pad_w, 0, pad_h)
+            )  # pad C(0,0), W(0,pad_w), H(0,pad_h)
 
         H_pad, W_pad = H + pad_h, W + pad_w
         nW = (H_pad // ws) * (W_pad // ws)
@@ -368,7 +397,9 @@ class WindowMultiHeadAttention(nn.Module):
 class FNOBranch(nn.Module):
     """FNO 分支（参考 FNO: arXiv:2010.08895）"""
 
-    def __init__(self, in_channels: int, modes: int = 16, width: int = 64, num_layers: int = 4):
+    def __init__(
+        self, in_channels: int, modes: int = 16, width: int = 64, num_layers: int = 4
+    ):
         super().__init__()
         self.input_proj = nn.Conv2d(in_channels, width, kernel_size=1)
         self.layers = nn.ModuleList([FNOLayer(width, modes) for _ in range(num_layers)])
@@ -394,8 +425,16 @@ class FNOLayer(nn.Module):
         self.modes = modes
 
         # 频域权重（复数）
-        self.weights1 = nn.Parameter(torch.view_as_complex(torch.randn(channels, channels, modes, modes, 2) * 0.02))
-        self.weights2 = nn.Parameter(torch.view_as_complex(torch.randn(channels, channels, modes, modes, 2) * 0.02))
+        self.weights1 = nn.Parameter(
+            torch.view_as_complex(
+                torch.randn(channels, channels, modes, modes, 2) * 0.02
+            )
+        )
+        self.weights2 = nn.Parameter(
+            torch.view_as_complex(
+                torch.randn(channels, channels, modes, modes, 2) * 0.02
+            )
+        )
 
         self.conv1x1 = nn.Conv2d(channels, channels, kernel_size=1)
         self.act = nn.GELU()
@@ -406,13 +445,19 @@ class FNOLayer(nn.Module):
         m2 = min(self.modes, W // 2 + 1)
 
         x_ft = torch.fft.rfft2(x, norm="ortho")  # [B, C, H, W//2+1]
-        out_ft = torch.zeros(B, C, H, W // 2 + 1, device=x.device, dtype=torch.complex64)
+        out_ft = torch.zeros(
+            B, C, H, W // 2 + 1, device=x.device, dtype=torch.complex64
+        )
 
         w1 = self.weights1[:, :, :m1, :m2].to(torch.complex64)
         w2 = self.weights2[:, :, :m1, :m2].to(torch.complex64)
 
-        out_ft[:, :, :m1, :m2] = torch.einsum("bixy,ioxy->boxy", x_ft[:, :, :m1, :m2].to(torch.complex64), w1)
-        out_ft[:, :, -m1:, :m2] = torch.einsum("bixy,ioxy->boxy", x_ft[:, :, -m1:, :m2].to(torch.complex64), w2)
+        out_ft[:, :, :m1, :m2] = torch.einsum(
+            "bixy,ioxy->boxy", x_ft[:, :, :m1, :m2].to(torch.complex64), w1
+        )
+        out_ft[:, :, -m1:, :m2] = torch.einsum(
+            "bixy,ioxy->boxy", x_ft[:, :, -m1:, :m2].to(torch.complex64), w2
+        )
 
         x_spec = torch.fft.irfft2(out_ft, s=(H, W), norm="ortho")
         x_loc = self.conv1x1(x)
@@ -430,7 +475,7 @@ class UNetBranch(nn.Module):
         self.encoders = nn.ModuleList()
         self.pools = nn.ModuleList()
 
-        chs = [in_channels] + [base_channels * (2 ** i) for i in range(num_layers)]
+        chs = [in_channels] + [base_channels * (2**i) for i in range(num_layers)]
 
         for i in range(num_layers):
             self.encoders.append(
@@ -449,13 +494,30 @@ class UNetBranch(nn.Module):
         self.upsamples = nn.ModuleList()
         self.decoders = nn.ModuleList()
         for i in range(num_layers - 1):
-            self.upsamples.append(nn.ConvTranspose2d(chs[num_layers - i], chs[num_layers - i - 1], kernel_size=2, stride=2))
+            self.upsamples.append(
+                nn.ConvTranspose2d(
+                    chs[num_layers - i],
+                    chs[num_layers - i - 1],
+                    kernel_size=2,
+                    stride=2,
+                )
+            )
             self.decoders.append(
                 nn.Sequential(
-                    nn.Conv2d(chs[num_layers - i - 1] * 2, chs[num_layers - i - 1], kernel_size=3, padding=1),
+                    nn.Conv2d(
+                        chs[num_layers - i - 1] * 2,
+                        chs[num_layers - i - 1],
+                        kernel_size=3,
+                        padding=1,
+                    ),
                     nn.BatchNorm2d(chs[num_layers - i - 1]),
                     nn.ReLU(inplace=True),
-                    nn.Conv2d(chs[num_layers - i - 1], chs[num_layers - i - 1], kernel_size=3, padding=1),
+                    nn.Conv2d(
+                        chs[num_layers - i - 1],
+                        chs[num_layers - i - 1],
+                        kernel_size=3,
+                        padding=1,
+                    ),
                     nn.BatchNorm2d(chs[num_layers - i - 1]),
                     nn.ReLU(inplace=True),
                 )
@@ -473,7 +535,9 @@ class UNetBranch(nn.Module):
             x = up(x)
             skip = skips[-(i + 1)]
             if x.shape[-2:] != skip.shape[-2:]:
-                x = F.interpolate(x, size=skip.shape[-2:], mode="bilinear", align_corners=False)
+                x = F.interpolate(
+                    x, size=skip.shape[-2:], mode="bilinear", align_corners=False
+                )
             x = torch.cat([x, skip], dim=1)
             x = dec(x)
 
@@ -483,17 +547,21 @@ class UNetBranch(nn.Module):
 class CrossBranchAttention(nn.Module):
     """跨分支注意力融合：对不同分支特征做像素级权重融合"""
 
-    def __init__(self, branch_channels: List[int], fusion_channels: int):
+    def __init__(self, branch_channels: list[int], fusion_channels: int):
         super().__init__()
-        self.branch_projs = nn.ModuleList([nn.Conv2d(ch, fusion_channels, kernel_size=1) for ch in branch_channels])
+        self.branch_projs = nn.ModuleList(
+            [nn.Conv2d(ch, fusion_channels, kernel_size=1) for ch in branch_channels]
+        )
         self.attention = nn.Sequential(
-            nn.Conv2d(fusion_channels * len(branch_channels), fusion_channels, kernel_size=1),
+            nn.Conv2d(
+                fusion_channels * len(branch_channels), fusion_channels, kernel_size=1
+            ),
             nn.ReLU(inplace=True),
             nn.Conv2d(fusion_channels, len(branch_channels), kernel_size=1),
             nn.Softmax(dim=1),
         )
 
-    def forward(self, branch_outputs: Dict[str, torch.Tensor]) -> torch.Tensor:
+    def forward(self, branch_outputs: dict[str, torch.Tensor]) -> torch.Tensor:
         projected = []
         for i, (_, feat) in enumerate(branch_outputs.items()):
             projected.append(self.branch_projs[i](feat))

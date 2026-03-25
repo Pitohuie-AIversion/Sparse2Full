@@ -3,4 +3,15 @@ numpy
 h5py
 omegaconf
 pytorch-lightning
+matplotlib
+tqdm
+pandas
+scipy
+einops
+timm
+scikit-image
+fvcore
+thop
+psutil
+tensorboard
 pytest

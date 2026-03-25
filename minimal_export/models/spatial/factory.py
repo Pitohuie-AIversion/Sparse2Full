@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from ..base import BaseModel
 
 
-def create_model(model_name: str, **kwargs) -> "BaseModel":
+def create_model(model_name: str, **kwargs) -> BaseModel:
     """
     创建空间预测模型实例
 

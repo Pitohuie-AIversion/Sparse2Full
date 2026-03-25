@@ -30,8 +30,11 @@ try:
 except ImportError:
     # Fallback or dummy for when ops is not available (e.g. strict unit testing without env)
     # But in production this should be available.
-    def apply_degradation_operator(x: torch.Tensor, obs: dict[str, Any]) -> torch.Tensor:
+    def apply_degradation_operator(
+        x: torch.Tensor, obs: dict[str, Any]
+    ) -> torch.Tensor:
         return x
+
 
 class MetricsCalculator:
     """指标计算器
@@ -40,9 +43,12 @@ class MetricsCalculator:
     支持批量计算和统计分析
     """
 
-    def __init__(self, image_size: tuple[int, int] = (256, 256),
-                 boundary_width: int = 16,
-                 freq_bands: dict[str, tuple[int, int]] | None = None):
+    def __init__(
+        self,
+        image_size: tuple[int, int] = (256, 256),
+        boundary_width: int = 16,
+        freq_bands: dict[str, tuple[int, int]] | None = None,
+    ):
         """
         Args:
             image_size: 图像尺寸 (H, W)
@@ -56,9 +62,9 @@ class MetricsCalculator:
         if freq_bands is None:
             max_freq = min(image_size) // 2
             self.freq_bands = {
-                'low': (0, max_freq // 4),
-                'mid': (max_freq // 4, max_freq // 2),
-                'high': (max_freq // 2, max_freq)
+                "low": (0, max_freq // 4),
+                "mid": (max_freq // 4, max_freq // 2),
+                "high": (max_freq // 2, max_freq),
             }
         else:
             self.freq_bands = freq_bands
@@ -73,7 +79,9 @@ class MetricsCalculator:
         """更新图像尺寸并重新计算掩码"""
         if new_size != self.image_size:
             if self.logger.isEnabledFor(logging.DEBUG):
-                self.logger.debug(f"Updating image size from {self.image_size} to {new_size}")
+                self.logger.debug(
+                    f"Updating image size from {self.image_size} to {new_size}"
+                )
             self.image_size = new_size
             self._precompute_masks()
 
@@ -101,12 +109,14 @@ class MetricsCalculator:
             mask = self._create_freq_mask(H, W, low_freq, high_freq)
             self.freq_masks[band_name] = mask
 
-    def _create_freq_mask(self, H: int, W: int, low_freq: int, high_freq: int) -> torch.Tensor:
+    def _create_freq_mask(
+        self, H: int, W: int, low_freq: int, high_freq: int
+    ) -> torch.Tensor:
         """创建频域掩码"""
         # 创建频率网格
         ky = torch.fft.fftfreq(H, d=1.0).abs()
         kx = torch.fft.fftfreq(W, d=1.0).abs()
-        ky_grid, kx_grid = torch.meshgrid(ky, kx, indexing='ij')
+        ky_grid, kx_grid = torch.meshgrid(ky, kx, indexing="ij")
 
         # 径向频率
         k_radial = torch.sqrt(kx_grid**2 + ky_grid**2)
@@ -115,7 +125,9 @@ class MetricsCalculator:
         mask = (k_radial >= low_freq / max(H, W)) & (k_radial < high_freq / max(H, W))
         return mask
 
-    def _normalize_tensor_dims(self, x: torch.Tensor | NDArray[Any], label: str = "tensor") -> torch.Tensor:
+    def _normalize_tensor_dims(
+        self, x: torch.Tensor | NDArray[Any], label: str = "tensor"
+    ) -> torch.Tensor:
         """规范化张量维度为 [N, C, H, W]
 
         处理规则：
@@ -127,7 +139,9 @@ class MetricsCalculator:
         if isinstance(x, np.ndarray):
             x = torch.from_numpy(x)
         if not isinstance(x, torch.Tensor):
-            raise TypeError(f"{label} must be torch.Tensor or np.ndarray, got {type(x)}")
+            raise TypeError(
+                f"{label} must be torch.Tensor or np.ndarray, got {type(x)}"
+            )
 
         if x.dim() == 2:
             # [H, W] -> [1, 1, H, W]
@@ -152,15 +166,23 @@ class MetricsCalculator:
             # [B, T, C, H, W] -> [B, C, H, W] (取最后一帧)
             return x[:, -1, ...]
 
-        raise ValueError(f"{label} must be 2D/3D/4D/5D tensor, got dim={x.dim()} with shape={tuple(x.shape)}")
+        raise ValueError(
+            f"{label} must be 2D/3D/4D/5D tensor, got dim={x.dim()} with shape={tuple(x.shape)}"
+        )
 
-    def compute_rel_l2(self, pred: torch.Tensor, target: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
+    def compute_rel_l2(
+        self, pred: torch.Tensor, target: torch.Tensor, eps: float = 1e-8
+    ) -> torch.Tensor:
         pred = self._normalize_tensor_dims(pred, "pred_rel_l2")
         target = self._normalize_tensor_dims(target, "target_rel_l2")
         if pred.shape[:2] != target.shape[:2]:
-            raise ValueError(f"Dimension mismatch in B/C: pred {pred.shape} vs target {target.shape}")
+            raise ValueError(
+                f"Dimension mismatch in B/C: pred {pred.shape} vs target {target.shape}"
+            )
         if pred.shape[-2:] != target.shape[-2:]:
-            pred = F.interpolate(pred, size=target.shape[-2:], mode="bilinear", align_corners=False)
+            pred = F.interpolate(
+                pred, size=target.shape[-2:], mode="bilinear", align_corners=False
+            )
         pred_flat = pred.reshape(pred.size(0), pred.size(1), -1)
         target_flat = target.reshape(target.size(0), target.size(1), -1)
         diff_norm = torch.norm(pred_flat - target_flat, dim=-1)
@@ -171,25 +193,35 @@ class MetricsCalculator:
         pred = self._normalize_tensor_dims(pred, "pred_mae")
         target = self._normalize_tensor_dims(target, "target_mae")
         if pred.shape[:2] != target.shape[:2]:
-            raise ValueError(f"Dimension mismatch in B/C: pred {pred.shape} vs target {target.shape}")
+            raise ValueError(
+                f"Dimension mismatch in B/C: pred {pred.shape} vs target {target.shape}"
+            )
         if pred.shape[-2:] != target.shape[-2:]:
-            pred = F.interpolate(pred, size=target.shape[-2:], mode="bilinear", align_corners=False)
+            pred = F.interpolate(
+                pred, size=target.shape[-2:], mode="bilinear", align_corners=False
+            )
         pred_flat = pred.reshape(pred.size(0), pred.size(1), -1)
         target_flat = target.reshape(target.size(0), target.size(1), -1)
         return torch.mean(torch.abs(pred_flat - target_flat), dim=-1)
 
-    def compute_psnr(self, pred: torch.Tensor, target: torch.Tensor, max_val: float | None = None) -> torch.Tensor:
+    def compute_psnr(
+        self, pred: torch.Tensor, target: torch.Tensor, max_val: float | None = None
+    ) -> torch.Tensor:
         pred = self._normalize_tensor_dims(pred, "pred_psnr")
         target = self._normalize_tensor_dims(target, "target_psnr")
         if pred.shape[:2] != target.shape[:2]:
-            raise ValueError(f"Dimension mismatch in B/C: pred {pred.shape} vs target {target.shape}")
+            raise ValueError(
+                f"Dimension mismatch in B/C: pred {pred.shape} vs target {target.shape}"
+            )
         if pred.shape[-2:] != target.shape[-2:]:
-            pred = F.interpolate(pred, size=target.shape[-2:], mode="bilinear", align_corners=False)
+            pred = F.interpolate(
+                pred, size=target.shape[-2:], mode="bilinear", align_corners=False
+            )
         diff = pred - target
         mse = torch.mean(diff * diff, dim=(-2, -1))
         mse = torch.clamp(mse, min=1e-10)
         if max_val is None:
-            dr = (target.amax(dim=(-2, -1)) - target.amin(dim=(-2, -1)))
+            dr = target.amax(dim=(-2, -1)) - target.amin(dim=(-2, -1))
             dr = torch.clamp(dr, min=1e-6)
         else:
             dr = torch.full_like(mse, float(max_val))
@@ -199,13 +231,19 @@ class MetricsCalculator:
         pred = self._normalize_tensor_dims(pred, "pred_ssim")
         target = self._normalize_tensor_dims(target, "target_ssim")
         if pred.shape[:2] != target.shape[:2]:
-            raise ValueError(f"Dimension mismatch in B/C: pred {pred.shape} vs target {target.shape}")
+            raise ValueError(
+                f"Dimension mismatch in B/C: pred {pred.shape} vs target {target.shape}"
+            )
         if pred.shape[-2:] != target.shape[-2:]:
-            pred = F.interpolate(pred, size=target.shape[-2:], mode="bilinear", align_corners=False)
+            pred = F.interpolate(
+                pred, size=target.shape[-2:], mode="bilinear", align_corners=False
+            )
 
         pred_np = pred.detach().cpu().numpy()
         target_np = target.detach().cpu().numpy()
-        out = torch.zeros(pred.shape[0], pred.shape[1], dtype=torch.float32, device=pred.device)
+        out = torch.zeros(
+            pred.shape[0], pred.shape[1], dtype=torch.float32, device=pred.device
+        )
 
         for b in range(pred.shape[0]):
             for c in range(pred.shape[1]):
@@ -240,13 +278,19 @@ class MetricsCalculator:
                 out[b, c] = float(val)
         return out
 
-    def compute_freq_rmse(self, pred: torch.Tensor, target: torch.Tensor) -> dict[str, torch.Tensor]:
+    def compute_freq_rmse(
+        self, pred: torch.Tensor, target: torch.Tensor
+    ) -> dict[str, torch.Tensor]:
         pred = self._normalize_tensor_dims(pred, "pred_freq")
         target = self._normalize_tensor_dims(target, "target_freq")
         if pred.shape[:2] != target.shape[:2]:
-            raise ValueError(f"Dimension mismatch in B/C: pred {pred.shape} vs target {target.shape}")
+            raise ValueError(
+                f"Dimension mismatch in B/C: pred {pred.shape} vs target {target.shape}"
+            )
         if pred.shape[-2:] != target.shape[-2:]:
-            pred = F.interpolate(pred, size=target.shape[-2:], mode="bilinear", align_corners=False)
+            pred = F.interpolate(
+                pred, size=target.shape[-2:], mode="bilinear", align_corners=False
+            )
 
         current_size = (int(target.shape[-2]), int(target.shape[-1]))
         if current_size != self.image_size:
@@ -261,20 +305,28 @@ class MetricsCalculator:
             m = mask.to(device=pred.device)
             denom = int(m.sum().item())
             if denom <= 0:
-                out[band_name] = torch.zeros(pred.shape[0], pred.shape[1], device=pred.device)
+                out[band_name] = torch.zeros(
+                    pred.shape[0], pred.shape[1], device=pred.device
+                )
                 continue
             sel = diff * m[None, None, :, :]
             mse = torch.sum(torch.abs(sel) ** 2, dim=(-2, -1)) / float(denom)
             out[band_name] = torch.sqrt(mse)
         return out
 
-    def compute_boundary_rmse(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    def compute_boundary_rmse(
+        self, pred: torch.Tensor, target: torch.Tensor
+    ) -> torch.Tensor:
         pred = self._normalize_tensor_dims(pred, "pred_brmse")
         target = self._normalize_tensor_dims(target, "target_brmse")
         if pred.shape[:2] != target.shape[:2]:
-            raise ValueError(f"Dimension mismatch in B/C: pred {pred.shape} vs target {target.shape}")
+            raise ValueError(
+                f"Dimension mismatch in B/C: pred {pred.shape} vs target {target.shape}"
+            )
         if pred.shape[-2:] != target.shape[-2:]:
-            pred = F.interpolate(pred, size=target.shape[-2:], mode="bilinear", align_corners=False)
+            pred = F.interpolate(
+                pred, size=target.shape[-2:], mode="bilinear", align_corners=False
+            )
 
         current_size = (int(target.shape[-2]), int(target.shape[-1]))
         if current_size != self.image_size:
@@ -287,13 +339,19 @@ class MetricsCalculator:
         mse = torch.sum(diff2 * mask[None, None, :, :], dim=(-2, -1)) / float(denom)
         return torch.sqrt(mse)
 
-    def compute_center_rmse(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    def compute_center_rmse(
+        self, pred: torch.Tensor, target: torch.Tensor
+    ) -> torch.Tensor:
         pred = self._normalize_tensor_dims(pred, "pred_crmse")
         target = self._normalize_tensor_dims(target, "target_crmse")
         if pred.shape[:2] != target.shape[:2]:
-            raise ValueError(f"Dimension mismatch in B/C: pred {pred.shape} vs target {target.shape}")
+            raise ValueError(
+                f"Dimension mismatch in B/C: pred {pred.shape} vs target {target.shape}"
+            )
         if pred.shape[-2:] != target.shape[-2:]:
-            pred = F.interpolate(pred, size=target.shape[-2:], mode="bilinear", align_corners=False)
+            pred = F.interpolate(
+                pred, size=target.shape[-2:], mode="bilinear", align_corners=False
+            )
 
         current_size = (int(target.shape[-2]), int(target.shape[-1]))
         if current_size != self.image_size:
@@ -306,8 +364,12 @@ class MetricsCalculator:
         mse = torch.sum(diff2 * mask[None, None, :, :], dim=(-2, -1)) / float(denom)
         return torch.sqrt(mse)
 
-    def compute_data_consistency_error(self, pred: torch.Tensor, obs_data: dict[str, Any],
-                                     norm_stats: dict[str, Any] | None = None) -> torch.Tensor:
+    def compute_data_consistency_error(
+        self,
+        pred: torch.Tensor,
+        obs_data: dict[str, Any],
+        norm_stats: dict[str, Any] | None = None,
+    ) -> torch.Tensor:
         """计算数据一致性误差 ||H(ŷ)−y||
 
         目标：DC Error 必须比较 H(pred) 与 obs_data['y']。
@@ -317,11 +379,11 @@ class MetricsCalculator:
         pred = self._normalize_tensor_dims(pred, "pred_dc_error")
 
         # 2. 获取并验证 target_obs
-        target_obs = obs_data.get('y', None)
+        target_obs = obs_data.get("y", None)
         if target_obs is None:
-            target_obs = obs_data.get('observation', None)
+            target_obs = obs_data.get("observation", None)
         if target_obs is None:
-            target_obs = obs_data.get('baseline', None)
+            target_obs = obs_data.get("baseline", None)
         if target_obs is None:
             keys_str = ", ".join(sorted([str(k) for k in obs_data.keys()]))
             msg = (
@@ -335,13 +397,17 @@ class MetricsCalculator:
         target_obs = self._normalize_tensor_dims(target_obs, "target_obs")
 
         # 4. 确定 pred 的输入域并应用观测算子
-        observation_is_norm = bool(obs_data.get('observation_is_norm', False))
+        observation_is_norm = bool(obs_data.get("observation_is_norm", False))
 
         if norm_stats is not None and not observation_is_norm:
             # 反归一化到原值域
-            if 'mean' in norm_stats and 'std' in norm_stats:
-                mean = torch.as_tensor(norm_stats['mean'], device=pred.device).reshape(1, -1, 1, 1)
-                std = torch.as_tensor(norm_stats['std'], device=pred.device).reshape(1, -1, 1, 1)
+            if "mean" in norm_stats and "std" in norm_stats:
+                mean = torch.as_tensor(norm_stats["mean"], device=pred.device).reshape(
+                    1, -1, 1, 1
+                )
+                std = torch.as_tensor(norm_stats["std"], device=pred.device).reshape(
+                    1, -1, 1, 1
+                )
                 pred_input = pred * std + mean
             else:
                 pred_input = pred
@@ -358,22 +424,28 @@ class MetricsCalculator:
         # 5. 验证一致性 (Strict Validation)
         # 检查形状一致性
         if pred_obs.shape[-2:] != target_obs.shape[-2:]:
-            msg = (f"DC Error Validation Failed: Shape mismatch. "
-                   f"H(pred) shape: {pred_obs.shape}, Target(y) shape: {target_obs.shape}. "
-                   f"Domain normalized: {observation_is_norm}. "
-                   f"Target must match H(pred) dimensions.")
+            msg = (
+                f"DC Error Validation Failed: Shape mismatch. "
+                f"H(pred) shape: {pred_obs.shape}, Target(y) shape: {target_obs.shape}. "
+                f"Domain normalized: {observation_is_norm}. "
+                f"Target must match H(pred) dimensions."
+            )
             self.logger.error(msg)
             raise ValueError(msg)
 
-        mse = torch.mean((pred_obs - target_obs)**2, dim=(-2, -1))  # [B, C]
+        mse = torch.mean((pred_obs - target_obs) ** 2, dim=(-2, -1))  # [B, C]
         dc_error = torch.sqrt(mse)
 
         return dc_error
 
-    def compute_all_metrics(self, pred: torch.Tensor, target: torch.Tensor,
-                           obs_data: dict[str, Any] | None = None,
-                           norm_stats: dict[str, Any] | None = None,
-                           include_freq_metrics: bool = True) -> dict[str, torch.Tensor]:
+    def compute_all_metrics(
+        self,
+        pred: torch.Tensor,
+        target: torch.Tensor,
+        obs_data: dict[str, Any] | None = None,
+        norm_stats: dict[str, Any] | None = None,
+        include_freq_metrics: bool = True,
+    ) -> dict[str, torch.Tensor]:
         """计算所有指标
 
         核心逻辑：
@@ -386,18 +458,26 @@ class MetricsCalculator:
         target = self._normalize_tensor_dims(target, "target_all")
 
         if pred.dim() != 4 or target.dim() != 4:
-            raise ValueError(f"compute_all_metrics expects NCHW after normalization, got pred.dim={pred.dim()} target.dim={target.dim()} (pred={tuple(pred.shape)}, target={tuple(target.shape)})")
+            raise ValueError(
+                f"compute_all_metrics expects NCHW after normalization, got pred.dim={pred.dim()} target.dim={target.dim()} (pred={tuple(pred.shape)}, target={tuple(target.shape)})"
+            )
 
         # 严格检查 Batch 和 Channel 维度一致性
         if pred.shape[:2] != target.shape[:2]:
-            raise ValueError(f"Dimension mismatch in B/C: pred {pred.shape} vs target {target.shape}")
+            raise ValueError(
+                f"Dimension mismatch in B/C: pred {pred.shape} vs target {target.shape}"
+            )
 
         # 2. 空间维度一致性检查与插值
         if pred.shape[-2:] != target.shape[-2:]:
             # 只允许插值 pred 到 target
             if self.logger.isEnabledFor(logging.WARNING):
-                self.logger.warning(f"Spatial mismatch: pred {pred.shape} vs target {target.shape}. Interpolating pred to target.")
-            pred = F.interpolate(pred, size=target.shape[-2:], mode='bilinear', align_corners=False)
+                self.logger.warning(
+                    f"Spatial mismatch: pred {pred.shape} vs target {target.shape}. Interpolating pred to target."
+                )
+            pred = F.interpolate(
+                pred, size=target.shape[-2:], mode="bilinear", align_corners=False
+            )
 
         # 3. 更新 image_size 以确保 mask 正确 (基于 target 的尺寸)
         current_size = (int(target.shape[-2]), int(target.shape[-1]))
@@ -407,27 +487,29 @@ class MetricsCalculator:
         metrics: dict[str, torch.Tensor] = {}
 
         try:
-            metrics['rel_l2'] = self.compute_rel_l2(pred, target)
-            metrics['mae'] = self.compute_mae(pred, target)
-            metrics['psnr'] = self.compute_psnr(pred, target)
-            metrics['ssim'] = self.compute_ssim(pred, target)
+            metrics["rel_l2"] = self.compute_rel_l2(pred, target)
+            metrics["mae"] = self.compute_mae(pred, target)
+            metrics["psnr"] = self.compute_psnr(pred, target)
+            metrics["ssim"] = self.compute_ssim(pred, target)
 
             if include_freq_metrics:
                 freq_rmse = self.compute_freq_rmse(pred, target)
                 for band_name, rmse in freq_rmse.items():
-                    metrics[f'frmse_{band_name}'] = rmse
+                    metrics[f"frmse_{band_name}"] = rmse
 
-            metrics['brmse'] = self.compute_boundary_rmse(pred, target)
-            metrics['crmse'] = self.compute_center_rmse(pred, target)
+            metrics["brmse"] = self.compute_boundary_rmse(pred, target)
+            metrics["crmse"] = self.compute_center_rmse(pred, target)
 
             if obs_data is not None:
                 has_dc_target = (
-                    (obs_data.get('y', None) is not None)
-                    or (obs_data.get('observation', None) is not None)
-                    or (obs_data.get('baseline', None) is not None)
+                    (obs_data.get("y", None) is not None)
+                    or (obs_data.get("observation", None) is not None)
+                    or (obs_data.get("baseline", None) is not None)
                 )
                 if has_dc_target:
-                    metrics['dc_error'] = self.compute_data_consistency_error(pred, obs_data, norm_stats)
+                    metrics["dc_error"] = self.compute_data_consistency_error(
+                        pred, obs_data, norm_stats
+                    )
 
         except Exception as e:
             self.logger.error(f"Error in compute_all_metrics internal calc: {e}")
@@ -451,7 +533,9 @@ class StatisticalAnalyzer:
         """计算统计信息"""
         return self.aggregate_metrics(self.results)
 
-    def aggregate_metrics(self, metrics_list: list[dict[str, torch.Tensor]]) -> dict[str, dict[str, float]]:
+    def aggregate_metrics(
+        self, metrics_list: list[dict[str, torch.Tensor]]
+    ) -> dict[str, dict[str, float]]:
         """聚合多次实验的指标"""
         if not metrics_list:
             return {}
@@ -484,24 +568,29 @@ class StatisticalAnalyzer:
 
             if values:
                 aggregated[metric_name] = {
-                    'mean': float(np.mean(values)),
-                    'std': float(np.std(values, ddof=1)) if len(values) > 1 else 0.0,
-                    'min': float(np.min(values)),
-                    'max': float(np.max(values)),
-                    'count': len(values)
+                    "mean": float(np.mean(values)),
+                    "std": float(np.std(values, ddof=1)) if len(values) > 1 else 0.0,
+                    "min": float(np.min(values)),
+                    "max": float(np.max(values)),
+                    "count": len(values),
                 }
 
         return aggregated
 
+
 # --- Global Cache for Top-Level Access ---
 _GLOBAL_CALCULATOR: MetricsCalculator | None = None
 
-def compute_all_metrics(pred: torch.Tensor, target: torch.Tensor,
-                        obs_data: dict[str, Any] | None = None,
-                        norm_stats: dict[str, Any] | None = None,
-                        image_size: tuple[int, int] | None = None,
-                        include_freq_metrics: bool = True,
-                        **kwargs: Any) -> dict[str, torch.Tensor | float]:
+
+def compute_all_metrics(
+    pred: torch.Tensor,
+    target: torch.Tensor,
+    obs_data: dict[str, Any] | None = None,
+    norm_stats: dict[str, Any] | None = None,
+    image_size: tuple[int, int] | None = None,
+    include_freq_metrics: bool = True,
+    **kwargs: Any,
+) -> dict[str, torch.Tensor | float]:
     """顶层函数，用于计算所有指标
 
     Args:
@@ -522,7 +611,7 @@ def compute_all_metrics(pred: torch.Tensor, target: torch.Tensor,
         # 初始化全局实例
         if _GLOBAL_CALCULATOR is None:
             if image_size is None:
-                 # 默认 256，稍后会根据 target 自动 update
+                # 默认 256，稍后会根据 target 自动 update
                 _GLOBAL_CALCULATOR = MetricsCalculator(image_size=(256, 256))
             else:
                 _GLOBAL_CALCULATOR = MetricsCalculator(image_size=image_size)
@@ -537,7 +626,7 @@ def compute_all_metrics(pred: torch.Tensor, target: torch.Tensor,
             target=target,
             obs_data=obs_data,
             norm_stats=norm_stats,
-            include_freq_metrics=include_freq_metrics
+            include_freq_metrics=include_freq_metrics,
         )
 
         out: dict[str, torch.Tensor | float] = {}
@@ -582,45 +671,59 @@ def compute_metrics(
 
 def rel_l2_error(pred: torch.Tensor, target: torch.Tensor, eps: float = 1e-8) -> float:
     calc = MetricsCalculator(
-        image_size=(int(target.shape[-2]), int(target.shape[-1]))
-        if hasattr(target, "shape") and target.dim() >= 2
-        else (256, 256)
+        image_size=(
+            (int(target.shape[-2]), int(target.shape[-1]))
+            if hasattr(target, "shape") and target.dim() >= 2
+            else (256, 256)
+        )
     )
     return float(calc.compute_rel_l2(pred, target, eps=eps).mean().item())
 
 
 def mae_error(pred: torch.Tensor, target: torch.Tensor) -> float:
     calc = MetricsCalculator(
-        image_size=(int(target.shape[-2]), int(target.shape[-1]))
-        if hasattr(target, "shape") and target.dim() >= 2
-        else (256, 256)
+        image_size=(
+            (int(target.shape[-2]), int(target.shape[-1]))
+            if hasattr(target, "shape") and target.dim() >= 2
+            else (256, 256)
+        )
     )
     return float(calc.compute_mae(pred, target).mean().item())
 
 
-def psnr_metric(pred: torch.Tensor, target: torch.Tensor, max_val: float | None = None) -> float:
+def psnr_metric(
+    pred: torch.Tensor, target: torch.Tensor, max_val: float | None = None
+) -> float:
     calc = MetricsCalculator(
-        image_size=(int(target.shape[-2]), int(target.shape[-1]))
-        if hasattr(target, "shape") and target.dim() >= 2
-        else (256, 256)
+        image_size=(
+            (int(target.shape[-2]), int(target.shape[-1]))
+            if hasattr(target, "shape") and target.dim() >= 2
+            else (256, 256)
+        )
     )
     return float(calc.compute_psnr(pred, target, max_val=max_val).mean().item())
 
 
 def ssim_metric(pred: torch.Tensor, target: torch.Tensor) -> float:
     calc = MetricsCalculator(
-        image_size=(int(target.shape[-2]), int(target.shape[-1]))
-        if hasattr(target, "shape") and target.dim() >= 2
-        else (256, 256)
+        image_size=(
+            (int(target.shape[-2]), int(target.shape[-1]))
+            if hasattr(target, "shape") and target.dim() >= 2
+            else (256, 256)
+        )
     )
     return float(calc.compute_ssim(pred, target).mean().item())
 
 
-def frequency_rmse(pred: torch.Tensor, target: torch.Tensor, freq_range: str = "low") -> float:
+def frequency_rmse(
+    pred: torch.Tensor, target: torch.Tensor, freq_range: str = "low"
+) -> float:
     calc = MetricsCalculator(
-        image_size=(int(target.shape[-2]), int(target.shape[-1]))
-        if hasattr(target, "shape") and target.dim() >= 2
-        else (256, 256)
+        image_size=(
+            (int(target.shape[-2]), int(target.shape[-1]))
+            if hasattr(target, "shape") and target.dim() >= 2
+            else (256, 256)
+        )
     )
     rmse = calc.compute_freq_rmse(pred, target)
     if freq_range not in rmse:
@@ -628,21 +731,29 @@ def frequency_rmse(pred: torch.Tensor, target: torch.Tensor, freq_range: str = "
     return float(rmse[freq_range].mean().item())
 
 
-def boundary_rmse(pred: torch.Tensor, target: torch.Tensor, boundary_width: int = 16) -> float:
+def boundary_rmse(
+    pred: torch.Tensor, target: torch.Tensor, boundary_width: int = 16
+) -> float:
     calc = MetricsCalculator(
-        image_size=(int(target.shape[-2]), int(target.shape[-1]))
-        if hasattr(target, "shape") and target.dim() >= 2
-        else (256, 256),
+        image_size=(
+            (int(target.shape[-2]), int(target.shape[-1]))
+            if hasattr(target, "shape") and target.dim() >= 2
+            else (256, 256)
+        ),
         boundary_width=boundary_width,
     )
     return float(calc.compute_boundary_rmse(pred, target).mean().item())
 
 
-def center_rmse(pred: torch.Tensor, target: torch.Tensor, boundary_width: int = 16) -> float:
+def center_rmse(
+    pred: torch.Tensor, target: torch.Tensor, boundary_width: int = 16
+) -> float:
     calc = MetricsCalculator(
-        image_size=(int(target.shape[-2]), int(target.shape[-1]))
-        if hasattr(target, "shape") and target.dim() >= 2
-        else (256, 256),
+        image_size=(
+            (int(target.shape[-2]), int(target.shape[-1]))
+            if hasattr(target, "shape") and target.dim() >= 2
+            else (256, 256)
+        ),
         boundary_width=boundary_width,
     )
     return float(calc.compute_center_rmse(pred, target).mean().item())
@@ -655,7 +766,9 @@ def compute_conservation_metrics(
 ) -> dict[str, torch.Tensor]:
     image_size = (
         (int(target.shape[-2]), int(target.shape[-1]))
-        if hasattr(target, "shape") and isinstance(target, torch.Tensor) and target.dim() >= 2
+        if hasattr(target, "shape")
+        and isinstance(target, torch.Tensor)
+        and target.dim() >= 2
         else (256, 256)
     )
     calc = MetricsCalculator(image_size=image_size)
@@ -663,7 +776,9 @@ def compute_conservation_metrics(
     pred_n = calc._normalize_tensor_dims(pred, "pred_conservation")
     target_n = calc._normalize_tensor_dims(target, "target_conservation")
     if pred_n.shape[-2:] != target_n.shape[-2:]:
-        pred_n = F.interpolate(pred_n, size=target_n.shape[-2:], mode="bilinear", align_corners=False)
+        pred_n = F.interpolate(
+            pred_n, size=target_n.shape[-2:], mode="bilinear", align_corners=False
+        )
 
     b, c, h, w = pred_n.shape
     y = torch.linspace(-1.0, 1.0, h, device=pred_n.device, dtype=pred_n.dtype)
@@ -678,7 +793,9 @@ def compute_conservation_metrics(
 
     energy_pred = (pred_n * pred_n).sum(dim=(-2, -1))
     energy_target = (target_n * target_n).sum(dim=(-2, -1))
-    energy_err = torch.abs(energy_pred - energy_target) / (torch.abs(energy_target) + eps)
+    energy_err = torch.abs(energy_pred - energy_target) / (
+        torch.abs(energy_target) + eps
+    )
 
     mom_x_pred = (pred_n * xx).sum(dim=(-2, -1))
     mom_x_target = (target_n * xx).sum(dim=(-2, -1))
@@ -695,7 +812,9 @@ def compute_conservation_metrics(
         "momentum_x_conservation_error": mom_x_err,
     }
     if out["mass_conservation_error"].shape != (b, c):
-        raise ValueError(f"Unexpected conservation metric shape: {out['mass_conservation_error'].shape} vs {(b, c)}")
+        raise ValueError(
+            f"Unexpected conservation metric shape: {out['mass_conservation_error'].shape} vs {(b, c)}"
+        )
     return out
 
 
@@ -706,14 +825,18 @@ def compute_spectral_analysis(
 ) -> dict[str, torch.Tensor]:
     image_size = (
         (int(target.shape[-2]), int(target.shape[-1]))
-        if hasattr(target, "shape") and isinstance(target, torch.Tensor) and target.dim() >= 2
+        if hasattr(target, "shape")
+        and isinstance(target, torch.Tensor)
+        and target.dim() >= 2
         else (256, 256)
     )
     calc = MetricsCalculator(image_size=image_size)
     pred_n = calc._normalize_tensor_dims(pred, "pred_spectral")
     target_n = calc._normalize_tensor_dims(target, "target_spectral")
     if pred_n.shape[-2:] != target_n.shape[-2:]:
-        pred_n = F.interpolate(pred_n, size=target_n.shape[-2:], mode="bilinear", align_corners=False)
+        pred_n = F.interpolate(
+            pred_n, size=target_n.shape[-2:], mode="bilinear", align_corners=False
+        )
 
     pred_fft = torch.fft.fft2(pred_n, dim=(-2, -1))
     target_fft = torch.fft.fft2(target_n, dim=(-2, -1))
@@ -777,6 +900,7 @@ def aggregate_multi_seed_results(
         }
     return aggregated
 
+
 if __name__ == "__main__":
     # 最小自测
     print("Running self-test for compute_all_metrics...")
@@ -790,7 +914,7 @@ if __name__ == "__main__":
     # 2. Test 2D [H, W]
     pred_2d = torch.randn(64, 64)
     target_2d = torch.randn(64, 64)
-    metrics_2d = compute_all_metrics(pred_2d, target_2d) # implicit image_size update
+    metrics_2d = compute_all_metrics(pred_2d, target_2d)  # implicit image_size update
     print(f"2D Input: {metrics_2d.keys()}")
 
     # 3. Test 5D [B, T, C, H, W]

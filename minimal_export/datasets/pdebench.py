@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Any
 
 import numpy as np
 import torch
@@ -13,17 +14,17 @@ from torch.utils.data import DataLoader, Dataset
 from ops.degradation import apply_degradation_operator
 
 
-def _as_path(p: Union[str, Path]) -> Path:
+def _as_path(p: str | Path) -> Path:
     return p if isinstance(p, Path) else Path(p)
 
 
-def _read_split_ids(splits_dir: Optional[Union[str, Path]], split: str) -> Optional[List[str]]:
+def _read_split_ids(splits_dir: str | Path | None, split: str) -> list[str] | None:
     if splits_dir is None:
         return None
     split_path = _as_path(splits_dir) / f"{split}.txt"
     if not split_path.exists():
         return None
-    ids: List[str] = []
+    ids: list[str] = []
     for line in split_path.read_text(encoding="utf-8", errors="ignore").splitlines():
         s = line.strip()
         if s:
@@ -31,7 +32,7 @@ def _read_split_ids(splits_dir: Optional[Union[str, Path]], split: str) -> Optio
     return ids
 
 
-def _infer_h5_case_ids(h5: Any) -> List[str]:
+def _infer_h5_case_ids(h5: Any) -> list[str]:
     if "tensor" in h5:
         n = int(h5["tensor"].shape[0])
         return [str(i) for i in range(n)]
@@ -53,7 +54,7 @@ def _load_case_tensor(h5: Any, case_id: str, keys: Sequence[str]) -> torch.Tenso
         return torch.from_numpy(arr.astype(np.float32))
 
     g = h5[case_id]
-    chans: List[np.ndarray] = []
+    chans: list[np.ndarray] = []
     for k in keys:
         if k not in g:
             raise KeyError(f"Missing key '{k}' in case '{case_id}'")
@@ -68,7 +69,9 @@ def _load_case_tensor(h5: Any, case_id: str, keys: Sequence[str]) -> torch.Tenso
             # We assume we want the first component (u)
             chans.append(arr[-1, ..., 0])
         else:
-            raise ValueError(f"Unsupported dataset shape for {case_id}/{k}: {arr.shape}")
+            raise ValueError(
+                f"Unsupported dataset shape for {case_id}/{k}: {arr.shape}"
+            )
     stacked = np.stack(chans, axis=0)
     return torch.from_numpy(stacked)
 
@@ -88,7 +91,7 @@ class _ObsCfg:
     sigma: float = 0.0
     kernel_size: int = 1
     noise_std: float = 0.0
-    crop_size: Tuple[int, int] = (0, 0)
+    crop_size: tuple[int, int] = (0, 0)
     patch_align: int = 1
     center_sampler: str = "uniform"
     boundary: str = "mirror"
@@ -102,12 +105,45 @@ def _parse_obs_cfg(cfg: Any) -> _ObsCfg:
     sr = getattr(cfg, "sr", None)
     crop = getattr(cfg, "crop", None)
     if mode.lower() == "sr":
-        scale = int(getattr(sr, "scale_factor", getattr(cfg, "scale", 1))) if sr is not None else int(getattr(cfg, "scale", 1))
-        sigma = float(getattr(sr, "blur_sigma", getattr(cfg, "sigma", 0.0))) if sr is not None else float(getattr(cfg, "sigma", 0.0))
-        kernel = int(getattr(sr, "blur_kernel_size", getattr(cfg, "blur_kernel", getattr(cfg, "kernel_size", 1)))) if sr is not None else int(getattr(cfg, "blur_kernel", getattr(cfg, "kernel_size", 1)))
-        boundary = str(getattr(sr, "boundary_mode", getattr(cfg, "boundary", "mirror"))) if sr is not None else str(getattr(cfg, "boundary", "mirror"))
-        noise_std = float(getattr(sr, "noise_std", getattr(cfg, "noise_std", 0.0))) if sr is not None else float(getattr(cfg, "noise_std", 0.0))
-        return _ObsCfg(mode="SR", scale=scale, sigma=sigma, kernel_size=kernel, noise_std=noise_std, boundary=boundary)
+        scale = (
+            int(getattr(sr, "scale_factor", getattr(cfg, "scale", 1)))
+            if sr is not None
+            else int(getattr(cfg, "scale", 1))
+        )
+        sigma = (
+            float(getattr(sr, "blur_sigma", getattr(cfg, "sigma", 0.0)))
+            if sr is not None
+            else float(getattr(cfg, "sigma", 0.0))
+        )
+        kernel = (
+            int(
+                getattr(
+                    sr,
+                    "blur_kernel_size",
+                    getattr(cfg, "blur_kernel", getattr(cfg, "kernel_size", 1)),
+                )
+            )
+            if sr is not None
+            else int(getattr(cfg, "blur_kernel", getattr(cfg, "kernel_size", 1)))
+        )
+        boundary = (
+            str(getattr(sr, "boundary_mode", getattr(cfg, "boundary", "mirror")))
+            if sr is not None
+            else str(getattr(cfg, "boundary", "mirror"))
+        )
+        noise_std = (
+            float(getattr(sr, "noise_std", getattr(cfg, "noise_std", 0.0)))
+            if sr is not None
+            else float(getattr(cfg, "noise_std", 0.0))
+        )
+        return _ObsCfg(
+            mode="SR",
+            scale=scale,
+            sigma=sigma,
+            kernel_size=kernel,
+            noise_std=noise_std,
+            boundary=boundary,
+        )
 
     if mode.lower() == "crop":
         crop_size = getattr(crop, "crop_size", getattr(cfg, "crop_size", (0, 0)))
@@ -115,10 +151,32 @@ def _parse_obs_cfg(cfg: Any) -> _ObsCfg:
             cs = (int(crop_size[0]), int(crop_size[1]))
         else:
             cs = (0, 0)
-        patch_align = int(getattr(crop, "patch_align", getattr(cfg, "patch_align", 1))) if crop is not None else int(getattr(cfg, "patch_align", 1))
-        center_sampler = str(getattr(crop, "crop_strategy", getattr(cfg, "center_sampler", "uniform"))) if crop is not None else str(getattr(cfg, "center_sampler", "uniform"))
-        boundary = str(getattr(crop, "boundary_mode", getattr(cfg, "boundary", "mirror"))) if crop is not None else str(getattr(cfg, "boundary", "mirror"))
-        return _ObsCfg(mode="Crop", crop_size=cs, patch_align=patch_align, center_sampler=center_sampler, boundary=boundary)
+        patch_align = (
+            int(getattr(crop, "patch_align", getattr(cfg, "patch_align", 1)))
+            if crop is not None
+            else int(getattr(cfg, "patch_align", 1))
+        )
+        center_sampler = (
+            str(
+                getattr(
+                    crop, "crop_strategy", getattr(cfg, "center_sampler", "uniform")
+                )
+            )
+            if crop is not None
+            else str(getattr(cfg, "center_sampler", "uniform"))
+        )
+        boundary = (
+            str(getattr(crop, "boundary_mode", getattr(cfg, "boundary", "mirror")))
+            if crop is not None
+            else str(getattr(cfg, "boundary", "mirror"))
+        )
+        return _ObsCfg(
+            mode="Crop",
+            crop_size=cs,
+            patch_align=patch_align,
+            center_sampler=center_sampler,
+            boundary=boundary,
+        )
 
     return _ObsCfg(mode=mode)
 
@@ -126,12 +184,12 @@ def _parse_obs_cfg(cfg: Any) -> _ObsCfg:
 class PDEBenchBase(Dataset):
     def __init__(
         self,
-        data_path: Union[str, Path],
+        data_path: str | Path,
         keys: Sequence[str],
         split: str = "train",
-        splits_dir: Optional[Union[str, Path]] = None,
+        splits_dir: str | Path | None = None,
         normalize: bool = False,
-        image_size: Optional[int] = None,
+        image_size: int | None = None,
     ) -> None:
         self.data_path = str(data_path)
         self.keys = list(keys)
@@ -152,14 +210,14 @@ class PDEBenchBase(Dataset):
             valid = set(all_ids)
             self.case_ids = [cid for cid in split_ids if cid in valid]
 
-        self.norm_stats: Optional[Dict[str, float]] = None
+        self.norm_stats: dict[str, float] | None = None
         if self.normalize:
             self.norm_stats = self._get_or_compute_norm_stats()
 
     def __len__(self) -> int:
         return len(self.case_ids)
 
-    def _get_or_compute_norm_stats(self) -> Dict[str, float]:
+    def _get_or_compute_norm_stats(self) -> dict[str, float]:
         if self.splits_dir is None:
             raise ValueError("splits_dir must be provided when normalize=True")
         stats_path = _as_path(self.splits_dir) / "norm_stat.npz"
@@ -173,9 +231,9 @@ class PDEBenchBase(Dataset):
 
         import h5py
 
-        sums = {k: 0.0 for k in self.keys}
-        sumsq = {k: 0.0 for k in self.keys}
-        counts = {k: 0 for k in self.keys}
+        sums = dict.fromkeys(self.keys, 0.0)
+        sumsq = dict.fromkeys(self.keys, 0.0)
+        counts = dict.fromkeys(self.keys, 0)
         with h5py.File(self.data_path, "r") as f:
             for cid in train_ids:
                 if cid not in self.case_ids and "tensor" not in f:
@@ -186,7 +244,7 @@ class PDEBenchBase(Dataset):
                     sums[k] += float(v.sum().item())
                     sumsq[k] += float((v * v).sum().item())
                     counts[k] += int(v.numel())
-        out: Dict[str, float] = {}
+        out: dict[str, float] = {}
         for k in self.keys:
             c = max(counts[k], 1)
             mean = sums[k] / float(c)
@@ -214,7 +272,7 @@ class PDEBenchBase(Dataset):
         s = s if s > 0 else 1.0
         return x * s + m
 
-    def __getitem__(self, idx: int) -> Dict[str, Any]:
+    def __getitem__(self, idx: int) -> dict[str, Any]:
         cid = self.case_ids[idx]
         import h5py
 
@@ -224,7 +282,12 @@ class PDEBenchBase(Dataset):
         if self.image_size is not None:
             _, h, w = x.shape
             if h != self.image_size or w != self.image_size:
-                x = F.interpolate(x.unsqueeze(0), size=(self.image_size, self.image_size), mode="bilinear", align_corners=False).squeeze(0)
+                x = F.interpolate(
+                    x.unsqueeze(0),
+                    size=(self.image_size, self.image_size),
+                    mode="bilinear",
+                    align_corners=False,
+                ).squeeze(0)
 
         for i, k in enumerate(self.keys):
             x[i] = self._normalize_data(x[i], k)
@@ -235,7 +298,7 @@ class PDEBenchBase(Dataset):
 class PDEBenchSR(PDEBenchBase):
     def __init__(
         self,
-        data_path: Union[str, Path],
+        data_path: str | Path,
         keys: Sequence[str],
         scale: int = 4,
         sigma: float = 1.0,
@@ -243,9 +306,9 @@ class PDEBenchSR(PDEBenchBase):
         boundary: str = "mirror",
         noise_std: float = 0.0,
         split: str = "train",
-        splits_dir: Optional[Union[str, Path]] = None,
+        splits_dir: str | Path | None = None,
         normalize: bool = False,
-        image_size: Optional[int] = None,
+        image_size: int | None = None,
     ) -> None:
         super().__init__(
             data_path=data_path,
@@ -268,7 +331,7 @@ class PDEBenchSR(PDEBenchBase):
             "boundary": self.boundary,
         }
 
-    def __getitem__(self, idx: int) -> Dict[str, Any]:
+    def __getitem__(self, idx: int) -> dict[str, Any]:
         out = super().__getitem__(idx)
         target: torch.Tensor = out["target"]
         c, h, w = target.shape
@@ -277,7 +340,9 @@ class PDEBenchSR(PDEBenchBase):
         if self.noise_std > 0:
             lr = lr + torch.randn_like(lr) * self.noise_std
 
-        baseline = F.interpolate(lr.unsqueeze(0), size=(h, w), mode="bilinear", align_corners=False).squeeze(0)
+        baseline = F.interpolate(
+            lr.unsqueeze(0), size=(h, w), mode="bilinear", align_corners=False
+        ).squeeze(0)
         coords = _make_coords(h, w, device=target.device)
         mask = torch.ones(1, h, w, device=target.device, dtype=target.dtype)
 
@@ -296,16 +361,16 @@ class PDEBenchSR(PDEBenchBase):
 class PDEBenchCrop(PDEBenchBase):
     def __init__(
         self,
-        data_path: Union[str, Path],
+        data_path: str | Path,
         keys: Sequence[str],
-        crop_size: Tuple[int, int] = (64, 64),
+        crop_size: tuple[int, int] = (64, 64),
         patch_align: int = 8,
         center_sampler: str = "mixed",
         boundary: str = "mirror",
         split: str = "train",
-        splits_dir: Optional[Union[str, Path]] = None,
+        splits_dir: str | Path | None = None,
         normalize: bool = False,
-        image_size: Optional[int] = None,
+        image_size: int | None = None,
     ) -> None:
         super().__init__(
             data_path=data_path,
@@ -328,7 +393,7 @@ class PDEBenchCrop(PDEBenchBase):
             "boundary": self.boundary,
         }
 
-    def _sample_crop_box(self, h: int, w: int) -> Tuple[int, int, int, int]:
+    def _sample_crop_box(self, h: int, w: int) -> tuple[int, int, int, int]:
         ch, cw = self.crop_h, self.crop_w
         if ch <= 0 or cw <= 0:
             return (0, 0, w, h)
@@ -347,7 +412,7 @@ class PDEBenchCrop(PDEBenchBase):
         y2 = min(y1 + ch, h)
         return (x1, y1, x2, y2)
 
-    def __getitem__(self, idx: int) -> Dict[str, Any]:
+    def __getitem__(self, idx: int) -> dict[str, Any]:
         out = super().__getitem__(idx)
         target: torch.Tensor = out["target"]
         c, h, w = target.shape
@@ -363,12 +428,14 @@ class PDEBenchCrop(PDEBenchBase):
         h_params = dict(self.h_params)
         h_params["crop_box"] = (x1, y1, x2, y2)
 
-        out.update({"baseline": baseline, "coords": coords, "mask": mask, "h_params": h_params})
+        out.update(
+            {"baseline": baseline, "coords": coords, "mask": mask, "h_params": h_params}
+        )
         return out
 
 
 class PDEBenchDataModule:
-    def __init__(self, config: Union[DictConfig, Dict[str, Any]]):
+    def __init__(self, config: DictConfig | dict[str, Any]):
         self.config = config
 
         self.data_path: str
@@ -384,11 +451,11 @@ class PDEBenchDataModule:
         else:
             self.data_path = data_path
 
-        self.train_dataset: Optional[Dataset] = None
-        self.val_dataset: Optional[Dataset] = None
-        self.test_dataset: Optional[Dataset] = None
+        self.train_dataset: Dataset | None = None
+        self.val_dataset: Dataset | None = None
+        self.test_dataset: Dataset | None = None
 
-    def setup(self, stage: Optional[str] = None) -> None:
+    def setup(self, stage: str | None = None) -> None:
         cfg = self.config
         # Use .get() or item access to avoid conflict with DictConfig methods like .keys()
         if isinstance(cfg, DictConfig):
@@ -444,15 +511,27 @@ class PDEBenchDataModule:
                 image_size=image_size,
             )
 
-        train_split = getattr(cfg, "train_split", "train") if isinstance(cfg, DictConfig) else cfg.get("train_split", "train")
-        val_split = getattr(cfg, "val_split", "val") if isinstance(cfg, DictConfig) else cfg.get("val_split", "val")
-        test_split = getattr(cfg, "test_split", "test") if isinstance(cfg, DictConfig) else cfg.get("test_split", "test")
+        train_split = (
+            getattr(cfg, "train_split", "train")
+            if isinstance(cfg, DictConfig)
+            else cfg.get("train_split", "train")
+        )
+        val_split = (
+            getattr(cfg, "val_split", "val")
+            if isinstance(cfg, DictConfig)
+            else cfg.get("val_split", "val")
+        )
+        test_split = (
+            getattr(cfg, "test_split", "test")
+            if isinstance(cfg, DictConfig)
+            else cfg.get("test_split", "test")
+        )
 
         self.train_dataset = ds_ctor(str(train_split))
         self.val_dataset = ds_ctor(str(val_split))
         self.test_dataset = ds_ctor(str(test_split))
 
-    def _dl_cfg(self) -> Dict[str, Any]:
+    def _dl_cfg(self) -> dict[str, Any]:
         cfg = self.config
         if isinstance(cfg, DictConfig):
             dl = cfg.get("dataloader", {})
@@ -512,10 +591,9 @@ class PDEBenchDataModule:
             persistent_workers=cfg["persistent_workers"],
         )
 
-    def get_normalization_stats(self) -> Optional[Dict[str, float]]:
+    def get_normalization_stats(self) -> dict[str, float] | None:
         if self.train_dataset is None:
             self.setup()
         if hasattr(self.train_dataset, "norm_stats"):
-            return getattr(self.train_dataset, "norm_stats")
+            return self.train_dataset.norm_stats
         return None
-

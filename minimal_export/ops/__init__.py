@@ -9,6 +9,6 @@ from .metrics import compute_all_metrics
 
 __all__ = [
     "apply_degradation_operator",
-    "compute_total_loss", 
+    "compute_total_loss",
     "compute_all_metrics",
 ]

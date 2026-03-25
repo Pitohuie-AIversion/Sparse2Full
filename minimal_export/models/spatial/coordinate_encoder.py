@@ -1,6 +1,8 @@
 import math
+
 import torch
 import torch.nn as nn
+
 
 class CoordinateEncoder(nn.Module):
     """
@@ -43,7 +45,11 @@ class CoordinateEncoder(nn.Module):
                 persistent=False,
             )
             raw_dim = 4 * freq_dim  # x: sin/cos + y: sin/cos
-            self.proj = nn.Identity() if raw_dim == self.encoding_dim else nn.Conv2d(raw_dim, self.encoding_dim, 1)
+            self.proj = (
+                nn.Identity()
+                if raw_dim == self.encoding_dim
+                else nn.Conv2d(raw_dim, self.encoding_dim, 1)
+            )
 
         elif self.encoding_type == "fourier":
             # Random Fourier Features / Fourier Features（Tancik et al.）:
@@ -53,7 +59,11 @@ class CoordinateEncoder(nn.Module):
             B = torch.randn(half, 2) * self.max_freq
             self.register_buffer("B", B, persistent=False)
             raw_dim = 2 * half  # sin + cos
-            self.proj = nn.Identity() if raw_dim == self.encoding_dim else nn.Conv2d(raw_dim, self.encoding_dim, 1)
+            self.proj = (
+                nn.Identity()
+                if raw_dim == self.encoding_dim
+                else nn.Conv2d(raw_dim, self.encoding_dim, 1)
+            )
 
         else:
             self.proj = None  # 'none'：直接返回 coords（2通道）
@@ -85,7 +95,9 @@ class CoordinateEncoder(nn.Module):
         yw = y.unsqueeze(-1) * freqs * scale
 
         # 拼到通道维： [B,4,H,W,f] -> [B,4f,H,W]
-        enc = torch.cat([torch.sin(xw), torch.cos(xw), torch.sin(yw), torch.cos(yw)], dim=1)
+        enc = torch.cat(
+            [torch.sin(xw), torch.cos(xw), torch.sin(yw), torch.cos(yw)], dim=1
+        )
         enc = enc.permute(0, 1, 4, 2, 3).contiguous().view(B, -1, H, W)
         return self.proj(enc)
 
