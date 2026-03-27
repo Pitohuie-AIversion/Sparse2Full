@@ -1,48 +1,40 @@
 # 论文第四章配图梳理与生成计划
 
 ## 目标 (Objective)
-在完成第四章第一部分（图4-1至图4-4）基于真实数据的配图替换后，现在我们需要系统性地梳理和更新后续的配图（图4-5至图4-8），确保它们同样基于真实的实验数据生成。
+为论文第四章基于表 4-3 绘制一张“效率–精度权衡图”（Latency vs Rel-L2 散点图），取代原本的四联图设计，以直观展示在同一参数预算（~1M）下，各模型的算力、推理时延与精度的 Trade-off。
 
-## 待梳理配图 (Target Figures)
-根据 `chapter4_results_verification.md`，后续包含以下四张核心图表：
-1. **图 4-5：典型失败案例分析 (Failure Cases)**（对应文件：`fig4-8_failure_cases.png`）
-2. **图 4-6：损失函数消融实验曲线 (Ablation Curves)**（对应文件：`fig4-6_ablation_curves.png`）
-3. **图 4-7：序列化课程学习策略演进曲线 (Sequential Evolution)**（对应文件：`fig4-5_sequential_evolution.png`）
-4. **图 4-8：资源-精度权衡 Pareto Frontier**（对应文件：`fig4-3_pareto_frontier.png`）
+## 待梳理数据来源与模型 (Data Sources)
+数据来源于 `drd 1m` 实验扫描，目录为 `./drd_paper_1m/`。包含以下核心模型：
+- **EDSR** (`AR-DR2D-edsr-SRx4-1M-100ep`)
+- **ConvUNetLite** (`AR-DR2D-ConvUNetLite-SRx4-1M-100ep`)
+- **UNet** (`AR-DR2D-UNet-SRx4-1M-100ep`)
+- **StableFNO2d** (`AR-DR2D-stablefno2d-SRx4-1M-100ep`)
+- **NAFNet** (`AR-DR2D-nafnet-SRx4-1M-100ep`)
 
 ---
 
 ## 详细实施步骤 (Implementation Steps)
 
-### Step 1: 失败案例分析图生成 (图 4-5)
-- **目标**：展示强非线性边界区域的频谱泄漏或振铃伪影。
-- **操作**：
-  - 定位真实数据：从测试可视化目录（如 `AR-DR2D-EDSR` 或 `AR-DR2D-UNet`）中挑选一个具有明显边缘误差的样本（例如 `test_sample_1_error_analysis.png` 等）。
-  - 更新脚本：编写 `tools/plot_fig4_5_failure_cases.py`，读取该样本的 GT、Pred 和 Error 图，并在图中用红框（或高亮）标注出伪影区域。
-  - 覆盖保存：`thesis_paper/manuscript_5_chapter/images/fig4-8_failure_cases.png`。
+### Step 1: 提取各模型的定量指标
+- **目标**：从 `./drd_paper_1m/` 各模型目录下的日志文件（如 `metrics.json`、`test_results.json` 或 `model_info.txt`）中提取以下指标：
+  - 推理时延 `Latency (ms)`
+  - 相对误差 `Rel-L2`
+  - 参数量 `Params (M)`
+- **操作**：编写一个简单的数据抓取脚本，或手动提取这些关键指标作为绘图数据。
 
-### Step 2: 损失函数消融实验曲线 (图 4-6)
-- **目标**：对比 MSE Only 与 Full Loss 的验证集 Rel-L2 曲线。
-- **操作**：
-  - 定位真实数据：找到消融实验的 Tensorboard 日志目录（如包含 `A0`、`A3` 等后缀的 runs）。
-  - 更新脚本：编写 `tools/plot_fig4_6_ablation.py`，提取这两个运行的 `val_loss` 或 `val_rel_l2`。
-  - 覆盖保存：`thesis_paper/manuscript_5_chapter/images/fig4-6_ablation_curves.png`。
+### Step 2: 绘制效率–精度权衡散点图 (Trade-off Scatter Plot)
+- **目标**：使用 Python (`matplotlib`/`seaborn`) 绘制满足 IEEE Transactions 标准的散点图。
+- **具体要求**：
+  - 横轴：推理时延（Latency, ms）
+  - 纵轴：误差（Rel-L2）
+  - 散点大小：表示参数量（Params, M），或者使用固定大小并标注具体数值。
+  - 散点颜色/形状：区分不同的模型。
+  - 标注：为每个点添加文本标签（如 EDSR, ConvUNetLite 等）。
+  - 格式：分辨率 ≥ 600 dpi，字号 ≥ 8 pt，保证打印清晰。
+- **输出路径**：`thesis_paper/figures/edsr/efficiency_accuracy_tradeoff.png` （及 `.pdf` 格式以备高质量插入）。
 
-### Step 3: 序列化课程学习演进曲线 (图 4-7)
-- **目标**：展示 Stage 2（冻结）到 Stage 3（微调）时 Rel-L2 和 fRMSE-High 的变化。
+### Step 3: 更新正文引用与图例 (Update Manuscript)
 - **操作**：
-  - 定位真实数据：查找分阶段训练（Staged）的日志，特别是记录了不同频段误差的 JSON 或 Tensorboard 数据。
-  - 更新脚本：编写 `tools/plot_fig4_7_sequential.py`，在图上用双Y轴展示全局误差和高频局部误差的同步下降，并标注阶段切换点。
-  - 覆盖保存：`thesis_paper/manuscript_5_chapter/images/fig4-5_sequential_evolution.png`。
-
-### Step 4: 资源-精度 Pareto Frontier (图 4-8)
-- **目标**：绘制各模型的 FLOPs 与 Rel-L2 权衡散点图。
-- **操作**：
-  - 定位真实数据：从 `model_resources.json` 或现有的基准测试汇总报告中提取各架构的 Params/FLOPs 和 Rel-L2 数据。
-  - 更新脚本：编写 `tools/plot_fig4_8_pareto.py` 绘制散点图，标记 Pareto 前沿线。
-  - 覆盖保存：`thesis_paper/manuscript_5_chapter/images/fig4-3_pareto_frontier.png`。
-
-### Step 5: 验证与文档更新
-- **操作**：
-  - 确认 `chapter4_results_verification.md` 中的所有图引用路径与生成的图片文件名对应无误。
-  - 运行 `python tools/convert_thesis.py --format docx`。
+  - 在文件 `thesis_paper/manuscript_5_chapter/chapter4_results_verification.md` 的 L149-155 段落附近，插入新绘制的权衡图。
+  - 编写规范的 caption（包含数据集、缩放因子、评价指标等信息）。
+  - 确保交叉引用编号与正文一致。

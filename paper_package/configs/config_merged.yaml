@@ -1,62 +1,18 @@
 experiment:
-  name: AR-DR2D-Stage3-VideoSwin-SRx4-JointFineTune-model_unknown-s2025-20260226
-  description: 'Stage 3 Joint Fine-tuning: Unfreeze both spatial and temporal modules'
+  name: expA_fewshot_drd-model_edsr-s2025-20260323
+  description: 跨方程泛化性测试 - Few-shot SWE pretrained model on DRD
   device: cuda
   seed: 2025
-  output_dir: runs_drd_paper/${experiment.name}
+  output_dir: runs/expA_fewshot_drd
   precision: bf16-mixed
 device:
   accelerator: cuda
-  devices: 2
+  devices: 1
   precision: bf16-mixed
 ar:
-  enabled: true
-sequential:
-  enabled: true
-  model_type: SequentialSpatiotemporalModel
-  spatial_pretrain_epochs: 0
-  temporal_pretrain_epochs: 0
-  num_epochs: 100
-  spatial:
-    in_channels: 1
-    spatial_feature_dim: 64
-    out_channels: 1
-    img_size:
-    - 128
-    - 128
-    backbone_type: edsr
-    backbone_config:
-      n_feats: 64
-      n_resblocks: 32
-      res_scale: 0.1
-      upscale: 1
-    pretrained_path: runs_drd_paper/AR-DR2D-Stage1-EDSR-SRx4-model_EDSR-s2025-20260116/best.ckpt
-    freeze: false
-  temporal:
-    spatial_feature_dim: 64
-    temporal_dim: 96
-    out_channels: 1
-    img_size:
-    - 128
-    - 128
-    backend: video_swin
-    num_heads: 4
-    num_layers: 2
-    window_size:
-    - 2
-    - 8
-    - 8
-    dropout: 0.1
-    pretrained_path: runs_drd_paper/AR-DR2D-Stage2-VideoSwin-SRx4-model_unknown-s2025-20260116/best.ckpt
-  consistency:
-    enabled: true
-  training:
-    two_stage_training: false
-    spatial_loss_weight: 1.0
-    temporal_loss_weight: 1.0
-    teacher_forcing_cap: 0.0
+  enabled: false
 data:
-  data_path: /share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/data/DR2D/2D_diff-react_NA_NA.h5
+  data_path: data/DR2D/2D_diff-react_NA_NA.h5
   dataset_name: RealDiffusionReaction
   img_size: 128
   keys:
@@ -66,8 +22,11 @@ data:
   splits_dir: splits
   target_channels: 1
   input_channels: 1
-  T_in: 10
+  T_in: 1
   T_out: 1
+  train_ratio: 0.1
+  val_ratio: 0.25
+  test_ratio: 0.25
   time_step_start: 0
   time_step_end: 101
   time_step_stride: 10
@@ -82,77 +41,75 @@ data:
       align_corners: false
       antialias: true
   dataloader:
-    batch_size: 8
-    num_workers: 8
-    val_batch_size: 8
-    test_batch_size: 1
-    pin_memory: false
+    batch_size: 16
+    num_workers: 4
+    val_batch_size: 16
+    test_batch_size: 16
+    pin_memory: true
     persistent_workers: true
     prefetch_factor: 2
     drop_last: true
     shuffle: true
   max_samples: 512
+model:
+  name: edsr
+  in_channels: 1
+  out_channels: 1
+  img_size: 128
+  modes1: 16
+  modes2: 16
+  width: 48
+  n_layers: 4
+  activation: gelu
+  padding: 8
+pretrained_path: runs/AR-SW-10M-edsr/best.ckpt
 training:
-  epochs: 100
-  batch_size: 8
-  gradient_accumulation_steps: 3
+  epochs: 10
+  batch_size: 16
   gradient_clip_val: 1.0
   amp:
     enabled: true
     autocast_dtype: bfloat16
-  degradation:
-    mode: sr
-    sr:
-      scale_factor: 4
-      blur_sigma: 1.0
-      blur_kernel_size: 5
-      boundary_mode: mirror
-      downsample_mode: area
-      align_corners: false
-      antialias: true
   loss_weights:
     reconstruction: 1.0
     spectral: 0.5
     data_consistency: 1.0
   optimizer:
     name: AdamW
-    lr: 5.0e-05
+    lr: 0.0001
     weight_decay: 0.0001
   scheduler:
     name: CosineAnnealingLR
-    T_max: 100
-    eta_min: 1.0e-07
+    T_max: 50
+    eta_min: 1.0e-06
     warmup_epochs: 5
+  checkpoint:
+    save_best: true
+    monitor: val_loss
+    mode: min
+    max_keep: 2
+    save_every_n_epochs: 0
   early_stopping:
     enabled: true
-    patience: 20
-    min_delta: 1.0e-05
+    patience: 50
+    min_delta: 0.0001
     monitor: val_loss
-  checkpoint:
-    save_last: true
-    save_best: true
-    save_every_n_epochs: 0
-    max_keep: 2
-validation:
-  check_val_every_n_epoch: 5
-  metrics:
-  - rel_l2
-  - mae
-  - psnr
-  - ssim
-logging:
-  experiment_name: AR-DR2D-Stage3-VideoSwin-SRx4-JointFineTune
-  visualization:
-    save_samples_every_n_epochs: 20
-    num_samples_to_save: 5
 testing:
   enabled: true
   run_final_test: true
   save_predictions: false
   compute_detailed_metrics: true
-  batch_size: 512
-  save_visualizations: true
+  batch_size: 16
+  save_visualizations: false
   num_visualization_samples: 3
+validation:
+  check_val_every_n_epoch: 5
+  use_observation: true
+  metrics:
+  - rel_l2
+  - mae
+  - psnr
+  - ssim
 hardware:
   num_workers: 0
   pin_memory: false
