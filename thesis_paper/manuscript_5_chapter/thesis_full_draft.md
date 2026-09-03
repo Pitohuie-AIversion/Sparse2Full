@@ -819,6 +819,8 @@ $$
    - 引入 Teacher Forcing Decay：随 epoch 增加逐步降低真值注入比例；
    - 加入时序一致性正则化项（$L_{\mathrm{deriv}}, L_{\mathrm{energy}}$），抑制误差累积与非物理漂移。
 
+完整算法及**多步自回归滚动预测 (Autoregressive Rollout)**、**物理启发的频域谱损失计算 (Physics-Informed Spectral Loss)** 等详细伪代码可参考 [算法表 (Algorithm Tables)](algorithm_tables.md) 中的 Algorithm 2, 4, 5。
+
 ---
 
 ## 3.5 优化策略与复现保障

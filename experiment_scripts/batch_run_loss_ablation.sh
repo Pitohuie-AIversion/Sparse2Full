@@ -5,10 +5,10 @@
 # 使用方法: bash experiment_scripts/batch_run_loss_ablation.sh
 
 # 基础配置
-PYTHON="torchrun --nproc_per_node=2"
+PYTHON="torchrun --nproc_per_node=1 --master_port=29502"
 TRAIN_SCRIPT="tools/training/train_real_data_ar.py"
 BASE_CONFIG="thesis_paper/configs/ar_paper_aligned_sr4_2D_diff_react_NA_NA.yaml"
-OUTPUT_ROOT="runs_3loss_ablation"
+OUTPUT_ROOT="runs_3loss_ablation_100ep"
 
 # 确保输出目录存在
 mkdir -p $OUTPUT_ROOT
@@ -25,22 +25,23 @@ run_ablation() {
     DC_W=$3
     DESC=$4
     
-    EXP_NAME="3loss_ablation/${EXP_ID}"
+    EXP_NAME="3loss_ablation_100ep/${EXP_ID}"
     
     echo "--------------------------------------------------------"
     echo "正在运行实验: $EXP_NAME ($DESC)"
     echo "参数: Spectral=$SPEC_W, DC=$DC_W"
     
     # 构造完整命令
-    # 注意：我们通过 experiment.output_dir 重定向输出目录，使其归档到 runs_3loss_ablation 下
+    # 注意：我们通过 experiment.output_dir 重定向输出目录，使其归档到 runs_3loss_ablation_100ep 下
     CMD="$PYTHON $TRAIN_SCRIPT --config $BASE_CONFIG \
-        training.epochs=50 \
-        training.checkpoint.save_every_n_epochs=10 \
+        training.epochs=100 \
+        training.checkpoint.save_every_n_epochs=20 \
         training.loss_weights.spectral=$SPEC_W \
         training.loss_weights.data_consistency=$DC_W \
         experiment.name=\"$EXP_NAME\" \
         experiment.output_dir=\"$OUTPUT_ROOT/$EXP_ID\" \
         logging.log_model=true"
+
         
     echo "Command: $CMD"
     
@@ -61,22 +62,22 @@ run_ablation() {
 # ========================================================
 # 1. Ablation A0: Baseline (MSE Only)
 # ========================================================
-# 仅使用重建损失 (Rel-L2 + MAE)，辅助损失权重为 0
-run_ablation "A0_Baseline" "0.0" "0.0" "Baseline: MSE Only"
+run_ablation "A0_Baseline_Repro_v4" "0.0" "0.0" "Baseline: MSE Only"
 
 # ========================================================
 # 2. Ablation A2: Rec + Spectral
 # ========================================================
-# 引入频域损失，验证对高频纹理的改善
-# NOTE: 降低 Spectral 权重 (0.5 -> 0.05) 以提高训练稳定性
-# run_ablation "A2_RecSpec" "0.05" "0.0" "Ablation: Rec + Spectral Loss"
+run_ablation "A2_RecSpec_Repro_v4" "0.05" "0.0" "Ablation: Rec + Spectral Loss"
 
 # ========================================================
-# 3. Ablation A3: Full (Ours)
+# 3. Ablation A2: Rec + DC
 # ========================================================
-# 引入数据一致性损失 (DC)，完整的三重损失
-# NOTE: 降低 Spectral (0.5->0.05) 和 DC (1.0->0.1) 权重以提高稳定性
-# run_ablation "A3_Full" "0.05" "0.1" "Ours: Full Triple Loss"
+run_ablation "A2_RecDC_Repro_v4" "0.0" "0.1" "Ablation: Rec + DC Loss"
+
+# ========================================================
+# 4. Ablation A3: Full (Ours)
+# ========================================================
+run_ablation "A3_Full_Repro_v4" "0.05" "0.1" "Ours: Full Triple Loss"
 
 echo "========================================================"
 echo "所有消融实验已完成！"

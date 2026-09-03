@@ -23,13 +23,13 @@ def generate_sequential_training_flowchart():
     
     # Stage 1: Spatial Pretrain
     with dot.subgraph(name='cluster_S1') as s1:
-        s1.attr(label='阶段1：空间预训练\n(Spatial Pretraining)', style='filled', color='#eeeeee', margin='15', fontname='SimSun', fontsize='14')
-        s1.node('In_S1', '单帧观测 y_t', **data_style)
-        s1.node('Spatial_S1', '空间编码器 / 解码器', **active_style)
-        s1.node('Out_S1', '重建结果 û_t', **data_style)
+        s1.attr(label='阶段1：空间预训练\n(Spatial Pretraining)\nBatch: [40, 1, 128, 128]', style='filled', color='#eeeeee', margin='15', fontname='SimSun', fontsize='14')
+        s1.node('In_S1', '单帧观测 y_t\n[40, 1, 128, 128]', **data_style)
+        s1.node('Spatial_S1', '空间模型 (EDSR)\n[40, 64, 128, 128]', **active_style)
+        s1.node('Out_S1', '重建结果 û_t\n[40, 1, 128, 128]', **data_style)
         
         # Explicitly show the frozen temporal module in Stage 1 to emphasize the architectural consistency
-        s1.node('Temp_S1', '时序模块', **frozen_style)
+        s1.node('Temp_S1', '时序模块\n(Frozen)', **frozen_style)
         
         s1.edge('In_S1', 'Spatial_S1')
         s1.edge('Spatial_S1', 'Out_S1')
@@ -42,22 +42,23 @@ def generate_sequential_training_flowchart():
 
     # Stage 2: Temporal Pretrain
     with dot.subgraph(name='cluster_S2') as s2:
-        s2.attr(label='阶段2：时序预训练\n(Temporal Pretraining)', style='filled', color='#eeeeee', margin='15', fontname='SimSun', fontsize='14')
-        s2.node('In_S2', '序列观测 y_{1:T}', **data_style)
-        s2.node('Spatial_S2', '空间编码器 / 解码器', **frozen_style)
-        s2.node('Temp_S2', '时序模块', **active_style)
-        s2.node('Out_S2', '潜在特征 z_t', **data_style)
+        s2.attr(label='阶段2：时序预训练\n(Temporal Pretraining)\nBatch: [4, 10, 1, 128, 128]', style='filled', color='#eeeeee', margin='15', fontname='SimSun', fontsize='14')
+        s2.node('In_S2', '序列观测 y_{1:T}\n[4, 10, 1, 128, 128]', **data_style)
+        s2.node('Spatial_S2', '空间模型 (EDSR)\n[4, 10, 1, 128, 128]', **frozen_style)
+        s2.node('Temp_S2', '时序模型 (VideoSwin)\n[4, 96, 10, 128, 128]', **active_style)
+        s2.node('Out_S2', '未来帧预测 û_{T+1}\n[4, 1, 1, 128, 128]', **data_style)
         
         s2.edge('In_S2', 'Spatial_S2')
-        s2.edge('Spatial_S2', 'Temp_S2')
+        s2.edge('Spatial_S2', 'Temp_S2', xlabel=' [4, 10, 1, 128, 128] ')
         s2.edge('Temp_S2', 'Out_S2')
 
     # Stage 3: Joint Finetuning
     with dot.subgraph(name='cluster_S3') as s3:
-        s3.attr(label='阶段3：时空联合微调\n(Joint Fine-tuning)', style='filled', color='#eeeeee', margin='15', fontname='SimSun', fontsize='14')
-        s3.node('In_S3', '序列观测 y_{1:T}', **data_style)
-        s3.node('Joint_S3', '完整模型\n(空间 + 时序)', **active_style)
-        s3.node('Out_S3', '滚动预测 û_{1:T}', **data_style)
+        s3.attr(label='阶段3：时空联合微调\n(Joint Fine-tuning)\nBatch: [4, 10, 1, 128, 128]', style='filled', color='#eeeeee', margin='15', fontname='SimSun', fontsize='14')
+        s3.node('In_S3', '序列观测 y_{1:T}\n[4, 10, 1, 128, 128]', **data_style)
+        s3.node('Joint_S3', '完整时空模型\n(Teacher Forcing 注入)\nEDSR + VideoSwin', **active_style)
+        s3.node('Out_S3', '联合预测 û_{T+1}\n[4, 1, 1, 128, 128]', **data_style)
+
         
         # Loss constraint matching Section 3.5 formula
         loss_label = '联合损失约束\nL_rec + λ_spec L_spec + λ_dc L_dc'

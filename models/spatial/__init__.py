@@ -109,6 +109,12 @@ try:
 except ImportError:
     ConvGateLite = None
 
+try:
+    from .interp_cnn import BicubicCNN, RBFCNN
+except ImportError:
+    BicubicCNN = None
+    RBFCNN = None
+
 __all__ = [
     # CNN模型
     "UNet",
@@ -156,6 +162,10 @@ if MLPModel is not None:
     __all__.append("MLPModel")
 if PartialConvUNet is not None:
     __all__.append("PartialConvUNet")
+if BicubicCNN is not None:
+    __all__.append("BicubicCNN")
+if RBFCNN is not None:
+    __all__.append("RBFCNN")
 
 # 导入工厂函数
 from .factory import create_model

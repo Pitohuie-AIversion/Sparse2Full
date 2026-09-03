@@ -275,6 +275,11 @@ class ARTrainingVisualizer:
                 while arr.ndim < 4:
                     arr = arr.unsqueeze(0)
                 gt0_4d = arr
+            
+            # Ensure gt0_4d is properly shaped for apply_degradation_operator [B, C, H, W]
+            while gt0_4d.ndim < 4:
+                gt0_4d = gt0_4d.unsqueeze(0)
+                
             obs = apply_degradation_operator(gt0_4d, h_params)
             # 取 [H,W]
             obs_frame = obs[0, 0].detach().cpu().numpy()
@@ -543,6 +548,9 @@ class ARTrainingVisualizer:
                 if gt0_4d.ndim == 2:
                     gt0_4d = gt0_4d.unsqueeze(0).unsqueeze(0)
                 elif gt0_4d.ndim == 3:
+                    gt0_4d = gt0_4d.unsqueeze(0)
+                # Ensure gt0_4d is properly shaped for apply_degradation_operator [B, C, H, W]
+                while gt0_4d.ndim < 4:
                     gt0_4d = gt0_4d.unsqueeze(0)
                 obs = apply_degradation_operator(gt0_4d, h_params)
                 try:

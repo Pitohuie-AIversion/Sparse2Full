@@ -60,7 +60,12 @@ def main():
     checkpoint = torch.load(args.checkpoint, map_location=device)
     # Handle possible state dict keys mismatch (e.g. 'model_state_dict' vs raw)
     state_dict = checkpoint.get('model_state_dict', checkpoint)
-    model.load_state_dict(state_dict)
+    
+    # 兼容 DDP 训练的权重 (去除 'module.' 前缀)
+    if any(k.startswith('module.') for k in state_dict.keys()):
+        state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
+        
+    model.load_state_dict(state_dict, strict=False)
     model.to(device)
     model.eval()
 

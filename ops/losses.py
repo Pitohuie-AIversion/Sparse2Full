@@ -195,19 +195,19 @@ def compute_total_loss_base(
         w_dc = loss_weights_override.get('data_consistency', w_dc)
         w_grad = loss_weights_override.get('gradient', w_grad)
     else:
-        # 优先使用 train.loss_weights 结构
-        has_train_loss_weights = hasattr(config, 'train') and hasattr(config.train, 'loss_weights')
+        # 优先使用 training.loss_weights 结构
+        has_train_loss_weights = hasattr(config, 'training') and hasattr(config.training, 'loss_weights')
         if has_train_loss_weights:
             try:
-                if hasattr(config.train.loss_weights, 'reconstruction'):
-                    w_rec = float(config.train.loss_weights.reconstruction)
-                if hasattr(config.train.loss_weights, 'spectral'):
-                    w_spec = float(config.train.loss_weights.spectral)
-                if hasattr(config.train.loss_weights, 'data_consistency'):
-                    w_dc = float(config.train.loss_weights.data_consistency)
+                if hasattr(config.training.loss_weights, 'reconstruction'):
+                    w_rec = float(config.training.loss_weights.reconstruction)
+                if hasattr(config.training.loss_weights, 'spectral'):
+                    w_spec = float(config.training.loss_weights.spectral)
+                if hasattr(config.training.loss_weights, 'data_consistency'):
+                    w_dc = float(config.training.loss_weights.data_consistency)
                 # 可选：梯度项
-                if hasattr(config.train.loss_weights, 'gradient'):
-                    w_grad = float(getattr(config.train.loss_weights, 'gradient', 0.0))
+                if hasattr(config.training.loss_weights, 'gradient'):
+                    w_grad = float(getattr(config.training.loss_weights, 'gradient', 0.0))
             except Exception:
                 # 若读取失败，回退到默认值
                 pass
@@ -535,11 +535,11 @@ def _compute_spectral_loss(
     normalize = False
     boundary_mode = None
 
-    if hasattr(config, 'train') and hasattr(config.train, 'spectral_loss'):
-        low_freq_modes = getattr(config.train.spectral_loss, 'low_freq_modes', low_freq_modes)
-        use_rfft = getattr(config.train.spectral_loss, 'use_rfft', use_rfft)
-        normalize = getattr(config.train.spectral_loss, 'normalize', normalize)
-        boundary_mode = getattr(config.train.spectral_loss, 'boundary_mode', boundary_mode)
+    if hasattr(config, 'training') and hasattr(config.training, 'spectral_loss'):
+        low_freq_modes = getattr(config.training.spectral_loss, 'low_freq_modes', low_freq_modes)
+        use_rfft = getattr(config.training.spectral_loss, 'use_rfft', use_rfft)
+        normalize = getattr(config.training.spectral_loss, 'normalize', normalize)
+        boundary_mode = getattr(config.training.spectral_loss, 'boundary_mode', boundary_mode)
 
     if hasattr(config, 'loss'):
         low_freq_modes = getattr(config.loss, 'low_freq_modes', low_freq_modes)

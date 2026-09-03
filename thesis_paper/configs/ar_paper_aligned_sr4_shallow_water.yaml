@@ -51,6 +51,12 @@ data:
   val_ratio: 0.1
   test_ratio: 0.1  # Debug模式：仅10%用于测试（约35个样本）
   
+  # 如果要强制包含0059等验证集，最好不要用sample_limit或调整切分
+  # 但由于样本总数1000，test_ratio=0.1，val_ratio=0.1，train=0.8
+  # train是前800 (0000-0799)，val是100 (0800-0899)，test是100 (0900-0999)
+  # 所以0059其实在train集里！
+  # 我们的评估是在 val_loader 上跑的，难怪找不到 0059！
+  
   # 时间步配置
   time_step_start: 0
   time_step_end: 101   # 使用前101个时间步

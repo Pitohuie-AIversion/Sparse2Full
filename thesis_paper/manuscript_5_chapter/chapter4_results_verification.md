@@ -125,11 +125,11 @@
 
 ![图 4-1: SWE 数据集上不同架构的训练收敛曲线对比。EDSR (Ours) 展现出更快的收敛速度与更低的稳态误差，显著优于 UNet、FNO 以及其他拓展基线模型。](images/fig4-4_training_convergence_extended.png)
 
-为进一步在有限计算预算下筛选最优基线，我们进行了**1M 参数量预算**下的横向对比（表 4-3）。通过图 4-2 的效率与精度权衡图（Trade-off）可以直观地看出，在相近的参数预算下，不同架构在计算速度与重构精度之间展现出不同的 Pareto 最优边界。
+为进一步在有限计算预算下筛选最优基线，我们进行了**1M 参数量预算**下的横向对比（表 4-4）。通过图 4-2 的效率与精度权衡图（Trade-off）可以直观地看出，在相近的参数预算下，不同架构在计算速度与重构精度之间展现出不同的 Pareto 最优边界。
 
 ![图 4-2: 1M 参数预算下的模型效率与精度权衡图（Efficiency-Accuracy Trade-off）。横轴为模型推理时延（ms），纵轴为相对误差（Rel-L2）。散点大小反映模型的参数量（Params），点越小代表模型越轻量化。虚线连接了处于 Pareto 前沿的模型。可以看出，EDSR 精度最高但时延偏高；ConvUNetLite 速度最快且精度次优；NAFNet 虽精度较好但计算代价过高。](../figures/edsr/efficiency_accuracy_tradeoff.png)
 
-**表 4-3 不同空间重建架构在 1M 参数预算下的性能对比**
+**表 4-4 不同空间重建架构在 1M 参数预算下的性能对比**
 
 | 模型架构 | Params (M) | Rel-L2 $\downarrow$ | PSNR $\uparrow$ | FLOPs (G) | 时延 (ms) | 状态 |
 | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
@@ -140,9 +140,9 @@
 | *NAFNet* | *8.15* | *0.0072* | *54.89* | *771.14* | *15.91* | $\times$ 严重超标 |
 
 **视野受限下的空间重建能力 (Crop Capability Scan)**
-为探究模型在极端视野缺失下的重建极限，我们对 UNet 架构进行了从 112×112 (76.5% 观测) 到 1×1 (0.006% 观测) 的全范围扫描实验。同时，为了验证深层残差网络在 Inpainting 任务中的劣势，我们对比了 EDSR、PartialConvUNet 在典型稀疏场景下的表现（见表 4-4）。
+为探究模型在极端视野缺失下的重建极限，我们对 UNet 架构进行了从 112×112 (76.5% 观测) 到 1×1 (0.006% 观测) 的全范围扫描实验。同时，为了验证深层残差网络在 Inpainting 任务中的劣势，我们对比了 EDSR、PartialConvUNet 在典型稀疏场景下的表现（见表 4-5）。
 
-**表 4-4 不同 Crop 尺寸下的重建性能对比 (UNet vs EDSR vs PartialConvUNet)**
+**表 4-5 不同 Crop 尺寸下的重建性能对比 (UNet vs EDSR vs PartialConvUNet)**
 
 | Crop Size | Area Pct (%) | **UNet** Rel-L2 | **EDSR** Rel-L2 | **PartialConv** Rel-L2 |
 | :---:     | :---:        | :---:           | :---:           | :---:                  |
@@ -163,12 +163,12 @@
 1.  **架构的降级平滑性 (Graceful Degradation)**：实验结果显示，虽然所有模型在视野受限时均出现误差上升，但带有**跳跃连接 (Skip Connections)** 的全卷积 UNet 展现出了相对平滑的降级曲线（例如 Size 112 时 Rel-L2 为 0.4668）。这表明其编码器-解码器结构能够一定程度上将观测边界信息传递到缺失区域（Inpainting）。
 2.  **深层网络的结构劣势**：相比之下，在 SR（均匀下采样）任务中表现优异的 EDSR 在 Crop 任务中表现略逊于 UNet（如 Size 32 下 0.9495 vs 0.9463）。这是因为深层残差结构缺乏长程特征传递机制，面对大面积连续缺失时，难以有效推断缺失区域内容。
 3.  **PartialConv 的失效**：PartialConvUNet 的完全失效（Rel-L2=1.0）进一步证实了针对传统图像修复设计的“掩码更新”机制并不适用于遵循严格物理守恒律（如能量守恒）的流体场重建。
-4.  **物理信息相变点**：对于所有模型而言，当观测区域极度稀疏（Size < 16, <1.5%）时，性能均收敛到随机猜测水平（Rel-L2 > 0.96，见表 4-11），这标志着纯数据驱动下物理信息的可重建极限。
+4.  **物理信息相变点**：对于所有模型而言，当观测区域极度稀疏（Size < 16, <1.5%）时，性能均收敛到随机猜测水平（Rel-L2 > 0.96，见表 4-12），这标志着纯数据驱动下物理信息的可重建极限。
 
 ### 4.2.2 时空演化性能 (Spatiotemporal Evolution)
-在动力学更为复杂的 DRD 数据集上，评估“空间重建 + 时序预测”联合模型的长时演化能力。表 4-5 展示了不同方法在 SR $\times 4$ (Input $32\times32$) 下的性能。
+在动力学更为复杂的 DRD 数据集上，评估“空间重建 + 时序预测”联合模型的长时演化能力。表 4-6 展示了不同方法在 SR $\times 4$ (Input $32\times32$) 下的性能。
 
-**表 4-5 DRD 数据集时空预测主结果 (SR $\times 4$)**
+**表 4-6 DRD 数据集时空预测主结果 (SR $\times 4$)**
 
 | 模型架构 | Params (M) | FLOPs (G) | Latency (ms) | Rel-L2 $\downarrow$ | PSNR $\uparrow$ | SSIM $\uparrow$ | $H_{\mathrm{err}}$ $\downarrow$ |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -206,7 +206,7 @@
 ### 4.3.1 物理约束的有效性 (Physical Constraints Effectiveness)
 为量化“算子错配”的危害，我们设计了对照实验：保持测试观测算子 $H$ 不变（标准高斯模糊 $\sigma=1.0$），人为调整训练退化算子 $DC$ 的参数 $\sigma_{\text{train}}$。
 
-**表 4-6 口径错配影响分析 (Model: UNet)**
+**表 4-7 口径错配影响分析 (Model: UNet)**
 
 | 设置 (Setting) | $\sigma_{\text{train}}$ (px) | $\sigma_{\text{test}}$ (px) | Rel-L2 $\downarrow$ | PSNR (dB) $\uparrow$ | SSIM $\uparrow$ | $H_{\mathrm{err}}$ $\downarrow$ | 变化幅度 |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
@@ -220,7 +220,7 @@
 
 为进一步验证“三件套损失”的有效性，在 UNet（通用基线）与 EDSR（专用基线）上分别进行消融。
 
-**表 4-7 损失函数消融 (SR $\times 4$)**
+**表 4-8 损失函数消融 (SR $\times 4$)**
 
 | 模型 | 损失组合 | Rel-L2 $\downarrow$ | PSNR $\uparrow$ | SSIM $\uparrow$ | fRMSE-Low $\downarrow$ | $H_{\mathrm{err}}$ $\downarrow$ |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
@@ -240,7 +240,7 @@
 ### 4.3.2 序列化训练的必要性 (Sequential Training Strategy)
 针对时空联合建模难优化的问题，对比了“分步序列化训练 (Stage 2)”与“全参数联合微调 (Stage 3)”两种策略的效果。
 
-**表 4-8 训练阶段性能演进对比 (SR $\times 4$, Stride=10)**
+**表 4-9 训练阶段性能演进对比 (SR $\times 4$, Stride=10)**
 
 | 阶段 (Stage) | 策略描述 | Rel-L2 | PSNR (dB) | SSIM | fRMSE-High | 训练耗时 (h) | 结论 |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
@@ -252,9 +252,9 @@
 
 ![图 4-9: 序列化课程学习策略（Sequential Curriculum Learning）的训练演进曲线。从 Stage 2（冻结空间）切换到 Stage 3（全参数微调）时，高频误差（fRMSE-High，红线）显著下降，表明联合微调有效恢复了物理场的细节结构。](images/fig4-5_sequential_evolution.png)
 
-为验证“先空间、后时序”策略的必要性，我们在“时空双重稀疏”场景（空间 $\times 4$ 下采样 + 时间 Stride 10）下设计了三组对照实验（表 4-9）：
+为验证“先空间、后时序”策略的必要性，我们在“时空双重稀疏”场景（空间 $\times 4$ 下采样 + 时间 Stride 10）下设计了三组对照实验（表 4-10）：
 
-**表 4-9 空间重建必要性对照实验 (Backbone: VideoSwin)**
+**表 4-10 空间重建必要性对照实验 (Backbone: VideoSwin)**
 
 | 实验组 | 配置 | 稀疏条件 | Rel-L2 | 现象描述 |
 | :--- | :--- | :--- | :---: | :--- |
@@ -275,7 +275,7 @@
 ### 4.4.1 噪声与跨域鲁棒性 (Noise & Generalization)
 测试 EDSR 在不同输入噪声水平下的表现。
 
-**表 4-10 噪声敏感性分析（Diffusion–Reaction, SR ×4）**
+**表 4-11 噪声敏感性分析（Diffusion–Reaction, SR ×4）**
 
 | 噪声水平 $\sigma_n$ | Rel-L2 $\downarrow$ | 性能衰减幅度（vs Clean） |
 | :---: | :---: | :---: |
@@ -289,7 +289,7 @@
 ### 4.4.2 极度稀疏边界 (Extreme Sparsity)
 探究模型在观测极限下的表现。将 SR 倍率从 $\times 4$ 推至 $\times 128$（仅 1 个观测点）。
 
-**表 4-11 极度稀疏能力扫描**
+**表 4-12 极度稀疏能力扫描**
 
 | Scale | Input Size | Params (M) | Rel-L2 | PSNR (dB) | SSIM | DC Error | FLOPs (G) | Latency (ms) | 状态 |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
@@ -304,7 +304,7 @@
 
 ### 4.4.3 资源效率分析 (Resource Efficiency)
 
-**表 4-12 模型资源效率对比 (Input $256^2$)**
+**表 4-13 模型资源效率对比 (Input $256^2$)**
 
 | 模型 | Params (M) | FLOPs (G) | Latency (ms) | 评价 |
 | :--- | :---: | :---: | :---: | :--- |

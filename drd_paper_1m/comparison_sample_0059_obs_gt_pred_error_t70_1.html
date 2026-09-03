@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset='utf-8'>
+<style>
+  body { font-family: Arial, sans-serif; background: #fff; margin: 20px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(600px, 1fr)); gap: 20px; }
+  .figure-container { border: 1px solid #ddd; padding: 10px; text-align: center; background: #fafafa; border-radius: 8px; page-break-inside: avoid; }
+  .model-title { font-size: 24px; font-weight: bold; margin-bottom: 15px; color: #333; }
+  img { max-width: 100%; height: auto; }
+  @media print {
+    .figure-container { border: none; background: #fff; }
+    body { margin: 0; }
+  }
+</style>
+</head>
+<body>
+<h2>Model Comparison: sample_0059_obs_gt_pred_error_t70_1.svg</h2>
+<div class='grid'>
+  <div class='figure-container'>
+    <div class='model-title'>ConvUNetLite</div>
+    <img src='AR-DR2D-ConvUNetLite-SRx4-1M-100ep/test_visualizations/visualizations/predictions/sample_0059_obs_gt_pred_error_t70_1.svg' alt='ConvUNetLite'>
+  </div>
+  <div class='figure-container'>
+    <div class='model-title'>UNet</div>
+    <img src='AR-DR2D-UNet-SRx4-1M-100ep/test_visualizations/visualizations/predictions/sample_0059_obs_gt_pred_error_t70_1.svg' alt='UNet'>
+  </div>
+  <div class='figure-container'>
+    <div class='model-title'>UformerLite</div>
+    <img src='AR-DR2D-UformerLite-SRx4-1M-100ep/test_visualizations/visualizations/predictions/sample_0059_obs_gt_pred_error_t70_1.svg' alt='UformerLite'>
+  </div>
+  <div class='figure-container'>
+    <div class='model-title'>edsr</div>
+    <img src='AR-DR2D-edsr-SRx4-1M-300ep/test_visualizations/visualizations/predictions/sample_0059_obs_gt_pred_error_t70_1.svg' alt='edsr'>
+  </div>
+  <div class='figure-container'>
+    <div class='model-title'>nafnet</div>
+    <img src='AR-DR2D-nafnet-SRx4-1M-100ep/test_visualizations/visualizations/predictions/sample_0059_obs_gt_pred_error_t70_1.svg' alt='nafnet'>
+  </div>
+  <div class='figure-container'>
+    <div class='model-title'>stablefno2d</div>
+    <img src='AR-DR2D-stablefno2d-SRx4-1M-100ep/test_visualizations/visualizations/predictions/sample_0059_obs_gt_pred_error_t70_1.svg' alt='stablefno2d'>
+  </div>
+  <div class='figure-container'>
+    <div class='model-title'>uno</div>
+    <img src='AR-DR2D-uno-SRx4-1M-100ep/test_visualizations/visualizations/predictions/sample_0059_obs_gt_pred_error_t70_1.svg' alt='uno'>
+  </div>
+</div>
+</body></html>

@@ -1,0 +1,87 @@
+experiment:
+  name: expA_zeroshot_drd
+  description: 跨方程泛化性测试 - Zero-shot SWE pretrained model on DRD
+  device: cuda
+  seed: 2025
+  output_dir: runs/expA_zeroshot_drd
+
+device:
+  accelerator: cuda
+  devices: 1
+  precision: bf16-mixed
+
+ar:
+  enabled: false
+
+data:
+  data_path: data/DR2D/2D_diff-react_NA_NA.h5
+  dataset_name: RealDiffusionReaction
+  img_size: 128
+  keys:
+  - data
+  component: u
+  use_official_format: true
+  splits_dir: splits
+  target_channels: 1
+  input_channels: 1
+  T_in: 1
+  T_out: 1
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+  time_step_start: 0
+  time_step_end: 101
+  time_step_stride: 10
+  observation:
+    mode: SR
+    sr:
+      scale_factor: 4
+      blur_sigma: 1.0
+      blur_kernel_size: 5
+      boundary_mode: mirror
+      downsample_mode: area
+      align_corners: false
+      antialias: true
+  dataloader:
+    batch_size: 16
+    num_workers: 4
+    val_batch_size: 16
+    test_batch_size: 16
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 2
+    drop_last: false
+
+model:
+  name: edsr
+  in_channels: 1
+  out_channels: 1
+  img_size: 128
+  modes1: 16
+  modes2: 16
+  width: 48
+  n_layers: 4
+  activation: gelu
+  padding: 8
+
+pretrained_path: runs/AR-SW-10M-edsr/best.ckpt
+
+training:
+  epochs: 0  # Zero-shot, no training
+
+testing:
+  enabled: true
+  run_final_test: true
+  save_predictions: true
+  compute_detailed_metrics: true
+  batch_size: 16
+  save_visualizations: true
+  num_visualization_samples: 3
+
+validation:
+  use_observation: true
+  metrics:
+  - rel_l2
+  - mae
+  - psnr
+  - ssim

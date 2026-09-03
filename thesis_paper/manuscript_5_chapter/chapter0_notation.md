@@ -6,11 +6,12 @@
 | :--- | :--- | :--- |
 | **基础变量** |  |  |
 | $u(\mathbf{x},t)$ | 连续场 | 真实物理场，定义在时空域 $\Omega\times[0,T]$ |
-| $\mathbf{U}$ | 张量 | 真实场的高分辨率离散表示（原值域），维度记为 $B\times T\times C\times H\times W$ |
-| $\mathbf{U}^{(z)}$ | 张量 | $\mathbf{U}$ 的 z-score 标准化表示，用于训练 |
-| $\mathbf{y}$ | 张量 | 稀疏观测数据：$\mathbf{y}=H(\mathbf{U})+\boldsymbol{\varepsilon}$ |
-| $\tilde{\mathbf{U}}$ | 张量 | 模型重建的预测场（原值域），用于最终评测，与 $\mathbf{U}$ 同分辨率与维度 |
-| $\hat{\mathbf{U}}^{(z)}$ | 张量 | 网络直接输出的预测场（z-score 域），反归一化后得到 $\tilde{\mathbf{U}}$ |
+| $u$ | 张量 | 真实场的高分辨率离散表示（原值域），维度记为 $B\times T\times C\times H\times W$ |
+| $u^{(z)}$ | 张量 | $u$ 的 z-score 标准化表示，用于训练 |
+| $\mathbf{y}$ | 张量 | 稀疏观测数据：$\mathbf{y}=H(u)+\boldsymbol{\varepsilon}$ |
+| $\hat{u}$ | 张量 | 模型重建的预测场（原值域），用于最终评测，与 $u$ 同分辨率与维度 |
+| $\hat{u}^{(z)}$ | 张量 | 网络直接输出的预测场（z-score 域），反归一化后得到 $\hat{u}$ |
+| $\tilde{u}$ | 张量 | 由传统插值方法得到的粗重建场，仅用于插值加轻量卷积后处理基线，不表示本文主模型的最终输出 |
 | $\mathbf{x}$ | 向量 | 空间坐标向量，$\mathbf{x}\in\mathbb{R}^d$（本文取 $d=2$） |
 | $t$ | 标量 | 时间变量，$t\in[0,T]$ |
 | $\boldsymbol{\varepsilon}$ | 张量 | 观测噪声，常设 $\boldsymbol{\varepsilon}\sim\mathcal{N}(0,\sigma_n^2)$ |
@@ -18,7 +19,7 @@
 | $\sigma_n$ | 标量 | 观测噪声标准差 |
 | $\boldsymbol{\mu}_z$ | 向量 | 逐通道 z-score 标准化均值 |
 | $\boldsymbol{\sigma}_z$ | 向量 | 逐通道 z-score 标准化标准差 |
-| $\odot$ | 运算 | 逐元素乘（Hadamard 乘积）；反归一化：$\tilde{\mathbf{U}}=\hat{\mathbf{U}}^{(z)}\odot\boldsymbol{\sigma}_z+\boldsymbol{\mu}_z$ |
+| $\odot$ | 运算 | 逐元素乘（Hadamard 乘积）；反归一化：$\hat{u}=\hat{u}^{(z)}\odot\boldsymbol{\sigma}_z+\boldsymbol{\mu}_z$ |
 | **算子与映射** |  |  |
 | $H(\cdot)$ | 算子 | **观测算子 (Observation Operator)**。从高分辨率原值域离散场到稀疏观测的映射，包含抗混叠、降采样、裁剪、掩码/采样等过程 |
 | $DC(\cdot)$ | 算子 | **训练退化算子 (Training Degradation Operator)**。训练阶段用于模拟观测生成，本文约束 $DC\equiv H$（同参数、同实现） |
@@ -30,13 +31,13 @@
 | $\mathcal{F}(\cdot)$ | 变换 | 傅里叶变换 (Fourier Transform)，用于频域分析与谱损失计算 |
 | **损失函数** |  |  |
 | $\mathcal{L}_{\mathrm{total}}$ | 标量 | 总损失函数，用于反向传播优化 |
-| $\mathcal{L}_{\mathrm{rec}}$ | 标量 | **重建损失**：衡量 $\hat{\mathbf{U}}^{(z)}$ 与 $\mathbf{U}^{(z)}$ 的逐点误差（常用 $L_1/L_2$） |
+| $\mathcal{L}_{\mathrm{rec}}$ | 标量 | **重建损失**：衡量 $\hat{u}^{(z)}$ 与 $u^{(z)}$ 的逐点误差（常用 $L_1/L_2$） |
 | $\mathcal{L}_{\mathrm{spec}}$ | 标量 | **谱一致性损失**：衡量频域一致性（本文强调低频段或指定频段） |
-| $\mathcal{L}_{\mathrm{dc}}$ | 标量 | **观测一致性损失**：$\mathcal{L}_{\mathrm{dc}}=\|H(\tilde{\mathbf{U}})-\mathbf{y}\|_F^2$（或其均值形式） |
+| $\mathcal{L}_{\mathrm{dc}}$ | 标量 | **观测一致性损失**：$\mathcal{L}_{\mathrm{dc}}=\|H(\hat{u})-\mathbf{y}\|_F^2$（或其均值形式） |
 | $\lambda_{\mathrm{spec}},\lambda_{\mathrm{dc}}$ | 标量 | 损失加权超参数 |
 | **评价指标** |  |  |
-| $\mathrm{Rel}\text{-}L_2$ | 标量 | 相对误差：$\displaystyle \frac{\|\tilde{\mathbf{U}}-\mathbf{U}\|_F}{\|\mathbf{U}\|_F}$ |
-| $H_{\mathrm{err}}$ | 标量 | 观测口径误差：$H_{\mathrm{err}}=\|H(\tilde{\mathbf{U}})-\mathbf{y}\|_F$ |
+| $\mathrm{Rel}\text{-}L_2$ | 标量 | 相对误差：$\displaystyle \frac{\|\hat{u}-u\|_F}{\|u\|_F}$ |
+| $H_{\mathrm{err}}$ | 标量 | 观测口径误差：$H_{\mathrm{err}}=\|H(\hat{u})-\mathbf{y}\|_F$ |
 | $\mathrm{fRMSE}$ | 标量 | 频域 RMSE（Frequency RMSE），可按 Low/Mid/High 频段统计 |
 | **集合与空间** |  |  |
 | $\Omega$ | 集合 | 空间定义域 |
