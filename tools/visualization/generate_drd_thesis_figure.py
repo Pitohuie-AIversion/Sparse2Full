@@ -15,18 +15,17 @@ plt.rcParams['ytick.major.width'] = 1.5
 
 def generate_drd_figure():
     # Configuration
+    project_root = Path(__file__).resolve().parents[2]
     # Prefer the file in data/DR2D/ first as it is likely the correct one
-    data_path = Path("data/DR2D/2D_diff-react_NA_NA.h5")
+    data_path = project_root / "data/DR2D/2D_diff-react_NA_NA.h5"
     if not data_path.exists():
-        data_path = Path("data/2D_diff-react_NA_NA.h5")
+        data_path = project_root / "data/2D_diff-react_NA_NA.h5"
         
-    output_dir = Path("thesis_paper/manuscript_5_chapter/figures")
+    output_dir = project_root / "thesis_paper/manuscript_5_chapter/figures"
     output_dir.mkdir(parents=True, exist_ok=True)
     
     # Check if data exists
     if not data_path.exists():
-        # Try relative to project root
-        project_root = Path("/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full")
         data_path = project_root / "data/2D_diff-react_NA_NA.h5"
         if not data_path.exists():
             data_path = project_root / "data/DR2D/2D_diff-react_NA_NA.h5"

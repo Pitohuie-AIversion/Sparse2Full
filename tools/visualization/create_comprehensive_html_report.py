@@ -817,7 +817,7 @@ class ComprehensiveHTMLReportGenerator:
 
 def main():
     """主函数"""
-    base_dir = "f:/Zhaoyang/Sparse2Full"
+    base_dir = "."
     
     generator = ComprehensiveHTMLReportGenerator(base_dir)
     report_path = generator.create_html_report()

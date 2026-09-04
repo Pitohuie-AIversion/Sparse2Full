@@ -6,6 +6,10 @@ import svgutils.transform as sg
 import tempfile
 import base64
 import subprocess
+from pathlib import Path
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 def prefix_svg_ids(svg_content, prefix):
     id_pattern = re.compile(r'id="([^"]+)"')
@@ -46,7 +50,7 @@ def main():
     for i, size in enumerate(input_sizes):
         if size in [4, 2, 1]:
             # For the last three sizes, use test_sample_1_obs_gt_pred_error_t0_113.svg
-            pattern = f'/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/runs_drd_paper/sr_scan_batch/AR-DR2D-SR-Scan-Input{size}/test_visualizations/visualizations/predictions/test_sample_1_obs_gt_pred_error_t0_113.svg'
+            pattern = str(PROJECT_ROOT / f'runs_drd_paper/sr_scan_batch/AR-DR2D-SR-Scan-Input{size}/test_visualizations/visualizations/predictions/test_sample_1_obs_gt_pred_error_t0_113.svg')
             files = glob.glob(pattern)
             if files:
                 grid_files[size] = files[0]
@@ -55,8 +59,8 @@ def main():
                 print(f"Warning: File missing for input size {size}")
         else:
             # For larger sizes, use sample_0027 or fallback
-            pattern_27 = f'/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/runs_drd_paper/sr_scan_batch/AR-DR2D-SR-Scan-Input{size}/test_visualizations/visualizations/predictions/sample_0027_obs_gt_pred_error_t0_t0_1.svg'
-            pattern_1 = f'/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/runs_drd_paper/sr_scan_batch/AR-DR2D-SR-Scan-Input{size}/test_visualizations/visualizations/predictions/test_sample_1_obs_gt_pred_error_t0_1.svg'
+            pattern_27 = str(PROJECT_ROOT / f'runs_drd_paper/sr_scan_batch/AR-DR2D-SR-Scan-Input{size}/test_visualizations/visualizations/predictions/sample_0027_obs_gt_pred_error_t0_t0_1.svg')
+            pattern_1 = str(PROJECT_ROOT / f'runs_drd_paper/sr_scan_batch/AR-DR2D-SR-Scan-Input{size}/test_visualizations/visualizations/predictions/test_sample_1_obs_gt_pred_error_t0_1.svg')
             
             files_27 = glob.glob(pattern_27)
             files_1 = glob.glob(pattern_1)
@@ -114,7 +118,7 @@ def main():
     html_content.append("</div>")
     html_content.append("</body></html>")
     
-    out_dir = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/runs_drd_paper"
+    out_dir = PROJECT_ROOT / "runs_drd_paper"
     html_path = os.path.join(out_dir, "temp_sr_comparison.html")
     pdf_output = os.path.join(out_dir, "paper_figure_sr_scan_edsr_prince.pdf")
     
@@ -122,7 +126,7 @@ def main():
         f.write('\n'.join(html_content))
         
     print("Running PrinceXML to generate PDF...")
-    prince_bin = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/tools/prince_local/bin/prince"
+    prince_bin = PROJECT_ROOT / "tools/prince_local/bin/prince"
     subprocess.run([prince_bin, html_path, "-o", pdf_output])
     
     print("Generating pure SVG with prefixed IDs...")

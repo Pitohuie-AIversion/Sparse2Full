@@ -4,6 +4,10 @@
 """
 import h5py
 import os
+from pathlib import Path
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 def check_data_keys(data_path):
     """检查HDF5文件中的键名"""
@@ -39,9 +43,9 @@ def check_data_keys(data_path):
 def main():
     """检查所有数据集的键名"""
     data_paths = [
-        "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/data/2D_diff-react_NA_NA.h5",
-        "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/data/DR2D/pdebench_tiny.h5",
-        "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/test_data.h5"
+        PROJECT_ROOT / "data/2D_diff-react_NA_NA.h5",
+        PROJECT_ROOT / "data/DR2D/pdebench_tiny.h5",
+        PROJECT_ROOT / "test_data.h5"
     ]
     
     results = {}

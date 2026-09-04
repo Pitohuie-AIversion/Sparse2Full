@@ -254,8 +254,8 @@ def create_comprehensive_visualizations(results, config, checkpoint, output_dir)
 
 def main():
     """主函数"""
-    checkpoint_path = "f:/Zhaoyang/Sparse2Full/runs/checkpoints/best.pth"
-    output_dir = "f:/Zhaoyang/Sparse2Full/runs/true_observation_visualization"
+    checkpoint_path = "runs/checkpoints/best.pth"
+    output_dir = "runs/true_observation_visualization"
     
     print("🚀 开始可视化best.pth模型...")
     

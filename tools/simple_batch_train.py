@@ -28,7 +28,7 @@ def train_model(model_name, seed=2025, epochs=15):
     
     # 构建训练命令 - 使用正确的Hydra覆盖语法
     cmd = [
-        "F:\\ProgramData\\anaconda3\\python.exe", "train.py",
+        "python", "train.py",
         f"+model={model_name}",  # 使用+覆盖默认配置
         f"trainer.max_epochs={epochs}",
         f"data.batch_size=2",

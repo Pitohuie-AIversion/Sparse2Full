@@ -11,7 +11,7 @@ from pathlib import Path
 def create_simple_plot():
     """创建简单的训练可视化"""
     # 设置路径
-    base_dir = Path("f:/Zhaoyang/Sparse2Full")
+    base_dir = Path(".")
     data_path = base_dir / "runs/temporal_nar_100epochs/TemporalNAR-DR2D-128-100epochs-s2025/training_history.json"
     save_dir = base_dir / "runs/temporal_nar_100epochs/visualizations"
     

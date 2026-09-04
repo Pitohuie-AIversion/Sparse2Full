@@ -8,6 +8,9 @@ import os
 import random
 from tqdm import tqdm
 
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
 def save_animation(fig, ims, output_path):
     ani = animation.ArtistAnimation(fig, ims, interval=100, blit=True, repeat_delay=1000)
     writer = animation.PillowWriter(fps=10, bitrate=1800)
@@ -95,8 +98,8 @@ def visualize_swe(h5_path, output_dir, stride=10, num_samples=5):
             save_animation(fig, ims, output_path)
 
 if __name__ == "__main__":
-    base_dir = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/data/2D"
-    output_dir = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/paper_package/figs/vis_samples"
+    base_dir = PROJECT_ROOT / "data/2D"
+    output_dir = PROJECT_ROOT / "paper_package/figs/vis_samples"
     os.makedirs(output_dir, exist_ok=True)
     
     # Paths based on user request and file system exploration

@@ -56,42 +56,42 @@ def main():
     training_configs = [
         {
             "name": "ns_incom_inhom_2d_512-0_sr_x2",
-            "config_path": "configs\auto_generated\ns_incom_inhom_2d_512_0_sr_x2_optimized.yaml",
+            "config_path": "configs/auto_generated/ns_incom_inhom_2d_512_0_sr_x2_optimized.yaml",
             "dataset": "ns_incom_inhom_2d_512-0",
             "task_type": "sr_x2",
             "pde_type": "navier_stokes"
         },
         {
             "name": "ns_incom_inhom_2d_512-0_crop_20",
-            "config_path": "configs\auto_generated\ns_incom_inhom_2d_512_0_crop_20_optimized.yaml",
+            "config_path": "configs/auto_generated/ns_incom_inhom_2d_512_0_crop_20_optimized.yaml",
             "dataset": "ns_incom_inhom_2d_512-0",
             "task_type": "crop_20",
             "pde_type": "navier_stokes"
         },
         {
             "name": "2D_diff-react_NA_NA_sr_x2",
-            "config_path": "configs\auto_generated\2d_diff_react_na_na_sr_x2_optimized.yaml",
+            "config_path": "configs/auto_generated/2d_diff_react_na_na_sr_x2_optimized.yaml",
             "dataset": "2D_diff-react_NA_NA",
             "task_type": "sr_x2",
             "pde_type": "diffusion_reaction"
         },
         {
             "name": "2D_diff-react_NA_NA_crop_40",
-            "config_path": "configs\auto_generated\2d_diff_react_na_na_crop_40_optimized.yaml",
+            "config_path": "configs/auto_generated/2d_diff_react_na_na_crop_40_optimized.yaml",
             "dataset": "2D_diff-react_NA_NA",
             "task_type": "crop_40",
             "pde_type": "diffusion_reaction"
         },
         {
             "name": "2D_rdb_NA_NA_sr_x4",
-            "config_path": "configs\auto_generated\2d_rdb_na_na_sr_x4_optimized.yaml",
+            "config_path": "configs/auto_generated/2d_rdb_na_na_sr_x4_optimized.yaml",
             "dataset": "2D_rdb_NA_NA",
             "task_type": "sr_x4",
             "pde_type": "shallow_water"
         },
         {
             "name": "2D_rdb_NA_NA_crop_20",
-            "config_path": "configs\auto_generated\2d_rdb_na_na_crop_20_optimized.yaml",
+            "config_path": "configs/auto_generated/2d_rdb_na_na_crop_20_optimized.yaml",
             "dataset": "2D_rdb_NA_NA",
             "task_type": "crop_20",
             "pde_type": "shallow_water"

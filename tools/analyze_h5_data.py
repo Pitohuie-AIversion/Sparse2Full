@@ -119,8 +119,9 @@ def analyze_h5_file(file_path):
 
 def main():
     """主函数"""
-    # 目标文件路径
-    file_path = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse_to_Dense_Transformer/VIVTransformer-4sh2r1-codx/pdebench_extended/data/PDEBench/pdebench/data_download/....data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+    from pathlib import Path
+    project_root = Path(__file__).resolve().parents[1]
+    file_path = str(project_root / "data/DR2D/2D_diff-react_NA_NA.h5")
     
     print("🔍 PDEBench HDF5 数据格式分析器")
     print("=" * 80)

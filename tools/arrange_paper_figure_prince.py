@@ -3,15 +3,21 @@ import glob
 import argparse
 import base64
 import subprocess
+from pathlib import Path
 
 def encode_svg_to_base64(filepath):
     with open(filepath, 'rb') as f:
         encoded = base64.b64encode(f.read()).decode('utf-8')
     return f"data:image/svg+xml;base64,{encoded}"
 
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_BASE_DIR = str(PROJECT_ROOT / 'drd_paper_1m')
+DEFAULT_PRINCE_BIN = str(PROJECT_ROOT / 'tools' / 'prince_local' / 'bin' / 'prince')
+
 def main():
     parser = argparse.ArgumentParser(description='Arrange model SVGs into a paper figure using HTML and Prince.')
-    parser.add_argument('--base_dir', type=str, default='/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/drd_paper_1m',
+    parser.add_argument('--base_dir', type=str, default=DEFAULT_BASE_DIR,
                         help='Base directory containing model folders')
     parser.add_argument('--filename', type=str, default='sample_0059_obs_gt_pred_error_t70_1.svg',
                         help='Target SVG filename to compare')
@@ -85,7 +91,7 @@ def main():
         args.output_pdf = os.path.join(args.base_dir, f"paper_figure_prince_{args.filename.replace('.svg', '.pdf')}")
         
     print("Running PrinceXML to generate PDF...")
-    prince_bin = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/tools/prince_local/bin/prince"
+    prince_bin = DEFAULT_PRINCE_BIN
     subprocess.run([prince_bin, html_path, "-o", args.output_pdf])
     
     # Also generate an SVG by wrapping everything in an SVG file!

@@ -505,10 +505,10 @@ class ModelVisualizer:
 def main():
     """主函数 - 专门处理时序NAR模型"""
     # 指定时序NAR模型路径
-    model_path = r"f:\Zhaoyang\Sparse2Full\runs\temporal_nar_100epochs\TemporalNAR-DR2D-128-100epochs-s2025\best.pth"
+    model_path = r"runs/temporal_nar_100epochs/TemporalNAR-DR2D-128-100epochs-s2025/best.pth"
     
     # 设置输出目录
-    output_dir = r"f:\Zhaoyang\Sparse2Full\runs\temporal_nar_100epochs\predictions_visualization"
+    output_dir = r"runs/temporal_nar_100epochs/predictions_visualization"
     
     print(f"🎯 专门处理时序NAR模型: {model_path}")
     print(f"📁 输出目录: {output_dir}")

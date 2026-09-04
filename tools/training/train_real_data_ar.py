@@ -45,6 +45,11 @@ try:
 except ImportError:
     ARVisualizer = None
 
+try:
+    from src.monitoring import TensorBoardLogger
+except ImportError:
+    TensorBoardLogger = None
+
 
 def convert_numpy_types(obj):
     """递归转换numpy类型为JSON可序列化的Python原生类型"""
@@ -644,9 +649,14 @@ class RealDataARTrainer:
 
         # TensorBoard：仅主进程创建，避免事件文件并发冲突
         self.writer = None
+        self.tb_logger = None
         if is_primary:
             try:
-                self.writer = SummaryWriter(self.output_dir / "tensorboard")
+                if TensorBoardLogger is not None:
+                    self.tb_logger = TensorBoardLogger(self.output_dir / "tensorboard", enabled=True)
+                    self.writer = self.tb_logger.writer
+                else:
+                    self.writer = SummaryWriter(self.output_dir / "tensorboard")
             except Exception as _tb_err:
                 # 不中断训练，记录并继续
                 self.logger.warning(f"TensorBoard创建失败（继续训练）: {_tb_err}")
@@ -1098,9 +1108,12 @@ class RealDataARTrainer:
         self.logger.info(f"使用验证批次大小: {self.val_batch_size}")
         self.logger.info(f"使用测试批次大小: {self.test_batch_size}")
 
-        # 强制使用真实数据，无任何 fallback
-        self.using_synthetic = False
-        self.using_dm = True
+        # 合成数据只能由显式配置启用；真实数据模式仍保持 fail-closed。
+        self.using_synthetic = bool(self._cfg_select('data.use_synthetic_data', default=False))
+        self.using_dm = not self.using_synthetic
+        if self.using_synthetic:
+            self._setup_synthetic_data()
+            return
 
         dataset_name = self._cfg_select('data.dataset_name', default='RealDiffusionReaction')
         self.logger.info(f"使用数据集: {dataset_name}")
@@ -1163,18 +1176,6 @@ class RealDataARTrainer:
 
         # Fix 3: One-time flag for DDP logging
         self._ddp_loadercheck_logged = set()
-
-        # 尝试获取DataModule
-        try:
-            self._setup_data_module()
-            # 移除合成数据回退，强制使用真实数据
-            # self._setup_synthetic_data()
-            self._setup_dataloaders()
-            self._setup_observation_operator()
-            self._setup_norm_stats()
-        except Exception as e:
-            self.logger.exception(f"❌ 数据模块设置失败/数据设置失败: {e}")
-            raise
 
     def _setup_dataloaders(self):
         # 统一保护：num_workers==0 时禁用 prefetch_factor 并关闭 persistent_workers
@@ -3793,6 +3794,35 @@ class RealDataARTrainer:
                         # 复制到paper_package
                         import shutil
                         shutil.copy2(viz_path, out_dir_pkg / Path(viz_path).name)
+
+                        # 接入 TensorBoard 深度可视化 (Flow Grid, Histogram, Energy Spectrum, Rollout Strip)
+                        if hasattr(self, 'tb_logger') and self.tb_logger is not None and self.tb_logger.enabled:
+                            self.tb_logger.log_flow_field_grid(
+                                gt_field=gt_denorm[0],
+                                pred_field=pred_denorm[0],
+                                input_sparse=obs_denorm[0],
+                                step=epoch,
+                                tag="Validation/FlowField_Grid"
+                            )
+                            self.tb_logger.log_error_histogram(
+                                gt=gt_denorm,
+                                pred=pred_denorm,
+                                step=epoch,
+                                tag="Validation/Error_Histogram"
+                            )
+                            self.tb_logger.log_energy_spectrum(
+                                gt_field=gt_denorm[0],
+                                pred_field=pred_denorm[0],
+                                step=epoch,
+                                tag="Validation/Energy_Spectrum"
+                            )
+                            if isinstance(target_seq, torch.Tensor) and target_seq.dim() >= 4 and target_seq.shape[1] > 1:
+                                self.tb_logger.log_temporal_rollout_strip(
+                                    gt_seq=target_seq[0],
+                                    pred_seq=pred_denorm[0],
+                                    step=epoch,
+                                    tag="Validation/Rollout_Sequence"
+                                )
 
                         self.logger.info(f"Saved standard visualizations via ARVisualizer for epoch {epoch}")
                         return # 成功使用ARVisualizer后返回
@@ -6610,6 +6640,8 @@ class RealDataARTrainer:
             'max_gpu_peak_allocated_gb': 0.0,
             'max_gpu_peak_reserved_gb': 0.0,
             'avg_epoch_time_sec': 0.0,
+            'flops_g': 0.0,
+            'inference_latency_ms_mean': 0.0,
         }
         try:
             throughputs, times, peak_allocs, peak_resv = [], [], [], []
@@ -6633,6 +6665,14 @@ class RealDataARTrainer:
                 summary['max_gpu_peak_allocated_gb'] = float(np.max(peak_allocs))
             if peak_resv:
                 summary['max_gpu_peak_reserved_gb'] = float(np.max(peak_resv))
+            model_resource_file = self.output_dir / 'model_resources.json'
+            if model_resource_file.exists():
+                with open(model_resource_file) as f:
+                    model_resources = json.load(f)
+                summary['flops_g'] = float(model_resources.get('flops_g', 0.0))
+                summary['inference_latency_ms_mean'] = float(
+                    model_resources.get('inference_latency_ms_mean', 0.0)
+                )
             # 写入JSON
             with open(self.output_dir / 'resource_summary.json', 'w') as f:
                 json.dump(summary, f, indent=2)
@@ -6642,6 +6682,8 @@ class RealDataARTrainer:
                 f"- 训练轮数: {summary['epochs']}\n"
                 f"- 平均吞吐: {summary['avg_throughput_samples_per_sec']:.2f} samples/s\n"
                 f"- 平均每轮耗时: {summary['avg_epoch_time_sec']:.2f} s\n"
+                f"- FLOPs: {summary['flops_g']:.3f} G\n"
+                f"- 推理延迟: {summary['inference_latency_ms_mean']:.2f} ms\n"
                 f"- GPU峰值(alloc): {summary['max_gpu_peak_allocated_gb']:.3f} GB\n"
                 f"- GPU峰值(reserved): {summary['max_gpu_peak_reserved_gb']:.3f} GB\n"
             )

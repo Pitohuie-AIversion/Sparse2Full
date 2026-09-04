@@ -7,10 +7,13 @@ import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 
+from pathlib import Path
+
 def quick_visualize():
     """快速生成可视化图像"""
     
-    data_path = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse_to_Dense_Transformer/VIVTransformer-4sh2r1-codx/pdebench_extended/data/PDEBench/pdebench/data_download/....data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+    project_root = Path(__file__).resolve().parents[1]
+    data_path = str(project_root / "data/DR2D/2D_diff-react_NA_NA.h5")
     
     print(f"读取数据: {data_path}")
     

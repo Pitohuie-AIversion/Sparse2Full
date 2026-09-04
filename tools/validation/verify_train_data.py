@@ -233,8 +233,8 @@ def generate_verification_report(config_path, data_path):
 
 def main():
     """主函数"""
-    config_path = "f:/Zhaoyang/Sparse2Full/configs/train.yaml"
-    data_path = "E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5"
+    config_path = "configs/train.yaml"
+    data_path = "data/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5"
     
     # 生成验证报告
     result = generate_verification_report(config_path, data_path)

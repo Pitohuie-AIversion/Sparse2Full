@@ -47,7 +47,7 @@ sequential:
   enabled: false
 
 data:
-  data_path: "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse_to_Dense_Transformer/VIVTransformer-4sh2r1-codx/pdebench_extended/data/PDEBench/pdebench/data_download/....data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+  data_path: "data/DR2D/2D_diff-react_NA_NA.h5"
   dataset_name: RealDiffusionReaction
   img_size: 128
   keys: ["data"]

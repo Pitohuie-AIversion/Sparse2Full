@@ -3,6 +3,7 @@ import re
 import argparse
 import svgutils.transform as sg
 import tempfile
+from pathlib import Path
 
 def prefix_svg_ids(svg_content, prefix):
     """
@@ -20,23 +21,29 @@ def prefix_svg_ids(svg_content, prefix):
         
     return svg_content
 
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+RUN_DIR = PROJECT_ROOT / 'runs'
+BASELINE_DIR = PROJECT_ROOT / 'runs_baseline'
+MODEL_CONFIGS = [
+    ('EDSR (Ours)', RUN_DIR / 'AR-SW-10M-edsr' / 'test_visualizations' / 'visualizations' / 'predictions' / 'sample_0059_obs_gt_pred_error_t70_1.svg'),
+    ('NAFNet', RUN_DIR / 'AR-SW-10M-nafnet' / 'test_visualizations' / 'visualizations' / 'predictions' / 'sample_0059_obs_gt_pred_error_t70_1.svg'),
+    ('ResNetLite', RUN_DIR / 'AR-SW-10M-resnetlite' / 'test_visualizations' / 'visualizations' / 'predictions' / 'sample_0059_obs_gt_pred_error_t70.svg'),
+    ('UNO', RUN_DIR / 'AR-SW-10M-uno' / 'test_visualizations' / 'visualizations' / 'predictions' / 'sample_0059_obs_gt_pred_error_t70_1.svg'),
+    ('SegFormer', RUN_DIR / 'AR-SW-10M-segformer' / 'test_visualizations' / 'visualizations' / 'predictions' / 'sample_0059_obs_gt_pred_error_t70_1.svg'),
+    ('Bicubic', BASELINE_DIR / 'viz_bicubic' / 'visualizations' / 'predictions' / 'sample_0059_st70_obs_gt_pred_error_t0.svg'),
+    ('MLP-Model', RUN_DIR / 'AR-SW-10M-mlpmodel' / 'test_visualizations' / 'visualizations' / 'predictions' / 'sample_0059_obs_gt_pred_error_t70_1.svg'),
+    ('SwinUNet', RUN_DIR / 'AR-SW-10M-swin_unet' / 'test_visualizations' / 'visualizations' / 'predictions' / 'sample_0059_obs_gt_pred_error_t70_1.svg'),
+    ('Bilinear', RUN_DIR / 'AR-SW-10M-bilinear3x3decoder' / 'test_visualizations' / 'visualizations' / 'predictions' / 'sample_0059_obs_gt_pred_error_t70_1.svg'),
+]
+
 def main():
     parser = argparse.ArgumentParser(description='Arrange SWE model SVGs into a 3x3 paper figure.')
-    parser.add_argument('--output', type=str, default='/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/runs/paper_figure_swe_sample_0059_t70.svg')
+    parser.add_argument('--output', type=str, default=str(PROJECT_ROOT / 'runs' / 'paper_figure_swe_sample_0059_t70.svg'))
     args = parser.parse_args()
     
     # Define exact paths and titles for the 3x3 grid
-    model_configs = [
-        ("EDSR (Ours)", "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/runs/AR-SW-10M-edsr/test_visualizations/visualizations/predictions/sample_0059_obs_gt_pred_error_t70_1.svg"),
-        ("NAFNet", "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/runs/AR-SW-10M-nafnet/test_visualizations/visualizations/predictions/sample_0059_obs_gt_pred_error_t70_1.svg"),
-        ("ResNetLite", "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/runs/AR-SW-10M-resnetlite/test_visualizations/visualizations/predictions/sample_0059_obs_gt_pred_error_t70.svg"),
-        ("UNO", "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/runs/AR-SW-10M-uno/test_visualizations/visualizations/predictions/sample_0059_obs_gt_pred_error_t70_1.svg"),
-        ("SegFormer", "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/runs/AR-SW-10M-segformer/test_visualizations/visualizations/predictions/sample_0059_obs_gt_pred_error_t70_1.svg"),
-        ("Bicubic", "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/runs_baseline/viz_bicubic/visualizations/predictions/sample_0059_st70_obs_gt_pred_error_t0.svg"),
-        ("MLP-Model", "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/runs/AR-SW-10M-mlpmodel/test_visualizations/visualizations/predictions/sample_0059_obs_gt_pred_error_t70_1.svg"),
-        ("SwinUNet", "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/runs/AR-SW-10M-swin_unet/test_visualizations/visualizations/predictions/sample_0059_obs_gt_pred_error_t70_1.svg"),
-        ("Bilinear", "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/runs/AR-SW-10M-bilinear3x3decoder/test_visualizations/visualizations/predictions/sample_0059_obs_gt_pred_error_t70_1.svg")
-    ]
+    model_configs = [(name, str(path)) for name, path in MODEL_CONFIGS]
     
     cols = 3
     rows = 3

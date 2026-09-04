@@ -329,7 +329,7 @@ class ModelPredictionVisualizer:
         try:
             # 查找可用的数据文件
             data_files = [
-                "E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5",
+                "data/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5",
                 "data/2D_DarcyFlow_beta1.0_Train.hdf5",
                 "/tmp/2D_DarcyFlow_beta1.0_Train.hdf5"
             ]

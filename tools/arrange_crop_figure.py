@@ -6,6 +6,10 @@ import svgutils.transform as sg
 import tempfile
 import base64
 import subprocess
+from pathlib import Path
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 def sanitize_svg(content):
     idx = content.find("</svg>")
@@ -47,11 +51,11 @@ def main():
         for model in models:
             pattern = ''
             if model == 'UNet':
-                pattern = f'/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/runs/UNet_Crop_Scan/AR-DR2D-Crop-Scan-Size{size}-UNet/test_visualizations/visualizations/predictions/test_sample_1_obs_gt_pred_error_t0.svg'
+                pattern = str(PROJECT_ROOT / f'runs/UNet_Crop_Scan/AR-DR2D-Crop-Scan-Size{size}-UNet/test_visualizations/visualizations/predictions/test_sample_1_obs_gt_pred_error_t0.svg')
             elif model == 'EDSR':
-                pattern = f'/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/runs_drd_paper/AR-DR2D-Crop-Scan-Size{size}-model_EDSR-*/test_visualizations/visualizations/predictions/test_sample_1_obs_gt_pred_error_t0.svg'
+                pattern = str(PROJECT_ROOT / f'runs_drd_paper/AR-DR2D-Crop-Scan-Size{size}-model_EDSR-*/test_visualizations/visualizations/predictions/test_sample_1_obs_gt_pred_error_t0.svg')
             elif model == 'PartialConvUNet':
-                pattern = f'/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/runs/AR-DR2D-Crop-Inpainting-PartialConvUNet-Size{size}-*/test_visualizations/visualizations/predictions/test_sample_1_obs_gt_pred_error_t0.svg'
+                pattern = str(PROJECT_ROOT / f'runs/AR-DR2D-Crop-Inpainting-PartialConvUNet-Size{size}-*/test_visualizations/visualizations/predictions/test_sample_1_obs_gt_pred_error_t0.svg')
                 
             files = glob.glob(pattern)
             if files:
@@ -103,7 +107,7 @@ def main():
     html_content.append("</div>")
     html_content.append("</body></html>")
     
-    out_dir = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/runs"
+    out_dir = PROJECT_ROOT / "runs"
     html_path = os.path.join(out_dir, "temp_crop_comparison.html")
     pdf_output = os.path.join(out_dir, "paper_figure_crop_scan_prince.pdf")
     
@@ -111,7 +115,7 @@ def main():
         f.write('\n'.join(html_content))
         
     print("Running PrinceXML to generate PDF...")
-    prince_bin = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/tools/prince_local/bin/prince"
+    prince_bin = PROJECT_ROOT / "tools/prince_local/bin/prince"
     subprocess.run([prince_bin, html_path, "-o", pdf_output])
     
     # We will also generate the pure SVG using sg.SVGFigure

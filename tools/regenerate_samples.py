@@ -278,7 +278,7 @@ class SampleRegenerator:
 
 def main():
     """主函数"""
-    base_dir = "f:/Zhaoyang/Sparse2Full"
+    base_dir = "."
     
     regenerator = SampleRegenerator(base_dir)
     regenerator.regenerate_all_samples()

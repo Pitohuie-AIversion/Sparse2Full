@@ -49,7 +49,7 @@ class TemporalNARTrainer:
             
             # 数据配置
             'data': {
-                'data_path': r'E:\2D\diffusion-reaction\2D_diff-react_NA_NA.h5',
+                'data_path': r'data/DR2D/2D_diff-react_NA_NA.h5',
                 'dataset_name': '2D_diff-react_NA_NA',
                 'batch_size': 4,
                 'image_size': 128,

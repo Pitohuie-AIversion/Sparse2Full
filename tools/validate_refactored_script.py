@@ -23,6 +23,9 @@ import warnings
 project_root = Path(__file__).resolve().parents[1]
 sys.path.append(str(project_root))
 
+DEFAULT_REFACTORED_SCRIPT = project_root / "tools" / "training" / "train_real_data_ar_refactored.py"
+DEFAULT_CONFIG = project_root / "configs" / "ar_training_refactored_config.yaml"
+
 class ValidationLevel(Enum):
     """验证级别"""
     ERROR = "ERROR"
@@ -1202,10 +1205,10 @@ def main():
     
     parser = argparse.ArgumentParser(description="验证重构的训练脚本")
     parser.add_argument("--script", type=str, 
-                       default="/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/tools/training/train_real_data_ar_refactored.py",
+                       default=str(DEFAULT_REFACTORED_SCRIPT),
                        help="重构脚本路径")
     parser.add_argument("--config", type=str,
-                       default="/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/configs/ar_training_refactored_config.yaml",
+                       default=str(DEFAULT_CONFIG),
                        help="配置文件路径")
     parser.add_argument("--output", type=str, help="输出报告文件路径")
     parser.add_argument("--format", choices=["text", "json"], default="text",

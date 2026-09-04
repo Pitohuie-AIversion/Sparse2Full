@@ -1,7 +1,9 @@
 import re
 import os
+from pathlib import Path
 
-FILE_PATH = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/thesis_paper/manuscript_gpt_review/chapter2.md"
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+FILE_PATH = PROJECT_ROOT / "thesis_paper/manuscript_gpt_review/chapter2.md"
 
 def fix_file():
     if not os.path.exists(FILE_PATH):

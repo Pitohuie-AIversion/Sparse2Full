@@ -1201,6 +1201,9 @@ class SpatiotemporalTrainer:
     def __init__(self, config: DictConfig):
         self.config = SpatiotemporalConfigManager.validate_config(config)
         self.device = torch.device(self.config.experiment.device if torch.cuda.is_available() else 'cpu')
+
+        self.output_dir = Path(self.config.experiment.output_dir) / self.config.experiment.name
+        self.output_dir.mkdir(parents=True, exist_ok=True)
         
         # 初始化组件
         self.data_manager = SpatiotemporalDataManager(self.config)
@@ -1208,7 +1211,15 @@ class SpatiotemporalTrainer:
         
         # 初始化模型
         if SPATIOTEMPORAL_AVAILABLE:
-            self.model = SequentialSpatiotemporalModel(self.config)
+            model_config = self.config.get('model', {})
+            spatial_config = self.config.get('spatial', model_config.get('spatial', model_config))
+            temporal_config = self.config.get('temporal', model_config.get('temporal', {}))
+            self.model = SequentialSpatiotemporalModel(
+                spatial_config=spatial_config,
+                temporal_config=temporal_config,
+                data_config=self.config.data,
+                device=str(self.device),
+            )
             self.trainer = SequentialSpatiotemporalTrainer(self.config)
         else:
             self.logger.warning("时空分解模型不可用，使用简化版本")
@@ -1220,10 +1231,6 @@ class SpatiotemporalTrainer:
         self.current_epoch = 0
         self.global_step = 0
         self.best_metrics = {'val_loss': float('inf')}
-        
-        # 输出目录
-        self.output_dir = Path(self.config.experiment.output_dir) / self.config.experiment.name
-        self.output_dir.mkdir(parents=True, exist_ok=True)
         
         # 保存配置快照
         self._save_config_snapshot()

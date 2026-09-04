@@ -14,9 +14,9 @@ from pathlib import Path
 from typing import List, Dict, Any
 
 class ModelTrainer:
-    def __init__(self, python_path: str = "F:\\ProgramData\\anaconda3\\python.exe"):
+    def __init__(self, python_path: str = "python"):
         self.python_path = python_path
-        self.base_dir = Path("F:\\Zhaoyang\\Sparse2Full")
+        self.base_dir = Path(".")
         self.results_dir = self.base_dir / "runs" / "batch_training_results"
         self.results_dir.mkdir(parents=True, exist_ok=True)
         

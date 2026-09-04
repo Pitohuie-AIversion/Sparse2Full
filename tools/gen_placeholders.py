@@ -1,6 +1,7 @@
 
 import os
 from PIL import Image, ImageDraw, ImageFont
+from pathlib import Path
 
 # List of missing images to generate placeholders for
 MISSING_IMAGES = [
@@ -20,7 +21,8 @@ MISSING_IMAGES = [
     "fig5-4_trustworthy_geometric_sciml.png"
 ]
 
-TARGET_DIR = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/thesis_paper/manuscript_5_chapter/images"
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+TARGET_DIR = PROJECT_ROOT / "thesis_paper/manuscript_5_chapter/images"
 
 def create_placeholder(filename):
     width, height = 800, 600

@@ -84,8 +84,12 @@ class PDEBenchVisualizer:
         html_lines += ["  </div>", "</body>", "</html>"]
 
         out_html = self.output_dir / "index.html"
+        report_html = self.output_dir / "report.html"
+        html_content = "\n".join(html_lines)
         with open(out_html, "w", encoding="utf-8") as f:
-            f.write("\n".join(html_lines))
+            f.write(html_content)
+        with open(report_html, "w", encoding="utf-8") as f:
+            f.write(html_content)
 
         # Optionally copy images
         try:

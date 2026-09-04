@@ -1,6 +1,7 @@
 import os
 import glob
 import argparse
+from pathlib import Path
 
 def generate_html_grid(base_dir, filename, output_html):
     search_pattern = os.path.join(base_dir, '*', 'test_visualizations', 'visualizations', 'predictions', filename)
@@ -61,9 +62,12 @@ def generate_html_grid(base_dir, filename, output_html):
     print(f"Generated HTML figure at: {output_html}")
     print(f"You can open this HTML file in your browser and print to PDF.")
 
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_BASE_DIR = str(PROJECT_ROOT / 'drd_paper_1m')
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Create a comparison HTML figure for models.')
-    parser.add_argument('--base_dir', type=str, default='/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/drd_paper_1m',
+    parser.add_argument('--base_dir', type=str, default=DEFAULT_BASE_DIR,
                         help='Base directory containing model folders')
     parser.add_argument('--filename', type=str, default='sample_0059_obs_gt_pred_error_t70_1.svg',
                         help='Target SVG filename to compare')

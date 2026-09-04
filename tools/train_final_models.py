@@ -67,7 +67,7 @@ def run_training(model_name, epochs=15, batch_size=2, seed=2025):
     
     # 构建训练命令
     cmd = [
-        r"F:\ProgramData\anaconda3\python.exe", "train.py",
+        r"python", "train.py",
         f"+model={model_name}",
         f"+train.epochs={epochs}",
         f"+dataloader.batch_size={batch_size}",

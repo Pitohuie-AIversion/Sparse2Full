@@ -174,7 +174,7 @@ if __name__ == "__main__":
     import argparse
     
     # Configuration
-    PROJECT_ROOT = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full"
+    PROJECT_ROOT = Path(__file__).resolve().parents[1]
     TEMPLATE_PATH = os.path.join(PROJECT_ROOT, "thesis_paper/manuscript_gpt_review/DMUpapertemplate/template_fixed.docx")
     
     # Target directory: manuscript_5_chapter

@@ -7,14 +7,23 @@
 - 可视化生成
 """
 
-from .check_dc_equivalence import DataConsistencyChecker
-from .summarize_runs import RunsSummarizer
-from .benchmark_models import ModelBenchmark
+try:
+    from .check_dc_equivalence import DataConsistencyChecker
+except Exception:
+    DataConsistencyChecker = None
+
+try:
+    from .summarize_runs import RunsSummarizer
+except Exception:
+    RunsSummarizer = None
+
+try:
+    from .benchmark_models import ModelBenchmark
+except Exception:
+    ModelBenchmark = None
 
 __all__ = [
-    'verify_degradation_consistency',
-    'run_consistency_check', 
-    'summarize_experiments',
-    'generate_results_table',
-    'benchmark_model_performance'
+    'DataConsistencyChecker',
+    'RunsSummarizer',
+    'ModelBenchmark',
 ]

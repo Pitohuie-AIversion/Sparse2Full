@@ -1,8 +1,10 @@
 
 import h5py
 import sys
+from pathlib import Path
 
-file_path = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/data/2D/shallow-water/2D_rdb_NA_NA.h5"
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+file_path = PROJECT_ROOT / "data/2D/shallow-water/2D_rdb_NA_NA.h5"
 try:
     with h5py.File(file_path, 'r') as f:
         print(f"File: {file_path}")

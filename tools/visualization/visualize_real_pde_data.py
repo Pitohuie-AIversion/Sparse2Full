@@ -240,7 +240,7 @@ def generate_report(samples, save_dir="runs/visualization"):
         f.write("# 真实PDEBench DarcyFlow数据可视化报告\n\n")
         f.write("## 数据概览\n\n")
         f.write(f"- **数据源**: PDEBench DarcyFlow数据集\n")
-        f.write(f"- **数据路径**: E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5\n")
+        f.write(f"- **数据路径**: data/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5\n")
         f.write(f"- **样本数量**: {len(samples)}\n")
         f.write(f"- **数据类型**: 达西流方程的压力场解\n")
         f.write(f"- **空间分辨率**: 128×128\n\n")
@@ -277,7 +277,7 @@ def main():
     print("开始生成真实PDEBench数据可视化...")
     
     # 数据路径
-    data_path = "E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5"
+    data_path = "data/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5"
     
     if not Path(data_path).exists():
         print(f"✗ 数据文件不存在: {data_path}")

@@ -50,5 +50,5 @@ def check_hdf5_file(file_path):
         print(f"错误: {e}")
 
 if __name__ == "__main__":
-    file_path = "E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5"
+    file_path = "data/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5"
     check_hdf5_file(file_path)

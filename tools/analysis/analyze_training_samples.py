@@ -14,7 +14,7 @@ from datetime import datetime
 
 def analyze_train_log():
     """分析训练日志中的样本数量信息"""
-    log_file = Path("f:/Zhaoyang/Sparse2Full/runs/train.log")
+    log_file = Path("runs/train.log")
     
     if not log_file.exists():
         print(f"训练日志文件不存在: {log_file}")
@@ -51,7 +51,7 @@ def analyze_train_log():
 
 def analyze_config():
     """分析配置文件中的设置"""
-    config_file = Path("f:/Zhaoyang/Sparse2Full/configs/train.yaml")
+    config_file = Path("configs/train.yaml")
     
     if not config_file.exists():
         print(f"配置文件不存在: {config_file}")
@@ -181,7 +181,7 @@ def main():
     
     # 保存分析结果
     if result:
-        report_file = Path("f:/Zhaoyang/Sparse2Full/runs/training_samples_analysis.md")
+        report_file = Path("runs/training_samples_analysis.md")
         with open(report_file, 'w', encoding='utf-8') as f:
             f.write("# 训练样本数量分析报告\n\n")
             f.write(f"## 分析时间\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")

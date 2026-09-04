@@ -486,7 +486,7 @@ class ComprehensiveModelComparison:
 
 def main():
     """主函数"""
-    batch_results_dir = "f:/Zhaoyang/Sparse2Full/runs/batch_retrain_20251015_032934"
+    batch_results_dir = "runs/batch_retrain_20251015_032934"
     
     try:
         # 创建对比分析器

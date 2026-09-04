@@ -53,9 +53,9 @@ def check_dataset_size(data_path):
 def main():
     """检查所有数据集的样本数量"""
     data_paths = [
-        "E:\\2D\\shallow-water\\2D_rdb_NA_NA.h5",
-        "E:\\2D\\diffusion-reaction\\2D_diff-react_NA_NA.h5", 
-        "E:\\2D\\NS_incom\\ns_incom_inhom_2d_512-0.h5"
+        "data/2D/shallow-water/2D_rdb_NA_NA.h5",
+        "data/DR2D/2D_diff-react_NA_NA.h5", 
+        "data/2D/NS_incom/ns_incom_inhom_2d_512-0.h5"
     ]
     
     results = {}

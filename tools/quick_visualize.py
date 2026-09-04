@@ -8,9 +8,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
+from pathlib import Path
+
 def main():
     # 数据文件路径
-    data_path = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse_to_Dense_Transformer/VIVTransformer-4sh2r1-codx/pdebench_extended/data/PDEBench/pdebench/data_download/....data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+    project_root = Path(__file__).resolve().parents[1]
+    data_path = str(project_root / "data/DR2D/2D_diff-react_NA_NA.h5")
     
     print("🔍 正在读取2D反应扩散数据...")
     print(f"📁 数据路径: {data_path}")

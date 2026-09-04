@@ -1,8 +1,10 @@
 
 import re
 import os
+from pathlib import Path
 
-FILE_PATH = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/thesis_paper/manuscript_gpt_review/symbol_checklist.md"
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+FILE_PATH = PROJECT_ROOT / "thesis_paper/manuscript_gpt_review/symbol_checklist.md"
 
 def fix_symbol_checklist():
     if not os.path.exists(FILE_PATH):

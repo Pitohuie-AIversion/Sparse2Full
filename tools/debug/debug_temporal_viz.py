@@ -29,13 +29,13 @@ def main():
         print("✅ 基础库导入成功")
         
         # 检查模型文件
-        model_path = r"f:\Zhaoyang\Sparse2Full\runs\temporal_nar_100epochs\TemporalNAR-DR2D-128-100epochs-s2025\best.pth"
+        model_path = r"runs/temporal_nar_100epochs/TemporalNAR-DR2D-128-100epochs-s2025/best.pth"
         print(f"\n🔍 检查模型文件: {model_path}")
         
         if not Path(model_path).exists():
             print(f"❌ 模型文件不存在")
             # 搜索可能的模型文件
-            runs_dir = Path(r"f:\Zhaoyang\Sparse2Full\runs")
+            runs_dir = Path(r"runs")
             if runs_dir.exists():
                 print("🔍 搜索runs目录中的.pth文件...")
                 pth_files = list(runs_dir.rglob("*.pth"))
@@ -69,14 +69,14 @@ def main():
         
         # 导入并测试可视化脚本
         print("\n🔍 导入可视化脚本...")
-        sys.path.insert(0, r"f:\Zhaoyang\Sparse2Full")
+        sys.path.insert(0, r".")
         
         try:
             from visualize_pth_models import ModelVisualizer
             print("✅ 可视化脚本导入成功")
             
             # 创建可视化器
-            output_dir = r"f:\Zhaoyang\Sparse2Full\debug_output"
+            output_dir = r"debug_output"
             visualizer = ModelVisualizer(output_dir=output_dir)
             print("✅ 可视化器创建成功")
             

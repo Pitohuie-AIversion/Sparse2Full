@@ -1,9 +1,13 @@
 import os
 import glob
 import svgutils.transform as sg
+from pathlib import Path
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 # Search for the SVG files
-base_dir = '/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/drd_paper_1m'
+base_dir = PROJECT_ROOT / 'drd_paper_1m'
 filename = 'sample_0059_obs_gt_pred_error_t70_1.svg'
 
 search_pattern = os.path.join(base_dir, '*', 'test_visualizations', 'visualizations', 'predictions', filename)

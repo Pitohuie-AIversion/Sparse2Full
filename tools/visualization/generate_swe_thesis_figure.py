@@ -15,14 +15,13 @@ plt.rcParams['ytick.major.width'] = 1.5
 
 def generate_swe_figure():
     # Configuration
-    data_path = Path("data/2D/shallow-water/2D_rdb_NA_NA.h5")
-    output_dir = Path("thesis_paper/manuscript_5_chapter/figures")
+    project_root = Path(__file__).resolve().parents[2]
+    data_path = project_root / "data/2D/shallow-water/2D_rdb_NA_NA.h5"
+    output_dir = project_root / "thesis_paper/manuscript_5_chapter/figures"
     output_dir.mkdir(parents=True, exist_ok=True)
     
     # Check if data exists
     if not data_path.exists():
-        # Try relative to project root
-        project_root = Path("/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full")
         data_path = project_root / "data/2D/shallow-water/2D_rdb_NA_NA.h5"
         if not data_path.exists():
             print(f"Error: Data file not found at {data_path}")

@@ -5,6 +5,10 @@
 
 import h5py
 import numpy as np
+from pathlib import Path
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 def analyze_h5_structure(file_path):
     """分析H5文件的结构"""
@@ -68,5 +72,5 @@ def analyze_h5_structure(file_path):
                 print(f"- 通道数: {data_shape[-1] if len(data_shape) >= 4 else 'N/A'}")
 
 if __name__ == "__main__":
-    file_path = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/test_data.h5"
+    file_path = PROJECT_ROOT / "test_data.h5"
     analyze_h5_structure(file_path)

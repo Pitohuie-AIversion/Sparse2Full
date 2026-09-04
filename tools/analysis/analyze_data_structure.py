@@ -25,7 +25,7 @@ sys.path.append('.')
 class DataStructureAnalyzer:
     """数据结构分析器"""
     
-    def __init__(self, data_path: str = "e:/2d/diffusion-reaction/2D_diff-react_NA_NA.h5"):
+    def __init__(self, data_path: str = "data/DR2D/2D_diff-react_NA_NA.h5"):
         """初始化分析器
         
         Args:

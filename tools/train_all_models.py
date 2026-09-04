@@ -15,7 +15,7 @@ class ModelTrainer:
     """模型训练管理器"""
     
     def __init__(self):
-        self.python_exe = "F:\\ProgramData\\anaconda3\\python.exe"
+        self.python_exe = "python"
         self.models = [
             "unet",
             "unet_plus_plus", 

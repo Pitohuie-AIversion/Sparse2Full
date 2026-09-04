@@ -2,10 +2,14 @@ import os
 import glob
 import argparse
 import svgutils.transform as sg
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_BASE_DIR = str(PROJECT_ROOT / 'drd_paper_1m')
 
 def main():
     parser = argparse.ArgumentParser(description='Arrange model SVGs into a paper figure.')
-    parser.add_argument('--base_dir', type=str, default='/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/drd_paper_1m',
+    parser.add_argument('--base_dir', type=str, default=DEFAULT_BASE_DIR,
                         help='Base directory containing model folders')
     parser.add_argument('--filename', type=str, default='sample_0059_obs_gt_pred_error_t70_1.svg',
                         help='Target SVG filename to compare')

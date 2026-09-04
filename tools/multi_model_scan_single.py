@@ -160,7 +160,7 @@ class MultiModelScannerSingle:
             
             # 数据配置 - 关键：使用真实PDEBench数据
             f.write("data:\n")
-            f.write(f"  data_path: \"/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse_to_Dense_Transformer/VIVTransformer-4sh2r1-codx/pdebench_extended/data/PDEBench/pdebench/data_download/....data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5\"\n")
+            f.write(f"  data_path: \"data/DR2D/2D_diff-react_NA_NA.h5\"\n")
             f.write(f"  dataset_name: RealDiffusionReaction\n")
             f.write(f"  input_channels: 2\n")  # 关键：匹配真实数据
             f.write(f"  target_channels: 2\n")  # 关键：匹配真实数据
@@ -352,7 +352,7 @@ class MultiModelScannerSingle:
         try:
             result = subprocess.run(
                 cmd,
-                cwd='/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full',
+                cwd=str(Path(__file__).resolve().parents[1]),
                 capture_output=True,
                 text=True,
                 timeout=3600  # 1小时超时

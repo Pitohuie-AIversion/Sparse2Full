@@ -9,13 +9,14 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')  # 使用非交互式后端
 import matplotlib.pyplot as plt
-import os
+from pathlib import Path
 
 def main():
     print("🔍 开始生成2D反应扩散数据可视化...")
     
     # 数据文件路径
-    data_path = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse_to_Dense_Transformer/VIVTransformer-4sh2r1-codx/pdebench_extended/data/PDEBench/pdebench/data_download/....data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+    project_root = Path(__file__).resolve().parents[1]
+    data_path = str(project_root / "data/DR2D/2D_diff-react_NA_NA.h5")
     
     print(f"📁 数据路径: {data_path}")
     print(f"📂 当前工作目录: {os.getcwd()}")

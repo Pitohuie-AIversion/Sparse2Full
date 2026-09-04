@@ -21,7 +21,7 @@ from dataset_manager import DatasetManager, PDEDatasetAnalyzer, DatasetConfigGen
 class SmartDatasetSelector:
     """智能数据集选择器"""
     
-    def __init__(self, data_root: str = "E:/2D", seed: int = 42):
+    def __init__(self, data_root: str = "data/2D", seed: int = 42):
         self.data_root = data_root
         self.seed = seed
         self.manager = DatasetManager(data_root)
@@ -708,7 +708,7 @@ python train.py --config-path configs/auto_generated --config-name [配置文件
 def main():
     """主函数"""
     parser = argparse.ArgumentParser(description='智能数据集选择和配置工具')
-    parser.add_argument('--data-root', default='E:/2D', help='数据根目录')
+    parser.add_argument('--data-root', default='data/2D', help='数据根目录')
     parser.add_argument('--num-datasets', type=int, default=3, help='选择的数据集数量')
     parser.add_argument('--seed', type=int, default=42, help='随机种子')
     parser.add_argument('--output-dir', default='configs/auto_generated', help='输出目录')

@@ -237,7 +237,7 @@ class TrainingResultsVisualizer:
         # 加载测试数据
         try:
             dataset = PDEBenchDataset(
-                data_root="E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5",
+                data_root="data/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5",
                 split="test",
                 task="SR",
                 task_params={"scale_factor": 4},

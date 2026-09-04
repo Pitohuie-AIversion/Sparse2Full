@@ -14,6 +14,7 @@ import tempfile
 import subprocess
 import threading
 import queue
+import shutil
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass, asdict
@@ -26,6 +27,9 @@ import seaborn as sns
 # 添加项目根目录到路径
 project_root = Path(__file__).resolve().parents[1]
 sys.path.append(str(project_root))
+
+DEFAULT_REFACTORED_SCRIPT = project_root / "tools" / "training" / "train_real_data_ar_refactored.py"
+DEFAULT_CONFIG = project_root / "configs" / "ar_training_refactored_config.yaml"
 
 @dataclass
 class PerformanceMetrics:
@@ -861,10 +865,10 @@ def main():
     """主函数"""
     parser = argparse.ArgumentParser(description="重构脚本性能基准测试")
     parser.add_argument("--script", type=str,
-                       default="/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/tools/training/train_real_data_ar_refactored.py",
+                       default=str(DEFAULT_REFACTORED_SCRIPT),
                        help="重构脚本路径")
     parser.add_argument("--config", type=str,
-                       default="/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/configs/ar_training_refactored_config.yaml",
+                       default=str(DEFAULT_CONFIG),
                        help="配置文件路径")
     parser.add_argument("--output", type=str,
                        default="benchmark_results",
@@ -898,4 +902,4 @@ def main():
     print(f"结果保存在: {output_dir}")
     
     # 返回适当的退出码
-    sys.exit(0 if successful_count == total_count else
+    sys.exit(0 if successful_count == total_count else 1)

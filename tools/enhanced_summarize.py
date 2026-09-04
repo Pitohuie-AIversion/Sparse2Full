@@ -538,7 +538,7 @@ class EnhancedComparisonSummarizer:
             "\\resizebox{\\textwidth}{!}{%",
             "\\begin{tabular}{l" + "c" * len(self.comparison_config['main_metrics']) + "}",
             "\\toprule",
-            "\\textbf{模型} & " + " & ".join([f"\\textbf{{{m.upper()}}}" for m in self.comparison_config['main_metrics']]) + " \\\",
+            "\\textbf{模型} & " + " & ".join([f"\\textbf{{{m.upper()}}}" for m in self.comparison_config['main_metrics']]) + " \\\\",
             "\\midrule"
         ]
         
@@ -578,7 +578,7 @@ class EnhancedComparisonSummarizer:
                 else:
                     row_parts.append("--")
             
-            lines.append(" & ".join(row_parts) + " \\\")
+            lines.append(" & ".join(row_parts) + r" \\")
         
         lines.extend([
             "\\bottomrule",
@@ -624,7 +624,7 @@ class EnhancedComparisonSummarizer:
                 else:
                     row_parts.append(str(value))
             
-            lines.append(" & ".join(row_parts) + " \\\")
+            lines.append(" & ".join(row_parts) + r" \\")
         
         lines.extend([
             "\\bottomrule",
@@ -708,7 +708,7 @@ class EnhancedComparisonSummarizer:
                 else:
                     row_parts.append("--")
             
-            lines.append(" & ".join(row_parts) + " \\\")
+            lines.append(" & ".join(row_parts) + r" \\")
         
         lines.extend([
             "\\bottomrule",
@@ -763,7 +763,7 @@ class EnhancedComparisonSummarizer:
                     sig_result['significance'].replace('_', ' ').title()
                 ])
                 
-                lines.append(" & ".join(row_parts) + " \\\")
+                lines.append(" & ".join(row_parts) + r" \\")
             
             # 添加空行分隔不同模型
             lines.append("")

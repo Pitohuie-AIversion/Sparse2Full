@@ -2,9 +2,13 @@
 import re
 import glob
 import os
+from pathlib import Path
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 def scan_files():
-    files = glob.glob("/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/thesis_paper/manuscript_gpt_review/*.md")
+    files = glob.glob(str(PROJECT_ROOT / "thesis_paper/manuscript_gpt_review/*.md"))
     
     print(f"Scanning {len(files)} files...")
     

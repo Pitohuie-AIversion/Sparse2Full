@@ -14,7 +14,8 @@ def create_simple_visualizations():
     """创建简单的可视化图像"""
     
     # 数据文件路径
-    data_path = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse_to_Dense_Transformer/VIVTransformer-4sh2r1-codx/pdebench_extended/data/PDEBench/pdebench/data_download/....data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+    project_root = Path(__file__).resolve().parents[1]
+    data_path = str(project_root / "data/DR2D/2D_diff-react_NA_NA.h5")
     
     print(f"正在读取数据文件: {data_path}")
     

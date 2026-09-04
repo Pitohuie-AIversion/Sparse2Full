@@ -154,5 +154,7 @@ def detailed_analysis(file_path):
                         print("  ⚠ 弱时间相关性")
 
 if __name__ == "__main__":
-    file_path = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/test_data.h5"
+    from pathlib import Path
+    project_root = Path(__file__).resolve().parents[1]
+    file_path = str(project_root / "test_data.h5")
     detailed_analysis(file_path)
