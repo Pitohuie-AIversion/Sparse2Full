@@ -30,7 +30,7 @@ sequential:
 
 # 数据配置
 data:
-  data_path: "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/data/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5"
+  data_path: "data/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5"
   dataset_name: darcy_flow
   img_size: 128  # 匹配模型期望分辨率
   keys: ["tensor"]

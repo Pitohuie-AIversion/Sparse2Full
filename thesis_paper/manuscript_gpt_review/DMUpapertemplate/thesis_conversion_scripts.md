@@ -80,7 +80,7 @@ def convert_md_to_docx(md_files, template_path, output_dir, filter_path, bib_fil
 
 if __name__ == "__main__":
     # Configuration
-    PROJECT_ROOT = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full"
+    PROJECT_ROOT = os.environ.get("SPARSE2FULL_ROOT", os.getcwd())
     TEMPLATE_PATH = os.path.join(PROJECT_ROOT, "thesis_paper/manuscript_gpt_review/DMUpapertemplate/template_fixed.docx")
     OUTPUT_DIR = os.path.join(PROJECT_ROOT, "thesis_paper/manuscript_gpt_review/docx_output")
     FILTER_PATH = os.path.join(PROJECT_ROOT, "tools/thesis_style.lua")
@@ -122,7 +122,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Pt
 import os
 
-PROJECT_ROOT = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full"
+PROJECT_ROOT = os.environ.get("SPARSE2FULL_ROOT", os.getcwd())
 # Source template (read-only)
 TEMPLATE_PATH = os.path.join(PROJECT_ROOT, "thesis_paper/manuscript_gpt_review/DMUpapertemplate/大连海事大学硕士学位论文格式模版20181122.docx")
 # Target template (to be used by pandoc)

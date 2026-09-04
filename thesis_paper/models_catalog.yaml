@@ -5,7 +5,7 @@ budget:
 entrypoints:
   - name: train_real_data_ar
     path: tools/training/train_real_data_ar.py
-    abs_path: /share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/tools/training/train_real_data_ar.py
+    abs_path: tools/training/train_real_data_ar.py
 
 catalog:
   - category: CNN

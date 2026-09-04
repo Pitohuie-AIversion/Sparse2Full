@@ -139,7 +139,7 @@ python tools/train.py --config configs/experiment/spatial_sparse_sr2.yaml --seed
 ### **立即执行 (推荐)**
 ```bash
 # 1. 检查环境
-cd /share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full
+cd /path/to/Sparse2Full
 bash thesis_paper/phase1_core_experiments.sh
 
 # 2. 或者手动逐步执行

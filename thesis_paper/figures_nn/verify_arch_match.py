@@ -1,8 +1,9 @@
 
 import os
 import re
+from pathlib import Path
 
-BASE_DIR = '/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/thesis_paper/figures_nn/build_export_j2'
+BASE_DIR = Path(__file__).resolve().parent / 'build_export_j2'
 
 def check_edsr():
     print("\n--- Verifying EDSR ---")

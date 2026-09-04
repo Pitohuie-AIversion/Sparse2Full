@@ -28,7 +28,7 @@ sequential:
 
 # 数据配置
 data:
-  data_path: "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/data/DR2D/2D_diff-react_NA_NA.h5"
+  data_path: "data/DR2D/2D_diff-react_NA_NA.h5"
   dataset_name: RealDiffusionReaction
   # 移除splits_dir，因为RealDiffusionReactionDataModule不使用splits文件
   img_size: 128  # 匹配实际数据分辨率

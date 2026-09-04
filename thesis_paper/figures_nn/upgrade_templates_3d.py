@@ -2,8 +2,9 @@
 import os
 import re
 import glob
+from pathlib import Path
 
-TEMPLATE_DIR = '/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/thesis_paper/figures_nn/templates'
+TEMPLATE_DIR = Path(__file__).resolve().parent / 'templates'
 
 def upgrade_templates():
     files = glob.glob(os.path.join(TEMPLATE_DIR, '*_3d.tex.j2'))

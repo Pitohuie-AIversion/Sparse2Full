@@ -87,7 +87,7 @@ model:
 
 # 数据配置 - 关键修改：禁用空间降采样
 data:
-  data_path: "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/data/DR2D/2D_diff-react_NA_NA.h5"
+  data_path: "data/DR2D/2D_diff-react_NA_NA.h5"
   dataset_name: RealDiffusionReaction
   img_size: 128
   keys: ["data"]
@@ -133,7 +133,7 @@ data:
     
   # 数据加载器
   dataloader:
-    batch_size:512
+    batch_size: 512
     val_batch_size: 512
     test_batch_size: 320
     num_workers: 160

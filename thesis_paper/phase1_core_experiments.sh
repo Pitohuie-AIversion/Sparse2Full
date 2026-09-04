@@ -17,7 +17,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # 配置
-EXPERIMENT_ROOT="/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full"
+EXPERIMENT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RESULTS_DIR="$EXPERIMENT_ROOT/paper_package"
 LOGS_DIR="$EXPERIMENT_ROOT/thesis_paper/logs"
 

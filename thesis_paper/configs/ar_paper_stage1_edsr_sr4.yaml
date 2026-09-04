@@ -17,7 +17,7 @@ sequential:
   enabled: false # 禁用 Sequential，直接用标准 Trainer 跑 EDSR
 
 data:
-  data_path: "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/data/DR2D/2D_diff-react_NA_NA.h5"
+  data_path: "data/DR2D/2D_diff-react_NA_NA.h5"
   dataset_name: RealDiffusionReaction
   img_size: 128
   keys: ["data"]
