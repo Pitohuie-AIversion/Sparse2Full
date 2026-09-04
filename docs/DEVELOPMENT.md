@@ -1050,7 +1050,7 @@ ls data/pdebench/2D/DarcyFlow/
 
 ```bash
 # 执行批量训练
-cd F:\Zhaoyang\Sparse2Full
+cd /path/to/Sparse2Full
 python tools/batch_train.py \
     --config configs/sr_darcy2d_256.yaml \
     --models unet unet_plus_plus fno2d ufno segformer unetformer swin_unet hybrid_attn hybrid_fno hybrid_unet mlp_mixer liif_head \

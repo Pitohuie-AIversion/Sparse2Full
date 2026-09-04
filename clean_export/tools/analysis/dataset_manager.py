@@ -19,7 +19,7 @@ import argparse
 class PDEDatasetAnalyzer:
     """PDE数据集分析器"""
     
-    def __init__(self, data_root: str = "E:/2D"):
+    def __init__(self, data_root: str = "data/2D"):
         self.data_root = Path(data_root)
         self.supported_formats = ['.hdf5', '.h5']
         self.pde_types = {
@@ -194,7 +194,7 @@ class PDEDatasetAnalyzer:
         print("📝 创建模拟数据集分析结果...")
         
         mock_datasets = {
-            "E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5": {
+            "data/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5": {
                 "name": "2D_DarcyFlow_beta1.0_Train",
                 "pde_type": "darcy",
                 "size_mb": 1024.5,
@@ -215,7 +215,7 @@ class PDEDatasetAnalyzer:
                     "recommended_keys": ["tensor"]
                 }
             },
-            "E:/2D/DiffusionReaction/2D_diff-react_NA_NA.h5": {
+            "data/2D/DiffusionReaction/2D_diff-react_NA_NA.h5": {
                 "name": "2D_diff-react_NA_NA",
                 "pde_type": "diffusion_reaction",
                 "size_mb": 512.3,
@@ -236,7 +236,7 @@ class PDEDatasetAnalyzer:
                     "recommended_keys": ["data"]
                 }
             },
-            "E:/2D/NavierStokes/2D_incompNS_Re1000_Train.hdf5": {
+            "data/2D/NavierStokes/2D_incompNS_Re1000_Train.hdf5": {
                 "name": "2D_incompNS_Re1000_Train",
                 "pde_type": "navier_stokes",
                 "size_mb": 2048.7,
@@ -432,7 +432,7 @@ class DatasetConfigGenerator:
 class DatasetManager:
     """数据集管理器主类"""
     
-    def __init__(self, data_root: str = "E:/2D"):
+    def __init__(self, data_root: str = "data/2D"):
         self.analyzer = PDEDatasetAnalyzer(data_root)
         self.config_generator = DatasetConfigGenerator()
         self.analysis_cache = None
@@ -581,7 +581,7 @@ class DatasetManager:
 def main():
     """主函数"""
     parser = argparse.ArgumentParser(description='PDEBench数据集管理器')
-    parser.add_argument('--data-root', default='E:/2D', help='数据根目录')
+    parser.add_argument('--data-root', default='data/2D', help='数据根目录')
     parser.add_argument('--list', action='store_true', help='列出所有数据集')
     parser.add_argument('--summary', action='store_true', help='显示数据集摘要')
     parser.add_argument('--generate-config', help='为指定数据集生成配置')

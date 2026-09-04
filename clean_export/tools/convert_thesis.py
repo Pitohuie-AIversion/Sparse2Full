@@ -3,6 +3,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+PROJECT_ROOT = str(Path(__file__).resolve().parents[1])
+
 def convert_md_to_docx(md_files, template_path, output_dir, filter_path, bib_file=None, csl_file=None):
     """
     Convert a list of Markdown files to Docx using Pandoc and a custom template.
@@ -173,7 +175,6 @@ if __name__ == "__main__":
     import argparse
     
     # Configuration
-    PROJECT_ROOT = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full"
     TEMPLATE_PATH = os.path.join(PROJECT_ROOT, "thesis_paper/manuscript_gpt_review/DMUpapertemplate/template_fixed.docx")
     
     # Target directory: manuscript_5_chapter

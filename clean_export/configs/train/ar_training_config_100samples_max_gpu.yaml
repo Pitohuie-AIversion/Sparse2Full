@@ -26,7 +26,7 @@ sequential:
 
 # 数据配置 - 100样本+大内存利用
 data:
-  data_path: "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/test_data.h5"
+  data_path: "test_data.h5"
   dataset_name: RealDiffusionReaction
   img_size: 64  # 匹配实际数据分辨率
   sample_limit: 100  # 仅100个样本用于快速验证

@@ -40,7 +40,12 @@ class BaseModel(nn.Module, ABC):
         super().__init__()
         self.in_channels = int(in_channels)
         self.out_channels = int(out_channels)
-        self.img_size = int(img_size)
+        if isinstance(img_size, (list, tuple)):
+            self.img_size = int(img_size[0])
+        elif hasattr(img_size, '__iter__') and not isinstance(img_size, (str, bytes)):
+            self.img_size = int(next(iter(img_size)))
+        else:
+            self.img_size = int(img_size)
 
         # 存储模型配置（不做强约束）
         self.config: Dict[str, Any] = dict(kwargs)
@@ -161,12 +166,19 @@ class BaseModel(nn.Module, ABC):
 # -------------------------
 # Backward-compatible factory
 # -------------------------
-def create_model(model_name_or_config: Union[str, Any], **kwargs) -> nn.Module:
+def create_model(model_name_or_config: Union[str, Any] = None, **kwargs) -> nn.Module:
+    if model_name_or_config is None:
+        model_name_or_config = kwargs.pop("model_name", None)
+    if model_name_or_config is None:
+        raise TypeError("model_name_or_config or model_name is required")
+
     if isinstance(model_name_or_config, str):
         model_name = model_name_or_config
         model_params: Dict[str, Any] = dict(kwargs)
     else:
         config = model_name_or_config
+        if hasattr(config, "model"):
+            config = getattr(config, "model")
         model_name = str(getattr(config, "name", "")).strip()
         if not model_name:
             raise ValueError("config.name is empty")
@@ -254,6 +266,7 @@ def create_model(model_name_or_config: Union[str, Any], **kwargs) -> nn.Module:
         merged_base_kwargs.update(base_kwargs)
         wrapper_kwargs["base_kwargs"] = merged_base_kwargs
 
+        wrapper_kwargs.pop("model_name", None)
         return temporal_create_model("ARWrapper", **wrapper_kwargs)
 
     temporal_names = {

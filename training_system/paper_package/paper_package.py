@@ -513,7 +513,8 @@ Metric & Mean & Std & Range \\\\
 # Generated on {datetime.now().isoformat()}
 
 # Set environment
-export PYTHONPATH=/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full:$PYTHONPATH
+PROJECT_ROOT="${{SPARSE2FULL_ROOT:-$(pwd)}}"
+export PYTHONPATH="${{PROJECT_ROOT}}${{PYTHONPATH:+:${{PYTHONPATH}}}}"
 
 # Set random seed for reproducibility
 export PYTHONHASHSEED=0
@@ -543,7 +544,7 @@ python tools/generate_paper_package.py \\
         
         # Summary generation script
         summary_script = f"""#!/usr/bin/env python3
-"""Generate summary report from paper package."""
+\"\"\"Generate summary report from paper package.\"\"\"
 
 import json
 import pandas as pd

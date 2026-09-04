@@ -1,5 +1,9 @@
 import json
 import os
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+RUNS_DIR = PROJECT_ROOT / "runs_drd_paper"
 
 files = [
     "AR-DR2D-Stage2-VideoSwin-SRx4-model_unknown-s2025-20260116",
@@ -8,7 +12,7 @@ files = [
 ]
 
 for d in files:
-    test_path = f"/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/runs_drd_paper/{d}/test_results.json"
+    test_path = RUNS_DIR / d / "test_results.json"
     if os.path.exists(test_path):
         try:
             with open(test_path) as fp:

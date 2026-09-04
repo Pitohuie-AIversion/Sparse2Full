@@ -3,10 +3,14 @@
 彻底修复AR可视化器中的图像形状问题
 """
 
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
 def fix_error_map():
     """修复error_map处理逻辑"""
     
-    file_path = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/utils/ar_visualizer.py"
+    file_path = PROJECT_ROOT / "utils/ar_visualizer.py"
     
     # 读取文件内容
     with open(file_path, 'r', encoding='utf-8') as f:

@@ -11,7 +11,7 @@ experiment:
 
 # 数据配置 - 优化版本
 data:
-  data_path: "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse_to_Dense_Transformer/VIVTransformer-4sh2r1-codx/pdebench_extended/data/PDEBench/pdebench/data_download/....data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+  data_path: "data/DR2D/2D_diff-react_NA_NA.h5"
   dataset_name: RealDiffusionReaction
   image_size: 128
   sample_limit: 1000  # 增加样本数量，充分利用硬件

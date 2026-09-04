@@ -161,7 +161,12 @@ class BaseModel(nn.Module, ABC):
 # -------------------------
 # Backward-compatible factory
 # -------------------------
-def create_model(model_name_or_config: Union[str, Any], **kwargs) -> nn.Module:
+def create_model(model_name_or_config: Union[str, Any] = None, **kwargs) -> nn.Module:
+    if model_name_or_config is None:
+        model_name_or_config = kwargs.pop("model_name", None)
+    if model_name_or_config is None:
+        raise TypeError("model_name_or_config or model_name is required")
+
     if isinstance(model_name_or_config, str):
         model_name = model_name_or_config
         model_params: Dict[str, Any] = dict(kwargs)

@@ -248,7 +248,7 @@ data:
 
 ### 基础训练
 ```bash
-cd /share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/training_system
+cd training_system
 
 # 超分辨率训练
 python scripts/train.py --config ../configs/spatial/spatial_sr4_config.yaml

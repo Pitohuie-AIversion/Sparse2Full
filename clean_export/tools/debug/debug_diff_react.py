@@ -6,7 +6,7 @@ import numpy as np
 
 def debug_diff_react_structure():
     """详细分析diff-react数据集结构"""
-    file_path = "E:/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+    file_path = "data/DR2D/2D_diff-react_NA_NA.h5"
     
     print(f"=== 分析 {file_path} ===")
     

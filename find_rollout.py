@@ -1,7 +1,9 @@
 import json
 import glob
+from pathlib import Path
 
-files = glob.glob("/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/runs_drd_paper/**/*.json", recursive=True)
+PROJECT_ROOT = Path(__file__).resolve().parent
+files = glob.glob(str(PROJECT_ROOT / "runs_drd_paper" / "**" / "*.json"), recursive=True)
 for f in files:
     try:
         with open(f) as fp:

@@ -8,7 +8,7 @@
 
 ### 1. HDF5数据文件结构
 
-**文件路径**: `E:/2D/diffusion-reaction/2D_diff-react_NA_NA.h5`
+**文件路径**: `data/DR2D/2D_diff-react_NA_NA.h5`
 
 **数据结构**:
 - **总时间步数**: 1000个时间步 (0000 ~ 0999)

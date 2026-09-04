@@ -25,7 +25,7 @@ AR训练脚本 (`train_real_data_ar.py`) 现已成功集成完整的可视化功
 
 ### 基本使用
 ```bash
-cd /share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full
+cd /path/to/Sparse2Full
 python tools/training/train_real_data_ar.py
 ```
 

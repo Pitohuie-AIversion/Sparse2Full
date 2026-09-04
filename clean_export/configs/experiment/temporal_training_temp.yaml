@@ -13,7 +13,7 @@ curriculum:
     epochs: 30
     name: stage3
     teacher_forcing_ratio: 0.5
-data_path: e:/2d/diffusion-reaction/2D_diff-react_NA_NA.h5
+data_path: data/DR2D/2D_diff-react_NA_NA.h5
 defaults:
 - ../data: temporal_pdebench
 - ../model: swin_unet

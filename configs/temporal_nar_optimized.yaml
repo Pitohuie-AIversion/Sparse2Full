@@ -6,7 +6,7 @@ data:
   _target_: datasets.temporal_pdebench.TemporalPDEBenchDataModule
   config:
     # 数据路径
-    data_path: E:/2D/diffusion-reaction/2D_diff-react_NA_NA.h5
+    data_path: data/DR2D/2D_diff-react_NA_NA.h5
     
     # 扩展时间步范围，增加数据多样性
     # 从原来的21个时间步扩展到51个时间步

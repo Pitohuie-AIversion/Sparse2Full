@@ -14,7 +14,7 @@ experiment_name: train_real_dr_data
 
 # 数据配置
 data:
-  data_path: /share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/data/2D_diff-react_NA_NA.h5  # 更新为实际路径
+  data_path: data/2D_diff-react_NA_NA.h5  # 更新为实际路径
   dataset_name: 2D_diff-react_NA_NA
   task_type: crop_20  # 20% 裁剪任务
   image_size: 128

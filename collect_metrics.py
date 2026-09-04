@@ -5,7 +5,8 @@ import glob
 from pathlib import Path
 import pandas as pd
 
-base_dir = Path("/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/drd_paper_1m")
+PROJECT_ROOT = Path(__file__).resolve().parent
+base_dir = PROJECT_ROOT / "drd_paper_1m"
 
 models_data = []
 

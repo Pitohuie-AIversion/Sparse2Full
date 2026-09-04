@@ -4,7 +4,7 @@
 
 set -e
 
-BASE_DIR="/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full"
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 EXPERIMENT_SCRIPTS_DIR="$BASE_DIR/experiment_scripts"
 PAPER_PACKAGE_DIR="$BASE_DIR/paper_package"
 

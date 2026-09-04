@@ -15,8 +15,11 @@ import h5py
 from typing import Dict, Any, Tuple, Optional
 import sys
 
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
 # 添加项目路径
-sys.path.append('/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full')
+sys.path.append(str(PROJECT_ROOT))
 
 def load_config_and_model(run_dir: Path, device: str = 'cuda:0') -> Tuple[Dict, nn.Module]:
     """加载配置文件和模型"""
@@ -240,7 +243,7 @@ def create_real_four_panel_viz(
 def main():
     """主函数"""
     # 设置运行目录
-    run_dir = Path(r"/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/runs/AR-DR2D-Debug-FNO2D-Staged-s2025-model_None_20251120_140708")
+    run_dir = PROJECT_ROOT / "runs/AR-DR2D-Debug-FNO2D-Staged-s2025-model_None_20251120_140708"
     
     # 确保可视化目录存在
     viz_dir = run_dir / "visualizations"

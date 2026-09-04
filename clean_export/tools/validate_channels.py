@@ -8,6 +8,7 @@ import torch
 import numpy as np
 from pathlib import Path
 import logging
+import argparse
 from omegaconf import OmegaConf
 
 def validate_channel_configuration(config_path):
@@ -153,7 +154,32 @@ def simulate_data_flow(config):
     return input_data.shape
 
 if __name__ == "__main__":
-    config_path = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/configs/train/ar_training_config debug.yaml"
+    project_root = Path(__file__).resolve().parents[1]
+
+    def _resolve_default_config() -> Path:
+        candidates = [
+            project_root / "configs" / "train" / "ar_training_config_debug.yaml",
+            project_root / "configs" / "train" / "ar_training_config debug.yaml",
+            project_root / "configs" / "train" / "ar_training_config.yaml",
+            project_root / "configs" / "ar_training_config_debug.yaml",
+            project_root / "configs" / "ar_training_config.yaml",
+        ]
+        for path in candidates:
+            if path.exists():
+                return path
+        raise FileNotFoundError(
+            f"未找到可用默认配置。请使用 --config 显式指定。已尝试: {[str(path) for path in candidates]}"
+        )
+
+    parser = argparse.ArgumentParser(description="通道配置验证工具")
+    parser.add_argument(
+        "--config",
+        default=None,
+        help="配置文件路径（YAML）。未指定时自动选择仓库内默认配置。",
+    )
+    args = parser.parse_args()
+
+    config_path = Path(args.config).expanduser() if args.config else _resolve_default_config()
     
     print("=" * 60)
     print("通道配置验证工具")
@@ -172,4 +198,4 @@ if __name__ == "__main__":
     else:
         print("⚠️  建议修正通道配置")
     
-    print("="
+    print("=" * 50)

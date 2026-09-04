@@ -2,9 +2,11 @@ import re
 import os
 import sys
 from collections import defaultdict
+from pathlib import Path
 
 # Configuration
-BASE_DIR = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/thesis_paper/manuscript_5_chapter"
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+BASE_DIR = PROJECT_ROOT / "thesis_paper" / "manuscript_5_chapter"
 NOTATION_FILE = os.path.join(BASE_DIR, "chapter0_notation.md")
 CHAPTER_FILES = [
     "chapter1_intro_related.md",

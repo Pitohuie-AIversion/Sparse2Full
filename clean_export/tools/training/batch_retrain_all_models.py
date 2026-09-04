@@ -210,7 +210,7 @@ class BatchTrainer:
             model_output_dir.mkdir(exist_ok=True)
             
             # 构建训练命令 - 使用Hydra配置覆盖
-            python_exe = r"F:\ProgramData\anaconda3\python.exe"
+            python_exe = r"python"
             train_cmd = [
                 python_exe, "train.py",
                 f"model.name={model_name}",

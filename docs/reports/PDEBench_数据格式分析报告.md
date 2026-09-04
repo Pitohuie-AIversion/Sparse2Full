@@ -2,7 +2,7 @@
 
 ## 文件基本信息
 
-- **文件路径**: `/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse_to_Dense_Transformer/VIVTransformer-4sh2r1-codx/pdebench_extended/data/PDEBench/pdebench/data_download/....data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5`
+- **文件路径**: `data/DR2D/2D_diff-react_NA_NA.h5`
 - **文件大小**: 12.63 GB
 - **文件格式**: HDF5
 

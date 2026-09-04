@@ -20,7 +20,10 @@ MISSING_IMAGES = [
     "fig5-4_trustworthy_geometric_sciml.png"
 ]
 
-TARGET_DIR = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/thesis_paper/manuscript_5_chapter/images"
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+TARGET_DIR = PROJECT_ROOT / "thesis_paper/manuscript_5_chapter/images"
 
 def create_placeholder(filename):
     width, height = 800, 600

@@ -7,8 +7,22 @@ __version__ = "1.0.0"
 __author__ = "PDEBench Team"
 __description__ = "High-performance training script for PDEBench with temporal encoding support"
 
-from .src.models import *
-from .src.optimizers import *
-from .src.data import *
-from .src.utils import *
-from .src.monitoring import *
+try:
+    from .src.models import *
+except ImportError:
+    pass
+
+try:
+    from .src.optimizers import *
+except ImportError:
+    pass
+
+try:
+    from .src.utils import *
+except ImportError:
+    pass
+
+try:
+    from .src.monitoring import *
+except ImportError:
+    pass

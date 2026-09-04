@@ -270,9 +270,9 @@ class CrossAttentionQueryHead(nn.Module):
             q_t = Q[t]  # (num_heads, head_dim)
             q_t = q_t.unsqueeze(0).expand(B, -1, -1)  # (B, num_heads, head_dim)
             
-            # 注意力分数：Q @ K^T
-            # 修复维度匹配问题：使用矩阵乘法而不是einsum
-            attn_scores = torch.matmul(q_t.unsqueeze(-2), K.transpose(-2, -1))  # (B, num_heads, 1, H*W)
+            # 注意力分数：Q @ K
+            # K 已是 (B, num_heads, head_dim, H*W)，直接乘法得到 (B, num_heads, 1, H*W)
+            attn_scores = torch.matmul(q_t.unsqueeze(-2), K)  # (B, num_heads, 1, H*W)
             attn_scores = attn_scores.squeeze(-2)  # (B, num_heads, H*W)
             attn_scores = attn_scores * self.scale
             attn_weights = F.softmax(attn_scores, dim=-1)

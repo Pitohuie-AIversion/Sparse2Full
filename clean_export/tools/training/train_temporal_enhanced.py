@@ -106,7 +106,7 @@ class TemporalEnhancedTrainer:
                     'log_every_n_steps': 10
                 },
                 'data': {
-                    'data_path': 'E:/2D/diffusion-reaction/2D_diff-react_NA_NA.h5',
+                    'data_path': 'data/DR2D/2D_diff-react_NA_NA.h5',
                     'T_in': 1,
                     'T_out': 20,
                     'img_size': 128,

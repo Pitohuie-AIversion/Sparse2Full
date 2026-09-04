@@ -4,11 +4,14 @@
 """
 
 import re
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 def fix_ar_visualizer():
     """修复ar_visualizer.py中的图像形状问题"""
     
-    file_path = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/utils/ar_visualizer.py"
+    file_path = PROJECT_ROOT / "utils/ar_visualizer.py"
     
     # 读取文件内容
     with open(file_path, 'r', encoding='utf-8') as f:

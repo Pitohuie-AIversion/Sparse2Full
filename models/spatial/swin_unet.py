@@ -44,42 +44,38 @@ except ModuleNotFoundError as err:  # pragma: no cover
 
 
 # -------------------------
-# Optional deps: timm
+# Pure PyTorch utilities (DropPath, to_2tuple, trunc_normal_)
 # -------------------------
-try:  # pragma: no cover
-    from timm.layers import DropPath, to_2tuple, trunc_normal_
-except ModuleNotFoundError as err:  # pragma: no cover
-    if not str(getattr(err, "name", "")).startswith("timm"):
-        raise
+class DropPath(nn.Module):
+    """Lightweight DropPath implementation."""
+    def __init__(self, drop_prob: float = 0.0, scale_by_keep: bool = True) -> None:
+        super().__init__()
+        self.drop_prob = float(drop_prob)
+        self.scale_by_keep = bool(scale_by_keep)
 
-    class DropPath(nn.Module):
-        """Lightweight DropPath compatible with timm."""
-        def __init__(self, drop_prob: float = 0.0, scale_by_keep: bool = True) -> None:
-            super().__init__()
-            self.drop_prob = float(drop_prob)
-            self.scale_by_keep = bool(scale_by_keep)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if self.drop_prob == 0.0 or not self.training:
+            return x
+        keep_prob = 1 - self.drop_prob
+        shape = (x.shape[0],) + (1,) * (x.ndim - 1)
+        random_tensor = keep_prob + torch.rand(shape, dtype=x.dtype, device=x.device)
+        random_tensor.floor_()
+        if self.scale_by_keep and keep_prob > 0.0:
+            x = x / keep_prob
+        return x * random_tensor
 
-        def forward(self, x: torch.Tensor) -> torch.Tensor:
-            if self.drop_prob == 0.0 or not self.training:
-                return x
-            keep_prob = 1 - self.drop_prob
-            shape = (x.shape[0],) + (1,) * (x.ndim - 1)
-            random_tensor = keep_prob + torch.rand(shape, dtype=x.dtype, device=x.device)
-            random_tensor.floor_()
-            if self.scale_by_keep and keep_prob > 0.0:
-                x = x / keep_prob
-            return x * random_tensor
 
-    def to_2tuple(value):
-        if isinstance(value, tuple):
-            return value
-        if isinstance(value, list):
-            return tuple(value)
-        return (value, value)
+def to_2tuple(value):
+    if isinstance(value, tuple):
+        return value
+    if isinstance(value, list):
+        return tuple(value)
+    return (value, value)
 
-    def trunc_normal_(tensor: torch.Tensor, mean: float = 0.0, std: float = 1.0,
-                      a: float = -2.0, b: float = 2.0) -> torch.Tensor:
-        return torch.nn.init.trunc_normal_(tensor, mean=mean, std=std, a=a, b=b)
+
+def trunc_normal_(tensor: torch.Tensor, mean: float = 0.0, std: float = 1.0,
+                  a: float = -2.0, b: float = 2.0) -> torch.Tensor:
+    return torch.nn.init.trunc_normal_(tensor, mean=mean, std=std, a=a, b=b)
 
 
 # -------------------------
@@ -447,7 +443,7 @@ class SwinTransformerBlock(nn.Module):
         if self.shift_size > 0:
             x = torch.roll(x, shifts=(self.shift_size, self.shift_size), dims=(1, 2))
 
-        x = x.view(B, H * W, C)
+        x = x.reshape(B, H * W, C)
 
         # FFN
         x = shortcut + self.drop_path(x)
@@ -542,6 +538,7 @@ class PatchEmbed(nn.Module):
         super().__init__()
         self.img_size = to_2tuple(img_size)
         self.patch_size = to_2tuple(patch_size)
+        self.in_chans = in_chans
         self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=self.patch_size, stride=self.patch_size)
         self.norm = norm_layer(embed_dim) if norm_layer is not None else None
 

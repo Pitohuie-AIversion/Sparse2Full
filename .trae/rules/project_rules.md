@@ -159,5 +159,5 @@ paper_package/
 - Python: 3.12.2
 - PyTorch: 2.7.0+cu118, CUDA 11.8, cuDNN 90100, GPU available: 2, compute cap (8,9)
 - Disk: `/share` 218T total, 74T used, 133T free (NFS 172.168.101.201:/data)
-- Workspace: `/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full`
+- Workspace: `<project-root>`
 - Note: CUDA toolkit `nvcc` not found in PATH

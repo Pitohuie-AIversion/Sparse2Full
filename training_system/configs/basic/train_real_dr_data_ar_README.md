@@ -18,7 +18,7 @@
 
 ### 3. 数据配置
 - **数据集**：PDEBench 2D Diffusion-Reaction
-- **数据路径**：`/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse_to_Dense_Transformer/VIVTransformer-4sh2r1-codx/pdebench_extended/data/PDEBench/pdebench/data_download/....data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5`
+- **数据路径**：`data/DR2D/2D_diff-react_NA_NA.h5`
 - **样本数**：前10个样本（keys 0000-0009）
 - **时间步**：80个时间步，步长1
 - **图像尺寸**：128×128
@@ -77,7 +77,7 @@
 ### 基本训练
 ```bash
 # 进入training_system目录
-cd /share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/training_system
+cd training_system
 
 # 执行训练
 python launch_real_dr_ar_training.py --config-name train_real_dr_data_ar

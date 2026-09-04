@@ -7,7 +7,7 @@
 ## 交付成果
 
 ### 1. 配置文件
-- **路径**: `/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/training_system/configs/basic/train_real_dr_data_ar.yaml`
+- **路径**: `training_system/configs/basic/train_real_dr_data_ar.yaml`
 - **特点**:
   - 支持20步AR预测
   - 课程学习（5→15→20步分阶段训练）
@@ -16,7 +16,7 @@
   - 统一接口设计
 
 ### 2. 启动脚本
-- **路径**: `/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/training_system/launch_real_dr_ar_training.py`
+- **路径**: `training_system/launch_real_dr_ar_training.py`
 - **功能**:
   - 简化训练启动流程
   - 支持参数覆盖
@@ -25,7 +25,7 @@
   - 完整的命令行帮助
 
 ### 3. 文档说明
-- **路径**: `/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/training_system/configs/basic/train_real_dr_data_ar_README.md`
+- **路径**: `training_system/configs/basic/train_real_dr_data_ar_README.md`
 - **内容**:
   - 配置详细说明
   - 使用示例
@@ -56,7 +56,7 @@
 
 ### 基本训练
 ```bash
-cd /share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/training_system
+cd training_system
 python launch_real_dr_ar_training.py --config-name train_real_dr_data_ar
 ```
 

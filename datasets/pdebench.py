@@ -81,43 +81,63 @@ def _make_coords(h: int, w: int, device: torch.device) -> torch.Tensor:
     return torch.stack([grid_x, grid_y], dim=0)
 
 
-@dataclass(frozen=True)
 class _ObsCfg:
-    mode: str
-    scale: int = 1
-    sigma: float = 0.0
-    kernel_size: int = 1
-    noise_std: float = 0.0
-    crop_size: Tuple[int, int] = (0, 0)
-    patch_align: int = 1
-    center_sampler: str = "uniform"
-    boundary: str = "mirror"
+    def __init__(
+        self,
+        mode: str,
+        scale: int = 1,
+        sigma: float = 0.0,
+        kernel_size: int = 1,
+        noise_std: float = 0.0,
+        crop_size: Tuple[int, int] = (0, 0),
+        patch_align: int = 1,
+        center_sampler: str = "uniform",
+        boundary: str = "mirror",
+    ):
+        self.mode = mode
+        self.scale = scale
+        self.sigma = sigma
+        self.kernel_size = kernel_size
+        self.noise_std = noise_std
+        self.crop_size = crop_size
+        self.patch_align = patch_align
+        self.center_sampler = center_sampler
+        self.boundary = boundary
+
+
+def _cfg_get(cfg: Any, key: str, default: Any = None) -> Any:
+    if cfg is None:
+        return default
+    getter = getattr(cfg, "get", None)
+    if callable(getter):
+        return getter(key, default)
+    return getattr(cfg, key, default)
 
 
 def _parse_obs_cfg(cfg: Any) -> _ObsCfg:
     if cfg is None:
         return _ObsCfg(mode="SR")
 
-    mode = str(getattr(cfg, "mode", "SR"))
-    sr = getattr(cfg, "sr", None)
-    crop = getattr(cfg, "crop", None)
+    mode = str(_cfg_get(cfg, "mode", "SR"))
+    sr = _cfg_get(cfg, "sr", None)
+    crop = _cfg_get(cfg, "crop", None)
     if mode.lower() == "sr":
-        scale = int(getattr(sr, "scale_factor", getattr(cfg, "scale", 1))) if sr is not None else int(getattr(cfg, "scale", 1))
-        sigma = float(getattr(sr, "blur_sigma", getattr(cfg, "sigma", 0.0))) if sr is not None else float(getattr(cfg, "sigma", 0.0))
-        kernel = int(getattr(sr, "blur_kernel_size", getattr(cfg, "blur_kernel", getattr(cfg, "kernel_size", 1)))) if sr is not None else int(getattr(cfg, "blur_kernel", getattr(cfg, "kernel_size", 1)))
-        boundary = str(getattr(sr, "boundary_mode", getattr(cfg, "boundary", "mirror"))) if sr is not None else str(getattr(cfg, "boundary", "mirror"))
-        noise_std = float(getattr(sr, "noise_std", getattr(cfg, "noise_std", 0.0))) if sr is not None else float(getattr(cfg, "noise_std", 0.0))
+        scale = int(_cfg_get(sr, "scale_factor", _cfg_get(cfg, "scale", 1)))
+        sigma = float(_cfg_get(sr, "blur_sigma", _cfg_get(cfg, "sigma", 0.0)))
+        kernel = int(_cfg_get(sr, "blur_kernel_size", _cfg_get(cfg, "blur_kernel", _cfg_get(cfg, "kernel_size", 1))))
+        boundary = str(_cfg_get(sr, "boundary_mode", _cfg_get(cfg, "boundary", "mirror")))
+        noise_std = float(_cfg_get(sr, "noise_std", _cfg_get(cfg, "noise_std", 0.0)))
         return _ObsCfg(mode="SR", scale=scale, sigma=sigma, kernel_size=kernel, noise_std=noise_std, boundary=boundary)
 
     if mode.lower() == "crop":
-        crop_size = getattr(crop, "crop_size", getattr(cfg, "crop_size", (0, 0)))
+        crop_size = _cfg_get(crop, "crop_size", _cfg_get(cfg, "crop_size", (0, 0)))
         if isinstance(crop_size, (list, tuple)) and len(crop_size) == 2:
             cs = (int(crop_size[0]), int(crop_size[1]))
         else:
             cs = (0, 0)
-        patch_align = int(getattr(crop, "patch_align", getattr(cfg, "patch_align", 1))) if crop is not None else int(getattr(cfg, "patch_align", 1))
-        center_sampler = str(getattr(crop, "crop_strategy", getattr(cfg, "center_sampler", "uniform"))) if crop is not None else str(getattr(cfg, "center_sampler", "uniform"))
-        boundary = str(getattr(crop, "boundary_mode", getattr(cfg, "boundary", "mirror"))) if crop is not None else str(getattr(cfg, "boundary", "mirror"))
+        patch_align = int(_cfg_get(crop, "patch_align", _cfg_get(cfg, "patch_align", 1)))
+        center_sampler = str(_cfg_get(crop, "crop_strategy", _cfg_get(cfg, "center_sampler", "uniform")))
+        boundary = str(_cfg_get(crop, "boundary_mode", _cfg_get(cfg, "boundary", "mirror")))
         return _ObsCfg(mode="Crop", crop_size=cs, patch_align=patch_align, center_sampler=center_sampler, boundary=boundary)
 
     return _ObsCfg(mode=mode)
@@ -144,13 +164,12 @@ class PDEBenchBase(Dataset):
 
         with h5py.File(self.data_path, "r") as f:
             all_ids = _infer_h5_case_ids(f)
-
-        split_ids = _read_split_ids(self.splits_dir, split)
-        if split_ids is None:
-            self.case_ids = all_ids
-        else:
-            valid = set(all_ids)
-            self.case_ids = [cid for cid in split_ids if cid in valid]
+            split_ids = _read_split_ids(self.splits_dir, split)
+            candidate_ids = all_ids if split_ids is None else [cid for cid in split_ids if cid in set(all_ids)]
+            if "tensor" in f:
+                self.case_ids = candidate_ids
+            else:
+                self.case_ids = [cid for cid in candidate_ids if cid in f and all(k in f[cid] for k in self.keys)]
 
         self.norm_stats: Optional[Dict[str, float]] = None
         if self.normalize:
@@ -229,7 +248,14 @@ class PDEBenchBase(Dataset):
         for i, k in enumerate(self.keys):
             x[i] = self._normalize_data(x[i], k)
 
-        return {"target": x, "case_id": cid, "keys": list(self.keys)}
+        return {
+            "target": x,
+            "observation": x,
+            "original_observation": x,
+            "case_id": cid,
+            "keys": list(self.keys),
+            "task_params": {},
+        }
 
 
 class PDEBenchSR(PDEBenchBase):
@@ -283,11 +309,19 @@ class PDEBenchSR(PDEBenchBase):
 
         out.update(
             {
+                "input": torch.cat((baseline, coords, mask), dim=0),
                 "baseline": baseline,
+                "observation": baseline,
+                "original_observation": lr,
                 "coords": coords,
                 "mask": mask,
                 "h_params": dict(self.h_params),
+                "task_params": dict(self.h_params),
                 "lr_observation": lr,
+                "observation_data": {
+                    "observation": lr,
+                    "original_observation": lr,
+                },
             }
         )
         return out
@@ -363,7 +397,20 @@ class PDEBenchCrop(PDEBenchBase):
         h_params = dict(self.h_params)
         h_params["crop_box"] = (x1, y1, x2, y2)
 
-        out.update({"baseline": baseline, "coords": coords, "mask": mask, "h_params": h_params})
+        out.update({
+            "input": torch.cat((baseline, coords, mask), dim=0),
+            "baseline": baseline,
+            "observation": baseline,
+            "original_observation": baseline,
+            "coords": coords,
+            "mask": mask,
+            "h_params": h_params,
+            "task_params": h_params,
+            "observation_data": {
+                "observation": baseline,
+                "original_observation": baseline,
+            },
+        })
         return out
 
 
@@ -372,21 +419,31 @@ class PDEBenchDataModule:
         self.config = config
 
         self.data_path: str
-        if isinstance(config, DictConfig):
-            data_path = str(config.get("data_path"))
-            dataset_name = config.get("dataset_name")
-        else:
-            data_path = str(config.get("data_path"))
-            dataset_name = config.get("dataset_name")
+        data_path = (
+            config.get("data_path")
+            or config.get("root_path")
+            or config.get("path")
+        )
+        if data_path is None:
+            raise ValueError("Data config must define data_path, root_path, or path")
 
-        if dataset_name is not None and _as_path(data_path).is_dir():
-            self.data_path = str(_as_path(data_path) / str(dataset_name))
-        else:
-            self.data_path = data_path
+        dataset_name = config.get("dataset_name")
+        path_obj = _as_path(data_path)
+        if dataset_name is not None and path_obj.is_dir():
+            path_obj = path_obj / str(dataset_name)
+        elif path_obj.is_dir():
+            candidates = sorted((*path_obj.glob("*.h5"), *path_obj.glob("*.hdf5")))
+            if len(candidates) != 1:
+                raise ValueError(
+                    f"Expected exactly one HDF5 file in {path_obj}, found {len(candidates)}"
+                )
+            path_obj = candidates[0]
+        self.data_path = str(path_obj)
 
         self.train_dataset: Optional[Dataset] = None
         self.val_dataset: Optional[Dataset] = None
         self.test_dataset: Optional[Dataset] = None
+        self.dataset: Optional[Dataset] = None
 
     def setup(self, stage: Optional[str] = None) -> None:
         cfg = self.config
@@ -404,6 +461,23 @@ class PDEBenchDataModule:
             splits_dir = cfg.get("splits_dir", None)
             obs_cfg_raw = cfg.get("observation")
 
+        if splits_dir is None:
+            inferred_splits_dir = _as_path(self.data_path).parent / "splits"
+            if inferred_splits_dir.is_dir():
+                splits_dir = str(inferred_splits_dir)
+
+        if obs_cfg_raw is None:
+            obs_cfg_raw = {
+                "mode": cfg.get("task", "SR"),
+                "scale": cfg.get("sr_scale", cfg.get("scale", 4)),
+                "sigma": cfg.get("blur_sigma", cfg.get("sigma", 1.0)),
+                "kernel_size": cfg.get("blur_kernel_size", cfg.get("kernel_size", 5)),
+                "boundary": cfg.get("boundary_mode", cfg.get("boundary", "mirror")),
+                "noise_std": cfg.get("noise_std", 0.0),
+                "crop_size": cfg.get("crop_size", (64, 64)),
+                "patch_align": cfg.get("patch_align", 1),
+                "center_sampler": cfg.get("center_sampler", "uniform"),
+            }
         obs_cfg = _parse_obs_cfg(obs_cfg_raw)
         mode = obs_cfg.mode
 
@@ -451,23 +525,24 @@ class PDEBenchDataModule:
         self.train_dataset = ds_ctor(str(train_split))
         self.val_dataset = ds_ctor(str(val_split))
         self.test_dataset = ds_ctor(str(test_split))
+        self.dataset = self.train_dataset
 
     def _dl_cfg(self) -> Dict[str, Any]:
         cfg = self.config
         if isinstance(cfg, DictConfig):
             dl = cfg.get("dataloader", {})
             return {
-                "batch_size": int(dl.get("batch_size", 1)),
-                "num_workers": int(dl.get("num_workers", 0)),
-                "pin_memory": bool(dl.get("pin_memory", False)),
-                "persistent_workers": bool(dl.get("persistent_workers", False)),
+                "batch_size": int(dl.get("batch_size", cfg.get("batch_size", 1))),
+                "num_workers": int(dl.get("num_workers", cfg.get("num_workers", 0))),
+                "pin_memory": bool(dl.get("pin_memory", cfg.get("pin_memory", False))),
+                "persistent_workers": bool(dl.get("persistent_workers", cfg.get("persistent_workers", False))),
             }
         dl = cfg.get("dataloader", {})
         return {
-            "batch_size": int(dl.get("batch_size", 1)),
-            "num_workers": int(dl.get("num_workers", 0)),
-            "pin_memory": bool(dl.get("pin_memory", False)),
-            "persistent_workers": bool(dl.get("persistent_workers", False)),
+            "batch_size": int(dl.get("batch_size", cfg.get("batch_size", 1))),
+            "num_workers": int(dl.get("num_workers", cfg.get("num_workers", 0))),
+            "pin_memory": bool(dl.get("pin_memory", cfg.get("pin_memory", False))),
+            "persistent_workers": bool(dl.get("persistent_workers", cfg.get("persistent_workers", False))),
         }
 
     def train_dataloader(self) -> DataLoader:
@@ -518,4 +593,3 @@ class PDEBenchDataModule:
         if hasattr(self.train_dataset, "norm_stats"):
             return getattr(self.train_dataset, "norm_stats")
         return None
-

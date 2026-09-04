@@ -292,7 +292,10 @@ class PDEBenchVisualizer:
         output_format: str = "png",
         figsize: tuple = (12, 8),
         colormap: str = "viridis",
+        **kwargs,
     ) -> None:
+        if "output_dir" in kwargs:
+            save_dir = kwargs["output_dir"]
         self.save_dir = Path(save_dir)
         self.save_dir.mkdir(parents=True, exist_ok=True)
 
@@ -308,6 +311,14 @@ class PDEBenchVisualizer:
         self.output_format = output_format
         self.figsize = figsize
         self.colormap = colormap
+
+    @property
+    def output_dir(self):
+        return str(self.save_dir)
+
+    @output_dir.setter
+    def output_dir(self, value) -> None:
+        self.save_dir = Path(value)
 
     # -------- helpers ---------
     def _tensor_to_numpy(self, x: torch.Tensor, channel: int = 0) -> np.ndarray:

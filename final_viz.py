@@ -7,9 +7,15 @@ import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent
 
 def main():
-    data_path = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse_to_Dense_Transformer/VIVTransformer-4sh2r1-codx/pdebench_extended/data/PDEBench/pdebench/data_download/....data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+    data_path = Path(os.environ.get(
+        "SPARSE2FULL_DATA_PATH",
+        PROJECT_ROOT / "data" / "DR2D" / "2D_diff-react_NA_NA.h5",
+    ))
     
     print(f"正在读取数据: {data_path}")
     print(f"当前工作目录: {os.getcwd()}")

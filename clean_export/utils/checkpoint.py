@@ -12,20 +12,51 @@ from typing import Dict, Any, Optional, List
 import torch
 
 
+def _normalize_metadata(value: Any) -> Any:
+    """Convert metadata to values accepted by safe ``torch.load``."""
+    if isinstance(value, dict):
+        return {key: _normalize_metadata(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_normalize_metadata(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_normalize_metadata(item) for item in value)
+    if type(value).__module__.startswith("numpy") and hasattr(value, "item"):
+        return value.item()
+    if isinstance(value, Path):
+        return str(value)
+    return value
+
+
 class CheckpointManager:
     """检查点管理器
     
     负责模型检查点的保存、加载和管理
     """
     
-    def __init__(self, checkpoint_dir: Path, max_checkpoints: int = 5, 
-                 save_best: bool = True):
+    def __init__(
+        self,
+        checkpoint_dir: Optional[Path] = None,
+        max_checkpoints: int = 5,
+        save_best: bool = True,
+        *,
+        save_dir: Optional[str] = None,
+        max_keep: Optional[int] = None,
+    ):
         """
         Args:
             checkpoint_dir: 检查点保存目录
             max_checkpoints: 最大保存检查点数量
             save_best: 是否保存最佳模型
         """
+        if checkpoint_dir is None:
+            checkpoint_dir = Path(save_dir) if save_dir is not None else None
+        elif save_dir is not None and Path(checkpoint_dir) != Path(save_dir):
+            raise ValueError("checkpoint_dir and save_dir must refer to the same directory")
+        if checkpoint_dir is None:
+            raise TypeError("checkpoint_dir or save_dir is required")
+        if max_keep is not None:
+            max_checkpoints = max_keep
+
         self.checkpoint_dir = Path(checkpoint_dir)
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
         
@@ -34,8 +65,17 @@ class CheckpointManager:
         
         self.logger = logging.getLogger(__name__)
     
-    def save_checkpoint(self, checkpoint: Dict[str, Any], is_best: bool = False, 
-                       epoch: Optional[int] = None) -> str:
+    def save_checkpoint(
+        self,
+        checkpoint: Optional[Dict[str, Any]] = None,
+        is_best: bool = False,
+        epoch: Optional[int] = None,
+        *,
+        model: Optional[torch.nn.Module] = None,
+        optimizer: Optional[torch.optim.Optimizer] = None,
+        scheduler: Optional[Any] = None,
+        metrics: Optional[Dict[str, Any]] = None,
+    ) -> str:
         """保存检查点
         
         Args:
@@ -46,6 +86,19 @@ class CheckpointManager:
         Returns:
             checkpoint_path: 保存的检查点路径
         """
+        if checkpoint is None:
+            if model is None:
+                raise TypeError("checkpoint or model is required")
+            checkpoint = {
+                "model_state_dict": model.state_dict(),
+                "epoch": epoch,
+                "metrics": _normalize_metadata(metrics or {}),
+            }
+            if optimizer is not None:
+                checkpoint["optimizer_state_dict"] = optimizer.state_dict()
+            if scheduler is not None:
+                checkpoint["scheduler_state_dict"] = scheduler.state_dict()
+
         # 生成检查点文件名
         if epoch is not None:
             checkpoint_name = f'checkpoint_epoch_{epoch:04d}.pth'
@@ -62,6 +115,7 @@ class CheckpointManager:
         if is_best and self.save_best:
             best_path = self.checkpoint_dir / 'best.pth'
             shutil.copy2(checkpoint_path, best_path)
+            shutil.copy2(checkpoint_path, self.checkpoint_dir / 'best_model.pth')
             self.logger.info(f"Best model saved: {best_path}")
         
         # 清理旧检查点
@@ -69,7 +123,11 @@ class CheckpointManager:
         
         return str(checkpoint_path)
     
-    def load_checkpoint(self, checkpoint_path: str, device: torch.device) -> Dict[str, Any]:
+    def load_checkpoint(
+        self,
+        checkpoint_path: str,
+        device: Optional[torch.device] = None,
+    ) -> Dict[str, Any]:
         """加载检查点
         
         Args:
@@ -82,7 +140,11 @@ class CheckpointManager:
         if not os.path.exists(checkpoint_path):
             raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
         
-        checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
+        checkpoint = torch.load(
+            checkpoint_path,
+            map_location=device or torch.device("cpu"),
+            weights_only=False,
+        )
         self.logger.info(f"Checkpoint loaded: {checkpoint_path}")
         
         return checkpoint

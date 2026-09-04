@@ -246,7 +246,7 @@ def generate_final_report(exp_dir: str):
 
 if __name__ == "__main__":
     # 默认实验目录
-    exp_dir = "f:/Zhaoyang/Sparse2Full/runs/Temporal-AR-SwinUNet-T1to3-DR2D-128-s2025"
+    exp_dir = "runs/Temporal-AR-SwinUNet-T1to3-DR2D-128-s2025"
     
     if len(sys.argv) > 1:
         exp_dir = sys.argv[1]

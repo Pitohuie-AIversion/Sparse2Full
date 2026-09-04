@@ -1,5 +1,8 @@
 import sys
-sys.path.append("/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full")
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+sys.path.append(str(PROJECT_ROOT))
 from omegaconf import OmegaConf
 from models.temporal.components.sequential_spatiotemporal import SequentialSpatiotemporalModel
 import torch

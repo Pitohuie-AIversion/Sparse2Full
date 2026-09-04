@@ -1,7 +1,7 @@
 data:
   _target_: datasets.pdebench.PDEBenchDataModule
   batch_size: 4
-  data_path: E:\2D\shallow-water\2D_rdb_NA_NA.h5
+  data_path: data/2D/shallow-water/2D_rdb_NA_NA.h5
   dataset_name: 2D_rdb_NA_NA
   image_size: 128
   keys:

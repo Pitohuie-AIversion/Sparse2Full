@@ -38,6 +38,26 @@ try:
 except Exception:
     from datasets.real_dr_dataset import RealDiffusionReactionDataModule
 from models.swin_unet import SwinUNet
+
+DEFAULT_CONFIG = project_root / "configs" / "ar_training_config_100samples_optimized.yaml"
+
+
+def _resolve_default_config() -> Path:
+    candidates = [
+        DEFAULT_CONFIG,
+        project_root / "configs" / "ar_training_config_optimized.yaml",
+        project_root / "configs" / "train" / "ar_training_config_100samples_optimized.yaml",
+        project_root / "configs" / "train" / "ar_training_config_optimized.yaml",
+        project_root / "configs" / "ar_training_config_debug.yaml",
+        project_root / "configs" / "ar_training_refactored_config.yaml",
+    ]
+    for path in candidates:
+        if path.exists():
+            return path
+    raise FileNotFoundError(
+        "未找到可用默认配置文件。请使用 --config 指定有效配置。已尝试: "
+        f"{[str(path) for path in candidates]}"
+    )
 from ops.losses import compute_total_loss
 from ops.enhanced_losses import compute_enhanced_total_loss
 from ops.enhanced_augmentation import AdvancedDataAugmentation
@@ -480,13 +500,14 @@ def main():
     """主函数"""
     parser = argparse.ArgumentParser(description='Training Configuration Test')
     parser.add_argument('--config', type=str, 
-                       default='/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/configs/train/ar_training_config_100samples_optimized.yaml',
+                       default=None,
                        help='改进配置文件路径')
     
     args = parser.parse_args()
     
     # 运行测试
-    tester = TrainingTester(args.config)
+    resolved_config = args.config if args.config else str(_resolve_default_config())
+    tester = TrainingTester(resolved_config)
     report = tester.run_full_test()
     
     print(f"\n=== Test Results ===")

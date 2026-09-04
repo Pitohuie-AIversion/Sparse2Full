@@ -9,7 +9,7 @@ experiment:
   description: "纯空间超分辨率预测实验 - 仅空间维度，无时间序列"
 
 data:
-  data_path: "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/data/DR2D/pdebench_tiny.h5"  # 使用绝对路径
+  data_path: "data/DR2D/pdebench_tiny.h5"  # 使用绝对路径
   data_key: "data"        # HDF5数据键（本地合成文件为'0000/data'或'data'两种）
   keys: ["u"]  # 仅使用单一物理量进行空间预测
   image_size: 256

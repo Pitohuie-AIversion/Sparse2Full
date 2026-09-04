@@ -3,6 +3,10 @@
 
 import h5py
 import sys
+from pathlib import Path
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 def check_hdf5_structure(file_path):
     """检查HDF5文件的结构"""
@@ -41,9 +45,9 @@ if __name__ == "__main__":
     else:
         # 默认检查几个文件
         files = [
-            "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/data/DR2D/2D_diff-react_NA_NA_small.h5",
-            "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/test_data.h5",
-            "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/data/DR2D/pdebench_tiny.h5"
+            PROJECT_ROOT / "data/DR2D/2D_diff-react_NA_NA_small.h5",
+            PROJECT_ROOT / "test_data.h5",
+            PROJECT_ROOT / "data/DR2D/pdebench_tiny.h5"
         ]
         
         for file_path in files:

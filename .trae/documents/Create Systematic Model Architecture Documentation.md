@@ -2,7 +2,7 @@ Based on the analysis of the `models` directory and the detailed review of key m
 
 **Plan:**
 
-1.  **Create Directory**: Create the target directory `模型架构说明` (Model Architecture Descriptions) inside `/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/models`.
+1.  **Create Directory**: Create the target directory `模型架构说明` (Model Architecture Descriptions) inside `models`.
 
 2.  **Draft Documentation**: I will write a comprehensive Markdown document named `MODEL_ARCHITECTURE_GUIDE.md` (or similar, but the user asked for files *in* the subdirectory, so I will name it `README.md` inside that new folder or multiple files. Let's stick to a single well-structured file `01_Model_Architectures.md` inside the new folder for clarity, or split them. Given the request for "systematic organization", a single index file + detailed chapters in one file is efficient). I will structure the content as follows:
 

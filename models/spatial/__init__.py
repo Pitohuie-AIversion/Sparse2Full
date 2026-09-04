@@ -1,171 +1,96 @@
 """
 空间预测模型模块
 
-提供专门用于空间预测的深度学习模型，所有模型遵循统一接口：
-forward(x[B,C,H,W]) -> y[B,C,H,W]
-
-支持的模型：
-- CNN模型：U-Net, U-Net++, FNO2D, U-FNO瓶颈
-- Transformer模型：SegFormer, UNetFormer, SegFormer-UNetFormer
-- MLP模型：MLP-Mixer, LIIF-Head, MLPModel
-- 混合模型：SwinUNet, HybridModel
-- 基础模型：VisionTransformer, SwinTransformer, Transformer
-- 轻量级/SR模型: ConvUNetLite, ResNetLite, CNNAttnLite, ConvGateLite
-
-使用示例：
-    from models.spatial import UNet, SwinUNet
-    from models.spatial.factory import create_model
-    
-    model = create_model("UNet", in_ch=3, out_ch=3, features=[32, 64, 128])
+采用惰性导入，避免框架初始化阶段预加载无关模型层。
 """
 
-# CNN模型
-from .unet import UNet
-from .unet_plus_plus import UNetPlusPlus
-from .fno2d import FNO2d
-from .ufno_unet_bottleneck import UFNOUNet
-from .edsr import EDSR
-from .sparse_attention_encoder import SparseSwinUNet
 
-# Transformer模型
-from .segformer import SegFormer
-from .unetformer import UNetFormer
-from .segformer_unetformer import SegFormerUNetFormer
+def _getattr(module, name: str):
+    if hasattr(module, name):
+        return getattr(module, name)
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
-# MLP模型
-try:
-    from .mlp import MLPModel, MLP
-except ImportError:
-    MLPModel = None
-    MLP = None
-try:
-    from .coordinate_encoder import CoordinateEncoder
-except ImportError:
-    CoordinateEncoder = None
-from .mlp_mixer import MLPMixer
-from .liif import LIIFModel
 
-# 混合模型
-from .hybrid import HybridModel
+def __getattr__(name: str):
+    if name == "UNet":
+        from . import unet
+        return _getattr(unet, name)
+    elif name == "UNetPlusPlus":
+        from . import unet_plus_plus
+        return _getattr(unet_plus_plus, name)
+    elif name == "FNO2d":
+        from . import fno2d
+        return _getattr(fno2d, name)
+    elif name == "UFNOUNet":
+        from . import ufno_unet_bottleneck
+        return _getattr(ufno_unet_bottleneck, name)
+    elif name == "EDSR":
+        from . import edsr
+        return _getattr(edsr, name)
+    elif name in ("SparseSwinUNet", "SparseAttentionEncoder"):
+        from . import sparse_attention_encoder
+        return _getattr(sparse_attention_encoder, name)
+    elif name == "SegFormer":
+        from . import segformer
+        return _getattr(segformer, name)
+    elif name == "UNetFormer":
+        from . import unetformer
+        return _getattr(unetformer, name)
+    elif name == "SegFormerUNetFormer":
+        from . import segformer_unetformer
+        return _getattr(segformer_unetformer, name)
+    elif name in ("MLPModel", "MLP"):
+        from . import mlp
+        return _getattr(mlp, name)
+    elif name == "MLPMixer":
+        from . import mlp_mixer
+        return _getattr(mlp_mixer, name)
+    elif name == "LIIFModel":
+        from . import liif
+        return _getattr(liif, name)
+    elif name == "HybridModel":
+        from . import hybrid
+        return _getattr(hybrid, name)
+    elif name in ("VisionTransformer", "ViT"):
+        from . import vit
+        return _getattr(vit, name)
+    elif name in ("SwinTransformerTiny", "SwinT"):
+        from . import swin_t
+        return _getattr(swin_t, name)
+    elif name == "SwinUNet":
+        from . import swin_unet
+        return _getattr(swin_unet, name)
+    elif name in ("ResNetLite", "SwinIRLite"):
+        from . import resnet
+        return _getattr(resnet, name)
+    elif name in ("ConvGateLite", "NAFNetLite"):
+        from . import conv_gate_lite
+        return _getattr(conv_gate_lite, name)
+    elif name in ("ConvUNetLite", "UformerLite"):
+        from . import conv_unet_lite
+        return _getattr(conv_unet_lite, name)
+    elif name == "Transformer":
+        from . import transformer
+        return _getattr(transformer, name)
+    elif name == "create_model":
+        from .factory import create_model
+        return create_model
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
-# Partial Convolution
-try:
-    from .partialconv_unet import PartialConvUNet
-except ImportError:
-    PartialConvUNet = None
-
-# 基础Transformer模型
-try:
-    from .vit import VisionTransformer, ViT
-except ImportError:
-    VisionTransformer = None
-    ViT = None
-
-try:
-    from .swin_t import SwinTransformerTiny, SwinT
-except ImportError:
-    SwinTransformerTiny = None
-    SwinT = None
-
-try:
-    from .swin_t_with_encoder import SwinTWithEncoder
-except ImportError:
-    SwinTWithEncoder = None
-
-try:
-    from .transformer import Transformer
-except ImportError:
-    Transformer = None
-
-try:
-    from .swin_unet import SwinUNet
-except ImportError:
-    SwinUNet = None
-
-try:
-    from .sparse_attention_encoder import SparseAttentionEncoder, SparseSwinUNet
-except ImportError:
-    SparseAttentionEncoder = None
-    SparseSwinUNet = None
-
-# 轻量级/SR模型
-try:
-    from .conv_unet_lite import ConvUNetLite
-except ImportError:
-    ConvUNetLite = None
-
-try:
-    from .resnet_lite import ResNetLite
-except ImportError:
-    ResNetLite = None
-
-try:
-    from .cnn_attn_lite import CNNAttnLite
-except ImportError:
-    CNNAttnLite = None
-
-try:
-    from .conv_gate_lite import ConvGateLite
-except ImportError:
-    ConvGateLite = None
-
-try:
-    from .interp_cnn import BicubicCNN, RBFCNN
-except ImportError:
-    BicubicCNN = None
-    RBFCNN = None
 
 __all__ = [
-    # CNN模型
     "UNet",
     "UNetPlusPlus", 
     "FNO2d",
     "UFNOUNet",
     "EDSR",
     "SparseSwinUNet",
-    
-    # Transformer模型
     "SegFormer",
     "UNetFormer",
     "SegFormerUNetFormer",
-    
-    # MLP模型
     "MLPMixer",
     "LIIFModel",
-    
-    # 混合模型
     "HybridModel",
+    "SwinUNet",
+    "create_model",
 ]
-
-# 添加可选模型
-if VisionTransformer is not None:
-    __all__.extend(["VisionTransformer", "ViT"])
-if SwinTransformerTiny is not None:
-    __all__.extend(["SwinTransformerTiny", "SwinT"])
-if SwinTWithEncoder is not None:
-    __all__.append("SwinTWithEncoder")
-if Transformer is not None:
-    __all__.append("Transformer")
-if SwinUNet is not None:
-    __all__.append("SwinUNet")
-if SparseAttentionEncoder is not None:
-    __all__.extend(["SparseAttentionEncoder", "SparseSwinUNet"])
-if ConvUNetLite is not None:
-    __all__.append("ConvUNetLite")
-if ResNetLite is not None:
-    __all__.append("ResNetLite")
-if CNNAttnLite is not None:
-    __all__.append("CNNAttnLite")
-if ConvGateLite is not None:
-    __all__.append("ConvGateLite")
-if MLPModel is not None:
-    __all__.append("MLPModel")
-if PartialConvUNet is not None:
-    __all__.append("PartialConvUNet")
-if BicubicCNN is not None:
-    __all__.append("BicubicCNN")
-if RBFCNN is not None:
-    __all__.append("RBFCNN")
-
-# 导入工厂函数
-from .factory import create_model

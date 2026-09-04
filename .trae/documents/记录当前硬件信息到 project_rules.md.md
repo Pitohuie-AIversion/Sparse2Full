@@ -1,6 +1,6 @@
 ## 目标
 - 采集并汇总当前机器的硬件与系统关键信息（OS/CPU/内存/GPU/CUDA/驱动/Python/PyTorch/磁盘）。
-- 将摘要以 Markdown 形式追加到 `/.trae/rules/project_rules.md`（Linux 路径：`/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/.trae/rules/project_rules.md`）。
+- 将摘要以 Markdown 形式追加到 `/.trae/rules/project_rules.md`（Linux 路径：`.trae/rules/project_rules.md`）。
 
 ## 将采集的信息
 - OS 与内核：`uname -a`、`/etc/os-release`（发行版名与版本）。
@@ -50,7 +50,7 @@
 - Python: 3.10.12
 - PyTorch: 2.1.2 (CUDA 12.1), cuDNN 9.1, compute cap 8.0
 - Disk: /share 10.0T total, 6.3T used, 3.7T free
-- Workspace: /share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full
+- Workspace: <project-root>
 ```
 
 ## 后续维护

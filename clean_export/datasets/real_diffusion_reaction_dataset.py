@@ -1,7 +1,7 @@
 """真实扩散-反应数据集加载器
 
 专门处理真实扩散-反应数据集的时序数据加载，支持AR训练。
-数据格式：E:/2D/diffusion-reaction/2D_diff-react_NA_NA.h5
+数据格式：data/DR2D/2D_diff-react_NA_NA.h5
 结构：每个时间步为一个组，包含data数据集 (101, 128, 128, 2)
 """
 
@@ -464,13 +464,14 @@ class RealDiffusionReactionDataModule(pl.LightningDataModule):
         
         # 安全读取data.dataloader配置，避免缺失键导致异常
         dl_cfg = getattr(config.data, 'dataloader', DictConfig({}))
+        hardware_cfg = config.get('hardware', {})
         
         # 数据加载器配置（先给出安全默认值，然后在下方用dl_cfg覆盖）
         self.batch_size = getattr(config, 'training', DictConfig({})).get('batch_size', 8)
         self.val_batch_size = getattr(dl_cfg, 'val_batch_size', self.batch_size)
         self.test_batch_size = getattr(config, 'testing', DictConfig({})).get('batch_size', 1)
-        self.num_workers = getattr(dl_cfg, 'num_workers', getattr(config.hardware, 'num_workers', 4))
-        self.pin_memory = getattr(dl_cfg, 'pin_memory', getattr(config.hardware, 'pin_memory', True))
+        self.num_workers = dl_cfg.get('num_workers', hardware_cfg.get('num_workers', 4))
+        self.pin_memory = dl_cfg.get('pin_memory', hardware_cfg.get('pin_memory', True))
         self.persistent_workers = getattr(dl_cfg, 'persistent_workers', True)
         
         # 新增：读取样本上限配置
@@ -483,7 +484,7 @@ class RealDiffusionReactionDataModule(pl.LightningDataModule):
         self.num_workers = dl_cfg.get('num_workers', self.num_workers)
         try:
             import torch as _t
-            self.pin_memory = bool(dl_cfg.get('pin_memory', getattr(config.hardware, 'pin_memory', _t.cuda.is_available())))
+            self.pin_memory = bool(dl_cfg.get('pin_memory', hardware_cfg.get('pin_memory', _t.cuda.is_available())))
         except Exception:
             self.pin_memory = False
         self.persistent_workers = dl_cfg.get('persistent_workers', self.persistent_workers if self.num_workers > 0 else False)
@@ -811,6 +812,14 @@ class RealDiffusionReactionDataModule(pl.LightningDataModule):
             collate_fn=self._collate_fn if self.batch_cache_enabled else None,
             **_kwargs,
         )
+
+    def spatial_train_loader(self) -> DataLoader:
+        """Training loader used by the spatial pretraining stage."""
+        return self.train_dataloader()
+
+    def temporal_train_loader(self) -> DataLoader:
+        """Training loader used by the temporal pretraining stage."""
+        return self.train_dataloader()
     
     def val_dataloader(self) -> DataLoader:
         """验证数据加载器"""
@@ -863,7 +872,7 @@ if __name__ == "__main__":
     # 测试配置
     config = DictConfig({
         'data': {
-            'data_path': 'E:/2D/diffusion-reaction/2D_diff-react_NA_NA.h5',
+            'data_path': 'data/DR2D/2D_diff-react_NA_NA.h5',
             'T_in': 1,
             'T_out': 20,
             'train_ratio': 0.7,

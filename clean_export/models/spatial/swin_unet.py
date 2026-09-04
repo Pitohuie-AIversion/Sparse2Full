@@ -542,6 +542,7 @@ class PatchEmbed(nn.Module):
         super().__init__()
         self.img_size = to_2tuple(img_size)
         self.patch_size = to_2tuple(patch_size)
+        self.in_chans = in_chans
         self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=self.patch_size, stride=self.patch_size)
         self.norm = norm_layer(embed_dim) if norm_layer is not None else None
 

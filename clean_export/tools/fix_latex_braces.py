@@ -1,7 +1,8 @@
 import os
 import re
+from pathlib import Path
 
-PROJECT_ROOT = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full"
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 FILES_TO_FIX = [
     "thesis_paper/manuscript_gpt_review/chapter6.md",

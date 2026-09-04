@@ -77,7 +77,7 @@ model:
 
 # 数据配置 - 快速测试模式
 data:
-  data_path: "/share/fandixiaLab/suguangsheng/datasets/PDEBench/2D/CFD/2D_Turbulence/2D_Turbulence_64.h5"
+  data_path: "data/PDEBench/2D/CFD/2D_Turbulence/2D_Turbulence_64.h5"
   dataset_name: RealTurbulence
   img_size: 128
   keys: ["data"]

@@ -520,7 +520,7 @@ class PhysicsTransformerTemporal(BaseTemporalModel):
 
 # 辅助函数：创建物理感知Transformer时序模块
 def create_physics_transformer_temporal(**kwargs) -> PhysicsTransformerTemporal:
-    ""”创建物理感知Transformer时序模块的工厂函数"""
+    """创建物理感知Transformer时序模块的工厂函数"""
     return PhysicsTransformerTemporal(**kwargs)
 
 

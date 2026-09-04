@@ -2,23 +2,13 @@
 # Wrapper to run the project's figure generation
 set -e
 
-# Get project root (assuming this script is in .trae/skills/nn-plotter/scripts/)
-# We want to run from the project root.
-# If we are already at project root (which is typical for the agent), we can just check for the target dir.
+# Get project root (this script is in .trae/skills/nn-plotter/scripts/).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 
-if [ -d "thesis_paper/figures_nn" ]; then
-    PROJECT_ROOT="."
-elif [ -d "../../../thesis_paper/figures_nn" ]; then
-    # In case we are running from the script dir
-    PROJECT_ROOT="../../.."
-else
-    # Try to find it
-    if [ -f "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/thesis_paper/figures_nn/export_and_gen_tikz.py" ]; then
-        PROJECT_ROOT="/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full"
-    else
-        echo "Error: Cannot find project root with 'thesis_paper/figures_nn'"
-        exit 1
-    fi
+if [ ! -f "$PROJECT_ROOT/thesis_paper/figures_nn/export_and_gen_tikz.py" ]; then
+    echo "Error: Cannot find project root with 'thesis_paper/figures_nn'"
+    exit 1
 fi
 
 cd "$PROJECT_ROOT"

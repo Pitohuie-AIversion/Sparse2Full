@@ -1,5 +1,9 @@
 import json
 import os
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+RUNS_DIR = PROJECT_ROOT / "runs_drd_paper"
 
 files = [
     "AR-DR2D-E2E-EDSR-VideoSwin-SRx4-model_unknown-s2025-20260116",
@@ -11,7 +15,7 @@ files = [
 ]
 
 for d in files:
-    dir_path = f"/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/runs_drd_paper/{d}"
+    dir_path = RUNS_DIR / d
     print(f"--- {d} ---")
     
     # Read test results
@@ -40,4 +44,3 @@ for d in files:
         except Exception as e:
             print(f"  Error reading resources: {e}")
     print()
-

@@ -56,10 +56,9 @@ drd_bicubic_line = f"| Bicubic-CNN | {m_drd_bicubic['params']} | {m_drd_bicubic[
 drd_rbf_line = f"| RBF-CNN | {m_drd_rbf['params']} | {m_drd_rbf['flops']} | {m_drd_rbf['latency']} | {m_drd_rbf['rel_l2']} | {m_drd_rbf['psnr']} | {m_drd_rbf['ssim']} | {m_drd_rbf['herr']} |"
 
 if "Bicubic-CNN" not in content[content.find("表 4-3"):]:
-    content = content.replace(
-        "| **UNetFormer** | 25.20 | 32.67 | 0.99 | 0.9473 | 16.87 | 0.0827 | 0.0000$^{\\dagger}$ |",
-        f"| **UNetFormer** | 25.20 | 32.67 | 0.99 | 0.9473 | 16.87 | 0.0827 | 0.0000$^{\\dagger}$ |\n{drd_bicubic_line}\n{drd_rbf_line}"
-    )
+    old_target = "| **UNetFormer** | 25.20 | 32.67 | 0.99 | 0.9473 | 16.87 | 0.0827 | 0.0000$^{\\dagger}$ |"
+    new_target = f"{old_target}\n{drd_bicubic_line}\n{drd_rbf_line}"
+    content = content.replace(old_target, new_target)
 
 with open(md_file, "w", encoding="utf-8") as f:
     f.write(content)

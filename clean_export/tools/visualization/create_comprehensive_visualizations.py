@@ -29,7 +29,7 @@ except:
 sns.set_palette("husl")
 
 class TemporalNARVisualizer:
-    def __init__(self, base_dir="F:/Zhaoyang/Sparse2Full"):
+    def __init__(self, base_dir="."):
         self.base_dir = Path(base_dir)
         self.runs_dir = self.base_dir / "runs" / "temporal_nar_100epochs"
         self.test_results_dir = self.base_dir / "test_results"

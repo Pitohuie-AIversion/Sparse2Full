@@ -104,7 +104,7 @@ def visualize_samples(file_path, num_samples=3):
 
 def main():
     """主函数"""
-    data_path = "E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5"
+    data_path = "data/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5"
     
     if not Path(data_path).exists():
         print(f"错误: 数据文件不存在: {data_path}")

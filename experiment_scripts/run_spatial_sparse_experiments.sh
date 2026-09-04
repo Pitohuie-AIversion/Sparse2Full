@@ -11,7 +11,7 @@ SPARSE_TASKS=("sr_x2" "sr_x4" "crop_20" "crop_40")
 MODELS=("swin_unet" "unet" "fno2d" "segformer")
 
 # 基础路径
-BASE_DIR="/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full"
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RESULTS_DIR="$BASE_DIR/paper_package/sparse_observation_experiments"
 
 echo "🚀 开始空间稀疏观测实验..."

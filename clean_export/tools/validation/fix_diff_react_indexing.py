@@ -8,7 +8,7 @@ import torch
 
 def analyze_diff_react_structure():
     """分析diff-react数据集的结构"""
-    file_path = "E:/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+    file_path = "data/DR2D/2D_diff-react_NA_NA.h5"
     
     print("=== 分析diff-react数据集结构 ===")
     

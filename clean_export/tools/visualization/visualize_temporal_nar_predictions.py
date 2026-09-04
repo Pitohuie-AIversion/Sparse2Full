@@ -72,7 +72,7 @@ warnings.filterwarnings('ignore')
 class TemporalNARPredictor:
     """时序NAR模型预测器"""
     
-    def __init__(self, output_dir: str = "f:/Zhaoyang/Sparse2Full/runs/temporal_nar_100epochs/predictions_visualization"):
+    def __init__(self, output_dir: str = "runs/temporal_nar_100epochs/predictions_visualization"):
         """初始化预测器
         
         Args:
@@ -99,7 +99,7 @@ class TemporalNARPredictor:
         plt.style.use('seaborn-v0_8')
         sns.set_palette("husl")
     
-    def search_model_files(self, search_dir: str = "f:/Zhaoyang/Sparse2Full/runs") -> List[Dict[str, Any]]:
+    def search_model_files(self, search_dir: str = "runs") -> List[Dict[str, Any]]:
         """搜索模型文件
         
         Args:
@@ -413,7 +413,7 @@ class TemporalNARPredictor:
             return config_files[0]
         
         # 在configs目录查找
-        configs_dir = Path("f:/Zhaoyang/Sparse2Full/configs")
+        configs_dir = Path("configs")
         if configs_dir.exists():
             # 根据模型路径推断配置名
             if "temporal_nar" in str(model_path).lower():
@@ -984,7 +984,7 @@ class TemporalNARPredictor:
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>时序NAR模型预测结果报告</title>
     <style>
-        body {
+        body {{
             font-family: system-ui, -apple-system, 'Noto Sans', 'Noto Sans CJK SC', 'Source Han Sans SC', 'DejaVu Sans', Arial, sans-serif;
             margin: 0;
             padding: 20px;

@@ -13,7 +13,7 @@ experiment:
 
 # 数据配置
 data:
-  data_path: "E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5"
+  data_path: "data/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5"
   dataset_name: "PDEBench"
   keys: ["tensor"]  # 数据变量键名
   splits_dir: "splits"

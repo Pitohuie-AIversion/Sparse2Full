@@ -1,151 +1,103 @@
 experiment:
-  name: Bicubic-CNN-Crop16-DRD-model_BicubicCNN-s2025-20260519
-  description: Bicubic-CNN baseline for DRD Crop 16x16
-  device: cuda
+  name: Resource-Persistence-Test-model_SwinUNet-s2025-20260904
+  description: 最小配置测试训练流程
+  device: cuda:0
   seed: 2025
-  seeds:
-  - 2025
-  - 2026
-  - 2027
-  output_dir: runs_bicubic_cnn_drd
-  log_every_n_steps: 10
+  output_dir: /tmp/resource_persist_llv9m3p0
   precision: bf16-mixed
 device:
   accelerator: cuda
   devices: 1
-  strategy: null
-  allow_data_parallel_fallback: true
+  strategy: auto
   precision: bf16-mixed
 ar:
   enabled: false
-  eval_time_strategy: mean
 sequential:
   enabled: false
 data:
-  data_path: data/DR2D/2D_diff-react_NA_NA.h5
   dataset_name: RealDiffusionReaction
-  img_size: 128
-  keys:
-  - data
-  component: u
-  use_official_format: true
-  splits_dir: splits
-  target_channels: 1
-  input_channels: 1
-  sample_limit: null
+  data_path: /tmp/synthetic_data.h5
+  use_synthetic_data: true
+  synthetic_data_config:
+    num_samples: 16
+    image_size: 64
+    channels: 2
   T_in: 1
   T_out: 1
+  image_size: 64
+  sample_limit: 50
   train_ratio: 0.8
-  val_ratio: 0.1
-  test_ratio: 0.1
-  time_step_start: 0
-  time_step_end: 101
-  time_step_stride: 10
-  observation:
-    mode: Crop
-    crop_size:
-    - 16
-    - 16
-    boundary_mode: mirror
-  input_mode: lr
-  include_coords: true
-  include_mask: true
-  include_fourier_pe: false
+  val_ratio: 0.15
+  test_ratio: 0.05
   normalize: true
   augmentation:
     enabled: false
   dataloader:
-    batch_size: 96
-    val_batch_size: 96
-    test_batch_size: 96
+    batch_size: 4
+    val_batch_size: 2
+    test_batch_size: 1
     num_workers: 0
-    pin_memory: true
+    pin_memory: false
     persistent_workers: true
     prefetch_factor: 16
     drop_last: true
-    shuffle: true
-    timeout: 60
+    shuffle: false
   max_samples: 512
-hardware:
-  allow_tf32: true
-  memory:
-    cudnn_benchmark: true
-  num_workers: 0
-  pin_memory: false
-  persistent_workers: false
 model:
-  name: BicubicCNN
-  in_channels: 3
-  out_channels: 1
-  img_size: 128
-  upscale: 1
-model_budget:
-  target_params_m: 10.0
-  tolerance_m: 1.0
-  auto_tune: false
+  name: SwinUNet
+  in_channels: 2
+  out_channels: 2
+  img_size: 64
+  patch_size: 2
+  window_size: 4
+  depths:
+  - 1
+  - 1
+  - 1
+  - 1
+  num_heads:
+  - 1
+  - 2
+  - 4
+  - 8
+  embed_dim: 24
+  mlp_ratio: 2.0
+  drop_rate: 0.0
+  attn_drop_rate: 0.0
+  drop_path_rate: 0.0
 training:
-  epochs: 50
-  batch_size: 96
+  epochs: 2
+  batch_size: 4
   gradient_accumulation_steps: 1
-  torch_compile: false
-  torch_compile_backend: inductor
-  torch_compile_mode: reduce-overhead
-  channels_last: true
-  dataloader:
-    batch_size: 96
-    num_workers: 0
-    pin_memory: true
-    persistent_workers: false
-    prefetch_factor: null
-  loss_weights:
-    reconstruction: 1.0
-    spectral: 0.0
-    data_consistency: 0.0
-  validation:
-    enabled: true
-    check_val_every_n_epoch: 5
-    save_val_batch_for_viz: false
-    log_val_metrics: false
   optimizer:
     name: AdamW
-    lr: 0.0005
-    weight_decay: 0.0001
-    betas:
-    - 0.9
-    - 0.999
-    eps: 1.0e-08
+    lr: 0.001
+    weight_decay: 0.0
     fused: false
     foreach: false
   scheduler:
     name: CosineAnnealingLR
-    T_max: 1000
+    T_max: 2
     eta_min: 1.0e-06
-    warmup_epochs: 10
-  gradient_clip_val: 1.0
-  gradient_clip_algorithm: norm
+  gradient_clip_val: 0
   amp:
-    enabled: false
+    enabled: true
     autocast_dtype: bfloat16
-  curriculum:
-    enabled: false
-    stages: []
+  validation:
+    enabled: true
+    check_val_every_n_epoch: 1
+    log_val_metrics: false
   checkpoint:
-    save_best: true
-    save_last: true
-    max_keep: 5
-    monitor: val_loss
-    mode: min
-    save_every_n_epochs: 50
+    save_best: false
+    save_last: false
+    max_keep: 2
+    save_every_n_epochs: 0
   early_stopping:
     enabled: false
-    patience: 200
+    patience: 20
+    min_delta: 0.0001
     monitor: val_loss
-    mode: min
-    min_delta: 1.0e-06
 loss:
-  ar_loss:
-    weight: 0.0
-    reduction: mean
   reconstruction:
     weight: 1.0
   spectral:
@@ -153,63 +105,27 @@ loss:
   degradation_consistency:
     weight: 0.0
   gradient_weight: 0.0
-validation:
-  check_val_every_n_epoch: 5
-  use_observation: true
-  metrics:
-  - rel_l2
-  - mae
-  - psnr
-  - ssim
-  rollout_steps:
-  - 1
-  convergence_criteria:
-    target_rel_l2: 0.1
-    patience_for_convergence: 10
-    min_improvement: 0.0001
 logging:
-  experiment_name: BicubicCNN-Crop16-DRD
-  version: null
-  default_hp_metric: false
-  log_model: false
+  experiment_name: minimal-debug
+  log_every_n_steps: 1
   performance_monitoring:
-    log_gpu_memory: true
-    log_throughput: true
-    log_batch_time: true
+    log_gpu_memory: false
+    log_throughput: false
+    log_batch_time: false
   tensorboard:
     save_dir: runs/tensorboard
-    name: ar_paper
-    version: null
+    name: minimal_debug
   visualization:
-    save_test_visualizations: true
-    save_samples_every_n_epochs: 50
-    num_samples_to_save: 5
-    save_training_curves: true
-    save_rollout_visualization: false
-    num_test_samples: 3
+    save_samples_every_n_epochs: 0
+    num_samples_to_save: 0
+    save_training_curves: false
 testing:
-  enabled: true
-  run_final_test: true
-  save_predictions: false
-  compute_detailed_metrics: true
-  batch_size: 512
-  save_visualizations: true
-  num_visualization_samples: 3
-  fast_mode: false
-  minimal_logging: false
+  enabled: false
 data_augmentation:
   enable: false
-  random_rotation:
-    enable: false
-    degrees:
-    - -5
-    - 5
-  random_flip:
-    enable: false
-    horizontal: 0.5
-    vertical: 0.3
-  gaussian_noise:
-    enable: false
-    std: 0.01
-  normalize_per_sample: false
-  compute_statistics: false
+seed: 2025
+hardware:
+  num_workers: 0
+  pin_memory: false
+  persistent_workers: false
+  allow_tf32: true

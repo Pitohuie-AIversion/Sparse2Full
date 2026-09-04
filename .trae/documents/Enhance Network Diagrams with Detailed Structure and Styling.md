@@ -4,7 +4,7 @@ I will refactor the YAML configuration to use the **DarcyFlow** dataset (specifi
 
 1. **Create New Config File**: `thesis_paper/configs/ar_paper_aligned_sr4_2D_darcy_flow.yaml`
 
-   * **Data Path**: Update to `/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/data/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5`.
+   * **Data Path**: Update to `data/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5`.
 
    * **Dataset Name**: Change to `darcy_flow`.
 

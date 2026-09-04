@@ -55,6 +55,7 @@ from utils.metrics import compute_all_metrics
 from utils.checkpoint import CheckpointManager
 from utils.logger import setup_logger
 from utils.visualization import ARVisualizer
+from src.monitoring import TensorBoardLogger
 
 
 class CurriculumScheduler:
@@ -509,18 +510,10 @@ class Trainer:
     
     def _init_logging(self) -> None:
         """初始化日志记录"""
-        # TensorBoard
-        if self.config.logging.get('use_tensorboard', True):
-            self.tb_writer = SummaryWriter(self.output_dir / 'tensorboard')
-            try:
-                # 写入初始化标记，确保事件文件创建
-                self.tb_writer.add_text('run/info', 'initialized', 0)
-                self.tb_writer.add_scalar('meta/initialized', 1, 0)
-                self.tb_writer.flush()
-            except Exception:
-                pass
-        else:
-            self.tb_writer = None
+        # TensorBoard Logger
+        use_tb = self.config.logging.get('use_tensorboard', True)
+        self.tb_logger = TensorBoardLogger(self.output_dir / 'tensorboard', enabled=use_tb)
+        self.tb_writer = self.tb_logger.writer if self.tb_logger.enabled else None
         
         # Weights & Biases
         if self.config.logging.get('use_wandb', False):
@@ -672,8 +665,8 @@ class Trainer:
     def _build_model_input(self, batch: Dict[str, torch.Tensor]) -> torch.Tensor:
         """统一构建模型输入：[baseline, coords?, mask?]
         - 处理时序 baseline（取最后一个时间步或添加 batch 维）
-        - 根据配置中的 `in_channels` 对 baseline 通道进行裁剪/填充
         - 追加 `coords` 与 `mask` 通道
+        - 依据模型的 `in_channels` 对最终通道进行裁剪/填充对齐
         """
         baseline = batch['baseline']
 
@@ -689,30 +682,7 @@ class Trainer:
         else:
             self.logger.debug(f"baseline shape: {baseline.shape}")
 
-        # 依据配置对 baseline 通道对齐
-        expected_in = getattr(self.config.model, 'in_channels', None)
         model_input = baseline
-        self.logger.debug(f"initial model_input shape: {model_input.shape}")
-        if expected_in is not None:
-            extra_ch = 0
-            if 'coords' in batch:
-                extra_ch += 2
-            if 'mask' in batch:
-                extra_ch += 1
-            expected_baseline_ch = max(1, int(expected_in) - extra_ch)
-
-            if model_input.shape[1] != expected_baseline_ch:
-                if model_input.shape[1] > expected_baseline_ch:
-                    model_input = model_input[:, :expected_baseline_ch]
-                    self.logger.debug(f"baseline channels trimmed to {expected_baseline_ch}")
-                else:
-                    pad_ch = expected_baseline_ch - model_input.shape[1]
-                    pad = torch.zeros(
-                        model_input.shape[0], pad_ch, model_input.shape[2], model_input.shape[3],
-                        device=model_input.device, dtype=model_input.dtype
-                    )
-                    model_input = torch.cat([model_input, pad], dim=1)
-                    self.logger.debug(f"baseline channels padded to {expected_baseline_ch}")
 
         # 追加坐标
         if 'coords' in batch:
@@ -727,6 +697,28 @@ class Trainer:
             self.logger.debug(f"mask shape: {mask.shape}")
             model_input = torch.cat([model_input, mask], dim=1)
             self.logger.debug(f"model_input after mask: {model_input.shape}")
+
+        # 获取模型实际期望的总输入通道数
+        expected_in = getattr(self.model, 'in_channels', None)
+        if expected_in is None:
+            expected_in = getattr(self.config.model, 'in_channels', None)
+        if expected_in is None and hasattr(self.config.model, 'params'):
+            expected_in = getattr(self.config.model.params, 'in_channels', None)
+
+        if expected_in is not None:
+            expected_in = int(expected_in)
+            if model_input.shape[1] != expected_in:
+                if model_input.shape[1] > expected_in:
+                    model_input = model_input[:, :expected_in]
+                    self.logger.debug(f"model_input channels trimmed to {expected_in}")
+                else:
+                    pad_ch = expected_in - model_input.shape[1]
+                    pad = torch.zeros(
+                        model_input.shape[0], pad_ch, model_input.shape[2], model_input.shape[3],
+                        device=model_input.device, dtype=model_input.dtype
+                    )
+                    model_input = torch.cat([model_input, pad], dim=1)
+                    self.logger.debug(f"model_input channels padded to {expected_in}")
 
         return model_input
 
@@ -939,13 +931,11 @@ class Trainer:
                 )
                 
                 # TensorBoard日志
-                if self.tb_writer is not None:
+                if self.tb_logger is not None and self.tb_logger.enabled:
                     step = self.current_epoch * num_batches + batch_idx
-                    self.tb_writer.add_scalar('train/loss', losses['total_loss'].item(), step)
-                    self.tb_writer.add_scalar('train/lr', lr, step)
-                    for key, value in losses.items():
-                        if key != 'total_loss':
-                            self.tb_writer.add_scalar(f'train/{key}', value.item(), step)
+                    self.tb_logger.log_scalars({'loss': losses['total_loss'], 'lr': lr}, step, prefix='train')
+                    sub_losses = {k: v for k, v in losses.items() if k != 'total_loss'}
+                    self.tb_logger.log_scalars(sub_losses, step, prefix='train')
             
             self.global_step += 1
             
@@ -1189,35 +1179,13 @@ class Trainer:
         )
         
         # TensorBoard日志
-        if self.tb_writer is not None:
-            for key, value in train_results.items():
-                # 确保value是标量
-                if hasattr(value, 'mean'):
-                    value = value.mean().item()
-                elif hasattr(value, 'item'):
-                    try:
-                        value = value.item()
-                    except RuntimeError:
-                        value = value.mean().item()
-                self.tb_writer.add_scalar(f'epoch_train/{key}', value, self.current_epoch)
-            for key, value in val_results.items():
-                # 确保value是标量
-                if hasattr(value, 'mean'):
-                    value = value.mean().item()
-                elif hasattr(value, 'item'):
-                    try:
-                        value = value.item()
-                    except RuntimeError:
-                        value = value.mean().item()
-                self.tb_writer.add_scalar(f'epoch_val/{key}', value, self.current_epoch)
-            
-            # 学习率
-            lr = self.optimizer.param_groups[0]['lr']
-            self.tb_writer.add_scalar('epoch_train/lr', lr, self.current_epoch)
-            try:
-                self.tb_writer.flush()
-            except Exception:
-                pass
+        if self.tb_logger is not None and self.tb_logger.enabled:
+            train_scalars = {k: (v.mean().item() if hasattr(v, 'mean') else (v.item() if hasattr(v, 'item') else float(v))) for k, v in train_results.items()}
+            val_scalars = {k: (v.mean().item() if hasattr(v, 'mean') else (v.item() if hasattr(v, 'item') else float(v))) for k, v in val_results.items()}
+            self.tb_logger.log_scalars(train_scalars, self.current_epoch, prefix='epoch_train')
+            self.tb_logger.log_scalars(val_scalars, self.current_epoch, prefix='epoch_val')
+            self.tb_logger.log_scalars({'lr': self.optimizer.param_groups[0]['lr']}, self.current_epoch, prefix='epoch_train')
+            self.tb_logger.flush()
         
         # Weights & Biases日志
         if self.use_wandb:
@@ -1280,7 +1248,7 @@ class Trainer:
             batch = {k: v.to(self.device) if torch.is_tensor(v) else v for k, v in val_batch.items()}
 
             # 前向预测：统一输入构建逻辑，确保与验证一致
-            model_input = self._construct_model_input(batch)
+            model_input = self._build_model_input(batch)
 
             with torch.no_grad():
                 pred = self.model(model_input)
@@ -1290,7 +1258,7 @@ class Trainer:
             if target is None:
                 self.logger.warning("No 'target' found in validation batch; skip saving samples")
                 return
-            target = self._prepare_target(batch, pred)
+            target = self._prepare_target(target, pred.shape)
 
             # 创建保存目录和可视化器
             save_dir = self.output_dir / 'samples' / f'epoch_{epoch:04d}'
@@ -1320,12 +1288,43 @@ class Trainer:
 
             self.logger.info(f"Saved standardized 4-column viz to {viz_path}")
 
+            # 接入 TensorBoard 深度数据可视化（对比图、残差直方图、能量谱、时序序列带）
+            if hasattr(self, 'tb_logger') and self.tb_logger is not None and self.tb_logger.enabled:
+                self.tb_logger.log_flow_field_grid(
+                    gt_field=target[0],
+                    pred_field=pred[0],
+                    input_sparse=observation[0],
+                    step=epoch,
+                    tag="Validation/FlowField_Grid"
+                )
+                self.tb_logger.log_error_histogram(
+                    gt=target,
+                    pred=pred,
+                    step=epoch,
+                    tag="Validation/Error_Histogram"
+                )
+                self.tb_logger.log_energy_spectrum(
+                    gt_field=target[0],
+                    pred_field=pred[0],
+                    step=epoch,
+                    tag="Validation/Energy_Spectrum"
+                )
+                if target.dim() >= 4 and target.shape[1] > 1:
+                    self.tb_logger.log_temporal_rollout_strip(
+                        gt_seq=target[0],
+                        pred_seq=pred[0],
+                        step=epoch,
+                        tag="Validation/Rollout_Sequence"
+                    )
+
         except Exception as e:
             self.logger.warning(f"Failed to save training samples: {e}")
     
     def _cleanup(self) -> None:
         """清理资源"""
-        if self.tb_writer is not None:
+        if hasattr(self, 'tb_logger') and self.tb_logger is not None:
+            self.tb_logger.close()
+        elif self.tb_writer is not None:
             self.tb_writer.close()
         
         if self.use_wandb:

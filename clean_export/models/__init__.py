@@ -71,7 +71,7 @@ __all__ = [
 ]
 
 # 工厂函数 - 保持向后兼容
-def create_model(model_name_or_config, **kwargs):
+def create_model(model_name_or_config=None, **kwargs):
     from .base import create_model as base_create_model
 
     return base_create_model(model_name_or_config, **kwargs)

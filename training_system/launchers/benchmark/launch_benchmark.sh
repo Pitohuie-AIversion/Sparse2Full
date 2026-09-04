@@ -12,7 +12,8 @@ CONFIG_FILE="configs/train_benchmark.yaml"
 SEED=${4:-42}
 
 # Set up environment
-export PYTHONPATH=/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full:$PYTHONPATH
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+export PYTHONPATH="$PROJECT_ROOT${PYTHONPATH:+:$PYTHONPATH}"
 export PYTHONHASHSEED=0
 export CUDA_LAUNCH_BLOCKING=1
 

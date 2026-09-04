@@ -9,7 +9,7 @@ data:
   _target_: training_system.utils.datasets.pde_bench.PDEBenchDataModule
   name: 2d_diff_react_na_na_crop_20
   dataset_name: 2D_diff-react_NA_NA
-  data_path: /share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/data/2D_diff-react_NA_NA.h5
+  data_path: data/2D_diff-react_NA_NA.h5
   task_type: crop_20
   input_size: [128, 128]
   output_size: [128, 128]

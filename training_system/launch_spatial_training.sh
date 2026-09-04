@@ -10,7 +10,8 @@ CONFIG_FILE=${2:-"../configs/spatial/spatial_sr4_config.yaml"}
 SEED=${3:-2025}
 
 # 设置环境
-export PYTHONPATH=/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full:$PYTHONPATH
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export PYTHONPATH="$PROJECT_ROOT${PYTHONPATH:+:$PYTHONPATH}"
 export PYTHONHASHSEED=0
 export CUDA_LAUNCH_BLOCKING=1  # 更好的错误信息
 
@@ -55,7 +56,7 @@ fi
 
 # 运行训练
 echo "开始纯空间预测训练..."
-cd /share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/training_system
+cd "$PROJECT_ROOT/training_system"
 
 # 使用训练系统的主训练脚本
 python scripts/train.py \

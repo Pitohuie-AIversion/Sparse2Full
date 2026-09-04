@@ -12,6 +12,9 @@ import h5py
 import json
 from typing import Dict, Any, Tuple
 
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
 def create_sample_ar_data() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """为AR模型创建示例数据"""
     # 模拟AR训练结果数据
@@ -126,7 +129,7 @@ def create_ar_four_panel_viz(
 def main():
     """主函数"""
     # 设置运行目录
-    run_dir = Path(r"/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/runs/AR-DR2D-Debug-FNO2D-Staged-s2025-model_None_20251120_140708")
+    run_dir = PROJECT_ROOT / "runs/AR-DR2D-Debug-FNO2D-Staged-s2025-model_None_20251120_140708"
     
     # 确保可视化目录存在
     viz_dir = run_dir / "visualizations"

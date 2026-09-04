@@ -34,7 +34,13 @@ class TrainingMonitor:
         self.fig_dir.mkdir(exist_ok=True)
         
         # 初始化TensorBoard
-        self.tb_writer = SummaryWriter(str(output_dir / "tensorboard"))
+        try:
+            from src.monitoring import TensorBoardLogger
+            self.tb_logger = TensorBoardLogger(output_dir / "tensorboard")
+            self.tb_writer = self.tb_logger.writer
+        except Exception:
+            self.tb_logger = None
+            self.tb_writer = SummaryWriter(str(output_dir / "tensorboard"))
         
         # 监控配置
         self.log_interval = getattr(config, 'log_interval', 10)

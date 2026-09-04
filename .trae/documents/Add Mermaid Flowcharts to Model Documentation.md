@@ -1,4 +1,4 @@
-Based on the user's request to add Mermaid flowcharts below the ASCII diagrams in `/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/models/模型架构说明/01_Model_Architectures.md`, and my review of the file, I will proceed with the following plan:
+Based on the user's request to add Mermaid flowcharts below the ASCII diagrams in `models/模型架构说明/01_Model_Architectures.md`, and my review of the file, I will proceed with the following plan:
 
 1.  **Identify Targets**: I have identified all sections with ASCII diagrams:
     *   1.1 Swin-UNet

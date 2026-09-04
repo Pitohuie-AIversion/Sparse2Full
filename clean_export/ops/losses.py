@@ -11,11 +11,68 @@ import torch
 import torch.nn.functional as F
 from omegaconf import DictConfig
 
-# 为测试兼容提供CombinedLoss别名，复用utils.losses.TotalLoss实现
 try:
-    from utils.losses import TotalLoss as CombinedLoss  # noqa: F401
-except Exception:
-    CombinedLoss = None  # 在缺少依赖时保持可导入但不可用
+    from utils.losses import TotalLoss as _TotalLoss
+except ImportError:
+    _TotalLoss = None
+
+
+def _config_get(config: Any, key: str, default: Any = None) -> Any:
+    if config is None:
+        return default
+    getter = getattr(config, 'get', None)
+    if callable(getter):
+        return getter(key, default)
+    return getattr(config, key, default)
+
+
+class CombinedLoss(torch.nn.Module):
+    """Compatibility adapter for the legacy ``CombinedLoss(config)`` API."""
+
+    def __init__(self, config: DictConfig):
+        super().__init__()
+        if _TotalLoss is None:
+            raise ImportError("utils.losses.TotalLoss is unavailable")
+        loss_cfg = _config_get(config, 'loss', {})
+        data_cfg = _config_get(config, 'data', {})
+        spec_cfg = _config_get(loss_cfg, 'spectral_loss', {})
+        dc_cfg = {
+            'task': _config_get(data_cfg, 'task', 'SR'),
+            'scale': int(_config_get(data_cfg, 'sr_scale', 1)),
+            'sigma': float(_config_get(data_cfg, 'blur_sigma', 1.0)),
+            'kernel_size': int(_config_get(data_cfg, 'blur_kernel_size', 5)),
+            'boundary': _config_get(data_cfg, 'boundary_mode', 'mirror'),
+        }
+        self.dc_weight = float(_config_get(loss_cfg, 'data_consistency_weight', 0.0))
+        self.impl = _TotalLoss(
+            rec_weight=float(_config_get(loss_cfg, 'reconstruction_weight', 1.0)),
+            spec_weight=float(_config_get(loss_cfg, 'spectral_weight', 0.0)),
+            dc_weight=self.dc_weight,
+            low_freq_modes=int(_config_get(spec_cfg, 'low_freq_modes', 16)),
+            spec_config=spec_cfg,
+            dc_config=dc_cfg,
+        )
+
+    def forward(self, pred: torch.Tensor, target: torch.Tensor, observation_data: Any) -> Dict[str, torch.Tensor]:
+        observation = observation_data
+        if isinstance(observation_data, dict):
+            observation = observation_data.get('original_observation')
+            if observation is None:
+                observation = observation_data.get('observation')
+            if observation is None:
+                observation = observation_data.get('baseline')
+        if not isinstance(observation, torch.Tensor):
+            if self.dc_weight > 0:
+                raise ValueError("observation_data must contain an observation tensor when DC loss is enabled")
+            observation = target
+        total, components = self.impl(pred, target, observation)
+        return {
+            'total_loss': total,
+            'reconstruction_loss': components['rec_loss'],
+            'spectral_loss': components['spec_loss'],
+            'dc_loss': components['dc_loss'],
+            'data_consistency_loss': components['dc_loss'],
+        }
 
 
 class ARLoss(torch.nn.Module):

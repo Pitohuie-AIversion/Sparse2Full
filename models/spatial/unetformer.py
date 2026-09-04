@@ -169,11 +169,17 @@ class SRAttention(nn.Module):
         kv = kv.reshape(B, Nk, 2, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4)
         k, v = kv[0], kv[1]                                     # [B,h,Nk,hd]
 
-        attn = (q @ k.transpose(-2, -1)) * self.scale            # [B,h,N,Nk]
-        attn = attn.softmax(dim=-1)
-        attn = self.attn_drop(attn)
-
-        out = (attn @ v).transpose(1, 2).reshape(B, N, C)        # [B,N,C]
+        # Let PyTorch select a fused/memory-efficient attention kernel. Explicitly
+        # materializing [B, heads, N, Nk] exceeds 4 GiB at 256x256 even with SR.
+        dropout_p = self.attn_drop.p if self.training else 0.0
+        out = F.scaled_dot_product_attention(
+            q,
+            k,
+            v,
+            dropout_p=dropout_p,
+            scale=self.scale,
+        )
+        out = out.transpose(1, 2).reshape(B, N, C)                # [B,N,C]
         out = self.proj_drop(self.proj(out))
         return out
 

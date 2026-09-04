@@ -29,7 +29,7 @@ graph TD
     end
     
     subgraph "数据层"
-        H[E:/2D数据存储]
+        H[data/2D数据存储]
         I[配置文件存储]
         J[模型检查点存储]
     end
@@ -52,7 +52,7 @@ graph TD
 | 路由 | 用途 |
 |------|-----|
 | /dashboard | 主控制面板，显示所有数据集状态和训练进度 |
-| /datasets | 数据集管理页面，扫描和配置E:/2D目录数据 |
+| /datasets | 数据集管理页面，扫描和配置data/2D目录数据 |
 | /config-generator | 配置生成器，自动生成训练配置文件 |
 | /training | 多数据集训练监控页面 |
 | /evaluation | 模型评估和性能对比页面 |
@@ -62,7 +62,7 @@ graph TD
 
 ### 4.1 数据集管理API
 
-**扫描E:/2D目录**
+**扫描data/2D目录**
 ```
 POST /api/datasets/scan
 ```
@@ -70,7 +70,7 @@ POST /api/datasets/scan
 请求:
 | 参数名 | 参数类型 | 是否必需 | 描述 |
 |--------|----------|----------|------|
-| root_path | string | true | E:/2D目录路径 |
+| root_path | string | true | data/2D目录路径 |
 | recursive | boolean | false | 是否递归扫描子目录 |
 
 响应:
@@ -83,7 +83,7 @@ POST /api/datasets/scan
 示例:
 ```json
 {
-  "root_path": "E:/2D",
+  "root_path": "data/2D",
   "recursive": true
 }
 ```
@@ -252,11 +252,11 @@ CREATE INDEX idx_datasets_created_at ON datasets(created_at DESC);
 
 -- 初始化数据
 INSERT INTO datasets (name, pde_type, data_path, resolution, size_gb, metadata) VALUES
-('DarcyFlow_2D_Train', 'DarcyFlow', 'E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5', 128, 2.5, 
+('DarcyFlow_2D_Train', 'DarcyFlow', 'data/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5', 128, 2.5, 
  '{"keys": ["tensor"], "time_steps": 10000, "physics": "porous_media_flow"}'),
-('DiffReact_2D', 'DiffReact', 'E:/2D/DiffReact/2D_diff-react_NA_NA.h5', 64, 1.8,
+('DiffReact_2D', 'DiffReact', 'data/2D/DiffReact/2D_diff-react_NA_NA.h5', 64, 1.8,
  '{"keys": ["u", "v"], "time_steps": 20, "physics": "reaction_diffusion"}'),
-('IncompNS_2D', 'IncompNS', 'E:/2D/IncompNS/2D_incompNS_NA_NA.h5', 128, 3.2,
+('IncompNS_2D', 'IncompNS', 'data/2D/IncompNS/2D_incompNS_NA_NA.h5', 128, 3.2,
  '{"keys": ["u", "v", "p"], "time_steps": 50, "physics": "fluid_dynamics"}');
 ```
 

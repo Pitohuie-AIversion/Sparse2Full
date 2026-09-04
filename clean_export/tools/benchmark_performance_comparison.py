@@ -29,6 +29,10 @@ import yaml
 project_root = Path(__file__).resolve().parents[1]
 sys.path.append(str(project_root))
 
+DEFAULT_ORIGINAL_SCRIPT = project_root / "tools" / "training" / "train_real_data_ar.py"
+DEFAULT_REFACTORED_SCRIPT = project_root / "tools" / "training" / "train_real_data_ar_refactored.py"
+DEFAULT_CONFIG = project_root / "configs" / "ar_training_refactored_config.yaml"
+
 # 设置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -939,13 +943,13 @@ def main():
     """主函数"""
     parser = argparse.ArgumentParser(description="性能对比分析工具")
     parser.add_argument("--original-script", type=str,
-                       default="/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/tools/training/train_real_data_ar.py",
+                       default=str(DEFAULT_ORIGINAL_SCRIPT),
                        help="原始脚本路径")
     parser.add_argument("--refactored-script", type=str,
-                       default="/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/tools/training/train_real_data_ar_refactored.py",
+                       default=str(DEFAULT_REFACTORED_SCRIPT),
                        help="重构脚本路径")
     parser.add_argument("--config", type=str,
-                       default="/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/configs/ar_training_refactored_config.yaml",
+                       default=str(DEFAULT_CONFIG),
                        help="配置文件路径")
     parser.add_argument("--output", type=str, default="performance_comparison_results",
                        help="输出目录")

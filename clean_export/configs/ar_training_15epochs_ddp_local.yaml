@@ -10,7 +10,7 @@ experiment:
 
 # 数据配置（若路径不存在，训练器将自动回退到合成数据集）
 data:
-  data_path: "/share/fandixiaLab/nonexistent/2D_diff-react_NA_NA.h5"  # 占位路径，触发合成回退
+  data_path: "data/nonexistent/2D_diff-react_NA_NA.h5"  # 占位路径，触发合成回退
   dataset_name: RealDiffusionReaction
   image_size: 128
   channels: 2

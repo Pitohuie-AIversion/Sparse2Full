@@ -6,7 +6,7 @@ experiment:
   device: "cuda"
 
 data:
-  data_path: "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/test_data.h5"
+  data_path: "test_data.h5"
   T_in: 1
   T_out: 5
   train_ratio: 0.7

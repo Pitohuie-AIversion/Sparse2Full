@@ -1,5 +1,9 @@
 import json
 import os
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+RUNS_DIR = PROJECT_ROOT / "runs_drd_paper"
 
 files = [
     "AR-DR2D-Stage2-VideoSwin-SRx4-model_unknown-s2025-20260116/test_results.json",
@@ -10,7 +14,7 @@ files = [
 print("Checking for time_metrics or metrics_by_time in the actual test_results.json files...")
 
 for f in files:
-    path = f"/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/runs_drd_paper/{f}"
+    path = RUNS_DIR / f
     if os.path.exists(path):
         try:
             with open(path) as fp:
@@ -28,4 +32,3 @@ for f in files:
             print(f"Error reading {path}: {e}")
     else:
         print(f"\nFile not found: {path}")
-

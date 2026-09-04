@@ -1,8 +1,10 @@
 import json
 import os
 import glob
+from pathlib import Path
 
-files = glob.glob("/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/**/*test_results.json", recursive=True)
+PROJECT_ROOT = Path(__file__).resolve().parent
+files = glob.glob(str(PROJECT_ROOT / "**" / "*test_results.json"), recursive=True)
 for f in files:
     if "DR2D" not in f and "drd" not in f.lower():
         continue

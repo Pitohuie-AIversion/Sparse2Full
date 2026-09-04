@@ -12,7 +12,7 @@ from pathlib import Path
 
 def debug_visualization():
     """Debug visualization generation"""
-    base_dir = Path("F:/Zhaoyang/Sparse2Full")
+    base_dir = Path(".")
     runs_dir = base_dir / "runs" / "temporal_nar_100epochs"
     output_dir = base_dir / "comprehensive_visualizations"
     output_dir.mkdir(exist_ok=True)

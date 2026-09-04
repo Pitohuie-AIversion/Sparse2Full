@@ -18,7 +18,7 @@ SEEDS=(42 123 456)
 PDE_TYPES=("2d_diff_react" "ns_incom_inhom")
 SPARSE_TASKS=("sr_x4" "crop_20")  # 选择困难任务
 
-BASE_DIR="/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full"
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RESULTS_DIR="$BASE_DIR/paper_package/loss_ablation_experiments"
 
 echo "🔬 开始损失函数权重消融实验..."

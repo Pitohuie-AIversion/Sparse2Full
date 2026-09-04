@@ -78,7 +78,7 @@ class CompleteTemporalNARTraining:
             raise FileNotFoundError(f"配置文件不存在: {self.config_path}")
         
         # 检查数据集路径
-        data_path = "E:/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+        data_path = "data/DR2D/2D_diff-react_NA_NA.h5"
         if not Path(data_path).exists():
             logger.warning(f"数据集路径不存在: {data_path}")
             logger.info("请确保数据集路径正确或使用模拟数据")

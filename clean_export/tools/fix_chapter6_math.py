@@ -1,7 +1,9 @@
 import re
 import os
+from pathlib import Path
 
-FILE_PATH = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/thesis_paper/manuscript_gpt_review/chapter6.md"
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+FILE_PATH = PROJECT_ROOT / "thesis_paper/manuscript_gpt_review/chapter6.md"
 
 def fix_math(content):
     lines = content.split('\n')

@@ -1,7 +1,8 @@
 import re
 import os
+from pathlib import Path
 
-PROJECT_ROOT = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full"
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DOCS_DIR = os.path.join(PROJECT_ROOT, "thesis_paper/manuscript_gpt_review")
 
 def fix_file(filename):

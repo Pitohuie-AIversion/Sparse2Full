@@ -75,5 +75,5 @@ def check_checkpoint(checkpoint_path):
         return None
 
 if __name__ == "__main__":
-    checkpoint_path = "f:/Zhaoyang/Sparse2Full/runs/checkpoints/best.pth"
+    checkpoint_path = "runs/checkpoints/best.pth"
     checkpoint = check_checkpoint(checkpoint_path)

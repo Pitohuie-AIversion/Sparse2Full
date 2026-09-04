@@ -3,6 +3,10 @@
 详细检查test_data.h5的结构
 """
 import h5py
+from pathlib import Path
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 def analyze_h5_structure(file_path):
     """详细分析HDF5文件结构"""
@@ -32,4 +36,4 @@ def analyze_h5_structure(file_path):
                 print(f"  通道数: {data.shape[3]}")
 
 if __name__ == "__main__":
-    analyze_h5_structure("/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/test_data.h5")
+    analyze_h5_structure(PROJECT_ROOT / "test_data.h5")

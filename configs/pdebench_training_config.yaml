@@ -5,7 +5,7 @@
 datasets:
   darcy_flow:
     name: "DarcyFlow"
-    path: "E:/2D/DarcyFlow"
+    path: "data/2D/DarcyFlow"
     files: ["2D_DarcyFlow_beta100.0_Train.hdf5"]
     size_gb: 6.10
     batch_size: 16
@@ -16,7 +16,7 @@ datasets:
     
   diffusion_reaction:
     name: "Diffusion-Reaction"
-    path: "E:/2D/diffusion-reaction"
+    path: "data/2D/diffusion-reaction"
     size_gb: 12.33
     batch_size: 8
     num_workers: 4
@@ -26,7 +26,7 @@ datasets:
     
   ns_incompressible:
     name: "NS_incom"
-    path: "E:/2D/NS_incom"
+    path: "data/2D/NS_incom"
     size_gb: 120.24
     batch_size: 4
     num_workers: 2
@@ -36,7 +36,7 @@ datasets:
     
   shallow_water:
     name: "Shallow-Water"
-    path: "E:/2D/shallow-water"
+    path: "data/2D/shallow-water"
     size_gb: 6.17
     batch_size: 16
     num_workers: 4
@@ -46,7 +46,7 @@ datasets:
 
 # 通用配置
 common:
-  data_root: "E:/2D"
+  data_root: "data/2D"
   image_size: 128
   coordinate_range: [0.003906, 0.996094]
   data_type: "float32"

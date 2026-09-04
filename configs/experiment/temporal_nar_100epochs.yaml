@@ -40,7 +40,7 @@ experiment:
 # 覆盖数据配置
 data:
   _target_: datasets.PDEBenchDataModule
-  data_path: "e:/2d/diffusion-reaction/2D_diff-react_NA_NA.h5"
+  data_path: "data/DR2D/2D_diff-react_NA_NA.h5"
   keys: ["0000", "0001", "0002", "0003", "0004"]  # 使用前5个case进行快速测试
   batch_size: 4  # 训练时使用合适的batch size
   num_workers: 4

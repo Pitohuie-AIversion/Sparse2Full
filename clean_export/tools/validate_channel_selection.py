@@ -9,6 +9,7 @@ import numpy as np
 from pathlib import Path
 import h5py
 import yaml
+import argparse
 
 def analyze_hdf5_data_structure(data_path):
     """分析HDF5文件的数据结构"""
@@ -122,9 +123,34 @@ def main():
     print("=" * 60)
     print("🔧 通道选择配置验证工具")
     print("=" * 60)
-    
-    # 当前配置文件路径
-    config_path = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/configs/train/ar_training_config debug.yaml"
+
+    project_root = Path(__file__).resolve().parents[1]
+    candidates = [
+        project_root / "configs" / "train" / "ar_training_config_debug.yaml",
+        project_root / "configs" / "train" / "ar_training_config debug.yaml",
+        project_root / "configs" / "train" / "ar_training_config.yaml",
+        project_root / "configs" / "ar_training_config_debug.yaml",
+        project_root / "configs" / "ar_training_config.yaml",
+    ]
+
+    parser = argparse.ArgumentParser(description="通道选择配置验证工具")
+    parser.add_argument(
+        "--config",
+        default=None,
+        help="配置文件路径（YAML）。未指定时自动选择仓库内默认配置。",
+    )
+    args = parser.parse_args()
+    config_path = Path(args.config) if args.config else None
+    if config_path is None:
+        for path in candidates:
+            if path.exists():
+                config_path = path
+                break
+    if config_path is None or not config_path.exists():
+        raise FileNotFoundError(
+            "未找到可用默认配置文件。请使用 --config 显式指定。已尝试: "
+            f"{[str(path) for path in candidates]}"
+        )
     
     try:
         with open(config_path, 'r') as f:

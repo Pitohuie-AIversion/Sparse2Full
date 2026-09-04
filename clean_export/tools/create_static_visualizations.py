@@ -8,11 +8,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
 
+from pathlib import Path
+
 def create_static_visualizations():
     """创建静态可视化图像"""
     
     # 数据文件路径
-    file_path = "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse_to_Dense_Transformer/VIVTransformer-4sh2r1-codx/pdebench_extended/data/PDEBench/pdebench/data_download/....data/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+    project_root = Path(__file__).resolve().parents[1]
+    file_path = str(project_root / "data/DR2D/2D_diff-react_NA_NA.h5")
     
     with h5py.File(file_path, 'r') as f:
         # 选择第一个样本

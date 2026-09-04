@@ -12,6 +12,7 @@ setup(
         "numpy",
         "h5py",
         "omegaconf",
+        "einops",
         "pytorch-lightning",
     ],
     classifiers=[

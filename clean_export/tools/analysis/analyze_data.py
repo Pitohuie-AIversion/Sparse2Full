@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 PDEBench数据集分析脚本
-分析E:\2D目录下的HDF5文件结构和内容
+分析data/2D目录下的HDF5文件结构和内容
 为主项目训练提供数据配置信息
 """
 
@@ -113,7 +113,7 @@ def generate_training_metadata(analysis_results):
 
 def main():
     """主函数"""
-    data_root = "E:/2D"
+    data_root = "data/2D"
     
     print("=" * 80)
     print("PDEBench 数据集分析")

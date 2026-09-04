@@ -4,7 +4,7 @@
 
 set -e
 
-BASE_DIR="/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full"
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TEST_DIR="$BASE_DIR/paper_package/quick_validation"
 
 echo "⚡ 快速验证实验配置..."

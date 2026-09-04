@@ -19,7 +19,7 @@ PDEBench Sparse2Full 是一个基于深度学习的偏微分方程（PDE）稀�
 
 ### 数据集结构
 ```
-数据路径: E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5
+数据路径: data/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5
 数据形状: (10000, 1, 128, 128)
 数据类型: float32
 数据范围: [0.00018, 1.235]
@@ -109,7 +109,7 @@ PDEBench Sparse2Full 是一个基于深度学习的偏微分方程（PDE）稀�
 ```yaml
 # PDEBench数据配置
 _target_: datasets.pdebench.PDEBenchDataModule
-data_path: "E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5"
+data_path: "data/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5"
 dataset_name: "DarcyFlow_2D"
 keys: ["tensor"]  # 只使用tensor数据，忽略nu等参数
 image_size: 128
@@ -226,7 +226,7 @@ model:
 ### 数据特征分析
 通过 `analyze_data.py` 脚本分析得出：
 ```
-数据集: E:/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5
+数据集: data/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5
 张量形状: (10000, 1, 128, 128)
 数据类型: float32
 统计信息:

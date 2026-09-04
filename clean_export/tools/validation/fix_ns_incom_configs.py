@@ -30,7 +30,7 @@ def fix_ns_incom_configs():
     ]
     
     # 检查数据集实际样本数量
-    data_path = "E:/2D/NS_incom/ns_incom_inhom_2d_512-0.h5"
+    data_path = "data/2D/NS_incom/ns_incom_inhom_2d_512-0.h5"
     print(f"检查数据集: {data_path}")
     min_samples = check_dataset_samples(data_path)
     print(f"最小样本数: {min_samples}")

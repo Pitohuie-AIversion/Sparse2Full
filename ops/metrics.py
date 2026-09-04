@@ -230,6 +230,12 @@ def compute_data_consistency_error(pred: torch.Tensor, observed: torch.Tensor,
     Returns:
         数据一致性误差 [B, C]
     """
+    # 确保空间维度匹配
+    if observed.shape[-2:] != pred.shape[-2:]:
+        observed = F.interpolate(observed, size=pred.shape[-2:], mode='bilinear', align_corners=False)
+    if mask.shape[-2:] != pred.shape[-2:]:
+        mask = F.interpolate(mask.float(), size=pred.shape[-2:], mode='nearest')
+
     # 确保掩码维度正确
     if mask.size(1) == 1 and pred.size(1) > 1:
         mask = mask.expand_as(pred)
@@ -309,7 +315,8 @@ def compute_all_metrics(pred: torch.Tensor, target: torch.Tensor,
                        observed: Optional[torch.Tensor] = None,
                        mask: Optional[torch.Tensor] = None,
                        data_range: Optional[float] = None,
-                       use_gpu_ssim: bool = True) -> Dict[str, float]:
+                       use_gpu_ssim: bool = True,
+                       **kwargs) -> Dict[str, float]:
     """计算所有评估指标
     
     Args:
@@ -352,8 +359,19 @@ def compute_all_metrics(pred: torch.Tensor, target: torch.Tensor,
     metrics['brmse'] = float(brmse.mean().item())
     
     # 数据一致性指标
-    if observed is not None and mask is not None:
-        dc_error = compute_data_consistency_error(pred, observed, mask)
+    obs_tensor = None
+    mask_tensor = mask
+    if isinstance(observed, dict):
+        obs_tensor = observed.get('observation', observed.get('baseline', observed.get('y')))
+        if mask_tensor is None:
+            mask_tensor = observed.get('mask')
+    elif isinstance(observed, torch.Tensor):
+        obs_tensor = observed
+
+    if obs_tensor is not None:
+        if mask_tensor is None:
+            mask_tensor = torch.ones_like(obs_tensor)
+        dc_error = compute_data_consistency_error(pred, obs_tensor, mask_tensor)
         metrics['dc_error'] = float(dc_error.mean().item())
     
     return metrics

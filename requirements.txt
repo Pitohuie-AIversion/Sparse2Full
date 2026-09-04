@@ -2,5 +2,6 @@ torch>=2.0.0
 numpy
 h5py
 omegaconf
+einops
 pytorch-lightning
 pytest

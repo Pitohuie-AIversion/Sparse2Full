@@ -9,7 +9,7 @@ import numpy as np
 
 def test_hdf5_file():
     """测试HDF5文件"""
-    data_path = "E:/2D/diffusion-reaction/2D_diff-react_NA_NA.h5"
+    data_path = "data/DR2D/2D_diff-react_NA_NA.h5"
     
     print(f"🔍 测试HDF5文件: {data_path}")
     

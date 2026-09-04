@@ -2,8 +2,10 @@ import os
 import json
 import glob
 import re
+from pathlib import Path
 
-files = glob.glob("/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/**/*.json", recursive=True)
+PROJECT_ROOT = Path(__file__).resolve().parent
+files = glob.glob(str(PROJECT_ROOT / "**" / "*.json"), recursive=True)
 for f in files:
     if "runs" not in f and "paper_package" not in f:
         continue

@@ -477,8 +477,8 @@ class StatisticalAnalyzer:
                             value = metric_value.item()
                     elif isinstance(metric_value, (int, float)):
                         value = float(metric_value)
-                    else:
-                        continue  # 跳过无法处理的类型
+                    if isinstance(value, float) and (np.isnan(value) or np.isinf(value)):
+                        continue
 
                     values.append(value)
 
@@ -492,6 +492,68 @@ class StatisticalAnalyzer:
                 }
 
         return aggregated
+
+    def compute_significance_test(
+        self,
+        baseline_results: list[dict[str, Any]],
+        our_results: list[dict[str, Any]],
+        metric_name: str,
+        alpha: float = 0.05
+    ) -> dict[str, Any]:
+        """对两个实验结果集进行显著性检验"""
+        vals1 = []
+        for r in baseline_results:
+            if metric_name in r:
+                v = r[metric_name]
+                if isinstance(v, torch.Tensor):
+                    v = float(v.item())
+                if isinstance(v, (int, float)) and not np.isnan(v) and not np.isinf(v):
+                    vals1.append(float(v))
+
+        vals2 = []
+        for r in our_results:
+            if metric_name in r:
+                v = r[metric_name]
+                if isinstance(v, torch.Tensor):
+                    v = float(v.item())
+                if isinstance(v, (int, float)) and not np.isnan(v) and not np.isinf(v):
+                    vals2.append(float(v))
+
+        if len(vals1) < 2 or len(vals2) < 2:
+            return {'error': f'Insufficient samples for significance test (need >= 2, got baseline={len(vals1)}, ours={len(vals2)})'}
+
+        arr1 = np.array(vals1)
+        arr2 = np.array(vals2)
+
+        from scipy import stats
+        if len(arr1) == len(arr2):
+            t_stat, p_val = stats.ttest_rel(arr2, arr1)
+        else:
+            t_stat, p_val = stats.ttest_ind(arr2, arr1)
+
+        std_pooled = np.sqrt((np.var(arr1, ddof=1) + np.var(arr2, ddof=1)) / 2.0)
+        effect_size = (np.mean(arr2) - np.mean(arr1)) / (std_pooled + 1e-8)
+
+        return {
+            't_stat': float(t_stat),
+            'p_value': float(p_val),
+            'effect_size': float(effect_size),
+            'is_significant': bool(p_val < alpha)
+        }
+
+    def generate_report(self) -> str:
+        """生成统计分析报告文本"""
+        stats = self.compute_statistics()
+        lines = ["# Statistical Analysis Report", ""]
+        if not stats:
+            lines.append("No results available.")
+            return "\n".join(lines)
+        for metric_name, m_stats in stats.items():
+            lines.append(f"## Metric: {metric_name}")
+            for k, v in m_stats.items():
+                lines.append(f"  - {k}: {v}")
+            lines.append("")
+        return "\n".join(lines)
 
 # --- Global Cache for Top-Level Access ---
 _GLOBAL_CALCULATOR: MetricsCalculator | None = None

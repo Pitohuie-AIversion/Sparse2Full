@@ -75,7 +75,15 @@ def resolve_model_name(name: str) -> str:
 def create_model(model_name: str, strict: bool = False, verbose: bool = True, **kwargs) -> BaseModel:
     from importlib import import_module
 
-    import_module("models.spatial")
+    spatial_mod = import_module("models.spatial")
+    if hasattr(spatial_mod, model_name):
+        getattr(spatial_mod, model_name)
+    try:
+        temporal_mod = import_module("models.temporal")
+        if hasattr(temporal_mod, model_name):
+            getattr(temporal_mod, model_name)
+    except Exception:
+        pass
 
     canonical_name = resolve_model_name(model_name)
     model_cls = MODEL_REGISTRY[canonical_name]

@@ -201,7 +201,7 @@ class MockSampleGenerator:
 
 def main():
     """主函数"""
-    base_dir = "f:/Zhaoyang/Sparse2Full"
+    base_dir = "."
     
     generator = MockSampleGenerator(base_dir)
     generator.generate_all_samples()

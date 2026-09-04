@@ -13,7 +13,7 @@
 ### Step 1: 扫描并汇总主要运行目录 (Scan Run Directories)
 - **目标**：列出所有相关的 `runs*` 顶级目录及其包含的任务类型。
 - **操作**：
-  - 遍历 `/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/` 下的所有 `runs*` 目录。
+  - 遍历 `` 下的所有 `runs*` 目录。
   - 已知存在的目录包括：`runs/`（主要包含 SWE 数据）、`runs_drd/`（主要包含 DR2D 空间重建数据）、`runs_drd_paper/`（主要包含 DR2D 时空序列数据）、`runs_3loss_ablation_unet/`（消融实验数据）等。
 
 ### Step 2: 定位“空间重建性能”实验数据 (Locate Spatial Reconstruction Data)

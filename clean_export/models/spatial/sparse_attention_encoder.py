@@ -48,13 +48,17 @@ class SparseAttentionEncoder(nn.Module):
         coord_dim: int = 64,
         mask_dim: int = 32,
         dropout: float = 0.1,
-        use_sparse_bias: bool = True
+        use_sparse_bias: bool = True,
+        attention_window_size: int = 8,
     ):
         super().__init__()
 
         self.embed_dim = embed_dim
         self.num_heads = num_heads
         self.use_sparse_bias = use_sparse_bias
+        self.attention_window_size = int(attention_window_size)
+        if self.attention_window_size <= 0:
+            raise ValueError("attention_window_size must be positive")
         self.head_dim = embed_dim // num_heads
         assert self.head_dim * num_heads == embed_dim, "embed_dim must be divisible by num_heads"
 
@@ -242,7 +246,7 @@ class SparseAttentionEncoder(nn.Module):
         fused_features = torch.cat(features, dim=1)
         fused_features = self.feature_fusion(fused_features)
 
-        # Self-attention (global)
+        # Windowed self-attention keeps memory linear in the number of pixels.
         residual = fused_features
         norm_features = self.norm1(fused_features)
 
@@ -255,22 +259,34 @@ class SparseAttentionEncoder(nn.Module):
 
         scale = 1.0 / math.sqrt(self.head_dim)
 
-        q_flat = q.view(B, self.num_heads, self.head_dim, H * W)
-        k_flat = k.view(B, self.num_heads, self.head_dim, H * W)
-        v_flat = v.view(B, self.num_heads, self.head_dim, H * W)
+        window_size = min(self.attention_window_size, H, W)
+        pad_h = (window_size - H % window_size) % window_size
+        pad_w = (window_size - W % window_size) % window_size
+        padded_h, padded_w = H + pad_h, W + pad_w
 
-        attn = torch.einsum('bhdi,bhdj->bhij', q_flat, k_flat) * scale
+        q = F.pad(q, (0, pad_w, 0, pad_h))
+        k = F.pad(k, (0, pad_w, 0, pad_h))
+        v = F.pad(v, (0, pad_w, 0, pad_h))
+        q_windows = self._window_partition(q, window_size)
+        k_windows = self._window_partition(k, window_size)
+        v_windows = self._window_partition(v, window_size)
 
-        # mask作为attention bias（稀疏注意力近似）
-        if self.use_sparse_bias and mask is not None:
-            sparse_mask = self._create_sparse_attention_mask(mask)
-            attn = attn + sparse_mask.unsqueeze(1)
-
-        attn = F.softmax(attn, dim=-1)
-        attn = self.attn_dropout(attn)
-
-        out_flat = torch.einsum('bhij,bhdj->bhdi', attn, v_flat)
-        attn_out = out_flat.reshape(B, self.num_heads * self.head_dim, H, W)
+        attention_bias = self._create_window_attention_bias(
+            mask=mask,
+            height=H,
+            width=W,
+            padded_height=padded_h,
+            padded_width=padded_w,
+            window_size=window_size,
+            dtype=q.dtype,
+        )
+        out_windows, attn = self._compute_window_attention(
+            q_windows, k_windows, v_windows, scale, attention_bias
+        )
+        attn_out = self._window_reverse(
+            out_windows, window_size, padded_h, padded_w
+        )[:, :, :, :H, :W]
+        attn_out = attn_out.reshape(B, self.embed_dim, H, W)
 
         attn_out = self.out_proj(attn_out)
         x = residual + attn_out
@@ -302,6 +318,53 @@ class SparseAttentionEncoder(nn.Module):
         )
         return windows
 
+    def _create_window_attention_bias(
+        self,
+        mask: Optional[torch.Tensor],
+        height: int,
+        width: int,
+        padded_height: int,
+        padded_width: int,
+        window_size: int,
+        dtype: torch.dtype,
+    ) -> torch.Tensor:
+        """Build a local sparse bias without allocating a global HW x HW mask."""
+        batch_size = mask.shape[0] if mask is not None else 1
+        device = mask.device if mask is not None else self.input_proj.weight.device
+        valid = torch.ones(batch_size, 1, height, width, device=device, dtype=dtype)
+        valid = F.pad(valid, (0, padded_width - width, 0, padded_height - height))
+
+        if self.use_sparse_bias and mask is not None:
+            observed = (mask > 0.5).to(dtype=dtype)
+            observed = F.max_pool2d(observed, kernel_size=7, stride=1, padding=3)
+            observed = F.pad(
+                observed,
+                (0, padded_width - width, 0, padded_height - height),
+            )
+        else:
+            observed = valid
+
+        def partition(values: torch.Tensor) -> torch.Tensor:
+            values = values.view(
+                batch_size,
+                1,
+                padded_height // window_size,
+                window_size,
+                padded_width // window_size,
+                window_size,
+            )
+            return values.permute(0, 2, 4, 1, 3, 5).reshape(
+                -1, window_size * window_size
+            )
+
+        valid_windows = partition(valid).bool()
+        observed_windows = partition(observed).bool()
+        sparse_pairs = observed_windows.unsqueeze(2) & observed_windows.unsqueeze(1)
+        bias = torch.zeros(
+            sparse_pairs.shape, device=device, dtype=dtype
+        ).masked_fill(~sparse_pairs, -1e4)
+        return bias.masked_fill(~valid_windows[:, None, :], torch.finfo(dtype).min)
+
     def _window_reverse(self, windows: torch.Tensor, window_size: int, H: int, W: int) -> torch.Tensor:
         """窗口合并
 
@@ -323,7 +386,7 @@ class SparseAttentionEncoder(nn.Module):
         v_windows: torch.Tensor,
         scale: float,
         mask: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """计算窗口内注意力
 
         References (出处):
@@ -332,15 +395,15 @@ class SparseAttentionEncoder(nn.Module):
         - Swin Transformer (窗口化注意力的组织方式)
           https://arxiv.org/abs/2103.14030
         """
-        B_windows, num_heads, window_size_sq, head_dim = q_windows.shape
-
-        # 计算注意力分数（注意：此处einsum公式为工程占位；如需严格窗口注意力请按Swin实现修正）
-        attn = torch.einsum('bhni,bhnj->bhnj', q_windows, k_windows) * scale
+        attn = torch.matmul(q_windows, k_windows.transpose(-2, -1)) * scale
+        if mask is not None:
+            attn = attn + mask.unsqueeze(1)
         attn = F.softmax(attn, dim=-1)
+        attn = self.attn_dropout(attn)
 
-        out = torch.einsum('bhnj,bhnk->bhnk', attn, v_windows)
+        out = torch.matmul(attn, v_windows)
 
-        return out
+        return out, attn
 
 
 @register_model(name="sparse_swin_unet", aliases=["SparseSwinUNet"])

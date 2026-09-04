@@ -3,7 +3,7 @@ I will implement the automated workflow for generating LaTeX TikZ figures and PD
 **1. Update `export_and_gen_tikz.py`**
 *   **Enhance Arguments**: Add `--compile` (boolean) and `--latex_env` (string) arguments.
 *   **ONNX Export**: Add functionality to export the model to ONNX format (`torch.onnx.export`) alongside the summary and TikZ file.
-*   **Compilation Logic**: Update the compilation step to use the specified conda environment for `tectonic`. Since the `latex` environment exists and has `tectonic` installed (verified), I will use the absolute path `/share/fandixiaLab/suguangsheng/anaconda3/envs/latex/bin/tectonic` or `conda run -n latex tectonic` to ensure it works reliably.
+*   **Compilation Logic**: Update the compilation step to use the specified conda environment for `tectonic`. Use `conda run -n latex tectonic` so the command is independent of the local Conda installation path.
 
 **2. Create `build_all.sh`**
 *   Create the shell script in `thesis_paper/figures_nn/` to iterate over all `fig_*.tex` files and compile them using `tectonic`.

@@ -4,7 +4,7 @@
 支持边界模式：mirror/zero/wrap。
 """
 
-from typing import Dict, Tuple, Optional, Callable
+from typing import Dict, Tuple, Optional, Callable, Union
 
 import torch
 import torch.nn.functional as F
@@ -12,13 +12,13 @@ import torch.nn.functional as F
 
 def _validate_boundary(boundary: str) -> str:
     if boundary not in {"mirror", "zero", "wrap"}:
-        raise ValueError(f"Unsupported boundary mode: {boundary}")
+        raise ValueError(f"Unknown boundary mode: {boundary}")
     return boundary
 
 
 def _create_gaussian_kernel(
-    sigma: float,
-    kernel_size: int,
+    kernel_size: Union[int, float],
+    sigma: Union[float, int],
     device: Optional[torch.device] = None,
     dtype: torch.dtype = torch.float32,
 ) -> torch.Tensor:
@@ -26,6 +26,9 @@ def _create_gaussian_kernel(
 
     当 sigma <= 0 或 kernel_size <= 1 时，返回单位核。
     """
+    kernel_size = int(kernel_size)
+    sigma = float(sigma)
+
     if kernel_size <= 1 or sigma <= 0:
         k = torch.zeros((1, 1, 1, 1), device=device, dtype=dtype)
         k[..., 0, 0] = 1.0
@@ -44,8 +47,8 @@ def _create_gaussian_kernel(
 def _pad_to_size(x: torch.Tensor, target_h: int, target_w: int, boundary: str) -> torch.Tensor:
     """将张量填充/裁剪到指定大小。
 
-    - 当目标更大：在中心位置进行对称填充（mirror/wrap/zero）。
     - 当目标更小：裁剪到左上角区域（与测试期望一致）。
+    - 当目标更大：在中心位置进行对称填充（mirror/wrap/zero）。
     """
     _validate_boundary(boundary)
     b, c, h, w = x.shape
@@ -53,11 +56,17 @@ def _pad_to_size(x: torch.Tensor, target_h: int, target_w: int, boundary: str) -
     if target_h == h and target_w == w:
         return x
 
-    if target_h <= h and target_w <= w:
-        # 裁剪到左上角
-        return x[:, :, :target_h, :target_w]
+    # 1. 裁剪阶段（如果任一维度目标尺寸小于当前尺寸）
+    crop_h = min(h, target_h)
+    crop_w = min(w, target_w)
+    if crop_h < h or crop_w < w:
+        x = x[:, :, :crop_h, :crop_w]
+        h, w = crop_h, crop_w
 
-    # 需要填充到更大尺寸：先创建目标张量并将原图置于中心
+    if target_h == h and target_w == w:
+        return x
+
+    # 2. 填充阶段（如果任一维度目标尺寸大于当前尺寸）
     pad_h = max(target_h - h, 0)
     pad_w = max(target_w - w, 0)
     pad_top = pad_h // 2
@@ -88,16 +97,20 @@ def _gaussian_blur(x: torch.Tensor, sigma: float, kernel_size: int, boundary: st
     b, c, h, w = x.shape
 
     # 边界填充
-    pad = kernel_size // 2
+    pad_total = kernel_size - 1
+    pad_left = pad_total // 2
+    pad_right = pad_total - pad_left
+    pad_top = pad_total // 2
+    pad_bottom = pad_total - pad_top
     mode = {
         "mirror": "reflect",
         "zero": "constant",
         "wrap": "circular",
     }[boundary]
-    x_pad = F.pad(x, (pad, pad, pad, pad), mode=mode)
+    x_pad = F.pad(x, (pad_left, pad_right, pad_top, pad_bottom), mode=mode)
 
     # 构造核并进行组卷积
-    kernel = _create_gaussian_kernel(sigma, kernel_size, device=x.device, dtype=x.dtype)
+    kernel = _create_gaussian_kernel(kernel_size=kernel_size, sigma=sigma, device=x.device, dtype=x.dtype)
     weight = kernel.repeat(c, 1, 1, 1)  # [C,1,k,k]
     y = F.conv2d(x_pad, weight, bias=None, stride=1, padding=0, groups=c)
     return y
@@ -210,6 +223,7 @@ def _apply_crop_degradation(x: torch.Tensor, params: Dict) -> torch.Tensor:
 
     crop_mode = str(params.get("crop_mode", "center")).lower()
 
+    keep_size = bool(params.get("keep_size", params.get("canvas_mask", False)))
     crop_box = params.get("crop_box")
     if crop_box is not None:
         x1 = int(_extract_scalar(crop_box[0], 0))
@@ -217,48 +231,25 @@ def _apply_crop_degradation(x: torch.Tensor, params: Dict) -> torch.Tensor:
         x2 = int(_extract_scalar(crop_box[2], 0))
         y2 = int(_extract_scalar(crop_box[3], 0))
         
-        # 创建画布掩码 (Canvas Mask) 模式
-        # 1. 创建全零画布
-        canvas = torch.zeros_like(x)
-        # 2. 提取 Crop 内容
-        sliced = x[:, :, y1:y2, x1:x2]
-        # 3. 填充回画布
-        canvas[:, :, y1:y2, x1:x2] = sliced
-        return canvas
+        if keep_size:
+            canvas = torch.zeros_like(x)
+            canvas[:, :, y1:y2, x1:x2] = x[:, :, y1:y2, x1:x2]
+            return canvas
+        return x[:, :, y1:y2, x1:x2]
 
     b, c, h, w = x.shape
     if target_h <= h and target_w <= w:
-        # 创建全零画布
-        canvas = torch.zeros_like(x)
-        
-        if crop_mode == "center":
+        if crop_mode == "topleft":
+            hs, ws = 0, 0
+        else:
             hs = (h - target_h) // 2
             ws = (w - target_w) // 2
-            # 填充中心区域
+
+        if keep_size:
+            canvas = torch.zeros_like(x)
             canvas[:, :, hs : hs + target_h, ws : ws + target_w] = x[:, :, hs : hs + target_h, ws : ws + target_w]
             return canvas
-            
-        if crop_mode == "random":
-            # 注意：random 模式在验证时可能不稳定，因为它需要固定的位置
-            # 这里为了简单，如果params没有指定位置，我们每次随机（这在训练中是增强，在测试中需要固定）
-            # 更好的做法是在 Dataset 层生成 random box 并传入 params['crop_box']
-            hs_max = max(h - target_h, 0)
-            ws_max = max(w - target_w, 0)
-            hs = int(torch.randint(0, hs_max + 1, (1,), device=x.device).item()) if hs_max > 0 else 0
-            ws = int(torch.randint(0, ws_max + 1, (1,), device=x.device).item()) if ws_max > 0 else 0
-            canvas[:, :, hs : hs + target_h, ws : ws + target_w] = x[:, :, hs : hs + target_h, ws : ws + target_w]
-            return canvas
-            
-        # Default: Top-Left Crop
-        if crop_mode == "topleft":
-            canvas[:, :, :target_h, :target_w] = x[:, :, :target_h, :target_w]
-            return canvas
-            
-        # Fallback to center if unknown mode
-        hs = (h - target_h) // 2
-        ws = (w - target_w) // 2
-        canvas[:, :, hs : hs + target_h, ws : ws + target_w] = x[:, :, hs : hs + target_h, ws : ws + target_w]
-        return canvas
+        return x[:, :, hs : hs + target_h, ws : ws + target_w]
 
     return _pad_to_size(x, target_h, target_w, boundary)
 
@@ -304,7 +295,7 @@ def apply_degradation_operator(x: torch.Tensor, params: Dict) -> torch.Tensor:
     elif task == "Crop":
         y = _apply_crop_degradation(x, eff_params)
     else:
-        raise ValueError(f"Unsupported degradation task: {task}")
+        raise ValueError(f"Unknown task: {task}")
         
     # 4. 严格形状验证 (Strict Shape Validation)
     # 如果 params 中包含真实观测 'y' (即 obs_data['y'])，必须保证输出形状一致

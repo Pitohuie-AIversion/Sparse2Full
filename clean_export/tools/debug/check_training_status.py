@@ -37,7 +37,7 @@ except Exception as e:
 print('\n' + '='*50)
 print('查找最近的训练运行:')
 
-runs_dir = 'F:/Zhaoyang/Sparse2Full/runs'
+runs_dir = 'runs'
 now = datetime.now()
 recent_cutoff = now - timedelta(hours=12)
 

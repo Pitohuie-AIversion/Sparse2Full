@@ -1,3 +1,10 @@
 #! /bin/sh
 
-exec "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/tools/prince_local/lib/prince/bin/prince" --prefix="/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/tools/prince_local/lib/prince" "$@"
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+PRINCE_LIB=$(cd "$SCRIPT_DIR/../lib/prince" && pwd)
+
+if [ -f "$PRINCE_LIB/bin/prince" ]; then
+    exec "$PRINCE_LIB/bin/prince" --prefix="$PRINCE_LIB" "$@"
+else
+    exec prince "$@"
+fi

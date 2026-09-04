@@ -36,7 +36,7 @@ experiment:
 # 优化的数据配置
 data:
   _target_: datasets.PDEBenchDataModule
-  data_path: "e:/2d/diffusion-reaction/2D_diff-react_NA_NA.h5"
+  data_path: "data/DR2D/2D_diff-react_NA_NA.h5"
   keys: ["0000", "0001", "0002", "0003", "0004", "0005", "0006", "0007"]  # 使用更多数据
   
   # 性能优化参数

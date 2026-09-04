@@ -231,8 +231,8 @@ def main():
     print("🎯 开始时序NAR模型可视化...")
     
     # 设置路径
-    model_path = Path(r"f:\Zhaoyang\Sparse2Full\runs\temporal_nar_100epochs\TemporalNAR-DR2D-128-100epochs-s2025\best.pth")
-    output_dir = Path(r"f:\Zhaoyang\Sparse2Full\runs\temporal_nar_100epochs\predictions_visualization")
+    model_path = Path(r"runs/temporal_nar_100epochs/TemporalNAR-DR2D-128-100epochs-s2025/best.pth")
+    output_dir = Path(r"runs/temporal_nar_100epochs/predictions_visualization")
     output_dir.mkdir(parents=True, exist_ok=True)
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

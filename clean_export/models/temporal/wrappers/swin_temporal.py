@@ -347,7 +347,7 @@ class SwinTemporalNAR(nn.Module):
         # AR预测
         if self.use_ar and self.ar_wrapper is not None:
             ar_output = self.ar_wrapper(
-                x_in=x_seq,
+                x_seq,
                 T_out=T_out,
                 teacher=teacher_seq,
                 train_mode=train_mode

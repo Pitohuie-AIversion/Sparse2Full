@@ -1,15 +1,18 @@
 
 import re
 import os
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 FILES_TO_FIX = [
-    "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/thesis_paper/manuscript_gpt_review/chapter4.md",
-    "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/thesis_paper/manuscript_gpt_review/chapter5.md",
-    "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/thesis_paper/manuscript_gpt_review/chapter6.md",
-    "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/thesis_paper/manuscript_gpt_review/chapter7.md",
-    "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/thesis_paper/manuscript_gpt_review/template.md",
-    "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/thesis_paper/manuscript_gpt_review/symbol_checklist.md",
-    "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/thesis_paper/manuscript_gpt_review/chapter0_abstract.md"
+    PROJECT_ROOT / "thesis_paper/manuscript_gpt_review/chapter4.md",
+    PROJECT_ROOT / "thesis_paper/manuscript_gpt_review/chapter5.md",
+    PROJECT_ROOT / "thesis_paper/manuscript_gpt_review/chapter6.md",
+    PROJECT_ROOT / "thesis_paper/manuscript_gpt_review/chapter7.md",
+    PROJECT_ROOT / "thesis_paper/manuscript_gpt_review/template.md",
+    PROJECT_ROOT / "thesis_paper/manuscript_gpt_review/symbol_checklist.md",
+    PROJECT_ROOT / "thesis_paper/manuscript_gpt_review/chapter0_abstract.md"
 ]
 
 def fix_content(content, filename):

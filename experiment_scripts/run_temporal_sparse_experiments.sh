@@ -11,7 +11,7 @@ TEMPORAL_STRATEGIES=("TS25" "TS50" "TS75")  # 时间采样率
 PREDICTION_MODES=("AR" "NAR")  # 自回归 vs 非自回归
 T_OUT_VALUES=(1 3 5)  # 预测长度
 
-BASE_DIR="/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full"
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RESULTS_DIR="$BASE_DIR/paper_package/temporal_sparse_experiments"
 
 echo "⏰ 开始时间稀疏观测实验..."

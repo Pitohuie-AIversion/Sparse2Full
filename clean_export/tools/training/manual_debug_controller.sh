@@ -96,7 +96,8 @@ case $choice in
         ;;
     4)
         echo "📈 生成调试报告..."
-        /share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/tools/training/get_complete_results.sh
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        "$SCRIPT_DIR/get_complete_results.sh"
         ;;
     *)
         echo "❌ 无效选择"

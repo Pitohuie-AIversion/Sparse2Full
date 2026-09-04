@@ -11,11 +11,75 @@ import torch
 import torch.nn.functional as F
 from omegaconf import DictConfig
 
-# 为测试兼容提供CombinedLoss别名，复用utils.losses.TotalLoss实现
 try:
-    from utils.losses import TotalLoss as CombinedLoss  # noqa: F401
-except Exception:
-    CombinedLoss = None  # 在缺少依赖时保持可导入但不可用
+    from utils.losses import TotalLoss as _TotalLoss
+except ImportError:
+    _TotalLoss = None
+
+
+def _config_get(config: Any, key: str, default: Any = None) -> Any:
+    if config is None:
+        return default
+    getter = getattr(config, 'get', None)
+    if callable(getter):
+        return getter(key, default)
+    return getattr(config, key, default)
+
+
+class CombinedLoss(torch.nn.Module):
+    """Compatibility adapter for the legacy ``CombinedLoss(config)`` API."""
+
+    def __init__(self, config: DictConfig):
+        super().__init__()
+        if _TotalLoss is None:
+            raise ImportError("utils.losses.TotalLoss is unavailable")
+
+        loss_cfg = _config_get(config, 'loss', {})
+        data_cfg = _config_get(config, 'data', {})
+        spec_cfg = _config_get(loss_cfg, 'spectral_loss', {})
+        dc_cfg = {
+            'task': _config_get(data_cfg, 'task', 'SR'),
+            'scale': int(_config_get(data_cfg, 'sr_scale', 1)),
+            'sigma': float(_config_get(data_cfg, 'blur_sigma', 1.0)),
+            'kernel_size': int(_config_get(data_cfg, 'blur_kernel_size', 5)),
+            'boundary': _config_get(data_cfg, 'boundary_mode', 'mirror'),
+        }
+        self.dc_weight = float(_config_get(loss_cfg, 'data_consistency_weight', 0.0))
+        self.impl = _TotalLoss(
+            rec_weight=float(_config_get(loss_cfg, 'reconstruction_weight', 1.0)),
+            spec_weight=float(_config_get(loss_cfg, 'spectral_weight', 0.0)),
+            dc_weight=self.dc_weight,
+            low_freq_modes=int(_config_get(spec_cfg, 'low_freq_modes', 16)),
+            spec_config=spec_cfg,
+            dc_config=dc_cfg,
+        )
+
+    def forward(
+        self,
+        pred: torch.Tensor,
+        target: torch.Tensor,
+        observation_data: Any,
+    ) -> Dict[str, torch.Tensor]:
+        observation = observation_data
+        if isinstance(observation_data, dict):
+            observation = observation_data.get('original_observation')
+            if observation is None:
+                observation = observation_data.get('observation')
+            if observation is None:
+                observation = observation_data.get('baseline')
+        if not isinstance(observation, torch.Tensor):
+            if self.dc_weight > 0:
+                raise ValueError("observation_data must contain an observation tensor when DC loss is enabled")
+            observation = target
+
+        total, components = self.impl(pred, target, observation)
+        return {
+            'total_loss': total,
+            'reconstruction_loss': components['rec_loss'],
+            'spectral_loss': components['spec_loss'],
+            'dc_loss': components['dc_loss'],
+            'data_consistency_loss': components['dc_loss'],
+        }
 
 
 class ARLoss(torch.nn.Module):
@@ -195,19 +259,21 @@ def compute_total_loss_base(
         w_dc = loss_weights_override.get('data_consistency', w_dc)
         w_grad = loss_weights_override.get('gradient', w_grad)
     else:
-        # 优先使用 training.loss_weights 结构
-        has_train_loss_weights = hasattr(config, 'training') and hasattr(config.training, 'loss_weights')
+        # 优先使用 training.loss_weights / train.loss_weights 结构
+        tr_cfg = getattr(config, 'training', getattr(config, 'train', None))
+        has_train_loss_weights = tr_cfg is not None and hasattr(tr_cfg, 'loss_weights')
         if has_train_loss_weights:
             try:
-                if hasattr(config.training.loss_weights, 'reconstruction'):
-                    w_rec = float(config.training.loss_weights.reconstruction)
-                if hasattr(config.training.loss_weights, 'spectral'):
-                    w_spec = float(config.training.loss_weights.spectral)
-                if hasattr(config.training.loss_weights, 'data_consistency'):
-                    w_dc = float(config.training.loss_weights.data_consistency)
+                lw = tr_cfg.loss_weights
+                if hasattr(lw, 'reconstruction'):
+                    w_rec = float(lw.reconstruction)
+                if hasattr(lw, 'spectral'):
+                    w_spec = float(lw.spectral)
+                if hasattr(lw, 'data_consistency'):
+                    w_dc = float(lw.data_consistency)
                 # 可选：梯度项
-                if hasattr(config.training.loss_weights, 'gradient'):
-                    w_grad = float(getattr(config.training.loss_weights, 'gradient', 0.0))
+                if hasattr(lw, 'gradient'):
+                    w_grad = float(getattr(lw, 'gradient', 0.0))
             except Exception:
                 # 若读取失败，回退到默认值
                 pass
@@ -319,7 +385,9 @@ def compute_total_loss(
     target_z: torch.Tensor,
     obs_data: Dict,
     norm_stats: Optional[Dict[str, torch.Tensor]],
-    config: DictConfig
+    config: DictConfig,
+    loss_weights_override: Optional[Dict[str, float]] = None,
+    **kwargs
 ) -> Dict[str, torch.Tensor]:
     """时序损失（供测试与真实任务使用）
 
@@ -328,7 +396,10 @@ def compute_total_loss(
     - 多步时对各分量按时间维平均，保持与黄金法则一致。
     """
     if pred_z.dim() == 4 and target_z.dim() == 4:
-        return compute_total_loss_base(pred_z, target_z, obs_data or {}, norm_stats, config)
+        return compute_total_loss_base(
+            pred_z, target_z, obs_data or {}, norm_stats, config,
+            loss_weights_override=loss_weights_override
+        )
 
     if pred_z.dim() != 5 or target_z.dim() != 5:
         raise ValueError("compute_temporal_loss expects 4D or 5D tensors")
@@ -395,17 +466,19 @@ def compute_total_loss(
     w_dc = 0.0
     w_grad = 0.0
 
-    has_train_loss_weights = hasattr(config, 'training') and hasattr(config.training, 'loss_weights')
+    tr_cfg = getattr(config, 'training', getattr(config, 'train', None))
+    has_train_loss_weights = tr_cfg is not None and hasattr(tr_cfg, 'loss_weights')
     if has_train_loss_weights:
         try:
-            if hasattr(config.training.loss_weights, 'reconstruction'):
-                w_rec = float(config.training.loss_weights.reconstruction)
-            if hasattr(config.training.loss_weights, 'spectral'):
-                w_spec = float(config.training.loss_weights.spectral)
-            if hasattr(config.training.loss_weights, 'data_consistency'):
-                w_dc = float(config.training.loss_weights.data_consistency)
-            if hasattr(config.training.loss_weights, 'gradient'):
-                w_grad = float(getattr(config.training.loss_weights, 'gradient', 0.0))
+            lw = tr_cfg.loss_weights
+            if hasattr(lw, 'reconstruction'):
+                w_rec = float(lw.reconstruction)
+            if hasattr(lw, 'spectral'):
+                w_spec = float(lw.spectral)
+            if hasattr(lw, 'data_consistency'):
+                w_dc = float(lw.data_consistency)
+            if hasattr(lw, 'gradient'):
+                w_grad = float(getattr(lw, 'gradient', 0.0))
         except Exception:
             pass
     elif hasattr(config, 'loss'):
@@ -535,11 +608,12 @@ def _compute_spectral_loss(
     normalize = False
     boundary_mode = None
 
-    if hasattr(config, 'training') and hasattr(config.training, 'spectral_loss'):
-        low_freq_modes = getattr(config.training.spectral_loss, 'low_freq_modes', low_freq_modes)
-        use_rfft = getattr(config.training.spectral_loss, 'use_rfft', use_rfft)
-        normalize = getattr(config.training.spectral_loss, 'normalize', normalize)
-        boundary_mode = getattr(config.training.spectral_loss, 'boundary_mode', boundary_mode)
+    tr_cfg = getattr(config, 'training', getattr(config, 'train', None))
+    if tr_cfg is not None and hasattr(tr_cfg, 'spectral_loss'):
+        low_freq_modes = getattr(tr_cfg.spectral_loss, 'low_freq_modes', low_freq_modes)
+        use_rfft = getattr(tr_cfg.spectral_loss, 'use_rfft', use_rfft)
+        normalize = getattr(tr_cfg.spectral_loss, 'normalize', normalize)
+        boundary_mode = getattr(tr_cfg.spectral_loss, 'boundary_mode', boundary_mode)
 
     if hasattr(config, 'loss'):
         low_freq_modes = getattr(config.loss, 'low_freq_modes', low_freq_modes)
@@ -630,6 +704,13 @@ def _compute_data_consistency_loss(
     Returns:
         数据一致性损失
     """
+    # 验证任务类型
+    h_params = obs_data.get('h_params', {}) if isinstance(obs_data, dict) else {}
+    if isinstance(h_params, dict):
+        task = h_params.get('task')
+        if task is not None and task not in ('SR', 'Crop', 'SuperResolution', 'Cropping', 'Inpainting', 'Mask'):
+            raise ValueError(f"Unknown task: {task}")
+
     # 获取对应的观测数据（原值域）
     observation = obs_data.get('observation')
     if observation is None:
@@ -1008,10 +1089,11 @@ def compute_ar_total_loss(
     w_spec = 0.0
     w_dc = 0.0
     
-    # 1. 尝试从 training.loss_weights 读取
-    has_train_weights = hasattr(config, 'training') and hasattr(config.training, 'loss_weights')
+    # 1. 尝试从 training.loss_weights / train.loss_weights 读取
+    tr_cfg = getattr(config, 'training', getattr(config, 'train', None))
+    has_train_weights = tr_cfg is not None and hasattr(tr_cfg, 'loss_weights')
     if has_train_weights:
-        lw = config.training.loss_weights
+        lw = tr_cfg.loss_weights
         w_rec_scale = float(getattr(lw, 'reconstruction', 1.0))
         w_spec = float(getattr(lw, 'spectral', 0.0))
         # 兼容 data_consistency 和 degradation_consistency

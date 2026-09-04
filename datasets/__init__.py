@@ -1,54 +1,39 @@
 """数据集包初始化
 
-尽量采用惰性/安全导入，避免无关模块的语法错误阻断整个包的初始化。
-仅在需要时导入具体数据集实现。
+采用惰性导入，避免包初始化时的重载与框架冲突。
 """
 
-try:
-    from .pdebench_dataset import PDEBenchDataset, create_dataloader  # type: ignore
-except Exception:
-    PDEBenchDataset = None  # type: ignore
-    create_dataloader = None  # type: ignore
 
-try:
-    from .pdebench import PDEBenchDataModule  # type: ignore
-except Exception:
-    PDEBenchDataModule = None  # type: ignore
-
-try:
-    from .temporal_pdebench import TemporalPDEBenchDataModule  # type: ignore
-except Exception:
-    TemporalPDEBenchDataModule = None  # type: ignore
-
-# 安全导入：Darcy数据集
-try:
-    from .darcy_flow_dataset import DarcyFlowDataset  # type: ignore
-except Exception:
-    DarcyFlowDataset = None  # type: ignore
+def __getattr__(name: str):
+    if name in ("PDEBenchDataset", "create_dataloader"):
+        from . import pdebench_dataset
+        return getattr(pdebench_dataset, name)
+    elif name in ("PDEBenchDataModule", "TemporalPDEBenchDataModule"):
+        from . import pdebench
+        return getattr(pdebench, "PDEBenchDataModule")
+    elif name == "DarcyFlowDataset":
+        from . import darcy_flow_dataset
+        return getattr(darcy_flow_dataset, name)
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 
-def get_dataset(dataset_name, **kwargs):
+def get_dataset(dataset_name: str, **kwargs):
     """获取数据集实例（惰性判断可用性）"""
     if dataset_name == 'darcy_flow':
-        if DarcyFlowDataset is None:
-            raise ImportError('DarcyFlowDataset 未可用：模块导入失败或缺失')
+        from .darcy_flow_dataset import DarcyFlowDataset
         return DarcyFlowDataset(**kwargs)
     elif dataset_name == 'pde_bench':
-        if PDEBenchDataset is None:
-            raise ImportError('PDEBenchDataset 未可用：模块导入失败或缺失')
+        from .pdebench_dataset import PDEBenchDataset
         return PDEBenchDataset(**kwargs)
     else:
         raise ValueError(f"Unknown dataset: {dataset_name}")
 
 
-# 仅导出可用符号
 __all__ = [
-    name for name in (
-        'PDEBenchDataset',
-        'create_dataloader',
-        'PDEBenchDataModule',
-        'TemporalPDEBenchDataModule',
-        'DarcyFlowDataset',
-        'get_dataset',
-    ) if globals().get(name) is not None
+    'PDEBenchDataset',
+    'create_dataloader',
+    'PDEBenchDataModule',
+    'TemporalPDEBenchDataModule',
+    'DarcyFlowDataset',
+    'get_dataset',
 ]

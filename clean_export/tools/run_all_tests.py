@@ -21,6 +21,10 @@ import traceback
 project_root = Path(__file__).resolve().parents[1]
 sys.path.append(str(project_root))
 
+DEFAULT_REFACTORED_SCRIPT = project_root / "tools" / "training" / "train_real_data_ar_refactored.py"
+DEFAULT_ORIGINAL_SCRIPT = project_root / "tools" / "training" / "train_real_data_ar.py"
+DEFAULT_CONFIG = project_root / "configs" / "ar_training_refactored_config.yaml"
+
 # 设置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -83,8 +87,8 @@ class TestRunner:
                 script_path=str(base_path / ".." / "tests" / "test_train_real_data_ar_refactored.py"),
                 description="单元测试套件",
                 required_files=[
-                    "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/tools/training/train_real_data_ar_refactored.py",
-                    "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/configs/ar_training_refactored_config.yaml"
+                    str(DEFAULT_REFACTORED_SCRIPT),
+                    str(DEFAULT_CONFIG)
                 ],
                 timeout=600  # 10分钟
             ),
@@ -93,8 +97,8 @@ class TestRunner:
                 script_path=str(base_path / "validate_refactored_script.py"),
                 description="重构脚本验证工具",
                 required_files=[
-                    "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/tools/training/train_real_data_ar_refactored.py",
-                    "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/configs/ar_training_refactored_config.yaml"
+                    str(DEFAULT_REFACTORED_SCRIPT),
+                    str(DEFAULT_CONFIG)
                 ],
                 timeout=300  # 5分钟
             ),
@@ -103,9 +107,9 @@ class TestRunner:
                 script_path=str(base_path / "test_integration_consistency.py"),
                 description="集成一致性测试",
                 required_files=[
-                    "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/tools/training/train_real_data_ar.py",
-                    "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/tools/training/train_real_data_ar_refactored.py",
-                    "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/configs/ar_training_refactored_config.yaml"
+                    str(DEFAULT_ORIGINAL_SCRIPT),
+                    str(DEFAULT_REFACTORED_SCRIPT),
+                    str(DEFAULT_CONFIG)
                 ],
                 timeout=900  # 15分钟
             ),
@@ -114,8 +118,8 @@ class TestRunner:
                 script_path=str(base_path / "benchmark_refactored_script.py"),
                 description="重构脚本基准测试",
                 required_files=[
-                    "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/tools/training/train_real_data_ar_refactored.py",
-                    "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/configs/ar_training_refactored_config.yaml"
+                    str(DEFAULT_REFACTORED_SCRIPT),
+                    str(DEFAULT_CONFIG)
                 ],
                 timeout=1800  # 30分钟
             ),
@@ -124,9 +128,9 @@ class TestRunner:
                 script_path=str(base_path / "benchmark_performance_comparison.py"),
                 description="性能对比分析",
                 required_files=[
-                    "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/tools/training/train_real_data_ar.py",
-                    "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/tools/training/train_real_data_ar_refactored.py",
-                    "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/configs/ar_training_refactored_config.yaml"
+                    str(DEFAULT_ORIGINAL_SCRIPT),
+                    str(DEFAULT_REFACTORED_SCRIPT),
+                    str(DEFAULT_CONFIG)
                 ],
                 timeout=3600  # 60分钟
             ),
@@ -135,7 +139,7 @@ class TestRunner:
                 script_path=str(base_path / "code_quality_check.py"),
                 description="代码质量检查",
                 required_files=[
-                    "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/tools/training/train_real_data_ar_refactored.py"
+                    str(DEFAULT_REFACTORED_SCRIPT)
                 ],
                 optional=True,  # 可选测试
                 timeout=300  # 5分钟

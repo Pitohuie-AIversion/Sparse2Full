@@ -1,7 +1,7 @@
 data:
   _target_: datasets.pdebench.PDEBenchDataModule
   batch_size: 1
-  data_path: E:\2D\NS_incom\ns_incom_inhom_2d_512-0.h5
+  data_path: data/2D/NS_incom/ns_incom_inhom_2d_512-0.h5
   dataset_name: ns_incom_inhom_2d_512-0
   image_size: 512
   keys:
