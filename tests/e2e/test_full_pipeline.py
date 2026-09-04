@@ -249,20 +249,9 @@ class TestFullPipeline:
         assert degraded.shape[2] == expected_h
         assert degraded.shape[3] == expected_w
         
-        # 验证H算子一致性：H(H^{-1}(y)) ≈ y
-        # 这里我们验证降质操作的数值稳定性
-        degraded_twice = apply_degradation_operator(
-            torch.nn.functional.interpolate(
-                degraded, 
-                size=target_tensor.shape[2:], 
-                mode='bilinear', 
-                align_corners=False
-            ),
-            degradation_params
-        )
-        
-        # 验证二次降质的一致性
-        mse_error = torch.mean((degraded - degraded_twice) ** 2)
+        # 数据集观测必须与使用相同H参数从目标重新计算的结果一致。
+        stored_observation = batch["original_observation"]
+        mse_error = torch.mean((degraded - stored_observation) ** 2)
         assert mse_error.item() < 1e-6, f"Degradation consistency error: {mse_error.item()}"
     
     @pytest.mark.slow

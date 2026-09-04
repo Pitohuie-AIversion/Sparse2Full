@@ -235,15 +235,17 @@ class TestSpectralLoss:
         low_freq_signal = torch.zeros(B, C, H, W, device=device)
         low_freq_signal[:, :, :8, :8] = torch.randn(B, C, 8, 8, device=device)
         
-        # 创建有高频噪声的信号
-        high_freq_noise = torch.randn(B, C, H, W, device=device) * 0.1
+        # 创建有纯高频噪声的信号 (滤除低频模式以内的噪声)
+        noise_fft = torch.fft.rfft2(torch.randn(B, C, H, W, device=device) * 0.01)
+        noise_fft[..., :16, :16] = 0.0
+        high_freq_noise = torch.fft.irfft2(noise_fft, s=(H, W))
         noisy_signal = low_freq_signal + high_freq_noise
         
         # 频谱损失应该主要关注低频差异
         loss_clean = _compute_spectral_loss(low_freq_signal, low_freq_signal, sample_loss_config)
         loss_noisy = _compute_spectral_loss(noisy_signal, low_freq_signal, sample_loss_config)
         
-        # 高频噪声对频谱损失的影响应该较小
+        # 高频噪声对低频频谱损失的影响应该非常小
         assert loss_clean < 1e-6
         assert loss_noisy < loss_clean + 0.1  # 噪声影响有限
     

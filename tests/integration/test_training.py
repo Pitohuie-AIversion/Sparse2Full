@@ -215,7 +215,7 @@ class TestTrainingIntegration:
         channels = 1
         height, width = 64, 64
         
-        pred = torch.randn(batch_size, channels, height, width)
+        pred = torch.randn(batch_size, channels, height, width, requires_grad=True)
         target = torch.randn(batch_size, channels, height, width)
         
         # 创建观测数据

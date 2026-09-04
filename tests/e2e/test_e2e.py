@@ -11,6 +11,7 @@ import tempfile
 import shutil
 from pathlib import Path
 import numpy as np
+import pytest
 import torch
 import torch.nn.functional as F  # 添加F的导入
 import h5py
@@ -25,6 +26,12 @@ from models import create_model
 from ops import apply_degradation_operator, compute_all_metrics
 from ops.loss import compute_total_loss  # 使用ops.loss模块的函数
 from utils.config import load_config
+
+
+@pytest.fixture
+def config():
+    """Minimal config for pytest execution; standalone mode passes its own config."""
+    return OmegaConf.create({})
 
 
 def pack_input_data(baseline: torch.Tensor, coords: torch.Tensor, mask: torch.Tensor, 

@@ -291,7 +291,7 @@ def main():
         
         # 提供运行建议
         print("\n建议的训练命令:")
-        print("F:\\ProgramData\\anaconda3\\python.exe tools/train.py \\")
+        print("python tools/train.py \\")
         print("  device.use_cuda=false \\")
         print("  training.epochs=1 \\")
         print("  training.log_interval=1 \\")

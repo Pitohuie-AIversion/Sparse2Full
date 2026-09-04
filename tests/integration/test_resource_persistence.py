@@ -62,10 +62,11 @@ def test_training_writes_resource_files():
         proc = __import__('subprocess').run(cmd, stdout=__import__('subprocess').PIPE, stderr=__import__('subprocess').PIPE, text=True, timeout=300, cwd=str(project_root))
         assert proc.returncode == 0, f"训练脚本执行失败:\nSTDOUT:\n{proc.stdout}\nSTDERR:\n{proc.stderr}"
 
-        # 找到输出目录（experiment.name 加时间戳）
-        subdirs = sorted([p for p in tmp_root.iterdir() if p.is_dir()])
-        assert subdirs, f"未找到输出子目录: {tmp_root}"
-        out_dir = subdirs[-1]
+        # 兼容直接写入 output_dir 及创建实验子目录两种布局；按产物定位，
+        # 不把 tensorboard 等辅助目录误判为实验目录。
+        candidates = [tmp_root, *sorted(p for p in tmp_root.iterdir() if p.is_dir())]
+        out_dir = next((p for p in candidates if (p / 'model_info.json').exists()), None)
+        assert out_dir is not None, f"未找到包含资源产物的输出目录: {tmp_root}"
 
         # 关键文件存在性检查
         model_info = out_dir / 'model_info.json'
@@ -105,4 +106,3 @@ def test_training_writes_resource_files():
             shutil.rmtree(tmp_root)
         except Exception:
             pass
-

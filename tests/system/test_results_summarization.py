@@ -103,21 +103,21 @@ def test_summarize_runs_script():
     # 4. 创建模拟实验数据
     print("\n创建模拟实验数据...")
     test_dir = create_mock_experiment_data()
-    
+
     try:
         # 5. 测试基本汇总功能
         print("测试基本汇总功能...")
-        basic_summary_success = test_basic_summarization(test_dir, summarize_script)
+        basic_summary_success = _test_basic_summarization(test_dir, summarize_script)
         results['basic_summarization'] = basic_summary_success
         
         # 6. 测试统计分析功能
         print("测试统计分析功能...")
-        stats_analysis_success = test_statistical_analysis(test_dir)
+        stats_analysis_success = _test_statistical_analysis(test_dir)
         results['statistical_analysis'] = stats_analysis_success
         
         # 7. 测试输出格式
         print("测试输出格式...")
-        output_format_success = test_output_formats(test_dir)
+        output_format_success = _test_output_formats(test_dir)
         results['output_formats'] = output_format_success
         
     finally:
@@ -278,7 +278,7 @@ def create_mock_experiment_data() -> Path:
     
     return temp_dir
 
-def test_basic_summarization(test_dir: Path, summarize_script: Path) -> bool:
+def _test_basic_summarization(test_dir: Path, summarize_script: Path) -> bool:
     """测试基本汇总功能"""
     try:
         runs_dir = test_dir / "runs"
@@ -455,7 +455,7 @@ def perform_manual_summarization(runs_dir: Path) -> Dict[str, Any]:
         print(f"手动汇总失败: {e}")
         return {}
 
-def test_statistical_analysis(test_dir: Path) -> bool:
+def _test_statistical_analysis(test_dir: Path) -> bool:
     """测试统计分析功能"""
     try:
         runs_dir = test_dir / "runs"
@@ -485,7 +485,7 @@ def test_statistical_analysis(test_dir: Path) -> bool:
         # 检查显著性检验（如果有多个模型）
         models = list(summary_data.keys())
         if len(models) >= 2:
-            significance_test_success = test_significance_analysis(summary_data, models)
+            significance_test_success = _test_significance_analysis(summary_data, models)
             stats_checks.append(significance_test_success)
         else:
             print("  ⚠ 模型数量不足，跳过显著性检验")
@@ -503,7 +503,7 @@ def test_statistical_analysis(test_dir: Path) -> bool:
         print(f"  ✗ 统计分析测试失败: {e}")
         return False
 
-def test_significance_analysis(summary_data: Dict[str, Any], models: List[str]) -> bool:
+def _test_significance_analysis(summary_data: Dict[str, Any], models: List[str]) -> bool:
     """测试显著性分析"""
     try:
         # 简单的t检验示例
@@ -550,7 +550,7 @@ def test_significance_analysis(summary_data: Dict[str, Any], models: List[str]) 
         print(f"  ⚠ 显著性检验失败: {e}")
         return False
 
-def test_output_formats(test_dir: Path) -> bool:
+def _test_output_formats(test_dir: Path) -> bool:
     """测试输出格式"""
     try:
         runs_dir = test_dir / "runs"

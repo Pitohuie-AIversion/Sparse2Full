@@ -442,7 +442,9 @@ class TestTemporalNARPipeline:
         
         # 清空显存
         torch.cuda.empty_cache()
+        torch.cuda.synchronize()
         initial_memory = torch.cuda.memory_allocated()
+        torch.cuda.reset_peak_memory_stats()
         
         # 创建模型
         model_config = {
@@ -484,7 +486,8 @@ class TestTemporalNARPipeline:
         model.eval()
         with torch.no_grad():
             output = model(x_seq=x_seq, T_out=T_out, compute_loss=False)
-        
+
+        torch.cuda.synchronize()
         peak_memory = torch.cuda.max_memory_allocated()
         memory_used = (peak_memory - initial_memory) / 1024**2  # MB
         

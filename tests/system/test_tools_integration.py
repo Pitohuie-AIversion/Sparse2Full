@@ -17,6 +17,7 @@ import os
 import sys
 import tempfile
 import shutil
+import random
 from pathlib import Path
 import pytest
 import torch
@@ -144,6 +145,14 @@ class TestSystemIntegration:
         """测试前设置"""
         self.temp_dir = Path(tempfile.mkdtemp())
         self.config = self._create_test_config()
+        
+        # 固定随机种子，确保端到端集成测试结果稳定
+        seed = self.config['experiment']['seed']
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
         
     def teardown_method(self):
         """测试后清理"""

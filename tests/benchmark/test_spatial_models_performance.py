@@ -118,13 +118,18 @@ class SpatialModelBenchmark:
         if self.device.type != 'cuda':
             return 0.0  # CPU memory measurement is more complex
         
-        torch.cuda.reset_peak_memory_stats()
         torch.cuda.empty_cache()
+        torch.cuda.synchronize()
+        baseline_memory = torch.cuda.memory_allocated()
+        torch.cuda.reset_peak_memory_stats()
         
         with torch.no_grad():
             _ = model(input_tensor)
-        
-        peak_memory = torch.cuda.max_memory_allocated() / 1024**2  # Convert to MB
+
+        torch.cuda.synchronize()
+        peak_memory = (
+            torch.cuda.max_memory_allocated() - baseline_memory
+        ) / 1024**2  # Convert to MB
         
         return peak_memory
     

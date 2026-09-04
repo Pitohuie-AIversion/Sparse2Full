@@ -40,7 +40,7 @@ class EndToEndTester:
     """端到端流程测试器"""
     
     def __init__(self):
-        self.python_path = "F:\\ProgramData\\anaconda3\\python.exe"
+        self.python_path = "python"
         self.project_root = Path(__file__).parent.parent.parent
         self.test_results = {
             'training_pipeline': {'passed': False, 'details': []},

@@ -21,11 +21,11 @@ import numpy as np
 from omegaconf import DictConfig, OmegaConf
 
 # 添加项目根目录到路径
-project_root = Path(__file__).resolve().parents[1]
+project_root = Path(__file__).resolve().parents[2]
 sys.path.append(str(project_root))
 
 # 导入要测试的模块
-from tools.training.train_real_data_ar import (
+from tools.training.train_real_data_ar_refactored import (
     ConfigManager, DeviceManager, LogManager, DataManager, ModelManager,
     OptimizerManager, LossManager, CurriculumManager, CheckpointManager,
     RealDataARTrainer, convert_numpy_types, seed_worker_fn

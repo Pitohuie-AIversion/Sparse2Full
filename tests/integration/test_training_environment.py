@@ -48,7 +48,7 @@ def test_environment():
     
     # 2. 测试数据路径
     print("\n2. 数据路径检查:")
-    data_path = "E:/2D"
+    data_path = "data/2D"
     if os.path.exists(data_path):
         print(f"  ✓ 数据路径存在: {data_path}")
         subdirs = [d for d in os.listdir(data_path) if os.path.isdir(os.path.join(data_path, d))]

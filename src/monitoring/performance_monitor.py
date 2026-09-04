@@ -5,7 +5,10 @@
 
 import time
 import psutil
-import GPUtil
+try:
+    import GPUtil
+except ImportError:
+    GPUtil = None
 import threading
 import queue
 import json
@@ -148,8 +151,10 @@ class PerformanceMonitor:
                 return True
             
             # 尝试使用GPUtil
-            gpus = GPUtil.getGPUs()
-            return len(gpus) > 0
+            if GPUtil is not None:
+                gpus = GPUtil.getGPUs()
+                return len(gpus) > 0
+            return False
             
         except Exception as e:
             logger.warning(f"GPU可用性检查失败: {e}")
@@ -172,13 +177,14 @@ class PerformanceMonitor:
             # GPU使用情况（如果可用）
             if self.gpu_available:
                 try:
-                    gpus = GPUtil.getGPUs()
-                    if gpus:
-                        gpu = gpus[0]  # 使用第一个GPU
-                        metrics['gpu_utilization'] = gpu.load * 100
-                        metrics['gpu_memory_used_gb'] = gpu.memoryUsed / 1024
-                        metrics['gpu_memory_total_gb'] = gpu.memoryTotal / 1024
-                        metrics['gpu_temperature'] = gpu.temperature
+                    if GPUtil is not None:
+                        gpus = GPUtil.getGPUs()
+                        if gpus:
+                            gpu = gpus[0]  # 使用第一个GPU
+                            metrics['gpu_utilization'] = gpu.load * 100
+                            metrics['gpu_memory_used_gb'] = gpu.memoryUsed / 1024
+                            metrics['gpu_memory_total_gb'] = gpu.memoryTotal / 1024
+                            metrics['gpu_temperature'] = gpu.temperature
                 except Exception as e:
                     logger.debug(f"GPU指标收集失败: {e}")
                     

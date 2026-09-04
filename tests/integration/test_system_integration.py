@@ -35,27 +35,27 @@ def test_system_integration():
     
     # 1. 模块导入测试
     print("1. 模块导入测试...")
-    module_import_success = test_module_imports(project_root)
+    module_import_success = _test_module_imports(project_root)
     results['module_imports'] = module_import_success
     
     # 2. 配置文件一致性测试
     print("\n2. 配置文件一致性测试...")
-    config_consistency_success = test_config_consistency(project_root)
+    config_consistency_success = _test_config_consistency(project_root)
     results['config_consistency'] = config_consistency_success
     
     # 3. 核心脚本协同测试
     print("\n3. 核心脚本协同测试...")
-    script_coordination_success = test_script_coordination(project_root)
+    script_coordination_success = _test_script_coordination(project_root)
     results['script_coordination'] = script_coordination_success
     
     # 4. 数据流一致性测试
     print("\n4. 数据流一致性测试...")
-    data_flow_success = test_data_flow_consistency(project_root)
+    data_flow_success = _test_data_flow_consistency(project_root)
     results['data_flow'] = data_flow_success
     
     # 5. 端到端流程测试
     print("\n5. 端到端流程测试...")
-    e2e_success = test_end_to_end_workflow(project_root)
+    e2e_success = _test_end_to_end_workflow(project_root)
     results['end_to_end'] = e2e_success
     
     # 生成报告
@@ -63,7 +63,7 @@ def test_system_integration():
     
     return results
 
-def test_module_imports(project_root: Path) -> bool:
+def _test_module_imports(project_root: Path) -> bool:
     """测试模块导入"""
     
     # 核心模块列表
@@ -160,7 +160,7 @@ def test_module_imports(project_root: Path) -> bool:
     
     return core_success
 
-def test_config_consistency(project_root: Path) -> bool:
+def _test_config_consistency(project_root: Path) -> bool:
     """测试配置文件一致性"""
     
     configs_dir = project_root / "configs"
@@ -251,7 +251,7 @@ def test_config_consistency(project_root: Path) -> bool:
     
     return all(consistency_checks)
 
-def test_script_coordination(project_root: Path) -> bool:
+def _test_script_coordination(project_root: Path) -> bool:
     """测试核心脚本协同"""
     
     tools_dir = project_root / "tools"
@@ -345,7 +345,7 @@ def test_script_coordination(project_root: Path) -> bool:
     
     return all(coordination_checks)
 
-def test_data_flow_consistency(project_root: Path) -> bool:
+def _test_data_flow_consistency(project_root: Path) -> bool:
     """测试数据流一致性"""
     
     # 检查数据流相关目录和文件
@@ -417,7 +417,7 @@ def test_data_flow_consistency(project_root: Path) -> bool:
     
     return all(data_flow_checks)
 
-def test_end_to_end_workflow(project_root: Path) -> bool:
+def _test_end_to_end_workflow(project_root: Path) -> bool:
     """测试端到端工作流"""
     
     workflow_checks = []

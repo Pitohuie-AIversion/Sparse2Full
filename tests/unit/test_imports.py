@@ -6,13 +6,25 @@
 import sys
 import traceback
 
-def test_module_import(module_name):
+def check_module_import(module_name):
     """测试单个模块的导入"""
     try:
         __import__(module_name)
         return True, None
     except Exception as e:
         return False, str(e)
+
+import pytest
+
+@pytest.mark.parametrize("module_name", [
+    'tools.train',
+    'tools.eval', 
+    'tools.check_dc_equivalence',
+    'tools.generate_paper_package'
+])
+def test_module_import_pytest(module_name):
+    success, error = check_module_import(module_name)
+    assert success, f"Import failed for {module_name}: {error}"
 
 def main():
     """主函数"""
@@ -31,7 +43,7 @@ def main():
     failed_modules = []
     
     for module in modules:
-        success, error = test_module_import(module)
+        success, error = check_module_import(module)
         if success:
             print(f'✅ {module} - 导入成功')
             success_count += 1

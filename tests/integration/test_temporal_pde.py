@@ -590,7 +590,7 @@ class TemporalNARTester:
 def main():
     """主函数"""
     parser = argparse.ArgumentParser(description='时序NAR模型PDE数据集测试')
-    parser.add_argument('--data_root', type=str, default='E:/2D', help='数据根目录')
+    parser.add_argument('--data_root', type=str, default='data/2D', help='数据根目录')
     parser.add_argument('--output_dir', type=str, default='runs/temporal_nar_test', help='输出目录')
     parser.add_argument('--batch_size', type=int, default=4, help='批处理大小')
     parser.add_argument('--test_samples', type=int, default=10, help='测试样本数')

@@ -14,6 +14,7 @@ import tempfile
 import os
 from pathlib import Path
 import json
+import time
 from omegaconf import OmegaConf
 
 # Import spatial models
@@ -24,6 +25,7 @@ from models import (
     SwinUNet, HybridModel, MLPModel, MLPMixer, LIIFModel,
     SparseAttentionEncoder, SparseSwinUNet
 )
+from models import create_model as create_registered_model
 
 
 class SyntheticSpatialDataset(Dataset):
@@ -139,7 +141,7 @@ class SpatialModelIntegrationTest:
     def create_model(self, model_class: type, config: Dict[str, Any]) -> nn.Module:
         """Create model with given configuration"""
         try:
-            model = model_class(**config)
+            model = create_registered_model(model_class.__name__, **config)
             model.to(self.device)
             return model
         except Exception as e:
@@ -298,7 +300,12 @@ class SpatialModelIntegrationTest:
         model = self.create_model(model_class, config)
         
         if model is None:
-            return {'status': 'failed', 'error': 'Model creation failed'}
+            return {
+                'status': 'failed',
+                'error': 'Model creation failed',
+                'model_name': model_class.__name__,
+                'task_type': task_type,
+            }
         
         try:
             # Train model
@@ -352,7 +359,7 @@ class SpatialModelIntegrationTest:
         model_configs = {
             UNet: {'features': [32, 64, 128], 'bilinear': True},
             UNetPlusPlus: {'features': [32, 64, 128], 'deep_supervision': False},
-            FNO2d: {'modes': 16, 'width': 32, 'layers': 4},
+            FNO2d: {'modes1': 16, 'modes2': 16, 'width': 32, 'n_layers': 4},
             UFNOUNet: {'modes': 16, 'width': 32, 'layers': 4, 'bilinear': True},
             SwinUNet: {'depths': [2, 2, 2], 'num_heads': [3, 6, 12], 'window_size': 8},
             HybridModel: {'backbone': 'swin', 'fusion': 'concat', 'attention_ch': 64},
@@ -372,6 +379,9 @@ class SpatialModelIntegrationTest:
         config = base_config.copy()
         if model_class in model_configs:
             config.update(model_configs[model_class])
+        if model_class is FNO2d:
+            config['in_channels'] = config.pop('in_ch')
+            config['out_channels'] = config.pop('out_ch')
         
         return config
     
@@ -405,14 +415,11 @@ class SpatialModelIntegrationTest:
                 'successful': 0,
                 'partial_success': 0,
                 'failed': 0,
-                'start_time': torch.cuda.Event(enable_timing=True) if torch.cuda.is_available() else None,
+                'start_time': time.perf_counter(),
                 'end_time': None
             },
             'detailed_results': []
         }
-        
-        if results['summary']['start_time']:
-            results['summary']['start_time'].record()
         
         for model_class in model_classes:
             for task_type in task_types:
@@ -437,10 +444,10 @@ class SpatialModelIntegrationTest:
                     results['detailed_results'].append(error_result)
                     results['summary']['failed'] += 1
         
-        if results['summary']['start_time']:
-            end_time = torch.cuda.Event(enable_timing=True)
-            end_time.record()
-            results['summary']['end_time'] = end_time
+        results['summary']['end_time'] = time.perf_counter()
+        results['summary']['duration_seconds'] = (
+            results['summary']['end_time'] - results['summary']['start_time']
+        )
         
         # Calculate success rate
         total_tests = len(results['detailed_results'])

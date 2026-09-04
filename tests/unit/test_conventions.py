@@ -8,7 +8,7 @@ from tools.training.train_real_data_ar import RealDataARTrainer
 
 
 def test_experiment_naming_and_output_dir():
-    cfg_path = Path("/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/configs/train/minimal_debug.yaml")
+    cfg_path = Path(__file__).parents[2] / "configs/train/minimal_debug.yaml"
     assert cfg_path.exists(), "配置文件不存在"
 
     trainer = RealDataARTrainer(str(cfg_path), model_name="SwinUNet", minimal_init=True, skip_optimizer=True, skip_monitoring=True)
