@@ -1,3 +1,0 @@
-#! /bin/sh
-
-exec "/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/tools/prince_local/lib/prince/bin/prince" --prefix="/share/fandixiaLab/suguangsheng/PycharmProjects/Sparse2Full/tools/prince_local/lib/prince" "$@"

@@ -1,6 +1,0 @@
-torch>=2.0.0
-numpy
-h5py
-omegaconf
-pytorch-lightning
-pytest
