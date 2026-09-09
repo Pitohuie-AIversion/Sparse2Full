@@ -49,7 +49,7 @@ venv/
 ENV/
 
 # Machine Learning & Data Science
-runs/
+runs*/
 runsold*/
 outputs*/
 logs*/
@@ -58,6 +58,9 @@ wandb/
 benchmark_models.log
 training.log
 *.log
+tests/pytest.log
+.coverage*
+=*
 
 # Data & Checkpoint directories
 data/
