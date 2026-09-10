@@ -35,7 +35,7 @@ python3 train.py \
   "data.dataloader.num_workers=4" \
   "data.dataloader.pin_memory=true" \
   "training.epochs=100" \
-  "training.log_interval=10" \
+  "training.log_interval=1" \
   "training.save_interval=10" \
   "training.use_amp=true" \
   "training.grad_clip_norm=1.0" \

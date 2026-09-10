@@ -105,11 +105,20 @@ class EngineBuilder:
             total_steps = total_epochs * max(1, steps_per_epoch)
 
             params = getattr(scheduler_config, 'params', scheduler_config if isinstance(scheduler_config, dict) else {})
+            
+            # 优先使用显式配置的 T_max，若未显式指定则缺省为 total_steps
+            if hasattr(params, 'get') and params.get('T_max') is not None:
+                t_max = int(params.get('T_max'))
+            elif hasattr(params, 'T_max') and params.T_max is not None:
+                t_max = int(params.T_max)
+            else:
+                t_max = total_steps
+
             eta_min = float(params.get('eta_min', 0.0) if hasattr(params, 'get') else getattr(params, 'eta_min', 0.0))
 
             scheduler = optim.lr_scheduler.CosineAnnealingLR(
                 optimizer,
-                T_max=total_steps,
+                T_max=t_max,
                 eta_min=eta_min
             )
         elif scheduler_name in ('step', 'steplr'):
