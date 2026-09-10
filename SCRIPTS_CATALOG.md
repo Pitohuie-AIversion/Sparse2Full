@@ -18,7 +18,26 @@
 
 ---
 
-## 二、历史研究与论文辅助脚本集 (`tools/research_scripts/`)
+## 二、标准工具仓子系统分类 (`tools/`)
+
+`tools/` 根目录下仅保留受外部调测依赖保护的入口（`train.py`, `eval.py`, `check_dc_equivalence.py`, `generate_paper_package.py` 及兼容垫片），所有 170+ 专用工具均已系统化收敛至以下 10 个子目录：
+
+| 子目录 | 职责与主要工具 | 典型脚本示例 |
+| :--- | :--- | :--- |
+| `tools/analysis/` | 模型算力/显存开销、测试集误差统计、HDF5 结构与稠密分析 | `benchmark_models.py`, `calculate_model_resources.py`, `scan_sr_capability.py` |
+| `tools/visualization/` | 论文主图排版、能谱图、收敛曲线、横向多模型四栏对比 | `plot_fig4_*.py`, `create_ar_four_panel_viz.py`, `arrange_paper_figure*.py` |
+| `tools/evaluation/` | 物理时序展开 (Rollout)、鲁棒性测试与独立基线对比 | `eval_ar_rollout.py`, `eval_robustness.py`, `eval_complete.py` |
+| `tools/checks/` | 参数量安全校验、数据集格式与键名匹配、HDF5 校验 | `check_10m_params_safe.py`, `check_real_data_loading.py`, `check_tb_data.py` |
+| `tools/training/` | 批量训练控制器、模型快速切换演示与固定模型训练 | `batch_train.py`, `train_all_models.py`, `simple_model_switching_demo.py` |
+| `tools/tests/` | 模块级一致性测试、指标系统与时序 NAR 快速连通性 | `run_all_tests.py`, `test_comparison_system.py`, `quick_test_temporal_nar.py` |
+| `tools/debug/` | 空间形状对齐、PDEBench 格式探针与特征调试 | `debug_shapes.py`, `debug_viz.py`, `debug_methods.py` |
+| `tools/validation/` | 物理一致性验证、输入通道映射校验、时序模型接口校验 | `validate_physics_consistency.py`, `validate_channels.py`, `verify_all_models_runtime.py` |
+| `tools/monitor/` | CPU 运行优化调度、RAM 内存与 GPU 显存监控 | `cpu_optimize.sh`, `monitor_ram_usage.py` |
+| `tools/paper_tools/` | 硕士论文排版、LaTeX 符号与公式修复、中英文 GB/T 7714 CSL 样式 | `convert_thesis.py`, `fix_all_math.py`, `generate_performance_table.py` |
+
+---
+
+## 三、历史研究与论文辅助脚本集 (`tools/research_scripts/`)
 
 全套 150+ 项历史实验与消融排版工具均按生命周期归档于以下目录：
 

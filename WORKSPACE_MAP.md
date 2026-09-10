@@ -66,7 +66,7 @@ graph TD
 | **`splits/`** | 数据切分 | **统一数据集切分管理仓**：内置 `shallow/` 与 `sw/` 标准样本索引。根目录保留 `splits_shallow` 与 `splits_sw` 软链接保证 100% 兼容 | 核心数据集切分文件 |
 | **`thesis_paper/`** | 论文档案 | **硕士学位论文核心源码与资产仓**：LaTeX 源码、`drafts/` 初稿与实验手稿、`design_system/` 视觉设计规范与 Token | **学术核心资产**，受 Git 追踪 |
 | **`paper_package/`** | 论文交付物 | 论文各章节图表集合 (`figs/`)、数据卡片 (`data_cards/`) 与指标表 (`metrics/`) | 交付包资产 |
-| **`tools/`** | 工具与脚本 | 统一脚本工具仓：包含 `research_scripts/` (150+ 历史实验/消融/排版脚本)、`legacy_scripts/` (历史 scripts 与 experiment_scripts) | 查阅 `SCRIPTS_CATALOG.md` 获取索引 |
+| **`tools/`** | 工具与脚本 | **统一脚本与开发工具仓**：由原 170+ 杂乱平铺脚本深度重构为 10 个高内聚子仓：<br>• `analysis/` (性能与数据分析)<br>• `visualization/` (学术可视化与曲线作图)<br>• `evaluation/` (展开与鲁棒性评估)<br>• `checks/` (参数与兼容性检查)<br>• `training/` (批量训练与切换工具)<br>• `tests/` (自动化测试与报告)<br>• `debug/` (形状与特征调试)<br>• `validation/` (物理与通道校验)<br>• `monitor/` (显存与资源监控)<br>• `paper_tools/` (论文编译与排版工具)<br>• `legacy_scripts/` (原根目录历史脚本)<br>• `research_scripts/` (探索性消融脚本) | 查阅 `SCRIPTS_CATALOG.md` 获取详细分类索引 |
 | **`tests/`** | 质量防线 | **全量分层测试套件**：`unit/` (466 项单测), `integration/`, `system/`, `e2e/` | 保持 100% 绿色通过标准 |
 | **`archives/`** | 静态切片 | 存放压缩保全的 142k 行代码镜像 (`clean_export_backup.tar.gz`)，不纳入 Git 索引 | 历史备份，避免符号干扰 |
 | **`real_data_ar/`** | 历史兼容层 | 早期自回归独立子包（被部分单元测试引用） | 保持向后兼容，不建议主动扩充 |
