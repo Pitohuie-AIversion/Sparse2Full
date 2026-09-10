@@ -63,6 +63,13 @@ class TestSwinFluidSR:
         y = model(x)
         assert y.shape == (2, 1, 32, 32), f"Expected (2,1,32,32) but got {y.shape}"
 
+    def test_forward_shape_8x_16_to_128(self):
+        """8x 超分辨率：16x16 输入 → 128x128 高清流场重建"""
+        model = self._create_model(img_size=16, upscale_factor=8, window_size=8)
+        x = torch.randn(2, 1, 16, 16, device=self.device)
+        y = model(x)
+        assert y.shape == (2, 1, 128, 128), f"Expected (2,1,128,128) but got {y.shape}"
+
     def test_multichannel_forward(self):
         """多通道输入输出（如速度场 u,v 两分量）"""
         model = self._create_model(in_channels=2, out_channels=2, img_size=16, upscale_factor=4)

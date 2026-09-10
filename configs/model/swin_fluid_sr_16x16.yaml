@@ -1,0 +1,19 @@
+# SwinFluidSR 模型配置 (16x16 输入 -> 128x128 重建, 8x 超分辨率逆问题)
+# 基于 RSTB (Residual Swin Transformer Block) + 亚像素卷积 (PixelShuffle 8x)
+# 输入通道: 1 (直接接收 16x16 低分辨率物理场)
+# 输出通道: 1 (重建 128x128 高清物理场)
+
+name: "SwinFluidSR"
+params:
+  in_channels: 1
+  out_channels: 1
+  img_size: 16
+  upscale_factor: 8
+  embed_dim: 96
+  depths: [4, 4, 4, 4]
+  num_heads: [4, 4, 4, 4]
+  window_size: 8
+  mlp_ratio: 2.0
+  drop_path_rate: 0.05
+  global_residual: true
+  use_lowres_input: true

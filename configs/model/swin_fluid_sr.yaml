@@ -1,8 +1,8 @@
 # SwinFluidSR 模型配置
 # 基于 RSTB (Residual Swin Transformer Block) + 亚像素卷积 (PixelShuffle)
-# 面向流体超分辨率任务 (4x SR) 的专用架构
-# 输入通道: 1 (直接接收 32x32 低分辨率物理场)
-# 输出通道: 1 (重建 128x128 高清物理场)
+# 面向流体超分辨率任务 (原生支持 2x/4x/8x SR，输入支持 16x16, 32x32, 64x64 等)
+# 默认配置: 输入通道 1, 32x32 低分辨率物理场, 重建 128x128 高清物理场 (4x SR)
+# 16x16 输入可参考 configs/model/swin_fluid_sr_16x16.yaml (8x SR)
 
 name: "SwinFluidSR"
 params:
