@@ -104,3 +104,5 @@ temp/
 tools/prince_installer/
 **/prince_installer/
 clean_export copy/
+clean_export/
+archives/
