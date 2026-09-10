@@ -74,26 +74,48 @@ class TestSwinFluidSRTrainingStep:
         target = batch["target"]
         assert target.shape == pred.shape
 
-        # 5. 组合物理损失（包含重建 + 频域能谱 + 物理守恒散度与涡度）
+        # 5. 组合物理损失：测试 CombinedLoss
         loss_cfg = OmegaConf.create({
-            "rec_weight": 1.0,
-            "spec_weight": 0.1,
-            "dc_weight": 0.0,
-            "div_weight": 0.05,
-            "vort_weight": 0.05,
-            "rec_loss_type": "l2",
+            "loss": {
+                "reconstruction_weight": 1.0,
+                "spectral_weight": 0.1,
+                "data_consistency_weight": 0.0,
+                "reconstruction_loss_type": "l2",
+            }
         })
         loss_fn = CombinedLoss(loss_cfg)
-        loss, loss_dict = loss_fn(pred, target)
-
+        loss_res = loss_fn(pred, target)
+        loss = loss_res["total_loss"]
         assert torch.isfinite(loss)
-        assert "rec_loss" in loss_dict
-        assert "div_loss" in loss_dict
-        assert "vort_loss" in loss_dict
+        assert "reconstruction_loss" in loss_res
+        assert "spectral_loss" in loss_res
 
-        # 6. 反向传播与优化器步进
+        # 5.1 验证 train.py 使用的 compute_total_loss
+        from ops.losses import compute_total_loss
+        full_cfg = OmegaConf.create({
+            "loss": {
+                "rec_weight": 1.0,
+                "spec_weight": 0.1,
+                "dc_weight": 0.0,
+                "div_weight": 0.05,
+                "vort_weight": 0.05,
+                "rec_loss_type": "l2",
+            }
+        })
+        train_losses = compute_total_loss(
+            pred_z=pred,
+            target_z=target,
+            obs_data=batch,
+            config=full_cfg
+        )
+        assert torch.isfinite(train_losses["total_loss"])
+        assert "rec_loss" in train_losses
+        assert "div_loss" in train_losses
+        assert "vort_loss" in train_losses
+
+        # 使用包含物理守恒的总损失进行反向传播
         optimizer.zero_grad()
-        loss.backward()
+        train_losses["total_loss"].backward()
 
         # 检查关键层均获得非零有限梯度
         for name, param in model.named_parameters():

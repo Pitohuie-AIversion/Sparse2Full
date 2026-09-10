@@ -63,7 +63,7 @@ class CombinedLoss(torch.nn.Module):
         self,
         pred: torch.Tensor,
         target: torch.Tensor,
-        observation_data: Any,
+        observation_data: Any = None,
     ) -> Dict[str, torch.Tensor]:
         observation = observation_data
         if isinstance(observation_data, dict):
@@ -246,9 +246,9 @@ class DCLoss(torch.nn.Module):
 def compute_total_loss_base(
     pred_z: torch.Tensor, 
     target_z: torch.Tensor, 
-    obs_data: Dict, 
-    norm_stats: Optional[Dict[str, torch.Tensor]], 
-    config: DictConfig,
+    obs_data: Optional[Dict] = None, 
+    norm_stats: Optional[Dict[str, torch.Tensor]] = None, 
+    config: Optional[Any] = None,
     loss_weights_override: Optional[Dict[str, float]] = None
 ) -> Dict[str, torch.Tensor]:
     """计算总损失，包含重建损失、频谱损失和数据一致性损失
@@ -446,6 +446,9 @@ def compute_total_loss_base(
         w_vort * losses['vort_loss']
     )
     losses['total_loss'] = total_loss
+    losses['rec_loss'] = losses['reconstruction_loss']
+    losses['spec_loss'] = losses['spectral_loss']
+    losses['grad_loss'] = losses['gradient_loss']
     
     return losses
 
@@ -454,9 +457,9 @@ def compute_total_loss_base(
 def compute_total_loss(
     pred_z: torch.Tensor,
     target_z: torch.Tensor,
-    obs_data: Dict,
-    norm_stats: Optional[Dict[str, torch.Tensor]],
-    config: DictConfig,
+    obs_data: Optional[Dict] = None,
+    norm_stats: Optional[Dict[str, torch.Tensor]] = None,
+    config: Optional[Any] = None,
     loss_weights_override: Optional[Dict[str, float]] = None,
     **kwargs
 ) -> Dict[str, torch.Tensor]:
@@ -623,9 +626,12 @@ def compute_total_loss(
 
     return {
         'reconstruction_loss': reconstruction_loss,
+        'rec_loss': reconstruction_loss,
         'spectral_loss': spectral_loss,
+        'spec_loss': spectral_loss,
         'dc_loss': dc_loss,
         'gradient_loss': gradient_loss,
+        'grad_loss': gradient_loss,
         'div_loss': div_loss,
         'vort_loss': vort_loss,
         'physics_loss': physics_loss,
