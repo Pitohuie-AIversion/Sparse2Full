@@ -12,9 +12,11 @@ mkdir -p runs/checkpoints
 
 echo "Starting SwinTWithEncoder dual-GPU training at $(date)" | tee "$LOG"
 
+DATA_PATH="${DATA_PATH:-/root/autodl-tmp/datasets/2D_rdb_NA_NA.h5}"
+
 # 用 ++ 强制覆盖 Hydra struct（支持新 key）
 nohup python3 train.py \
-  data.data_path="/root/autodl-tmp/datasets/2D_rdb_NA_NA.h5" \
+  data.data_path="$DATA_PATH" \
   "data.keys=['data']" \
   data.splits_dir=splits_shallow \
   data.image_size=128 \

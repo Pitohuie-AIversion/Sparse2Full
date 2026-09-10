@@ -7,8 +7,10 @@ export CUDA_VISIBLE_DEVICES=0
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+DATA_PATH="${DATA_PATH:-/root/autodl-tmp/datasets/2D_rdb_NA_NA.h5}"
+
 python3 train.py \
-  data.data_path="/root/autodl-tmp/datasets/2D_rdb_NA_NA.h5" \
+  data.data_path="$DATA_PATH" \
   "data.keys=['data']" \
   data.splits_dir=splits_shallow \
   data.image_size=128 \

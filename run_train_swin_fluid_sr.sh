@@ -21,8 +21,10 @@ echo " 4. 全局物理插值残差学习 (Global Bicubic Residual)"
 echo " 5. 激活频域能谱物理损失 (Spectral Loss = 0.1)"
 echo "=========================================================="
 
+DATA_PATH="${DATA_PATH:-/root/autodl-tmp/datasets/2D_rdb_NA_NA.h5}"
+
 python3 train.py \
-  "data.data_path=/root/autodl-tmp/datasets/2D_rdb_NA_NA.h5" \
+  "data.data_path=$DATA_PATH" \
   "data.keys=['data']" \
   "data.splits_dir=splits_shallow" \
   "data.image_size=128" \
