@@ -13,10 +13,13 @@ import torch
 import torch.nn as nn
 from typing import Optional, Dict, Any
 import logging
+from models.registry import register_model
 
 logger = logging.getLogger(__name__)
 
+@register_model(name="ARWrapper", aliases=["ar_wrapper", "arwrapper"])
 class ARWrapper(nn.Module):
+
     """自回归包装器
     
     将单帧模型包装成多步自回归预测：
@@ -167,54 +170,47 @@ class ARWrapper(nn.Module):
         return x_packed[:, :model_in_ch, :, :]
 
     def __call__(self, x: torch.Tensor, *args: Any, **kwargs: Any):
-        # 智能参数解析：处理位置参数中的 teacher
-        teacher = None
-        if len(args) > 0 and isinstance(args[0], torch.Tensor):
-            # 假设第一个位置参数是 teacher/target
-            teacher = args[0]
-            # 从 args 中移除 teacher，避免重复传递
-            args = args[1:]
-        
-        # 同样检查 kwargs 中的 teacher
-        if 'teacher' in kwargs:
-            teacher = kwargs.pop('teacher')
-            
-        # 检查是否需要进行时序预测 (如果有 teacher 或 explicit T_out)
-        if teacher is not None or any(k in kwargs for k in ("T_out", "train_mode")):
-            T_out = kwargs.pop("T_out", None)
-            train_mode = kwargs.pop("train_mode", self.training)
+        teacher = kwargs.pop('teacher', None)
+        T_out = kwargs.pop('T_out', None)
+        train_mode = kwargs.pop('train_mode', self.training)
 
+        # 智能参数解析：处理位置参数中的 T_out (int) 与 teacher (Tensor)
+        for arg in args:
+            if isinstance(arg, int) and T_out is None:
+                T_out = arg
+            elif isinstance(arg, torch.Tensor) and teacher is None:
+                teacher = arg
+            elif isinstance(arg, bool) and 'train_mode' not in kwargs:
+                train_mode = arg
+
+        # 如果显式传入了时序参数 (T_out/teacher)
+        if T_out is not None or teacher is not None:
             x_seq = x
             if isinstance(x, torch.Tensor) and x.dim() == 4:
                 x_seq = x.unsqueeze(1)
 
             if T_out is None:
                 if teacher is not None and isinstance(teacher, torch.Tensor):
-                    # 如果 teacher 是 5D [B, T, C, H, W]，推断 T_out
                     if teacher.dim() == 5:
                         T_out = int(teacher.size(1))
-                    # 如果 teacher 是 4D，可能只是单步 target，T_out=1
                     elif teacher.dim() == 4:
                         T_out = 1
                 elif self.T_out is not None:
                     T_out = int(self.T_out)
+                else:
+                    T_out = 1
 
-            # 如果推断出 T_out，且处于训练模式或有明确指令，则进行 AR 预测
-            if T_out is not None:
-                return self.autoregressive_predict(
-                    x_seq=x_seq,
-                    T_out=int(T_out),
-                    teacher=teacher,
-                    train_mode=bool(train_mode),
-                    **kwargs,
-                )
+            return self.autoregressive_predict(
+                x_seq=x_seq,
+                T_out=int(T_out),
+                teacher=teacher,
+                train_mode=bool(train_mode),
+                **kwargs,
+            )
 
-        # Fallback: 如果没有识别出时序意图，且没有剩余 args，则调用单帧 forward
-        if not args:
-            return super().__call__(x)
-        
-        # 如果还有其他未处理的位置参数，只能尝试透传（可能会报错，但这是用户用法的责任）
-        return super().__call__(x, *args, **kwargs)
+        # 单帧 forward 调用（无时序参数时，透传至 forward 验证 4D 接口契约）
+        return super().__call__(x, **kwargs)
+
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if x.dim() != 4:

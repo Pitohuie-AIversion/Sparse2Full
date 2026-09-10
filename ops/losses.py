@@ -11,10 +11,13 @@ import torch
 import torch.nn.functional as F
 from omegaconf import DictConfig
 
-try:
-    from utils.losses import TotalLoss as _TotalLoss
-except ImportError:
-    _TotalLoss = None
+from .loss import (
+    ReconstructionLoss as _ReconstructionLoss,
+    SpectralLoss as _SpectralLoss,
+    DataConsistencyLoss as _DataConsistencyLoss,
+    compute_fluid_physics_loss,
+)
+
 
 
 def _config_get(config: Any, key: str, default: Any = None) -> Any:
@@ -27,32 +30,34 @@ def _config_get(config: Any, key: str, default: Any = None) -> Any:
 
 
 class CombinedLoss(torch.nn.Module):
-    """Compatibility adapter for the legacy ``CombinedLoss(config)`` API."""
+    """Compatibility adapter for the legacy ``CombinedLoss(config)`` API.
+    
+    直接基于 ops.loss 核心算子构建，消除对 utils.losses 的反向依赖。
+    """
 
     def __init__(self, config: DictConfig):
         super().__init__()
-        if _TotalLoss is None:
-            raise ImportError("utils.losses.TotalLoss is unavailable")
-
         loss_cfg = _config_get(config, 'loss', {})
         data_cfg = _config_get(config, 'data', {})
         spec_cfg = _config_get(loss_cfg, 'spectral_loss', {})
-        dc_cfg = {
+        self.dc_cfg = {
             'task': _config_get(data_cfg, 'task', 'SR'),
             'scale': int(_config_get(data_cfg, 'sr_scale', 1)),
             'sigma': float(_config_get(data_cfg, 'blur_sigma', 1.0)),
             'kernel_size': int(_config_get(data_cfg, 'blur_kernel_size', 5)),
             'boundary': _config_get(data_cfg, 'boundary_mode', 'mirror'),
         }
+        self.rec_weight = float(_config_get(loss_cfg, 'reconstruction_weight', 1.0))
+        self.spec_weight = float(_config_get(loss_cfg, 'spectral_weight', 0.0))
         self.dc_weight = float(_config_get(loss_cfg, 'data_consistency_weight', 0.0))
-        self.impl = _TotalLoss(
-            rec_weight=float(_config_get(loss_cfg, 'reconstruction_weight', 1.0)),
-            spec_weight=float(_config_get(loss_cfg, 'spectral_weight', 0.0)),
-            dc_weight=self.dc_weight,
-            low_freq_modes=int(_config_get(spec_cfg, 'low_freq_modes', 16)),
-            spec_config=spec_cfg,
-            dc_config=dc_cfg,
-        )
+
+        rec_loss_type = str(_config_get(loss_cfg, 'reconstruction_loss_type', 'l2'))
+        low_freq_modes = int(_config_get(spec_cfg, 'low_freq_modes', 16))
+        spec_loss_type = str(_config_get(spec_cfg, 'loss_type', 'l2'))
+
+        self.rec_loss = _ReconstructionLoss(loss_type=rec_loss_type)
+        self.spec_loss = _SpectralLoss(low_freq_modes=low_freq_modes, loss_type=spec_loss_type)
+        self.dc_loss = _DataConsistencyLoss()
 
     def forward(
         self,
@@ -72,13 +77,23 @@ class CombinedLoss(torch.nn.Module):
                 raise ValueError("observation_data must contain an observation tensor when DC loss is enabled")
             observation = target
 
-        total, components = self.impl(pred, target, observation)
+        # 1. 重建损失
+        rec = self.rec_loss(pred, target)
+        # 2. 频域损失
+        spec = self.spec_loss(pred, target) if self.spec_weight > 0 else torch.zeros_like(rec)
+        # 3. 数据一致性损失
+        if self.dc_weight > 0:
+            dc = self.dc_loss(pred, observation, self.dc_cfg)
+        else:
+            dc = torch.zeros_like(rec)
+
+        total = self.rec_weight * rec + self.spec_weight * spec + self.dc_weight * dc
         return {
             'total_loss': total,
-            'reconstruction_loss': components['rec_loss'],
-            'spectral_loss': components['spec_loss'],
-            'dc_loss': components['dc_loss'],
-            'data_consistency_loss': components['dc_loss'],
+            'reconstruction_loss': rec,
+            'spectral_loss': spec,
+            'dc_loss': dc,
+            'data_consistency_loss': dc,
         }
 
 
@@ -185,22 +200,38 @@ class SpectralLoss(torch.nn.Module):
 class DCLoss(torch.nn.Module):
     """数据一致性损失函数"""
     
-    def __init__(self, config: DictConfig):
+    def __init__(self, config: Optional[Any] = None):
         super().__init__()
         self.config = config
         
-    def forward(self, 
-                pred_obs: torch.Tensor, 
-                target_obs: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, 
+        pred: torch.Tensor, 
+        target_obs: torch.Tensor,
+        h_params: Optional[Dict[str, Any]] = None
+    ) -> torch.Tensor:
         """计算数据一致性损失
         
         Args:
-            pred_obs: 经过观测算子H处理后的预测值 [B, C, H, W]
-            target_obs: 观测数据 [B, C, H, W]
+            pred: 预测值（若提供 h_params 则为全分辨率预测，否则为已退化观测）[B, C, H, W]
+            target_obs: 真实观测数据 [B, C, H_obs, W_obs]
+            h_params: 可选退化算子参数字典。若提供，则自动执行 H(pred)
         """
-        # 确保尺寸匹配
+        if h_params is not None:
+            from .degradation import apply_degradation_operator
+            pred_obs = apply_degradation_operator(pred, **h_params)
+        else:
+            pred_obs = pred
+
+        # 确保尺寸匹配与物理完整性
         if pred_obs.shape != target_obs.shape:
-            # 如果尺寸不匹配，将target_obs调整到pred_obs的尺寸
+            allow_resample = getattr(self.config, 'allow_obs_resampling', False) if self.config else False
+            if not allow_resample:
+                raise ValueError(
+                    f"Observation shape mismatch in DCLoss: pred_obs {tuple(pred_obs.shape)} != target_obs {tuple(target_obs.shape)}. "
+                    "Silently interpolating raw observations violates data consistency. "
+                    "Verify degradation operator parameters or set config.allow_obs_resampling=true."
+                )
             target_obs = F.interpolate(
                 target_obs, 
                 size=pred_obs.shape[-2:], 
@@ -208,9 +239,8 @@ class DCLoss(torch.nn.Module):
                 align_corners=False
             )
         
-        loss = F.mse_loss(pred_obs, target_obs)
-        
-        return loss
+        return F.mse_loss(pred_obs, target_obs)
+
 
 
 def compute_total_loss_base(
@@ -251,6 +281,8 @@ def compute_total_loss_base(
     w_spec = 0.0
     w_dc = 0.0
     w_grad = 0.0
+    w_div = 0.0
+    w_vort = 0.0
 
     # 优先使用 loss_weights_override 参数
     if loss_weights_override is not None:
@@ -258,6 +290,8 @@ def compute_total_loss_base(
         w_spec = loss_weights_override.get('spectral', w_spec)
         w_dc = loss_weights_override.get('data_consistency', w_dc)
         w_grad = loss_weights_override.get('gradient', w_grad)
+        w_div = loss_weights_override.get('divergence', loss_weights_override.get('div', w_div))
+        w_vort = loss_weights_override.get('vorticity', loss_weights_override.get('vort', w_vort))
     else:
         # 优先使用 training.loss_weights / train.loss_weights 结构
         tr_cfg = getattr(config, 'training', getattr(config, 'train', None))
@@ -274,6 +308,15 @@ def compute_total_loss_base(
                 # 可选：梯度项
                 if hasattr(lw, 'gradient'):
                     w_grad = float(getattr(lw, 'gradient', 0.0))
+                # 可选：流体物理守恒约束（散度、涡度）
+                if hasattr(lw, 'divergence'):
+                    w_div = float(getattr(lw, 'divergence', 0.0))
+                elif hasattr(lw, 'div'):
+                    w_div = float(getattr(lw, 'div', 0.0))
+                if hasattr(lw, 'vorticity'):
+                    w_vort = float(getattr(lw, 'vorticity', 0.0))
+                elif hasattr(lw, 'vort'):
+                    w_vort = float(getattr(lw, 'vort', 0.0))
             except Exception:
                 # 若读取失败，回退到默认值
                 pass
@@ -313,6 +356,9 @@ def compute_total_loss_base(
                 w_dc = float(config.loss.degradation_consistency)
             # 梯度项
             w_grad = getattr(config.loss, 'gradient_weight', w_grad)
+            # 流体守恒项
+            w_div = getattr(config.loss, 'div_weight', getattr(config.loss, 'divergence_weight', w_div))
+            w_vort = getattr(config.loss, 'vort_weight', getattr(config.loss, 'vorticity_weight', w_vort))
     
     pred_z = torch.nan_to_num(pred_z, nan=0.0, posinf=1e6, neginf=-1e6)
     target_z = torch.nan_to_num(target_z, nan=0.0, posinf=1e6, neginf=-1e6)
@@ -367,17 +413,42 @@ def compute_total_loss_base(
         losses['gradient_loss'] = gradient_loss
     else:
         losses['gradient_loss'] = torch.tensor(0.0, device=device)
+
+    # 5. 流体物理守恒损失（可选，散度无源性与涡度一致性约束）
+    if (w_div > 0 or w_vort > 0) and C >= 2:
+        data_keys = config.data.get('keys', None) if hasattr(config, 'data') else None
+        if norm_stats is not None:
+            pred_phys = _denormalize_tensor(pred_z, norm_stats, data_keys)
+            target_phys = _denormalize_tensor(target_z, norm_stats, data_keys)
+        else:
+            pred_phys, target_phys = pred_z, target_z
+        phys_loss_dict = compute_fluid_physics_loss(
+            pred_phys,
+            target_phys,
+            enforce_divergence_free=(w_div > 0),
+            enforce_vorticity_consistency=(w_vort > 0),
+        )
+        losses['div_loss'] = phys_loss_dict['div_loss']
+        losses['vort_loss'] = phys_loss_dict['vort_loss']
+        losses['physics_loss'] = phys_loss_dict['physics_loss']
+    else:
+        losses['div_loss'] = torch.tensor(0.0, device=device)
+        losses['vort_loss'] = torch.tensor(0.0, device=device)
+        losses['physics_loss'] = torch.tensor(0.0, device=device)
     
-    # 5. 总损失
+    # 6. 总损失
     total_loss = (
         w_rec * losses['reconstruction_loss'] +
         w_spec * losses['spectral_loss'] +
         w_dc * losses['dc_loss'] +
-        w_grad * losses['gradient_loss']
+        w_grad * losses['gradient_loss'] +
+        w_div * losses['div_loss'] +
+        w_vort * losses['vort_loss']
     )
     losses['total_loss'] = total_loss
     
     return losses
+
 
 
 def compute_total_loss(
@@ -411,6 +482,9 @@ def compute_total_loss(
     spec_list = []
     dc_list = []
     grad_list = []
+    div_list = []
+    vort_list = []
+    phys_list = []
 
     for t in range(T_out):
         pred_t = pred_z[:, t]
@@ -444,11 +518,14 @@ def compute_total_loss(
         else:
             obs_t = {}
 
-        losses_t = compute_total_loss_base(pred_t, target_t, obs_t, norm_stats, config)
+        losses_t = compute_total_loss_base(pred_t, target_t, obs_t, norm_stats, config, loss_weights_override=loss_weights_override)
         rec_list.append(losses_t.get('reconstruction_loss', torch.tensor(0.0, device=device)))
         spec_list.append(losses_t.get('spectral_loss', torch.tensor(0.0, device=device)))
         dc_list.append(losses_t.get('dc_loss', torch.tensor(0.0, device=device)))
         grad_list.append(losses_t.get('gradient_loss', torch.tensor(0.0, device=device)))
+        div_list.append(losses_t.get('div_loss', torch.tensor(0.0, device=device)))
+        vort_list.append(losses_t.get('vort_loss', torch.tensor(0.0, device=device)))
+        phys_list.append(losses_t.get('physics_loss', torch.tensor(0.0, device=device)))
 
     def _mean_stack(lst: list[torch.Tensor]) -> torch.Tensor:
         if not lst:
@@ -459,64 +536,89 @@ def compute_total_loss(
     spectral_loss = _mean_stack(spec_list)
     dc_loss = _mean_stack(dc_list)
     gradient_loss = _mean_stack(grad_list)
+    div_loss = _mean_stack(div_list)
+    vort_loss = _mean_stack(vort_list)
+    physics_loss = _mean_stack(phys_list)
 
     # 读取权重，遵循 compute_total_loss 的约定
     w_rec = 1.0
     w_spec = 0.0
     w_dc = 0.0
     w_grad = 0.0
+    w_div = 0.0
+    w_vort = 0.0
 
-    tr_cfg = getattr(config, 'training', getattr(config, 'train', None))
-    has_train_loss_weights = tr_cfg is not None and hasattr(tr_cfg, 'loss_weights')
-    if has_train_loss_weights:
-        try:
-            lw = tr_cfg.loss_weights
-            if hasattr(lw, 'reconstruction'):
-                w_rec = float(lw.reconstruction)
-            if hasattr(lw, 'spectral'):
-                w_spec = float(lw.spectral)
-            if hasattr(lw, 'data_consistency'):
-                w_dc = float(lw.data_consistency)
-            if hasattr(lw, 'gradient'):
-                w_grad = float(getattr(lw, 'gradient', 0.0))
-        except Exception:
-            pass
-    elif hasattr(config, 'loss'):
-        if hasattr(config.loss, 'reconstruction') and hasattr(config.loss.reconstruction, 'weight'):
+    if loss_weights_override is not None:
+        w_rec = loss_weights_override.get('reconstruction', w_rec)
+        w_spec = loss_weights_override.get('spectral', w_spec)
+        w_dc = loss_weights_override.get('data_consistency', w_dc)
+        w_grad = loss_weights_override.get('gradient', w_grad)
+        w_div = loss_weights_override.get('divergence', loss_weights_override.get('div', w_div))
+        w_vort = loss_weights_override.get('vorticity', loss_weights_override.get('vort', w_vort))
+    else:
+        tr_cfg = getattr(config, 'training', getattr(config, 'train', None))
+        has_train_loss_weights = tr_cfg is not None and hasattr(tr_cfg, 'loss_weights')
+        if has_train_loss_weights:
             try:
-                w_rec = float(config.loss.reconstruction.weight)
+                lw = tr_cfg.loss_weights
+                if hasattr(lw, 'reconstruction'):
+                    w_rec = float(lw.reconstruction)
+                if hasattr(lw, 'spectral'):
+                    w_spec = float(lw.spectral)
+                if hasattr(lw, 'data_consistency'):
+                    w_dc = float(lw.data_consistency)
+                if hasattr(lw, 'gradient'):
+                    w_grad = float(getattr(lw, 'gradient', 0.0))
+                if hasattr(lw, 'divergence'):
+                    w_div = float(getattr(lw, 'divergence', 0.0))
+                elif hasattr(lw, 'div'):
+                    w_div = float(getattr(lw, 'div', 0.0))
+                if hasattr(lw, 'vorticity'):
+                    w_vort = float(getattr(lw, 'vorticity', 0.0))
+                elif hasattr(lw, 'vort'):
+                    w_vort = float(getattr(lw, 'vort', 0.0))
             except Exception:
                 pass
-        elif hasattr(config.loss, 'reconstruction') and isinstance(config.loss.reconstruction, (int, float)):
-            w_rec = float(config.loss.reconstruction)
-        if hasattr(config.loss, 'spectral') and hasattr(config.loss.spectral, 'weight'):
-            try:
-                w_spec = float(config.loss.spectral.weight)
-            except Exception:
-                pass
-        elif hasattr(config.loss, 'spectral') and isinstance(config.loss.spectral, (int, float)):
-            w_spec = float(config.loss.spectral)
-        if hasattr(config.loss, 'data_consistency') and hasattr(config.loss.data_consistency, 'weight'):
-            try:
-                w_dc = float(config.loss.data_consistency.weight)
-            except Exception:
-                pass
-        elif hasattr(config.loss, 'degradation_consistency') and hasattr(config.loss.degradation_consistency, 'weight'):
-            try:
-                w_dc = float(config.loss.degradation_consistency.weight)
-            except Exception:
-                pass
-        elif hasattr(config.loss, 'data_consistency') and isinstance(config.loss.data_consistency, (int, float)):
-            w_dc = float(config.loss.data_consistency)
-        elif hasattr(config.loss, 'degradation_consistency') and isinstance(config.loss.degradation_consistency, (int, float)):
-            w_dc = float(config.loss.degradation_consistency)
-        w_grad = getattr(config.loss, 'gradient_weight', w_grad)
+        elif hasattr(config, 'loss'):
+            if hasattr(config.loss, 'reconstruction') and hasattr(config.loss.reconstruction, 'weight'):
+                try:
+                    w_rec = float(config.loss.reconstruction.weight)
+                except Exception:
+                    pass
+            elif hasattr(config.loss, 'reconstruction') and isinstance(config.loss.reconstruction, (int, float)):
+                w_rec = float(config.loss.reconstruction)
+            if hasattr(config.loss, 'spectral') and hasattr(config.loss.spectral, 'weight'):
+                try:
+                    w_spec = float(config.loss.spectral.weight)
+                except Exception:
+                    pass
+            elif hasattr(config.loss, 'spectral') and isinstance(config.loss.spectral, (int, float)):
+                w_spec = float(config.loss.spectral)
+            if hasattr(config.loss, 'data_consistency') and hasattr(config.loss.data_consistency, 'weight'):
+                try:
+                    w_dc = float(config.loss.data_consistency.weight)
+                except Exception:
+                    pass
+            elif hasattr(config.loss, 'degradation_consistency') and hasattr(config.loss.degradation_consistency, 'weight'):
+                try:
+                    w_dc = float(config.loss.degradation_consistency.weight)
+                except Exception:
+                    pass
+            elif hasattr(config.loss, 'data_consistency') and isinstance(config.loss.data_consistency, (int, float)):
+                w_dc = float(config.loss.data_consistency)
+            elif hasattr(config.loss, 'degradation_consistency') and isinstance(config.loss.degradation_consistency, (int, float)):
+                w_dc = float(config.loss.degradation_consistency)
+            w_grad = getattr(config.loss, 'gradient_weight', w_grad)
+            w_div = getattr(config.loss, 'div_weight', getattr(config.loss, 'divergence_weight', w_div))
+            w_vort = getattr(config.loss, 'vort_weight', getattr(config.loss, 'vorticity_weight', w_vort))
 
     total_loss = (
         w_rec * reconstruction_loss +
         w_spec * spectral_loss +
         w_dc * dc_loss +
-        w_grad * gradient_loss
+        w_grad * gradient_loss +
+        w_div * div_loss +
+        w_vort * vort_loss
     )
 
     return {
@@ -524,8 +626,12 @@ def compute_total_loss(
         'spectral_loss': spectral_loss,
         'dc_loss': dc_loss,
         'gradient_loss': gradient_loss,
+        'div_loss': div_loss,
+        'vort_loss': vort_loss,
+        'physics_loss': physics_loss,
         'total_loss': total_loss
     }
+
 
 
 def _compute_reconstruction_loss(

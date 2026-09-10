@@ -16,8 +16,10 @@ from models.spatial.swin_unet import SwinUNet
 from models.ar.wrapper import ARWrapper
 
 logger = logging.getLogger(__name__)
+from models.registry import register_model
 
 
+@register_model(name="SwinTemporal", aliases=["swin_temporal", "swintemporal"])
 class SwinTemporal(nn.Module):
     """Swin时序模块
     
@@ -219,6 +221,7 @@ class SwinTemporal(nn.Module):
         }
 
 
+@register_model(name="SwinTemporalNAR", aliases=["swin_temporal_nar", "swintemporalnar"])
 class SwinTemporalNAR(nn.Module):
     """Swin时序NAR双头模块
     

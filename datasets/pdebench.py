@@ -38,16 +38,28 @@ def _infer_h5_case_ids(h5: Any) -> List[str]:
     return sorted([k for k in h5.keys() if isinstance(k, str)])
 
 
-def _load_case_tensor(h5: Any, case_id: str, keys: Sequence[str]) -> torch.Tensor:
+def _load_case_tensor(h5: Any, case_id: str, keys: Sequence[str], time_step: int = 0) -> torch.Tensor:
     if "tensor" in h5:
         x = h5["tensor"][int(case_id)]
         arr = np.asarray(x)
         if arr.ndim == 2:
-            arr = arr[None, ...]
+            n_points = arr.shape[1]
+            side = int(np.round(np.sqrt(n_points)))
+            if side * side == n_points and side > 1:
+                # Select non-degenerate time snapshot (default t=0 with std~0.35) and reshape to (1, H, W)
+                idx = time_step if abs(time_step) < arr.shape[0] else 0
+                arr = arr[idx].reshape(1, side, side)
+            else:
+                arr = arr[None, ...]
         elif arr.ndim == 3:
-            pass
+            if arr.shape[0] > 10 and arr.shape[1] > 1 and arr.shape[2] > 1:
+                idx = time_step if abs(time_step) < arr.shape[0] else 0
+                arr = arr[idx][None, ...]
+            else:
+                pass
         elif arr.ndim == 4:
-            arr = arr[-1]
+            idx = time_step if abs(time_step) < arr.shape[0] else 0
+            arr = arr[idx]
         else:
             raise ValueError(f"Unsupported tensor ndim: {arr.ndim}")
         return torch.from_numpy(arr.astype(np.float32))

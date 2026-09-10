@@ -320,9 +320,17 @@ class SwinTransformerBlock(nn.Module):
         if self.shift_size > 0:
             x = torch.roll(x, shifts=(-self.shift_size, -self.shift_size), dims=(1, 2))
 
-        # attention mask (lazy build)
-        if (self.attn_mask is None) or (self.attn_mask.shape[1] != self.window_size * self.window_size):
-            self.attn_mask = self._build_attn_mask(H, W, x.device)
+        # attention mask (lazy build with dynamic resolution check)
+        expected_nw = (H // self.window_size) * (W // self.window_size) if self.shift_size > 0 else 0
+        if self.shift_size > 0:
+            if (
+                (self.attn_mask is None)
+                or (self.attn_mask.shape[0] != expected_nw)
+                or (self.attn_mask.device != x.device)
+            ):
+                self.attn_mask = self._build_attn_mask(H, W, x.device)
+        else:
+            self.attn_mask = None
 
         # partition windows
         x_windows = window_partition(x, self.window_size)  # [nW*B, ws, ws, C]

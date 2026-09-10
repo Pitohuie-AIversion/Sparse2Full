@@ -556,3 +556,79 @@ def compute_pde_residual_loss(
         return F.l1_loss(residual, torch.zeros_like(residual))
     else:  # l2
         return F.mse_loss(residual, torch.zeros_like(residual))
+
+
+def compute_vorticity(u: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
+    """计算二维速度场的涡度场 omega = dv/dx - du/dy
+    
+    Args:
+        u: x方向速度分量 [B, 1, H, W]
+        v: y方向速度分量 [B, 1, H, W]
+    Returns:
+        涡度张量 [B, 1, H-1, W-1]
+    """
+    dv_dx = v[:, :, :-1, 1:] - v[:, :, :-1, :-1]
+    du_dy = u[:, :, 1:, :-1] - u[:, :, :-1, :-1]
+    return dv_dx - du_dy
+
+
+def compute_divergence(u: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
+    """计算二维速度场的散度场 div = du/dx + dv/dy
+    
+    Args:
+        u: x方向速度分量 [B, 1, H, W]
+        v: y方向速度分量 [B, 1, H, W]
+    Returns:
+        散度张量 [B, 1, H-1, W-1]
+    """
+    du_dx = u[:, :, :-1, 1:] - u[:, :, :-1, :-1]
+    dv_dy = v[:, :, 1:, :-1] - v[:, :, :-1, :-1]
+    return du_dx + dv_dy
+
+
+def compute_fluid_physics_loss(
+    pred: torch.Tensor,
+    target: Optional[torch.Tensor] = None,
+    enforce_divergence_free: bool = True,
+    enforce_vorticity_consistency: bool = True,
+    loss_type: str = "l2",
+) -> Dict[str, torch.Tensor]:
+    """计算流体物理守恒约束损失（散度无源性 + 涡度一致性）
+    
+    文献依据：
+    - PEST (Physics-Enhanced Swin Transformer): 将散度无源性嵌入流体物理场超分辨
+    - MSST: 多尺度涡度能量级联守恒约束
+    
+    Args:
+        pred: 预测流场 [B, C, H, W]（要求 C >= 2，前两通道为 u, v 速度分量）
+        target: 可选目标流场 [B, C, H, W]
+        enforce_divergence_free: 是否计算散度损失 (div(u) -> 0)
+        enforce_vorticity_consistency: 是否计算涡度一致性损失 (omega(pred) -> omega(target))
+        loss_type: 损失类型 ('l1' 或 'l2')
+    """
+    if pred.shape[1] < 2:
+        zero = torch.tensor(0.0, device=pred.device, dtype=pred.dtype)
+        return {"div_loss": zero, "vort_loss": zero, "physics_loss": zero}
+
+    u_pred, v_pred = pred[:, 0:1], pred[:, 1:2]
+    loss_fn = F.l1_loss if loss_type.lower() == "l1" else F.mse_loss
+
+    div_loss = torch.tensor(0.0, device=pred.device, dtype=pred.dtype)
+    if enforce_divergence_free:
+        div_pred = compute_divergence(u_pred, v_pred)
+        div_loss = loss_fn(div_pred, torch.zeros_like(div_pred))
+
+    vort_loss = torch.tensor(0.0, device=pred.device, dtype=pred.dtype)
+    if enforce_vorticity_consistency and target is not None and target.shape[1] >= 2:
+        u_tgt, v_tgt = target[:, 0:1], target[:, 1:2]
+        omega_pred = compute_vorticity(u_pred, v_pred)
+        omega_tgt = compute_vorticity(u_tgt, v_tgt)
+        vort_loss = loss_fn(omega_pred, omega_tgt)
+
+    physics_loss = div_loss + vort_loss
+    return {
+        "div_loss": div_loss,
+        "vort_loss": vort_loss,
+        "physics_loss": physics_loss,
+    }
+

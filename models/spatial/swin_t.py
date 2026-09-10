@@ -721,14 +721,12 @@ class SwinTransformerTiny(BaseModel):
         #   SwinIR: Image Restoration Using Swin Transformer (若你受其重建头部启发可并列引用)
         #   https://arxiv.org/abs/2108.10257
         if final_upsample == "expand_first":
-            print("---final upsample expand_first---")
             self.up = FinalPatchExpand_X4(
                 input_resolution=(img_size // patch_size, img_size // patch_size),
                 dim_scale=4, dim=embed_dim
             )
             self.output = nn.Conv2d(in_channels=embed_dim, out_channels=out_channels, kernel_size=1, bias=False)
         elif final_upsample == "bilinear":
-            print("---final upsample bilinear---")
             self.up = nn.Sequential(
                 nn.Linear(embed_dim, embed_dim * 16, bias=False),
                 nn.PixelShuffle(4),

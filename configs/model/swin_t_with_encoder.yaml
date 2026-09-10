@@ -1,0 +1,43 @@
+# SwinTWithEncoder 模型配置
+# Swin Transformer Tiny + SparseInputEncoder
+# 专为稀疏观测重建任务设计（Sparse2Full）
+# 输入通道: baseline(1) + coords(2) + mask(1) = 4
+
+name: "SwinTWithEncoder"
+params:
+  in_channels: 4          # baseline + coords(x,y) + mask
+  out_channels: 1
+  img_size: 128
+  encoder_out_channels: 4 # SparseInputEncoder 输出通道数
+
+  # 是否使用坐标/掩码通道
+  use_coords: true
+  use_mask: true
+  use_pe: false
+
+  # Swin-T backbone 参数
+  patch_size: 4
+  embed_dim: 96
+  depths: [2, 2, 6, 2]
+  num_heads: [3, 6, 12, 24]
+  window_size: 8          # Shift-Window 大小
+  mlp_ratio: 4.0
+  qkv_bias: true
+  qk_scale: null
+
+  # Dropout
+  drop_rate: 0.0
+  attn_drop_rate: 0.0
+  drop_path_rate: 0.1
+
+  # 位置编码
+  ape: false
+  patch_norm: true
+  use_checkpoint: false
+
+  # 上采样策略
+  final_upsample: "expand_first"
+
+  # 后处理
+  post_conv3x3: true      # 3x3 refine conv
+  use_liif_decoder: false

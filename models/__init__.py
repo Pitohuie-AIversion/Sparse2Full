@@ -32,8 +32,9 @@ def __getattr__(name: str):
 
 
 def create_model(model_name_or_config=None, **kwargs):
-    from .base import create_model as base_create_model
-    return base_create_model(model_name_or_config, **kwargs)
+    from .registry import create_model as registry_create_model
+    return registry_create_model(model_name_or_config, **kwargs)
+
 
 
 def get_model(model_name, **kwargs):

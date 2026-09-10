@@ -15,6 +15,8 @@ from dataclasses import dataclass
 
 from .swin_temporal import SwinTemporalNAR
 
+from models.registry import register_model
+
 logger = logging.getLogger(__name__)
 
 
@@ -28,8 +30,19 @@ class ARNAROutput:
     total_loss: Optional[torch.Tensor] = None
     metrics: Optional[Dict[str, float]] = None
 
+    @property
+    def ar_output(self) -> Optional[torch.Tensor]:
+        return self.ar_pred
 
+    @property
+    def nar_output(self) -> Optional[torch.Tensor]:
+        return self.nar_pred
+
+
+
+@register_model(name="ARNARWrapper", aliases=["ar_nar_wrapper", "arnarwrapper"])
 class ARNARWrapper(nn.Module):
+
     """AR-NAR双头包装器
     
     统一管理AR和NAR模型的训练和推理。

@@ -15,9 +15,12 @@ from models.temporal.components.multi_scale_attn import (
     MultiScaleTemporalAttention, AdaptiveTemporalMixer, PhysicsAwareAttention
 )
 from models.temporal.components.physics_constraints import PhysicsConstraints, CausalConv1d, PhysicsConsistencyChecker
+from models.registry import register_model
 
 
+@register_model(name="PhysicsTransformer", aliases=["physics_transformer", "physicstransformer", "PhysicsTransformerTemporal"])
 class PhysicsTransformerTemporal(BaseTemporalModel):
+
     """物理感知Transformer时序模型
     
     专门为PDE求解设计的Transformer架构，特点：

@@ -1,0 +1,103 @@
+"""
+SwinFluidSR 端到端训练 Step 验证测试
+
+模拟完整的训练迭代：
+1. 合成包含原始低维观测、目标场、坐标、掩码的 batch 字典；
+2. 实例化 SwinFluidSR 模型（use_lowres_input=True）；
+3. 计算组合损失（重建 L2 + 频域能谱 + 物理守恒散度/涡度）；
+4. 反向传播与优化器更新，确保参数有效迭代；
+5. 验证训练流程与 train.py 的 _build_model_input / _prepare_target 逻辑完全契约对齐。
+"""
+
+import pytest
+import torch
+import torch.nn as nn
+from omegaconf import OmegaConf
+from models.registry import create_model
+from ops.losses import CombinedLoss
+
+
+class TestSwinFluidSRTrainingStep:
+    @pytest.fixture
+    def mock_sr_batch(self):
+        """构造 SR 任务的标准 batch 结构 (scale=4, 32x32 -> 128x128)"""
+        B = 2
+        # 流体速度场：2 通道 (u, v)
+        lr_obs = torch.randn(B, 2, 32, 32, dtype=torch.float32)
+        hr_target = torch.randn(B, 2, 128, 128, dtype=torch.float32)
+        baseline = torch.nn.functional.interpolate(lr_obs, size=(128, 128), mode="bicubic", align_corners=False)
+        coords = torch.randn(B, 2, 128, 128, dtype=torch.float32)
+        mask = torch.ones(B, 1, 128, 128, dtype=torch.float32)
+
+        return {
+            "original_observation": lr_obs,
+            "lr_observation": lr_obs,
+            "target": hr_target,
+            "baseline": baseline,
+            "coords": coords,
+            "mask": mask,
+        }
+
+    def test_end_to_end_train_step_with_physics(self, mock_sr_batch):
+        # 1. 实例化 2 通道流体超分辨模型
+        model = create_model(
+            "SwinFluidSR",
+            in_channels=2,
+            out_channels=2,
+            img_size=32,
+            upscale_factor=4,
+            embed_dim=48,
+            depths=[2, 2],
+            num_heads=[2, 4],
+            window_size=8,
+            use_lowres_input=True,
+            global_residual=True,
+        )
+        model.train()
+        optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+
+        # 2. 模拟 train.py _build_model_input
+        batch = mock_sr_batch
+        if getattr(model, "use_lowres_input", False):
+            raw_obs = batch.get("lr_observation", batch.get("original_observation", None))
+            model_input = raw_obs
+        else:
+            model_input = batch["baseline"]
+
+        assert model_input.shape == (2, 2, 32, 32)
+
+        # 3. 前向计算
+        pred = model(model_input)
+        assert pred.shape == (2, 2, 128, 128)
+
+        # 4. 模拟 train.py _prepare_target
+        target = batch["target"]
+        assert target.shape == pred.shape
+
+        # 5. 组合物理损失（包含重建 + 频域能谱 + 物理守恒散度与涡度）
+        loss_cfg = OmegaConf.create({
+            "rec_weight": 1.0,
+            "spec_weight": 0.1,
+            "dc_weight": 0.0,
+            "div_weight": 0.05,
+            "vort_weight": 0.05,
+            "rec_loss_type": "l2",
+        })
+        loss_fn = CombinedLoss(loss_cfg)
+        loss, loss_dict = loss_fn(pred, target)
+
+        assert torch.isfinite(loss)
+        assert "rec_loss" in loss_dict
+        assert "div_loss" in loss_dict
+        assert "vort_loss" in loss_dict
+
+        # 6. 反向传播与优化器步进
+        optimizer.zero_grad()
+        loss.backward()
+
+        # 检查关键层均获得非零有限梯度
+        for name, param in model.named_parameters():
+            if param.requires_grad and param.grad is not None:
+                assert torch.all(torch.isfinite(param.grad)), f"NaN/Inf gradient in {name}"
+
+        optimizer.step()

@@ -29,12 +29,18 @@ except ImportError as e:
     logger.warning(f"Failed to import ARWrapper: {e}")
     ARWrapper = None
 
-# 时序Swin模型
-SwinTemporal = None
-SwinTemporalNAR = None
+def __getattr__(name: str):
+    if name in ("SwinTemporal", "SwinTemporalNAR"):
+        from .wrappers.swin_temporal import SwinTemporal, SwinTemporalNAR
+        return SwinTemporal if name == "SwinTemporal" else SwinTemporalNAR
+    elif name in ("ARNARWrapper", "ARNAROutput"):
+        from .wrappers.ar_nar_wrapper import ARNARWrapper, ARNAROutput
+        return ARNARWrapper if name == "ARNARWrapper" else ARNAROutput
+    elif name in ("PhysicsTransformer", "PhysicsTransformerTemporal"):
+        from .models.physics_transformer import PhysicsTransformerTemporal
+        return PhysicsTransformerTemporal
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
-# 混合包装器
-# from .components.ar_nar_wrapper import ARNARWrapper
 
 # 时序组件
 try:

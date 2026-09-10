@@ -23,6 +23,12 @@ from ops.losses import (
     _mirror_extend,
     compute_loss_weights_schedule
 )
+from ops.loss import (
+    compute_vorticity,
+    compute_divergence,
+    compute_fluid_physics_loss
+)
+
 
 
 class TestTotalLoss:
@@ -803,5 +809,96 @@ class TestPerformance:
         )
         np.testing.assert_allclose(
             spec_loss_cpu.item(), spec_loss_cuda.cpu().item(),
+            rtol=1e-5, atol=1e-6
+        )
+
+
+class TestFluidPhysicsLoss:
+    """测试流体物理守恒约束损失函数（散度、涡度与守恒损失）"""
+
+    def test_divergence_computation(self, device):
+        """测试散度计算：常数流场散度为0，已知流场散度数值正确"""
+        B, H, W = 2, 16, 16
+        # 常数流场
+        u_const = torch.full((B, 1, H, W), 3.0, device=device)
+        v_const = torch.full((B, 1, H, W), -1.5, device=device)
+        div_const = compute_divergence(u_const, v_const)
+        assert div_const.shape == (B, 1, H - 1, W - 1)
+        assert torch.allclose(div_const, torch.zeros_like(div_const), atol=1e-6)
+
+        # 线性场: u = x (按网格步长1，du/dx = 1), v = y (按网格步长1, dv/dy = 1) -> div = 2
+        grid_y, grid_x = torch.meshgrid(torch.arange(H, dtype=torch.float32, device=device),
+                                        torch.arange(W, dtype=torch.float32, device=device),
+                                        indexing='ij')
+        u = grid_x.unsqueeze(0).unsqueeze(0).expand(B, 1, H, W)
+        v = grid_y.unsqueeze(0).unsqueeze(0).expand(B, 1, H, W)
+        div = compute_divergence(u, v)
+        assert torch.allclose(div, torch.full_like(div, 2.0), atol=1e-6)
+
+    def test_vorticity_computation(self, device):
+        """测试涡度计算：omega = dv/dx - du/dy"""
+        B, H, W = 2, 16, 16
+        # 剪切流: u = y (du/dy = 1), v = 0 (dv/dx = 0) -> omega = -1
+        grid_y, grid_x = torch.meshgrid(torch.arange(H, dtype=torch.float32, device=device),
+                                        torch.arange(W, dtype=torch.float32, device=device),
+                                        indexing='ij')
+        u = grid_y.unsqueeze(0).unsqueeze(0).expand(B, 1, H, W)
+        v = torch.zeros(B, 1, H, W, device=device)
+        vort = compute_vorticity(u, v)
+        assert vort.shape == (B, 1, H - 1, W - 1)
+        assert torch.allclose(vort, torch.full_like(vort, -1.0), atol=1e-6)
+
+    def test_fluid_physics_loss_dict_keys_and_grad(self, device):
+        """测试流体物理损失输出字典与反向传播"""
+        B, C, H, W = 2, 3, 16, 16
+        pred = torch.randn(B, C, H, W, device=device, requires_grad=True)
+        target = torch.randn(B, C, H, W, device=device)
+
+        loss_dict = compute_fluid_physics_loss(pred, target, enforce_divergence_free=True, enforce_vorticity_consistency=True)
+        for key in ['div_loss', 'vort_loss', 'physics_loss']:
+            assert key in loss_dict
+            assert torch.isfinite(loss_dict[key])
+            assert loss_dict[key] >= 0
+
+        # 反向传播测试
+        loss_dict['physics_loss'].backward()
+        assert pred.grad is not None
+        assert torch.isfinite(pred.grad).all()
+
+    def test_fluid_physics_loss_fallback_single_channel(self, device):
+        """当流场通道数不足2时，应安全降级返回0"""
+        B, C, H, W = 2, 1, 16, 16
+        pred = torch.randn(B, C, H, W, device=device)
+        target = torch.randn(B, C, H, W, device=device)
+        loss_dict = compute_fluid_physics_loss(pred, target)
+        assert loss_dict['physics_loss'].item() == 0.0
+
+    def test_compute_total_loss_with_physics_weights(self, device, sample_loss_config):
+        """测试在 compute_total_loss 中激活流体物理守恒权重"""
+        B, C, H, W = 2, 2, 16, 16
+        pred_z = torch.randn(B, C, H, W, device=device)
+        target_z = torch.randn(B, C, H, W, device=device)
+        obs_data = {'baseline': torch.randn(B, C, H, W, device=device)}
+        weights = {'reconstruction': 1.0, 'divergence': 0.1, 'vorticity': 0.2}
+
+        losses = compute_total_loss(
+            pred_z, target_z, obs_data, norm_stats=None,
+            config=sample_loss_config, loss_weights_override=weights
+        )
+
+        assert 'div_loss' in losses
+        assert 'vort_loss' in losses
+        assert 'physics_loss' in losses
+        assert losses['div_loss'] > 0
+        assert losses['vort_loss'] > 0
+
+        expected_total = (
+            1.0 * losses['reconstruction_loss'] +
+            0.1 * losses['div_loss'] +
+            0.2 * losses['vort_loss']
+        )
+        np.testing.assert_allclose(
+            losses['total_loss'].item(),
+            expected_total.item(),
             rtol=1e-5, atol=1e-6
         )

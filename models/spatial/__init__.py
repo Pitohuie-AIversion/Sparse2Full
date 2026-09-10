@@ -60,6 +60,21 @@ def __getattr__(name: str):
     elif name == "SwinUNet":
         from . import swin_unet
         return _getattr(swin_unet, name)
+    elif name in ("SwinTWithEncoder", "swin_t_with_encoder"):
+        import importlib
+        _mod = importlib.import_module("models.spatial.swin_t_with_encoder")
+        return _getattr(_mod, "SwinTWithEncoder")
+    elif name in ("SwinFluidSR", "swin_fluid_sr"):
+        import importlib
+        _mod = importlib.import_module("models.spatial.swin_fluid_sr")
+        return _getattr(_mod, "SwinFluidSR")
+    elif name in ("SwinIR", "swin_ir"):
+        import importlib
+        _mod = importlib.import_module("models.spatial.swinir")
+        return _getattr(_mod, "SwinIR")
+    elif name == "swinir":
+        import importlib
+        return importlib.import_module("models.spatial.swinir")
     elif name in ("ResNetLite", "SwinIRLite"):
         from . import resnet
         return _getattr(resnet, name)
@@ -92,5 +107,9 @@ __all__ = [
     "LIIFModel",
     "HybridModel",
     "SwinUNet",
+    "SwinTWithEncoder",
+    "SwinFluidSR",
+    "SwinIR",
     "create_model",
 ]
+

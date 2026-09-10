@@ -237,6 +237,26 @@ class TestPDEBenchBase:
         assert len(dataset.case_ids) == 1
         assert "0" in dataset.case_ids
 
+    def test_flattened_spatial_grid_reshape(self, temp_dir):
+        """测试 1D 展平 2D 物理网格解包 reshape (T, H*W) -> (1, H, W)"""
+        h5_path = temp_dir / "flattened_grid_test.h5"
+        with h5py.File(h5_path, 'w') as f:
+            # 模拟 (101, 1024) 展平网格
+            data_raw = np.random.randn(101, 1024).astype(np.float32)
+            f.create_dataset("tensor", data=np.expand_dims(data_raw, axis=0))
+
+        dataset = PDEBenchBase(
+            data_path=str(h5_path),
+            keys=["tensor"],
+            split="train",
+            normalize=False,
+            image_size=64
+        )
+
+        data = dataset[0]
+        target = data["target"]
+        assert target.shape == (1, 64, 64)
+
 
 class TestPDEBenchSR:
     """SR数据集测试"""
