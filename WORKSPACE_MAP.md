@@ -26,15 +26,13 @@ graph TD
 
     C --> C1[ops/]
     C --> C2[datasets/]
-    C --> C3[splits*/]
+    C --> C3[splits/ (shallow, sw)]
     C --> C4[configs/]
 
-    D --> D1[thesis_paper/]
-    D --> D2[paper_draft/]
-    D --> D3[paper_package/]
-    D --> D4[design_system/]
+    D --> D1[thesis_paper/ (drafts, design_system)]
+    D --> D2[paper_package/]
 
-    E --> E1[tools/research_scripts/]
+    E --> E1[tools/ (research_scripts, legacy_scripts)]
     E --> E2[SCRIPTS_CATALOG.md]
 
     F --> F1[tests/unit/]
@@ -65,20 +63,17 @@ graph TD
 | **`ops/`** | 物理核心 | **流体物理守恒算子库**：频域能量谱损失、不可压缩散度损失 ($\nabla \cdot \mathbf{u}=0$)、涡度损失、退化算子 | **物理严谨性防线**，严禁静默双线性插值 |
 | **`datasets/`** | 数据流 | **流体 PDEBench 数据加载体系**：PDEBenchSR, 归一化统计、稀疏掩码生成 | 生产数据加载模块 |
 | **`configs/`** | 配置中心 | **Hydra 层次化配置**：包含 `model/`, `data/`, `training/`, `loss/`, `experiment/` | 统一配置源 |
-| **`splits/`, `splits_shallow/`**| 数据切分 | 标准样本索引（train 80 样本，val 10 样本，test 10 样本） | 核心数据集切分文件 |
-| **`thesis_paper/`** | 论文档案 | **硕士学位论文核心源码仓**：LaTeX 源码、章节结构、审稿修订批注、高分辨率矢量配图 | **学术核心资产**，受 Git 追踪 |
-| **`paper_draft/`** | 论文初稿 | 早期 Markdown 格式初稿与实验指南手稿 | 论文写作历史底稿 |
+| **`splits/`** | 数据切分 | **统一数据集切分管理仓**：内置 `shallow/` 与 `sw/` 标准样本索引。根目录保留 `splits_shallow` 与 `splits_sw` 软链接保证 100% 兼容 | 核心数据集切分文件 |
+| **`thesis_paper/`** | 论文档案 | **硕士学位论文核心源码与资产仓**：LaTeX 源码、`drafts/` 初稿与实验手稿、`design_system/` 视觉设计规范与 Token | **学术核心资产**，受 Git 追踪 |
 | **`paper_package/`** | 论文交付物 | 论文各章节图表集合 (`figs/`)、数据卡片 (`data_cards/`) 与指标表 (`metrics/`) | 交付包资产 |
-| **`design_system/`** | 可视化规范 | 界面与论文图表排版的设计 Token (`design_tokens.json`)、SCSS 样式与 QA 检查表 | 视觉一致性规范 |
-| **`tools/`** | 工具与脚本 | 包含 `research_scripts/` (已分类收纳 150+ 历史实验/消融/排版脚本)、多模型扫描与论文制图工具 | 查阅 `SCRIPTS_CATALOG.md` 获取索引 |
-| **`tests/`** | 质量防线 | **全量分层测试套件**：`unit/` (464 项单测), `integration/`, `system/`, `e2e/` | 保持 100% 绿色通过标准 |
+| **`tools/`** | 工具与脚本 | 统一脚本工具仓：包含 `research_scripts/` (150+ 历史实验/消融/排版脚本)、`legacy_scripts/` (历史 scripts 与 experiment_scripts) | 查阅 `SCRIPTS_CATALOG.md` 获取索引 |
+| **`tests/`** | 质量防线 | **全量分层测试套件**：`unit/` (466 项单测), `integration/`, `system/`, `e2e/` | 保持 100% 绿色通过标准 |
 | **`archives/`** | 静态切片 | 存放压缩保全的 142k 行代码镜像 (`clean_export_backup.tar.gz`)，不纳入 Git 索引 | 历史备份，避免符号干扰 |
 | **`real_data_ar/`** | 历史兼容层 | 早期自回归独立子包（被部分单元测试引用） | 保持向后兼容，不建议主动扩充 |
 | **`training_system/`** | 历史兼容层 | 早期框架化尝试子包（被配置校验模块兼容引用） | 保持向后兼容 |
 | **`src/`** | 历史兼容层 | 早期模块化尝试副本 | 保持向后兼容 |
 | **`losses/`** | 历史兼容层 | 早期测试 CombinedLoss 极简封装 (2KB) | 保持测试兼容 |
-| **`runs/`** | 实验产物 | 历史模型运行目录（仅保留最优权重 `best.pth` 与对比日志） | 已经过 1.42GB 瘦身 |
-| **`runs_swin_fluid_sr/`** | 实验产物 | 全新 100-Epoch 科学流体超分辨率模型生产产物 (含 `best.pth`, 湍流能谱图, 盲测画廊) | **最新生产成果** |
+| **`runs/`** | 实验产物 | 统一运行产物仓：包含精简的历史运行产物与全新 `runs/swin_fluid_sr/` 100-Epoch 成果 (根目录保留 `runs_swin_fluid_sr` 软链接透明兼容) | 生产实验成果产出 |
 | **`.trae/`** | IDE 知识库 | Trae IDE 规则、规划文档与学术写作 Skills | 核心个人开发环境资产 |
 
 ---
