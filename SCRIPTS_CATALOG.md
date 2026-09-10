@@ -45,6 +45,12 @@
 - `test_omegaconf*.py` / `test_ddp_simple.py`：配置合并与多卡环境快速连通性测试。
 - `revert_unet*.py` / `final_revert_unet.py`：历史模型权重结构逆向提取探针。
 
+### 5. 历史运行与单次消融启动脚本 (`tools/research_scripts/legacy_launchers/`)
+- `run_missing_RecDC*.sh`（共 7 个变体）：过往补跑 RecDC 物理约束消融实验的启动脚本。
+- `repro_all_edsr.sh` / `repro_all_unet.sh` / `run_repro_edsr.sh`：过往复现 UNet 与 EDSR 对比基线的批量脚本。
+- `run_missing_A0.sh` / `run_A2_final.sh` / `run_edsr_a2.sh` / `run_edsr_a3.sh`：针对特定稀疏掩码策略的实验启动脚本。
+- `run_crop_unet_quick.sh` / `wait_bicubic_drd.sh` / `wait_rbf_swe.sh`：历史快速干跑与等待队列脚本。
+
 ---
 
 ## 三、静态大文件归档 (`archives/`)
