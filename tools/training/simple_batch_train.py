@@ -13,7 +13,7 @@ from pathlib import Path
 from datetime import datetime
 
 # 添加项目根目录到路径
-project_root = Path(__file__).parent.parent
+project_root = Path(__file__).resolve().parents[2]
 os.chdir(project_root)
 
 def train_model(model_name, seed=2025, epochs=15):

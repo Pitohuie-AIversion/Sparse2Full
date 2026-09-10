@@ -2,7 +2,7 @@ import os
 import re
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DOCS_DIR = os.path.join(PROJECT_ROOT, "thesis_paper/manuscript_gpt_review")
 
 def standardize_file(filename):

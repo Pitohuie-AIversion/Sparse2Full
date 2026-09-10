@@ -11,7 +11,7 @@ def encode_svg_to_base64(filepath):
     return f"data:image/svg+xml;base64,{encoded}"
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 RUN_DIR = PROJECT_ROOT / 'runs'
 BASELINE_DIR = PROJECT_ROOT / 'runs_baseline'
 DEFAULT_OUTPUT_PDF = str(PROJECT_ROOT / 'runs' / 'paper_figure_swe_sample_0059_t70_prince.pdf')

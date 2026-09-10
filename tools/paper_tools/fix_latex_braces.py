@@ -2,7 +2,7 @@ import os
 import re
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 FILES_TO_FIX = [
     "thesis_paper/manuscript_gpt_review/chapter6.md",

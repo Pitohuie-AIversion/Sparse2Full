@@ -21,7 +21,7 @@ MISSING_IMAGES = [
     "fig5-4_trustworthy_geometric_sciml.png"
 ]
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 TARGET_DIR = PROJECT_ROOT / "thesis_paper/manuscript_5_chapter/images"
 
 def create_placeholder(filename):

@@ -14,7 +14,7 @@ def create_simple_visualizations():
     """创建简单的可视化图像"""
     
     # 数据文件路径
-    project_root = Path(__file__).resolve().parents[1]
+    project_root = Path(__file__).resolve().parents[2]
     data_path = str(project_root / "data/DR2D/2D_diff-react_NA_NA.h5")
     
     print(f"正在读取数据文件: {data_path}")

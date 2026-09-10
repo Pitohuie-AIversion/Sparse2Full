@@ -29,7 +29,7 @@ from datetime import datetime
 import logging
 
 # 添加项目根目录到路径
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 from utils.metrics import StatisticalAnalyzer
 

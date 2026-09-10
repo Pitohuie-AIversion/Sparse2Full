@@ -5,7 +5,7 @@
 
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 def fix_error_map():
     """修复error_map处理逻辑"""

@@ -8,7 +8,7 @@ import numpy as np
 from pathlib import Path
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 def analyze_h5_structure(file_path):
     """分析H5文件的结构"""

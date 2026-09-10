@@ -5,7 +5,7 @@ from docx.shared import Pt
 import os
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 # Source template (read-only)
 TEMPLATE_PATH = os.path.join(PROJECT_ROOT, "thesis_paper/manuscript_gpt_review/DMUpapertemplate/大连海事大学硕士学位论文格式模版20181122.docx")
 # Target template (to be used by pandoc)

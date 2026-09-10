@@ -8,7 +8,7 @@ def __getattr__(name: str):
     if name == "apply_degradation_operator":
         from .degradation import apply_degradation_operator
         return apply_degradation_operator
-    elif name == "compute_total_loss":
+    elif name in ("compute_total_loss", "compute_temporal_loss"):
         from .losses import compute_total_loss
         return compute_total_loss
     elif name == "compute_all_metrics":
@@ -28,6 +28,7 @@ def __getattr__(name: str):
 __all__ = [
     "apply_degradation_operator",
     "compute_total_loss",
+    "compute_temporal_loss",
     "compute_all_metrics",
     "compute_fluid_physics_loss",
     "compute_vorticity",

@@ -12,7 +12,7 @@ from pathlib import Path
 
 def main():
     # 数据文件路径
-    project_root = Path(__file__).resolve().parents[1]
+    project_root = Path(__file__).resolve().parents[2]
     data_path = str(project_root / "data/DR2D/2D_diff-react_NA_NA.h5")
     
     print("🔍 正在读取2D反应扩散数据...")

@@ -22,7 +22,7 @@ import logging
 from abc import ABC, abstractmethod
 
 # 添加项目根目录到路径
-project_root = Path(__file__).resolve().parents[1]
+project_root = Path(__file__).resolve().parents[2]
 sys.path.append(str(project_root))
 
 DEFAULT_ORIGINAL_SCRIPT = project_root / "tools" / "training" / "train_real_data_ar.py"

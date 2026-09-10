@@ -7,7 +7,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 # Add project root to path
-project_root = Path(__file__).resolve().parents[1]
+project_root = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(project_root))
 
 from tools.training.model_loader import list_models

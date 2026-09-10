@@ -158,7 +158,7 @@ def simulate_data_flow(config):
 
 def _resolve_default_config() -> Path:
     """返回仓库内可用的默认配置路径。"""
-    project_root = Path(__file__).resolve().parents[1]
+    project_root = Path(__file__).resolve().parents[2]
     candidates = [
         project_root / 'configs' / 'train' / 'ar_training_config_debug.yaml',
         project_root / 'configs' / 'train' / 'ar_training_config debug.yaml',

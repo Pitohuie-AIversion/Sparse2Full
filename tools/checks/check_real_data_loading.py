@@ -16,7 +16,7 @@ from pathlib import Path
 from omegaconf import OmegaConf, DictConfig
 
 import sys, os
-root = str(Path(__file__).resolve().parents[1])
+root = str(Path(__file__).resolve().parents[2])
 if root not in sys.path:
     sys.path.insert(0, root)
 from training_system.utils.real_dr_dataset import RealDiffusionReactionDataModule

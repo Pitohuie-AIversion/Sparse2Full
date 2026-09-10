@@ -65,10 +65,8 @@ def convert_numpy_types(obj):
 
 # 添加项目根目录到路径，确保无论从哪个工作目录启动脚本都能正确导入包
 project_root = Path(__file__).resolve().parents[2]
-training_dir = Path(__file__).resolve().parent
-# 优先将项目根与训练目录插入到 sys.path 头部，避免与系统中同名包冲突（如 site-packages 下的 models）
-sys.path.insert(0, str(project_root))
-sys.path.insert(0, str(training_dir))
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 # 强制使用唯一的 Dataset 实现
 from datasets.real_diffusion_reaction_dataset import (

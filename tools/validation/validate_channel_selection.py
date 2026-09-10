@@ -124,7 +124,7 @@ def main():
     print("🔧 通道选择配置验证工具")
     print("=" * 60)
 
-    project_root = Path(__file__).resolve().parents[1]
+    project_root = Path(__file__).resolve().parents[2]
     candidates = [
         project_root / "configs" / "train" / "ar_training_config_debug.yaml",
         project_root / "configs" / "train" / "ar_training_config debug.yaml",

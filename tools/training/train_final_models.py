@@ -91,7 +91,7 @@ def run_training(model_name, epochs=15, batch_size=2, seed=2025):
             capture_output=True,
             text=True,
             timeout=1800,  # 30分钟超时
-            cwd=Path(__file__).parent.parent
+            cwd=Path(__file__).resolve().parents[2]
         )
         
         end_time = time.time()

@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 def scan_files():
     files = glob.glob(str(PROJECT_ROOT / "thesis_paper/manuscript_gpt_review/*.md"))

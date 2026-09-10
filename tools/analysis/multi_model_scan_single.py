@@ -352,7 +352,7 @@ class MultiModelScannerSingle:
         try:
             result = subprocess.run(
                 cmd,
-                cwd=str(Path(__file__).resolve().parents[1]),
+                cwd=str(Path(__file__).resolve().parents[2]),
                 capture_output=True,
                 text=True,
                 timeout=3600  # 1小时超时

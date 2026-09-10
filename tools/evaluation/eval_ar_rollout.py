@@ -20,7 +20,7 @@ from omegaconf import OmegaConf
 from tqdm import tqdm
 
 # 添加项目根目录
-project_root = Path(__file__).resolve().parents[1]
+project_root = Path(__file__).resolve().parents[2]
 sys.path.append(str(project_root))
 
 from datasets.real_diffusion_reaction_dataset import RealDiffusionReactionDataModule

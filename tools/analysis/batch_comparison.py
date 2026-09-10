@@ -21,7 +21,7 @@ from typing import List, Dict, Optional
 import logging
 
 # 添加项目根目录到路径
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 # 延迟导入，避免循环依赖问题
 def get_available_models():
@@ -120,7 +120,7 @@ class BatchComparison:
             # 运行训练
             result = subprocess.run(
                 cmd,
-                cwd=Path(__file__).parent.parent,
+                cwd=Path(__file__).resolve().parents[2],
                 capture_output=True,
                 text=True,
                 check=False
@@ -132,7 +132,7 @@ class BatchComparison:
             success = result.returncode == 0
             
             # 查找实验目录
-            runs_dir = Path(__file__).parent.parent / "runs"
+            runs_dir = Path(__file__).resolve().parents[2] / "runs"
             exp_dirs = list(runs_dir.glob(f"*{model_name}*s{seed}*"))
             exp_dir = exp_dirs[0] if exp_dirs else None
             

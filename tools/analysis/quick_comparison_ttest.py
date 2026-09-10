@@ -98,7 +98,7 @@ def main():
     print(f"Using device: {device}")
     
     # 路径配置
-    project_root = Path(__file__).resolve().parents[1]
+    project_root = Path(__file__).resolve().parents[2]
     e2e_dir = str(project_root / "runs_drd_paper/AR-DR2D-E2E-StrictStride10-EDSR-VideoSwin-SRx4-model_unknown-s2025-20260122")
     twostage_dir = str(project_root / "runs_drd_paper/AR-DR2D-Stage2-VideoSwin-SRx4-model_unknown-s2025-20260116")
     

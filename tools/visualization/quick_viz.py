@@ -12,7 +12,7 @@ from pathlib import Path
 def quick_visualize():
     """快速生成可视化图像"""
     
-    project_root = Path(__file__).resolve().parents[1]
+    project_root = Path(__file__).resolve().parents[2]
     data_path = str(project_root / "data/DR2D/2D_diff-react_NA_NA.h5")
     
     print(f"读取数据: {data_path}")

@@ -32,7 +32,7 @@ from omegaconf import OmegaConf, DictConfig
 from tqdm import tqdm
 
 # 添加项目根目录到路径
-project_root = Path(__file__).parent.parent
+project_root = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(project_root))
 
 from utils.logger import setup_logger

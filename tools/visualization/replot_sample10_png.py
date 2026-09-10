@@ -4,7 +4,7 @@ from pathlib import Path
 import torch
 import matplotlib.pyplot as plt
 
-project_root = Path(__file__).resolve().parents[1]
+project_root = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(project_root))
 
 from tools.training.train_real_data_ar import RealDataARTrainer

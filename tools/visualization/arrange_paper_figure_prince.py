@@ -11,7 +11,7 @@ def encode_svg_to_base64(filepath):
     return f"data:image/svg+xml;base64,{encoded}"
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_BASE_DIR = str(PROJECT_ROOT / 'drd_paper_1m')
 DEFAULT_PRINCE_BIN = str(PROJECT_ROOT / 'tools' / 'prince_local' / 'bin' / 'prince')
 

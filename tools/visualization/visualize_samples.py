@@ -9,7 +9,7 @@ import random
 from tqdm import tqdm
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 def save_animation(fig, ims, output_path):
     ani = animation.ArtistAnimation(fig, ims, interval=100, blit=True, repeat_delay=1000)

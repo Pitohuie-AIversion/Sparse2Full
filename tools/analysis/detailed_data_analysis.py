@@ -155,6 +155,6 @@ def detailed_analysis(file_path):
 
 if __name__ == "__main__":
     from pathlib import Path
-    project_root = Path(__file__).resolve().parents[1]
+    project_root = Path(__file__).resolve().parents[2]
     file_path = str(project_root / "test_data.h5")
     detailed_analysis(file_path)

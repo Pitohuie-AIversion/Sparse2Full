@@ -2,7 +2,7 @@
 import re
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 FILE_PATH = PROJECT_ROOT / "thesis_paper/manuscript_gpt_review/chapter3.md"
 
 def check_file():

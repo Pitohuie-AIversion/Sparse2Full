@@ -10,7 +10,7 @@ import numpy as np
 from omegaconf import OmegaConf
 
 # 保障本地项目优先于第三方同名包
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 try:

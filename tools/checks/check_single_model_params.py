@@ -5,7 +5,7 @@ from pathlib import Path
 from omegaconf import OmegaConf
 
 # Add project root to path
-project_root = Path(__file__).resolve().parents[1]
+project_root = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(project_root))
 
 from tools.training.train_real_data_ar import RealDataARTrainer

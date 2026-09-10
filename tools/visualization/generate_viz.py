@@ -15,7 +15,7 @@ def main():
     print("🔍 开始生成2D反应扩散数据可视化...")
     
     # 数据文件路径
-    project_root = Path(__file__).resolve().parents[1]
+    project_root = Path(__file__).resolve().parents[2]
     data_path = str(project_root / "data/DR2D/2D_diff-react_NA_NA.h5")
     
     print(f"📁 数据路径: {data_path}")

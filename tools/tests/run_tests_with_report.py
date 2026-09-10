@@ -21,7 +21,7 @@ from typing import Dict, List, Any, Optional
 import traceback
 
 # 添加项目根目录到路径
-project_root = Path(__file__).parent.parent
+project_root = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(project_root))
 
 
@@ -493,7 +493,7 @@ def main():
     if args.project_root:
         project_root = Path(args.project_root)
     else:
-        project_root = Path(__file__).parent.parent
+        project_root = Path(__file__).resolve().parents[2]
     
     # 创建测试运行器
     runner = TestRunner(project_root, verbose=args.verbose)

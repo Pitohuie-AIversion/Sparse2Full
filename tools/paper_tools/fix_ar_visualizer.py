@@ -6,7 +6,7 @@
 import re
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 def fix_ar_visualizer():
     """修复ar_visualizer.py中的图像形状问题"""

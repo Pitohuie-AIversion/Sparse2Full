@@ -6,7 +6,7 @@ import svgutils.transform as sg
 import tempfile
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_BASE_DIR = str(PROJECT_ROOT / 'drd_paper_1m')
 
 def prefix_svg_ids(svg_content, prefix):

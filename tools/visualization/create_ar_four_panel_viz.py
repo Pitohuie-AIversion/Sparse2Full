@@ -13,7 +13,7 @@ import json
 from typing import Dict, Any, Tuple
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 def create_sample_ar_data() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """为AR模型创建示例数据"""

@@ -22,7 +22,7 @@ def prefix_svg_ids(svg_content, prefix):
     return svg_content
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 RUN_DIR = PROJECT_ROOT / 'runs'
 BASELINE_DIR = PROJECT_ROOT / 'runs_baseline'
 MODEL_CONFIGS = [

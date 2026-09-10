@@ -23,7 +23,7 @@ import hydra
 from omegaconf import DictConfig, OmegaConf
 
 # 添加项目根目录到路径
-project_root = Path(__file__).parent.parent
+project_root = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(project_root))
 
 # 导入项目模块

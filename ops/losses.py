@@ -639,6 +639,9 @@ def compute_total_loss(
     }
 
 
+# 别名兼容：历史时序测试使用 compute_temporal_loss 命名
+compute_temporal_loss = compute_total_loss
+
 
 def _compute_reconstruction_loss(
     pred: torch.Tensor, 

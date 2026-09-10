@@ -14,7 +14,7 @@ def create_static_visualizations():
     """创建静态可视化图像"""
     
     # 数据文件路径
-    project_root = Path(__file__).resolve().parents[1]
+    project_root = Path(__file__).resolve().parents[2]
     file_path = str(project_root / "data/DR2D/2D_diff-react_NA_NA.h5")
     
     with h5py.File(file_path, 'r') as f:

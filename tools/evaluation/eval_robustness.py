@@ -18,7 +18,7 @@ import torch.nn.functional as F
 from omegaconf import OmegaConf
 
 # 添加项目根目录到路径
-project_root = Path(__file__).parent.parent
+project_root = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(project_root))
 
 from datasets.pdebench import PDEBenchDataModule

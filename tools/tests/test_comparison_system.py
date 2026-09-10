@@ -39,7 +39,7 @@ def run_quick_test():
         ]
         
         print(f"执行命令: {' '.join(cmd)}")
-        result = subprocess.run(cmd, capture_output=True, text=True, cwd=Path(__file__).parent.parent)
+        result = subprocess.run(cmd, capture_output=True, text=True, cwd=Path(__file__).resolve().parents[2])
         
         if result.returncode != 0:
             print(f"❌ 批量对比实验失败:")

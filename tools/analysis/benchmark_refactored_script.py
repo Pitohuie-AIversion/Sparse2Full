@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 # 添加项目根目录到路径
-project_root = Path(__file__).resolve().parents[1]
+project_root = Path(__file__).resolve().parents[2]
 sys.path.append(str(project_root))
 
 DEFAULT_REFACTORED_SCRIPT = project_root / "tools" / "training" / "train_real_data_ar_refactored.py"

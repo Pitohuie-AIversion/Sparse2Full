@@ -16,7 +16,7 @@ from typing import Dict, Any, Tuple, Optional
 import sys
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 # 添加项目路径
 sys.path.append(str(PROJECT_ROOT))

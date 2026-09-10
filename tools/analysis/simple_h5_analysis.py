@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 
 def analyze_h5():
-    project_root = Path(__file__).resolve().parents[1]
+    project_root = Path(__file__).resolve().parents[2]
     file_path = str(project_root / "data/DR2D/2D_diff-react_NA_NA.h5")
     
     print("=== PDEBench HDF5 数据格式分析 ===")
