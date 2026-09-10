@@ -600,7 +600,7 @@ class TemporalVisualizer:
     - 支持将时序 GT 与 Pred 进行网格对比
     """
 
-    def __init__(self, save_dir: str = "visualizations", dpi: int = 200, colormap: str = "viridis") -> None:
+    def __init__(self, save_dir: str = "visualizations", dpi: int = 200, colormap: str = "viridis", **kwargs: Any) -> None:
         self.save_dir = Path(save_dir)
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self.dpi = dpi

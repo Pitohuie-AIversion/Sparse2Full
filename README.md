@@ -23,7 +23,7 @@
    - **Fail-Fast 完整性防线**：坚决禁止静默篡改真实流场（GT）分辨率，算子与张量流水线具备严格的维度对齐防御。
 
 3. **解耦的 Trainer 架构体系 (`training/`)**：
-   - 主控入口 [train.py](file:///root/mzy/Flow%20Field%20Prediction%20in%20World%20Models/Sparse2Full/train.py) 采用纯净**外观模式 (Facade)**，单文件由 1,445 行精简至 409 行；
+   - 主控入口 [train.py](train.py) 采用纯净**外观模式 (Facade)**，单文件由 1,445 行精简至 409 行；
    - 正交子系统支持：批次流水线处理（`BatchProcessor`）、引擎构建与学习率调度（`EngineBuilder`）、检查点与论文交付包归档（`TrainingArtifactManager`）。
 
 4. **全量分层测试保障 (`tests/`)**：
