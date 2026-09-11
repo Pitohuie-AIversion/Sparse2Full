@@ -16,6 +16,7 @@ Reference:
 from __future__ import annotations
 
 from typing import Tuple, Optional
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -56,7 +57,7 @@ class Upsampler(nn.Sequential):
             # no upsample
             pass
         elif is_power_of_two:
-            n = int(torch.log2(torch.tensor(scale)).item())
+            n = int(math.log2(scale))
             for _ in range(n):
                 m.append(nn.Conv2d(n_feats, 4 * n_feats, 3, 1, 1, bias=bias))
                 m.append(nn.PixelShuffle(2))
@@ -153,7 +154,7 @@ class EDSR(BaseModel):
                     nn.init.constant_(m.bias, 0)
 
     def forward(self, x: torch.Tensor, **kwargs) -> torch.Tensor:
-        if torch.isnan(x).any() or torch.isinf(x).any():
+        if not torch.isfinite(x).all():
             x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
 
         inp = x
@@ -163,31 +164,19 @@ class EDSR(BaseModel):
         
         # Body with gradient checkpointing
         if self.grad_checkpointing and self.training:
-             from torch.utils.checkpoint import checkpoint
-             
-             # Split body into chunks
-             # 32 blocks -> 4 chunks of 8 blocks
-             num_chunks = 4
-             chunks = []
-             chunk_size = len(self.body) // num_chunks
-             if chunk_size < 1: chunk_size = 1
-             
-             # Convert Sequential to list for slicing
-             body_layers = list(self.body)
-             
-             current_x = x
-             for i in range(0, len(body_layers), chunk_size):
-                 segment = nn.Sequential(*body_layers[i:i+chunk_size])
-                 
-                 def run_segment(input_feats, s=segment):
-                     return s(input_feats)
-                     
-                 current_x = checkpoint(run_segment, current_x, use_reentrant=False)
-                 
-             res = current_x
+            from torch.utils.checkpoint import checkpoint
+            num_chunks = 4
+            body_layers = list(self.body)
+            chunk_size = max(1, len(body_layers) // num_chunks)
+            
+            current_x = x
+            for i in range(0, len(body_layers), chunk_size):
+                segment = nn.Sequential(*body_layers[i:i + chunk_size])
+                current_x = checkpoint(segment, current_x, use_reentrant=False)
+            res = current_x
         else:
-             res = self.body(x)
-             
+            res = self.body(x)
+            
         x = x + res  # global residual in feature space
 
         # upsample if needed

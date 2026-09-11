@@ -477,10 +477,11 @@ class RealDiffusionReactionDataModule(pl.LightningDataModule):
         # 新增：读取样本上限配置
         self.sample_limit = config.data.get('sample_limit', None)
         
-        # 从data.dataloader读取参数为主，hardware为备选（完整覆盖）
-        self.batch_size = dl_cfg.get('batch_size', config.training.get('batch_size', self.batch_size))
+        tr_cfg = getattr(config, 'training', getattr(config, 'train', DictConfig({})))
+        te_cfg = getattr(config, 'testing', DictConfig({}))
+        self.batch_size = dl_cfg.get('batch_size', tr_cfg.get('batch_size', self.batch_size))
         self.val_batch_size = dl_cfg.get('val_batch_size', self.val_batch_size)
-        self.test_batch_size = dl_cfg.get('test_batch_size', self.test_batch_size)
+        self.test_batch_size = dl_cfg.get('test_batch_size', te_cfg.get('batch_size', self.test_batch_size))
         self.num_workers = dl_cfg.get('num_workers', self.num_workers)
         try:
             import torch as _t
@@ -856,8 +857,9 @@ class RealDiffusionReactionDataModule(pl.LightningDataModule):
             timeout=0,
         )
         
+        ds = getattr(self, 'test_dataset', getattr(self, 'val_dataset', getattr(self, 'train_dataset', None)))
         return DataLoader(
-            self.test_dataset,
+            ds,
             batch_size=self.test_batch_size,
             shuffle=False,
             collate_fn=self._collate_fn if self.batch_cache_enabled else None,

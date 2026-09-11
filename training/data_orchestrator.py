@@ -37,29 +37,25 @@ class DataOrchestrator:
         else:
             data_config = config.get('', config)
 
-        # 检查是否有 datasets.data 配置
+        # 提取实际的数据配置节点
         if hasattr(data_config, 'datasets') and hasattr(data_config.datasets, 'data'):
             actual_data_config = data_config.datasets.data
-            if hasattr(actual_data_config, '_target_') and 'temporal' in str(actual_data_config._target_):
-                from datasets.temporal_pdebench import TemporalPDEBenchDataModule
-                data_module = TemporalPDEBenchDataModule(actual_data_config.config)
-            else:
-                data_module = PDEBenchDataModule(actual_data_config)
         elif hasattr(data_config, 'data'):
             actual_data_config = data_config.data
-            if hasattr(actual_data_config, '_target_') and 'temporal' in str(actual_data_config._target_):
-                from datasets.temporal_pdebench import TemporalPDEBenchDataModule
-                data_module = TemporalPDEBenchDataModule(actual_data_config.config)
-            else:
-                data_module = PDEBenchDataModule(actual_data_config)
-        elif hasattr(data_config, '_target_'):
-            if 'temporal' in str(data_config._target_):
-                from datasets.temporal_pdebench import TemporalPDEBenchDataModule
-                data_module = TemporalPDEBenchDataModule(data_config.config)
-            else:
-                data_module = PDEBenchDataModule(data_config)
         else:
-            data_module = PDEBenchDataModule(data_config)
+            actual_data_config = data_config
+
+        # 统一识别目标模块并实例化
+        target_str = str(getattr(actual_data_config, '_target_', ''))
+        if 'RealDiffusionReactionDataModule' in target_str:
+            from datasets.real_diffusion_reaction_dataset import RealDiffusionReactionDataModule
+            data_module = RealDiffusionReactionDataModule(config)
+        elif 'temporal' in target_str:
+            from datasets.temporal_pdebench import TemporalPDEBenchDataModule
+            sub_cfg = getattr(actual_data_config, 'config', actual_data_config)
+            data_module = TemporalPDEBenchDataModule(sub_cfg)
+        else:
+            data_module = PDEBenchDataModule(actual_data_config)
 
         # PDEBenchDataModule 具备 setup 方法
         if hasattr(data_module, 'setup'):

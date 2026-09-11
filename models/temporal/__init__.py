@@ -39,6 +39,9 @@ def __getattr__(name: str):
     elif name in ("PhysicsTransformer", "PhysicsTransformerTemporal"):
         from .models.physics_transformer import PhysicsTransformerTemporal
         return PhysicsTransformerTemporal
+    elif name in ("SWVT", "VideoSwin", "VideoSwinPredictor"):
+        from .components.video_swin import VideoSwinPredictor
+        return VideoSwinPredictor
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 
@@ -121,6 +124,9 @@ __all__ = [
     "SequentialSpatiotemporal",
     "SequentialTrainer",
     "SequentialDCConsistency",
+    "SWVT",
+    "VideoSwin",
+    "VideoSwinPredictor",
 ]
 
 # 导入工厂函数

@@ -219,7 +219,7 @@ class DCLoss(torch.nn.Module):
         """
         if h_params is not None:
             from .degradation import apply_degradation_operator
-            pred_obs = apply_degradation_operator(pred, **h_params)
+            pred_obs = apply_degradation_operator(pred, h_params)
         else:
             pred_obs = pred
 

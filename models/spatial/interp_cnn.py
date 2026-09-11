@@ -32,7 +32,11 @@ class BicubicCNN(BaseModel):
         )
         
     def forward(self, x, **kwargs):
-        physical_x = x[:, :self.out_channels, :, :]
+        if x.shape[1] < self.out_channels:
+            pad = torch.zeros(x.shape[0], self.out_channels - x.shape[1], x.shape[2], x.shape[3], dtype=x.dtype, device=x.device)
+            physical_x = torch.cat([x, pad], dim=1)
+        else:
+            physical_x = x[:, :self.out_channels, :, :]
         
         H, W = physical_x.shape[2:]
         target_H, target_W = self.img_size if isinstance(self.img_size, (list, tuple)) else (self.img_size, self.img_size)
@@ -63,15 +67,21 @@ class RBFCNN(BaseModel):
         
         H, W = img_size if isinstance(img_size, (tuple, list)) else (img_size, img_size)
         y_grid, x_grid = torch.meshgrid(torch.arange(H, dtype=torch.float32), torch.arange(W, dtype=torch.float32), indexing='ij')
-        self.register_buffer('grid', torch.stack([x_grid / (W-1), y_grid / (H-1)], dim=-1))
-        self.register_buffer('cached_W', None)
-        self.register_buffer('cached_mask', None)
+        denom_w = max(1.0, float(W - 1))
+        denom_h = max(1.0, float(H - 1))
+        self.register_buffer('grid', torch.stack([x_grid / denom_w, y_grid / denom_h], dim=-1))
+        self.cached_W = None
+        self.cached_mask = None
 
     def _rbf(self, dist_sq):
         return torch.exp(- (self.epsilon ** 2) * dist_sq)
         
     def forward(self, x, **kwargs):
-        physical_x = x[:, :self.out_channels, :, :]
+        if x.shape[1] < self.out_channels:
+            pad = torch.zeros(x.shape[0], self.out_channels - x.shape[1], x.shape[2], x.shape[3], dtype=x.dtype, device=x.device)
+            physical_x = torch.cat([x, pad], dim=1)
+        else:
+            physical_x = x[:, :self.out_channels, :, :]
         
         if self.in_channels > self.out_channels:
             mask = x[:, -1, :, :] > 0.5
@@ -83,11 +93,6 @@ class RBFCNN(BaseModel):
         
         # Check target size
         target_H, target_W = self.img_size if isinstance(self.img_size, (list, tuple)) else (self.img_size, self.img_size)
-        
-        # The mask corresponds to the input physical_x (e.g. 32x32 for SRx4 or 16x16 for Crop).
-        # We need to map the observed points to the target grid (e.g. 128x128).
-        # We assume the grid we created is for the target size (H_target x W_target).
-        # So we need a grid for the input size to get the relative coordinates of the observations.
         
         mask_0 = mask[0]
         if not mask_0.any():
@@ -104,7 +109,7 @@ class RBFCNN(BaseModel):
             grid_in = torch.stack([x_in / (W-1) if W > 1 else x_in, y_in / (H-1) if H > 1 else y_in], dim=-1)
             
             pts_obs = grid_in[mask_0] # [N_obs, 2]
-            pts_all = self.grid.view(target_H * target_W, 2) # [target_H * target_W, 2]
+            pts_all = self.grid.to(device=x.device, dtype=torch.float32).view(target_H * target_W, 2) # [target_H * target_W, 2]
             
             dist_sq_obs = torch.cdist(pts_obs, pts_obs, p=2).pow(2)
             K = self._rbf(dist_sq_obs)

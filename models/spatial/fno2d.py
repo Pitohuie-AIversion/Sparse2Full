@@ -9,6 +9,7 @@ Reference:
 """
 
 from typing import Tuple, Optional
+from contextlib import nullcontext
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -58,17 +59,8 @@ class SpectralConv2d(nn.Module):
         """
         batchsize = x.shape[0]
         
-        # 禁用AMP进行复数操作（使用新API以避免弃用警告）
-        try:
-            from torch.amp import autocast as _autocast
-            _autocast_ctx = _autocast('cuda', enabled=False)
-        except Exception:
-            class _NullCtx:
-                def __enter__(self):
-                    return None
-                def __exit__(self, exc_type, exc, tb):
-                    return False
-            _autocast_ctx = _NullCtx()
+        # 禁用AMP进行复数操作
+        _autocast_ctx = torch.cuda.amp.autocast(enabled=False) if x.is_cuda else nullcontext()
         with _autocast_ctx:
             # 确保输入为float32以避免AMP问题
             x = x.float()
@@ -216,8 +208,11 @@ class FNO2d(BaseModel):
         """
         batch_size = x.shape[0]
         b, c, h, w = x.shape
-        field_channels = min(self.in_channels, c)
-        x_field = x[:, :field_channels, :, :]
+        if c < self.in_channels:
+            pad = torch.zeros(b, self.in_channels - c, h, w, dtype=x.dtype, device=x.device)
+            x_field = torch.cat([x, pad], dim=1)
+        else:
+            x_field = x[:, :self.in_channels, :, :]
         
         grid = self.get_grid(x_field.shape, x_field.device)
         

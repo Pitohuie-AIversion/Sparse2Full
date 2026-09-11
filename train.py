@@ -14,9 +14,10 @@ from typing import Dict, Tuple, Any, Optional
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.optim.lr_scheduler as lrs
 from torch.cuda.amp import autocast
 import hydra
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig, OmegaConf, ListConfig
 
 from models import create_model
 from ops.losses import compute_total_loss, compute_ar_total_loss, compute_loss_weights_schedule
@@ -163,7 +164,6 @@ class Trainer:
                 model_params['img_size'] = 512
         
         # 处理 ListConfig
-        from omegaconf import ListConfig
         for key, value in model_params.items():
             if isinstance(value, ListConfig):
                 model_params[key] = list(value)
@@ -369,7 +369,7 @@ class Trainer:
                     if is_ar_model:
                         metrics = compute_all_metrics(pred_seq[:, -1], target_seq[:, -1])
                     else:
-                        metrics = compute_all_metrics(pred, batch['target'])
+                        metrics = compute_all_metrics(pred, target)
                     
                     for key, value in metrics.items():
                         if key not in epoch_metrics:
@@ -483,7 +483,6 @@ class Trainer:
                 
                 # 学习率调度
                 if self.scheduler is not None:
-                    import torch.optim.lr_scheduler as lrs
                     if isinstance(self.scheduler, lrs.ReduceLROnPlateau):
                         self.scheduler.step(val_results['total_loss'])
                     else:

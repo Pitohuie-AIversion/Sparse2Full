@@ -248,7 +248,9 @@ class DeepONet(BaseModel):
     def _get_coords(self, h: int, w: int, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
         key = (h, w, device, dtype)
         if key in self._coord_cache:
-            return self._coord_cache[key]
+            coords = self._coord_cache[key]
+            if coords.device == device:
+                return coords
         # coords in [-1,1]
         yy = torch.linspace(-1.0, 1.0, steps=h, device=device, dtype=dtype)
         xx = torch.linspace(-1.0, 1.0, steps=w, device=device, dtype=dtype)
@@ -259,7 +261,7 @@ class DeepONet(BaseModel):
 
     def forward(self, x: torch.Tensor, **kwargs) -> torch.Tensor:
         # 基础数值保护
-        if torch.isnan(x).any() or torch.isinf(x).any():
+        if not torch.isfinite(x).all():
             x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
 
         inp = x
@@ -270,11 +272,10 @@ class DeepONet(BaseModel):
 
         # Trunk: basis [N, P*out_ch]
         coords = self._get_coords(h, w, x.device, x.dtype)  # [N,2]
-        basis = self.trunk(coords)  # [N, P*out]
-        basis = basis.view(1, h * w, self.out_channels, self.latent_dim).expand(b, -1, -1, -1)  # [B,N,out,P]
+        basis = self.trunk(coords).view(h * w, self.out_channels, self.latent_dim)  # [N,out,P]
 
-        # Combine: y[B,N,out] = einsum(coeff[B,P], basis[B,N,out,P])
-        y = torch.einsum("bp,bnop->bno", coeff, basis)  # [B,N,out]
+        # Combine: y[B,N,out] = einsum(coeff[B,P], basis[N,out,P])
+        y = torch.einsum("bp,nop->bno", coeff, basis)  # [B,N,out]
         y = y + self.out_bias.view(1, 1, -1)
         y = y.permute(0, 2, 1).contiguous().view(b, self.out_channels, h, w)
 

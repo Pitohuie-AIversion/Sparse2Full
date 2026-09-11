@@ -94,27 +94,26 @@ class PDEDatasetDetector:
     
     def __init__(self, data_root: Optional[str] = None):
         env_root = os.getenv("PDEBENCH_DATA_ROOT")
-        # 默认回退到项目根目录下的 data/
-        default_root = Path(__file__).parent.parent / "data"
-        self.data_root = Path(data_root or env_root or default_root)
+        fallback_root = Path("/root/autodl-tmp/datasets") if Path("/root/autodl-tmp/datasets").exists() else (Path(__file__).resolve().parents[2] / "data")
+        self.data_root = Path(data_root or env_root or fallback_root)
         # 允许直接指定单文件路径
         self.single_file = os.getenv("PDEBENCH_DATA_PATH")
         self.supported_datasets = {
             'darcy_flow': {
                 'patterns': ['DarcyFlow', 'darcy'],
-                'keys': ['u', 'tensor'],
+                'keys': ['u', 'tensor', 'data'],
                 'channels': 1,
                 'description': 'Darcy Flow - 渗透率场流动'
             },
             'diff_react': {
-                'patterns': ['diff-react', 'diffusion'],
-                'keys': ['0000', '0001'],  # 多通道
+                'patterns': ['diff-react', 'diffusion', 'reacdiff', 'rdb'],
+                'keys': ['0000', '0001', 'data'],  # 多通道
                 'channels': 2,
                 'description': 'Diffusion-Reaction - 扩散反应方程'
             },
             'navier_stokes': {
                 'patterns': ['NS', 'NavierStokes', 'ns_incom'],
-                'keys': ['velocity', 'vorticity'],
+                'keys': ['velocity', 'vorticity', 'data'],
                 'channels': 1,
                 'description': 'Navier-Stokes - 不可压缩流体'
             }
@@ -127,7 +126,7 @@ class PDEDatasetDetector:
         if self.single_file:
             p = Path(self.single_file)
             if p.exists():
-                info = analyze(p) if analyze else None
+                info = self._analyze_dataset_file(p)
                 return [info] if info else []
 
         print(f"🔍 扫描数据目录: {self.data_root}")
@@ -139,7 +138,7 @@ class PDEDatasetDetector:
         
         # 递归搜索HDF5文件
         for file_path in self.data_root.rglob("*.h*5"):
-            dataset_info = analyze(file_path) if analyze else None
+            dataset_info = self._analyze_dataset_file(file_path)
             if dataset_info:
                 available_datasets.append(dataset_info)
         
@@ -149,17 +148,6 @@ class PDEDatasetDetector:
         
         return available_datasets
 
-
-# 轻量探测测试：若无数据则跳过
-def test_dataset_detection_or_skip():
-    detector = PDEDatasetDetector()
-    datasets = detector.detect_available_datasets()
-    if len(datasets) == 0:
-        pytest.skip(
-            "未检测到PDE数据集，设置 PDEBENCH_DATA_ROOT 或 PDEBENCH_DATA_PATH 以启用该测试"
-        )
-    assert isinstance(datasets, list)
-    
     def _analyze_dataset_file(self, file_path: Path) -> Optional[Dict[str, Any]]:
         """分析单个数据集文件"""
         try:
@@ -194,7 +182,13 @@ def test_dataset_detection_or_skip():
                 
                 # 获取数据形状
                 sample_key = data_keys[0]
-                data_shape = f[sample_key].shape
+                sample_obj = f[sample_key]
+                if hasattr(sample_obj, 'shape'):
+                    data_shape = sample_obj.shape
+                elif hasattr(sample_obj, 'keys') and 'data' in sample_obj:
+                    data_shape = sample_obj['data'].shape
+                else:
+                    data_shape = (len(keys),)
                 
                 return {
                     'name': file_path.stem,
@@ -210,6 +204,22 @@ def test_dataset_detection_or_skip():
         except Exception as e:
             print(f"⚠️  分析文件失败 {file_path}: {e}")
             return None
+
+
+# 轻量探测测试：若无数据则跳过
+def test_dataset_detection_or_skip():
+    detector = PDEDatasetDetector()
+    datasets = detector.detect_available_datasets()
+    if len(datasets) == 0:
+        pytest.skip(
+            "未检测到PDE数据集，设置 PDEBENCH_DATA_ROOT 或 PDEBENCH_DATA_PATH 以启用该测试"
+        )
+    assert isinstance(datasets, list)
+    assert len(datasets) > 0
+    for d in datasets:
+        assert 'name' in d
+        assert 'path' in d
+        assert 'keys' in d
 
 
 class TemporalNARTester:

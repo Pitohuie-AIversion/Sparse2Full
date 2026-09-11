@@ -109,10 +109,24 @@ class TemporalTrainer:
     def _init_data(self) -> None:
         """初始化时序数据模块与 Loader"""
         self.logger.info("Initializing temporal data module...")
-        self.data_module = TemporalPDEBenchDataModule(self.config)
-        self.train_loader = self.data_module.train_dataloader()
-        self.val_loader = self.data_module.val_dataloader()
-        self.test_loader = self.data_module.test_dataloader()
+        data_cfg = getattr(self.config, 'data', self.config)
+        target = getattr(data_cfg, '_target_', None) or (data_cfg.get('_target_') if isinstance(data_cfg, (dict, DictConfig)) else None)
+        
+        if target and "RealDiffusionReactionDataModule" in str(target):
+            from datasets.real_diffusion_reaction_dataset import RealDiffusionReactionDataModule
+            self.data_module = RealDiffusionReactionDataModule(self.config)
+            self.data_module.setup(None)
+            self.train_loader = self.data_module.train_dataloader()
+            self.val_loader = self.data_module.val_dataloader()
+            try:
+                self.test_loader = self.data_module.test_dataloader()
+            except Exception:
+                self.test_loader = self.val_loader
+        else:
+            self.data_module = TemporalPDEBenchDataModule(data_cfg)
+            self.train_loader = self.data_module.train_dataloader()
+            self.val_loader = self.data_module.val_dataloader()
+            self.test_loader = self.data_module.test_dataloader()
         self.logger.info(
             f"Data loaded: Train={len(self.train_loader)}, "
             f"Val={len(self.val_loader)}, Test={len(self.test_loader)}"
@@ -234,13 +248,44 @@ class TemporalTrainer:
                     f"T_out={new_stage.T_out}, TF_ratio={new_stage.teacher_forcing_ratio}"
                 )
 
-    def _forward_model(self, input_seq: torch.Tensor) -> Any:
-        """优先尝试 5D 时序输入 [B,T,C,H,W]，单帧输入则安全回退"""
+    def _prepare_batch(self, batch: Dict[str, Any]) -> Tuple[torch.Tensor, torch.Tensor]:
+        """统一规范化时序批次数据为 (input_seq, target_seq)"""
+        if 'input_sequence' in batch:
+            input_seq = batch['input_sequence'].to(self.device)
+            target_seq = batch['target_sequence'].to(self.device)
+            if 'observation_sequence' in batch:
+                input_seq = batch['observation_sequence'].to(self.device)
+        else:
+            model_in = self.batch_processor.build_model_input(batch, self.model)
+            input_seq = model_in.to(self.device)
+            target_seq = batch['target'].to(self.device)
+            if input_seq.dim() == 4:
+                input_seq = input_seq.unsqueeze(1)
+            if target_seq.dim() == 4:
+                target_seq = target_seq.unsqueeze(1)
+        return input_seq, target_seq
+
+    def _forward_model(self, input_seq: torch.Tensor, target_seq: Optional[torch.Tensor] = None) -> Any:
+        """优先尝试 5D 时序输入 [B,T,C,H,W] 并支持多步自回归推演，单帧输入则安全回退"""
+        if target_seq is not None and target_seq.ndim == 5:
+            T_out = target_seq.shape[1]
+        else:
+            T_out = int(getattr(getattr(self.config, 'temporal', {}), 'T_out', 1) or 1)
+        tf_ratio = float(getattr(getattr(getattr(self.config, 'temporal', {}), 'ar', {}), 'teacher_forcing_ratio', 0.0) or 0.0)
+        
         if input_seq.ndim == 5:
             try:
-                return self.model(input_seq)
-            except Exception:
-                return self.model(input_seq[:, -1])
+                return self.model(
+                    input_seq,
+                    T_out=T_out,
+                    teacher_seq=target_seq if self.model.training else None,
+                    teacher_forcing_ratio=tf_ratio if self.model.training else 0.0
+                )
+            except TypeError:
+                try:
+                    return self.model(input_seq)
+                except Exception:
+                    return self.model(input_seq[:, -1])
         return self.model(input_seq)
 
     def _compute_light_metrics(self, pred: torch.Tensor, target: torch.Tensor) -> Tuple[float, float]:
@@ -291,8 +336,13 @@ class TemporalTrainer:
         spectral_loss = spectral_loss_res['total_loss'] if isinstance(spectral_loss_res, dict) else spectral_loss_res
         
         dc_loss = torch.tensor(0.0, device=self.device)
-        if "h_params" in batch:
-            dc_loss = self.dc_loss(predictions[:, -1], target_seq[:, -1], batch["h_params"])
+        dc_weight = float(getattr(getattr(getattr(self.config, 'loss', {}), 'dc_loss', {}), 'weight', 1.0) or 0.0)
+        if dc_weight > 0 and "h_params" in batch:
+            target_obs = batch.get('lr_observation', batch.get('original_observation', None))
+            if target_obs is not None:
+                dc_loss = self.dc_loss(predictions[:, -1], target_obs.to(self.device), batch["h_params"])
+            elif "observation" in batch:
+                dc_loss = self.dc_loss(predictions[:, -1], batch["observation"].to(self.device), None)
             
         return ar_loss + spectral_loss + dc_loss
 
@@ -304,17 +354,16 @@ class TemporalTrainer:
         
         pbar = tqdm(self.train_loader, desc=f"Epoch {self.current_epoch}")
         grad_clip = float(getattr(getattr(self.config, 'train', {}), 'gradient_clip_val', 0.0) or 0.0)
+        limit_train = int(getattr(getattr(self.config, 'train', {}), 'limit_train_batches', 0) or 0)
         
         for batch_idx, batch in enumerate(pbar):
-            input_seq = batch['input_sequence'].to(self.device)
-            target_seq = batch['target_sequence'].to(self.device)
-            if 'observation_sequence' in batch:
-                input_seq = batch['observation_sequence'].to(self.device)
-                
+            if limit_train > 0 and batch_idx >= limit_train:
+                break
+            input_seq, target_seq = self._prepare_batch(batch)
             self.optimizer.zero_grad()
             
             with autocast(device_type='cuda' if 'cuda' in str(self.device) else 'cpu', enabled=self.use_amp):
-                outputs = self._forward_model(input_seq)
+                outputs = self._forward_model(input_seq, target_seq)
                 predictions = outputs if isinstance(outputs, dict) else {'predictions': outputs}
                 loss = self._compute_loss(predictions, target_seq, batch)
                 
@@ -347,10 +396,12 @@ class TemporalTrainer:
             if self.global_step % log_interval == 0:
                 self.logger.info(f"Step {self.global_step}: loss={loss.item():.4f}, rel_l2={rel_l2:.4f}, lr={lr:.2e}")
                 
+        mean_train_loss = float(np.mean(epoch_losses)) if epoch_losses else 0.0
         return {
-            'loss': float(np.mean(epoch_losses)),
-            'rel_l2': float(np.mean(epoch_metrics['rel_l2'])),
-            'mae': float(np.mean(epoch_metrics['mae']))
+            'loss': mean_train_loss,
+            'total_loss': mean_train_loss,
+            'rel_l2': float(np.mean(epoch_metrics['rel_l2'])) if epoch_metrics['rel_l2'] else 0.0,
+            'mae': float(np.mean(epoch_metrics['mae'])) if epoch_metrics['mae'] else 0.0
         }
 
     def evaluate(self, loader: DataLoader, desc: str = "Evaluating") -> Dict[str, float]:
@@ -358,15 +409,14 @@ class TemporalTrainer:
         self.model.eval()
         losses = []
         metrics_acc = {"rel_l2": [], "mae": [], "psnr": [], "ssim": []}
+        limit_val = int(getattr(getattr(self.config, 'train', {}), 'limit_val_batches', 0) or 0)
         
         with torch.no_grad():
-            for batch in tqdm(loader, desc=desc):
-                input_seq = batch["input_sequence"].to(self.device)
-                target_seq = batch["target_sequence"].to(self.device)
-                if "observation_sequence" in batch:
-                    input_seq = batch["observation_sequence"].to(self.device)
-                    
-                outputs = self._forward_model(input_seq)
+            for batch_idx, batch in enumerate(tqdm(loader, desc=desc)):
+                if limit_val > 0 and batch_idx >= limit_val:
+                    break
+                input_seq, target_seq = self._prepare_batch(batch)
+                outputs = self._forward_model(input_seq, target_seq)
                 predictions = outputs if isinstance(outputs, dict) else {"predictions": outputs}
                 loss = self._compute_loss(predictions, target_seq, batch)
                 losses.append(loss.item())
@@ -381,10 +431,10 @@ class TemporalTrainer:
                             v = v.mean().detach().cpu().item() if v.numel() > 1 else v.detach().cpu().item()
                         metrics_acc[k].append(v)
                         
-        out = {"loss": float(np.mean(losses))}
+        mean_eval_loss = float(np.mean(losses)) if losses else 0.0
+        out = {"loss": mean_eval_loss, "total_loss": mean_eval_loss}
         for k, vals in metrics_acc.items():
-            if vals:
-                out[k] = float(np.mean(vals))
+            out[k] = float(np.mean(vals)) if vals else 0.0
         return out
 
     def validate(self) -> Dict[str, float]:
@@ -420,7 +470,13 @@ class TemporalTrainer:
         """执行完整时序训练控制流"""
         self.logger.info("Starting temporal training lifecycle...")
         start_time = time.time()
-        max_epochs = int(getattr(getattr(self.config, 'train', {}), 'max_epochs', 100) or 100)
+        train_cfg = getattr(self.config, 'train', {})
+        epochs_val = train_cfg.get('epochs') if isinstance(train_cfg, (dict, DictConfig)) else getattr(train_cfg, 'epochs', None)
+        max_epochs_val = train_cfg.get('max_epochs') if isinstance(train_cfg, (dict, DictConfig)) else getattr(train_cfg, 'max_epochs', None)
+        if epochs_val is not None and max_epochs_val is not None:
+            max_epochs = min(int(epochs_val), int(max_epochs_val))
+        else:
+            max_epochs = int(epochs_val or max_epochs_val or 100)
         val_interval = int(getattr(getattr(self.config, 'experiment', {}), 'val_check_interval', 1) or 1)
         patience = int(getattr(getattr(self.config.experiment, 'early_stopping', {}), 'patience', 10) or 10)
         

@@ -254,12 +254,17 @@ def _apply_crop_degradation(x: torch.Tensor, params: Dict) -> torch.Tensor:
     return _pad_to_size(x, target_h, target_w, boundary)
 
 
-def apply_degradation_operator(x: torch.Tensor, params: Dict) -> torch.Tensor:
+def apply_degradation_operator(x: torch.Tensor, params: Optional[Dict] = None, **kwargs) -> torch.Tensor:
     # 1. 参数提取与兼容性处理
     # 如果 params 中包含 h_params，优先使用它（这是 obs_data 的标准结构）
-    eff_params = params
-    if "h_params" in params and isinstance(params["h_params"], dict):
-        eff_params = params["h_params"]
+    if params is None:
+        eff_params = kwargs
+    elif isinstance(params, dict):
+        eff_params = {**params, **kwargs} if kwargs else params
+    else:
+        eff_params = kwargs
+    if "h_params" in eff_params and isinstance(eff_params["h_params"], dict):
+        eff_params = eff_params["h_params"]
 
     eff_params = dict(eff_params)
     if "scale" not in eff_params and "scale_factor" in eff_params:

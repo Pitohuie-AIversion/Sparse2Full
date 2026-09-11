@@ -349,9 +349,12 @@ class LIIFModel(BaseModel):
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
 
-    def _make_cell(self, b: int, h: int, w: int, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
+    def _make_cell(
+        self, b: int, h: int, w: int, device: torch.device, dtype: torch.dtype, n: Optional[int] = None
+    ) -> torch.Tensor:
         # cell 大小：在 [-1,1] 坐标系中每个像素覆盖范围约为 (2/H, 2/W)
-        n = h * w
+        if n is None:
+            n = h * w
         cell = torch.empty((b, n, 2), device=device, dtype=dtype)
         cell[:, :, 0] = 2.0 / float(h)
         cell[:, :, 1] = 2.0 / float(w)
@@ -382,10 +385,8 @@ class LIIFModel(BaseModel):
         # 用户提供 coord：返回序列输出，符合 LIIF 定义
         if coord is not None:
             if cell is None and self.core.cell_decode:
-                # 默认 cell：按 feat 空间大小定义（若用户希望按目标采样密度定义，建议显式传入 cell）
-                # 工程上更常用：按目标输出分辨率定义 cell；建议在调用侧提供 cell
-                # 这里保守采用 coord 采样对应的输出密度推断较困难，因此采用 feat 尺寸作为默认
-                cell = self._make_cell(b, feat.shape[-2], feat.shape[-1], device, dtype)
+                # 默认 cell：按 feat 空间大小定义每个采样点的覆盖范围，点数与 coord 严格对齐
+                cell = self._make_cell(b, feat.shape[-2], feat.shape[-1], device, dtype, n=coord.shape[1])
             return self.core.query_rgb(feat, coord, cell)
 
         # 默认输出：按 img_size 生成整网格坐标

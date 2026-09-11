@@ -97,12 +97,12 @@ class ARWrapper(nn.Module):
         self.total_epochs = 100  # 默认值，会在训练时更新
         
         # 继承基础模型的属性
-        if hasattr(single_frame_model, 'in_channels'):
-            self.in_channels = single_frame_model.in_channels
-        if hasattr(single_frame_model, 'out_channels'):
-            self.out_channels = single_frame_model.out_channels
-        if hasattr(single_frame_model, 'img_size'):
-            self.img_size = single_frame_model.img_size
+        if hasattr(self.m, 'in_channels'):
+            self.in_channels = self.m.in_channels
+        if hasattr(self.m, 'out_channels'):
+            self.out_channels = self.m.out_channels
+        if hasattr(self.m, 'img_size'):
+            self.img_size = self.m.img_size
 
     def set_epoch(self, epoch: int, total_epochs: int = None):
         """设置当前epoch，用于scheduled sampling"""

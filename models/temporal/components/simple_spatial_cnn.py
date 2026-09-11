@@ -40,28 +40,18 @@ class SimpleSpatialCNN(nn.Module):
         # Input projection
         self.input_proj = nn.Conv2d(in_channels, hidden_channels, kernel_size=1)
         
-        # Build CNN layers
-        layers = []
+        # Build CNN residual blocks
+        self.blocks = nn.ModuleList()
         for i in range(num_layers):
-            in_ch = hidden_channels if i == 0 else hidden_channels
-            out_ch = hidden_channels
-            
-            # Convolution
-            conv = nn.Conv2d(in_ch, out_ch, kernel_size, padding=padding)
-            layers.append(conv)
-            
-            # Batch normalization
+            block_layers = [
+                nn.Conv2d(hidden_channels, hidden_channels, kernel_size, padding=padding)
+            ]
             if use_batch_norm:
-                layers.append(nn.BatchNorm2d(out_ch))
-            
-            # Activation
-            layers.append(self.activation)
-            
-            # Dropout
+                block_layers.append(nn.BatchNorm2d(hidden_channels))
+            block_layers.append(self.activation)
             if dropout > 0:
-                layers.append(nn.Dropout2d(dropout))
-        
-        self.cnn_layers = nn.ModuleList(layers)
+                block_layers.append(nn.Dropout2d(dropout))
+            self.blocks.append(nn.Sequential(*block_layers))
         
         # Output projection
         self.output_proj = nn.Conv2d(hidden_channels, out_channels, kernel_size=1)
@@ -92,27 +82,17 @@ class SimpleSpatialCNN(nn.Module):
         """
         # Input validation
         if torch.isnan(x).any() or torch.isinf(x).any():
-            print(f"[SimpleSpatialCNN] Warning: NaN/Inf in input")
             x = torch.nan_to_num(x, nan=0.0, posinf=1e6, neginf=-1e6)
-        
-        # Store original shape
-        B, C, H, W = x.shape
         
         # Input projection
         x = self.input_proj(x)
         
-        # Apply CNN layers
-        for i, layer in enumerate(self.cnn_layers):
-            x_prev = x
-            x = layer(x)
-            
-            # Add residual connection every 2 layers
-            if i % 2 == 1 and x_prev.shape == x.shape:
-                x = x + x_prev
+        # Apply residual CNN blocks
+        for block in self.blocks:
+            x = x + block(x)
             
             # Check for numerical issues
             if torch.isnan(x).any() or torch.isinf(x).any():
-                print(f"[SimpleSpatialCNN] Warning: NaN/Inf after layer {i}")
                 x = torch.nan_to_num(x, nan=0.0, posinf=1e6, neginf=-1e6)
         
         # Output projection
@@ -120,7 +100,6 @@ class SimpleSpatialCNN(nn.Module):
         
         # Final numerical check
         if torch.isnan(x).any() or torch.isinf(x).any():
-            print(f"[SimpleSpatialCNN] Warning: NaN/Inf in final output")
             x = torch.nan_to_num(x, nan=0.0, posinf=1e6, neginf=-1e6)
         
         return x

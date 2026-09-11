@@ -8,7 +8,10 @@ from typing import Tuple, Optional, Any
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.cuda.amp import GradScaler
+try:
+    from torch.amp import GradScaler
+except ImportError:
+    from torch.cuda.amp import GradScaler
 from omegaconf import DictConfig
 
 
@@ -171,12 +174,21 @@ class EngineBuilder:
         
         if use_amp:
             amp_config = getattr(training_config, 'amp', {}) if hasattr(training_config, 'amp') else {}
-            scaler = GradScaler(
-                init_scale=float(amp_config.get('init_scale', 65536.0) if hasattr(amp_config, 'get') else 65536.0),
-                growth_factor=float(amp_config.get('growth_factor', 2.0) if hasattr(amp_config, 'get') else 2.0),
-                backoff_factor=float(amp_config.get('backoff_factor', 0.5) if hasattr(amp_config, 'get') else 0.5),
-                growth_interval=int(amp_config.get('growth_interval', 2000) if hasattr(amp_config, 'get') else 2000)
-            )
+            try:
+                scaler = GradScaler(
+                    'cuda',
+                    init_scale=float(amp_config.get('init_scale', 65536.0) if hasattr(amp_config, 'get') else 65536.0),
+                    growth_factor=float(amp_config.get('growth_factor', 2.0) if hasattr(amp_config, 'get') else 2.0),
+                    backoff_factor=float(amp_config.get('backoff_factor', 0.5) if hasattr(amp_config, 'get') else 0.5),
+                    growth_interval=int(amp_config.get('growth_interval', 2000) if hasattr(amp_config, 'get') else 2000)
+                )
+            except (TypeError, ValueError):
+                scaler = GradScaler(
+                    init_scale=float(amp_config.get('init_scale', 65536.0) if hasattr(amp_config, 'get') else 65536.0),
+                    growth_factor=float(amp_config.get('growth_factor', 2.0) if hasattr(amp_config, 'get') else 2.0),
+                    backoff_factor=float(amp_config.get('backoff_factor', 0.5) if hasattr(amp_config, 'get') else 0.5),
+                    growth_interval=int(amp_config.get('growth_interval', 2000) if hasattr(amp_config, 'get') else 2000)
+                )
             logger.info("AMP mixed precision enabled with GradScaler")
             return scaler, True
         else:

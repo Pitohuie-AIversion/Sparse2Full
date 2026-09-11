@@ -118,6 +118,8 @@ class ARVisualizer:
         # 统一色标：主图的 vmin/vmax 按三者联合取范围
         vmin_main = float(np.min([obs_np.min(), tgt_np.min(), pred_np.min()]))
         vmax_main = float(np.max([obs_np.max(), tgt_np.max(), pred_np.max()]))
+        if vmax_main <= vmin_main:
+            vmax_main = vmin_main + 1e-6
         vmin_err = 0.0
         vmax_err = float(err_np.max())
 
@@ -364,8 +366,15 @@ class PDEBenchVisualizer:
             degraded = None
         gt_np = self._tensor_to_numpy(gt, channel)
         pred_np = self._tensor_to_numpy(pred, channel)
-        vmin = float(min(gt_np.min(), pred_np.min()))
-        vmax = float(max(gt_np.max(), pred_np.max()))
+        deg_np = self._tensor_to_numpy(degraded, channel) if degraded is not None else None
+        
+        all_vals = [gt_np, pred_np]
+        if deg_np is not None:
+            all_vals.append(deg_np)
+        vmin = float(min(x.min() for x in all_vals))
+        vmax = float(max(x.max() for x in all_vals))
+        if vmax <= vmin:
+            vmax = vmin + 1e-6
 
         cols = 3 if degraded is not None else 2
         fig, axes = plt.subplots(1, cols, figsize=self.figsize)
@@ -374,8 +383,7 @@ class PDEBenchVisualizer:
         else:
             ax_deg, ax_gt, ax_pred = axes
 
-        if degraded is not None:
-            deg_np = self._tensor_to_numpy(degraded, channel)
+        if deg_np is not None:
             im0 = ax_deg.imshow(deg_np, cmap=self.colormap, vmin=vmin, vmax=vmax)
             ax_deg.set_title("Observed/Degraded")
             ax_deg.axis("off")
@@ -396,12 +404,19 @@ class PDEBenchVisualizer:
 
     def plot_training_curves(
         self,
-        train_logs: Dict[str, list[float]],
-        val_logs: Dict[str, list[float]],
+        train_logs: Any,
+        val_logs: Any = None,
         save_name: str = "training_curves",
     ) -> str:
-        train_loss = train_logs.get("loss", [])
-        val_loss = val_logs.get("loss", [])
+        if isinstance(val_logs, str) and save_name == "training_curves":
+            save_name = val_logs
+            val_logs = None
+
+        if val_logs is None:
+            val_logs = {}
+
+        train_loss = train_logs.get("loss", train_logs.get("train_loss", [])) if hasattr(train_logs, "get") else []
+        val_loss = val_logs.get("loss", val_logs.get("val_loss", train_logs.get("val_loss", []))) if hasattr(val_logs, "get") else []
         epochs = range(1, max(len(train_loss), len(val_loss)) + 1)
 
         fig, ax = plt.subplots(1, 1, figsize=self.figsize)
@@ -432,6 +447,8 @@ class PDEBenchVisualizer:
 
         vmin = float(min(obs_np.min(), gt_np.min(), pred_np.min()))
         vmax = float(max(obs_np.max(), gt_np.max(), pred_np.max()))
+        if vmax <= vmin:
+            vmax = vmin + 1e-6
 
         fig, axes = plt.subplots(1, 4, figsize=(18, 5))
         im0 = axes[0].imshow(obs_np, cmap=self.colormap, vmin=vmin, vmax=vmax)
@@ -486,13 +503,18 @@ class PDEBenchVisualizer:
         gt_spec = spectrum(gt_np)
         pred_spec = spectrum(pred_np)
 
+        spec_vmin = float(min(gt_spec.min(), pred_spec.min()))
+        spec_vmax = float(max(gt_spec.max(), pred_spec.max()))
+        if spec_vmax <= spec_vmin:
+            spec_vmax = spec_vmin + 1e-6
+
         fig, axes = plt.subplots(1, 2, figsize=(14, 6))
-        im0 = axes[0].imshow(gt_spec, cmap="inferno")
+        im0 = axes[0].imshow(gt_spec, cmap="inferno", vmin=spec_vmin, vmax=spec_vmax)
         axes[0].set_title("GT Spectrum")
         axes[0].axis("off")
         plt.colorbar(im0, ax=axes[0], fraction=0.046, pad=0.04)
 
-        im1 = axes[1].imshow(pred_spec, cmap="inferno")
+        im1 = axes[1].imshow(pred_spec, cmap="inferno", vmin=spec_vmin, vmax=spec_vmax)
         axes[1].set_title("Pred Spectrum")
         axes[1].axis("off")
         plt.colorbar(im1, ax=axes[1], fraction=0.046, pad=0.04)
@@ -513,18 +535,23 @@ class PDEBenchVisualizer:
         pred_np = self._tensor_to_numpy(pred, channel)
         err_np = np.abs(pred_np - gt_np)
 
+        vmin = float(min(gt_np.min(), pred_np.min()))
+        vmax = float(max(gt_np.max(), pred_np.max()))
+        if vmax <= vmin:
+            vmax = vmin + 1e-6
+
         fig, axes = plt.subplots(2, 2, figsize=(16, 10))
-        im0 = axes[0, 0].imshow(gt_np, cmap=self.colormap)
+        im0 = axes[0, 0].imshow(gt_np, cmap=self.colormap, vmin=vmin, vmax=vmax)
         axes[0, 0].set_title("Ground Truth")
         axes[0, 0].axis("off")
         plt.colorbar(im0, ax=axes[0, 0], fraction=0.046, pad=0.04)
 
-        im1 = axes[0, 1].imshow(pred_np, cmap=self.colormap)
+        im1 = axes[0, 1].imshow(pred_np, cmap=self.colormap, vmin=vmin, vmax=vmax)
         axes[0, 1].set_title("Prediction")
         axes[0, 1].axis("off")
         plt.colorbar(im1, ax=axes[0, 1], fraction=0.046, pad=0.04)
 
-        im2 = axes[1, 0].imshow(err_np, cmap="magma")
+        im2 = axes[1, 0].imshow(err_np, cmap="magma", vmin=0.0, vmax=max(1e-12, float(err_np.max())))
         axes[1, 0].set_title("Error")
         axes[1, 0].axis("off")
         plt.colorbar(im2, ax=axes[1, 0], fraction=0.046, pad=0.04)
@@ -538,9 +565,18 @@ class PDEBenchVisualizer:
 
     def create_metrics_summary_plot(self, metrics_by_model: Dict[str, Dict[str, list]], save_name: str = "metrics_summary") -> str:
         """创建指标汇总图（简单条形图，取各指标均值）。"""
-        # 计算均值
+        if not metrics_by_model:
+            fig, ax = plt.subplots(1, 1, figsize=self.figsize)
+            ax.set_title("Metrics Summary (No Data)")
+            return self._save_fig(fig, self.comparisons_dir, save_name)
+
         model_names = list(metrics_by_model.keys())
-        metric_names = list(next(iter(metrics_by_model.values())).keys()) if model_names else []
+        first_metrics = next(iter(metrics_by_model.values()), {})
+        metric_names = list(first_metrics.keys()) if isinstance(first_metrics, dict) else []
+        if not metric_names:
+            fig, ax = plt.subplots(1, 1, figsize=self.figsize)
+            ax.set_title("Metrics Summary (No Metrics)")
+            return self._save_fig(fig, self.comparisons_dir, save_name)
 
         means = np.array([[np.mean(metrics_by_model[m].get(k, [0])) for k in metric_names] for m in model_names])
 
@@ -637,6 +673,8 @@ class TemporalVisualizer:
 
         vmin = float(min(ch_gt.min(), ch_pred.min()))
         vmax = float(max(ch_gt.max(), ch_pred.max()))
+        if vmax <= vmin:
+            vmax = vmin + 1e-6
 
         fig, axes = plt.subplots(3, T, figsize=(3 * T, 9))
         if T == 1:

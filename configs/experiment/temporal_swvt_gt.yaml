@@ -1,0 +1,77 @@
+# @package _global_
+
+# SWVT (Video Swin Transformer) 纯真值 128x128 时序预测实验配置
+# 特点：输入为全场高分辨率物理真值 [B, T_in, C, 128, 128]，输出未来时间步 [B, T_out, C, 128, 128]
+# 不做任何稀疏/低分辨率退化输入
+
+defaults:
+  - ../data: temporal_diffusion_reaction
+  - ../model: swvt
+  - ../train: default
+  - ../temporal
+  - _self_
+
+# 实验配置
+experiment:
+  name: "Temporal-SWVT-GroundTruth-DR2D-128-s2025"
+  seed: 2025
+  device: "cuda"
+  precision: 16
+  use_amp: true
+  
+  # 输出目录
+  output_dir: "runs"
+  save_top_k: 3
+  save_last: true
+  
+  # 日志设置
+  log_every_n_steps: 10
+  val_check_interval: 1
+  
+  # 早停设置
+  early_stopping:
+    monitor: "val/rel_l2"
+    patience: 20
+    mode: "min"
+
+# 数据配置 - 纯真值全场时序切片输入 (128x128 -> 128x128)
+data:
+  data_path: "/root/autodl-tmp/datasets/2D_rdb_NA_NA.h5"
+  T_in: 4   # 历史输入时间步数 (吃历史时长)
+  T_out: 10 # 未来预测时间步数 (输出未来时间步)
+  dataloader:
+    batch_size: 4
+    num_workers: 0
+    pin_memory: false
+
+# 时序配置
+temporal:
+  T_in: ${data.T_in}
+  T_out: ${data.T_out}
+  dt: 0.1
+  ar:
+    teacher_forcing_ratio: 0.5
+    scheduled_sampling: true
+
+# SWVT 3D 时空模型参数 (针对 128x128 空间与 3D 窗口联合建模)
+model:
+  name: "SWVT"
+  in_channels: 1
+  out_channels: 1
+  hidden_dim: 96
+  num_layers: 4
+  num_heads: 4
+  window_size: [2, 8, 8]
+  dropout: 0.0
+
+# 损失函数配置 - 纯全场真值时序动力学演化预测，无稀疏观测一致性 (DC=0.0)
+loss:
+  ar_loss:
+    rel2_weight: 1.0
+    mae_weight: 0.5
+    temporal_consistency: 0.3
+  spectral_loss:
+    weight: 0.5
+    low_freq_weight: 1.0
+  dc_loss:
+    weight: 0.0

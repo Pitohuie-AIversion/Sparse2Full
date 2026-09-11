@@ -160,29 +160,27 @@ class TemporalMetricsCalculator:
         consistency = 1.0 - (temporal_variation / (data_range + 1e-8))
         consistency = torch.clamp(consistency, 0.0, 1.0)
         
-        return consistency.item()
+        val = consistency.item()
+        return float(val) if np.isfinite(val) else 0.0
     
     def _compute_error_accumulation_rate(self, step_wise_errors: List[float]) -> float:
         """计算误差累积率
         
         通过拟合误差随时间的增长趋势来计算累积率
         """
-        if len(step_wise_errors) < 2:
+        clean_errors = [float(e) for e in step_wise_errors if np.isfinite(e)]
+        if len(clean_errors) < 2:
             return 0.0
         
         # 使用线性回归拟合误差增长趋势
-        time_steps = np.arange(len(step_wise_errors))
-        
-        # 计算斜率（误差增长率）
-        if len(step_wise_errors) > 1:
-            slope = np.polyfit(time_steps, step_wise_errors, 1)[0]
-            # 归一化到初始误差
-            initial_error = step_wise_errors[0] if step_wise_errors[0] > 0 else 1e-8
+        time_steps = np.arange(len(clean_errors))
+        try:
+            slope = float(np.polyfit(time_steps, clean_errors, 1)[0])
+            initial_error = clean_errors[0] if clean_errors[0] > 1e-8 else 1e-8
             accumulation_rate = slope / initial_error
-        else:
-            accumulation_rate = 0.0
-        
-        return accumulation_rate
+            return float(accumulation_rate) if np.isfinite(accumulation_rate) else 0.0
+        except Exception:
+            return 0.0
     
     def compute_rollout_metrics(self, 
                                model: torch.nn.Module,

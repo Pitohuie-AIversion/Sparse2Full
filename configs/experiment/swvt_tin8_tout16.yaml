@@ -1,0 +1,88 @@
+# @package _global_
+
+# SWVT 纯真值 128x128 方案 C：深时空长程型 (Tin=8 -> Tout=16)
+# 8 步历史输入填满 4 层 3D Swin 感受野，长程推演未来 16 步
+
+defaults:
+  - ../data: temporal_diffusion_reaction
+  - ../model: swvt
+  - ../train: default
+  - ../temporal
+  - _self_
+
+experiment:
+  name: "SWVT_Tin8_Tout16_GPU1"
+  seed: 2025
+  device: "cuda:1"
+  precision: 16
+  use_amp: true
+  output_dir: "runs"
+  save_top_k: 3
+  save_last: true
+  log_every_n_steps: 20
+  val_check_interval: 1
+  early_stopping:
+    monitor: "val/rel_l2"
+    patience: 25
+    mode: "min"
+
+data:
+  data_path: "/root/autodl-tmp/datasets/2D_rdb_NA_NA.h5"
+  T_in: 8
+  T_out: 16
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+  time_step_start: 0
+  time_step_end: 100
+  time_step_stride: 2
+  normalize: true
+  dataloader:
+    batch_size: 6
+    val_batch_size: 6
+    num_workers: 8
+    pin_memory: true
+    persistent_workers: true
+
+temporal:
+  T_in: ${data.T_in}
+  T_out: ${data.T_out}
+  dt: 0.1
+  ar:
+    teacher_forcing_ratio: 0.6
+    scheduled_sampling: true
+
+model:
+  name: "SWVT"
+  params:
+    in_channels: 1
+    out_channels: 1
+    hidden_dim: 96
+    num_layers: 4
+    num_heads: 4
+    window_size: [2, 8, 8]
+    dropout: 0.0
+    use_checkpoint: true
+
+train:
+  max_epochs: 10
+  gradient_clip_val: 1.0
+  optimizer:
+    name: "AdamW"
+    lr: 1e-3
+    weight_decay: 1e-4
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 30
+    eta_min: 1e-6
+
+loss:
+  ar_loss:
+    rel2_weight: 1.0
+    mae_weight: 0.5
+    temporal_consistency: 0.4
+  spectral_loss:
+    weight: 0.6
+    low_freq_weight: 1.0
+  dc_loss:
+    weight: 0.0

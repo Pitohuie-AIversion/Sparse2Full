@@ -110,6 +110,12 @@ class ConvTemporalPredictor(nn.Module):
         # Output projection layer (1x1 conv to map hidden state to output)
         self.output_proj = nn.Conv2d(hidden_channels, out_channels, kernel_size=1)
         
+        # Feedback projection for autoregressive rollouts when in_channels != out_channels
+        if in_channels != out_channels:
+            self.feedback_proj = nn.Conv2d(out_channels, in_channels, kernel_size=1)
+        else:
+            self.feedback_proj = nn.Identity()
+        
         self.dropout = nn.Dropout2d(dropout) if dropout > 0 else nn.Identity()
 
     def forward(self, x: torch.Tensor, T_out: int = 1, future_forcing: Optional[torch.Tensor] = None) -> torch.Tensor:
@@ -124,44 +130,24 @@ class ConvTemporalPredictor(nn.Module):
         B, T_in, C, H, W = x.shape
         
         # Initialize internal states for all layers
-        # List of (h, c) tuples, one for each layer
         states = [None] * self.num_layers
         
         # 1. Encoder Phase: Process input sequence
-        # We only care about the final state after seeing the input sequence
-        # (Seq2Seq architecture could be used here, but simple AR is fine for now)
-        
-        # To save memory, we don't store all intermediate hidden states of the encoder
-        # unless we want to do dense prediction (many-to-many).
-        # Assuming we want to predict T_out steps AFTER T_in inputs.
-        
-        # Feed input sequence
         for t in range(T_in):
             current_input = x[:, t]  # [B, C, H, W]
             
             for i in range(self.num_layers):
                 h, c = self.cell_list[i](current_input, states[i])
                 states[i] = (h, c)
-                # Next layer input is current layer output
                 current_input = self.dropout(h)
         
         # 2. Decoder/Prediction Phase
         predictions = []
-        
-        # The input to the first decoder step is the last frame of the input sequence
-        # However, the encoder loop ends with 'current_input' being the hidden state of the LAST layer.
-        # But the FIRST layer of the decoder needs an input of 'in_channels'.
-        
-        # Correct approach:
-        # The last observed frame x[:, -1] should be the input to the first decoder step.
-        # (or the last feature map if we are processing features)
         decoder_input = x[:, -1]
         
         for t in range(T_out):
-            # Pass through layers
             current_feature = decoder_input
             
-            # Update states for next step
             next_states = []
             for i in range(self.num_layers):
                 h, c = self.cell_list[i](current_feature, states[i])
@@ -174,13 +160,8 @@ class ConvTemporalPredictor(nn.Module):
             pred_frame = self.output_proj(current_feature)  # [B, out_c, H, W]
             predictions.append(pred_frame)
             
-            # Prepare input for next step (Autoregressive)
-            if self.in_channels == pred_frame.shape[1]:
-                 decoder_input = pred_frame
-            else:
-                # If dimensions mismatch, use zero input as fallback
-                # This happens when we feed [SpatialPred, Features] but only output [SpatialPred]
-                decoder_input = torch.zeros(B, self.in_channels, H, W, device=x.device)
+            # Prepare input for next step (Autoregressive feedback projection)
+            decoder_input = self.feedback_proj(pred_frame)
                 
         # Stack predictions
         predictions = torch.stack(predictions, dim=1)  # [B, T_out, out_c, H, W]

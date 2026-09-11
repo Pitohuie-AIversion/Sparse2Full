@@ -335,19 +335,18 @@ class TemporalEncoder(nn.Module):
         # 层归一化
         self.layer_norm = nn.LayerNorm(input_dim)
         
-        # 预注册常见维度的投影层（避免动态创建）
+        # 预注册常见维度的投影层（保持向后兼容）
         self.adaptive_input_proj = nn.ModuleDict()
         self.adaptive_output_proj = nn.ModuleDict()
         self.adaptive_layer_norm = nn.ModuleDict()
 
-        # 精简预注册空间维度集合，减少显存占用
-        common_spatial_dims = [64*64*2, 128*128*2]  # 仅保留必要维度
+        common_spatial_dims = [64 * 64 * 2, 128 * 128 * 2]
         for dim in common_spatial_dims:
             if dim != input_dim:
                 self.adaptive_input_proj[str(dim)] = nn.Linear(dim, hidden_dim)
                 self.adaptive_output_proj[str(dim)] = nn.Linear(hidden_dim, dim)
                 self.adaptive_layer_norm[str(dim)] = nn.LayerNorm(dim)
-    
+
     def forward(
         self, 
         x: torch.Tensor, 
@@ -365,111 +364,83 @@ class TemporalEncoder(nn.Module):
         batch_size = x.size(0)
         seq_len = x.size(1)
         
-        # 处理不同输入格式
-        if x.dim() == 5:  # [B, T, C, H, W]
-            # 展平空间维度
+        # 处理 5D 时空输入 [B, T, C, H, W]
+        if x.dim() == 5:
             B, T, C, H, W = x.shape
-            x = x.view(B, T, C * H * W)
-            spatial_shape = (C, H, W)
-            # 更新input_dim以匹配展平后的维度
+            
+            # 模式 1: 通道数 C 与 input_dim 匹配（逐空间像素的时序编码）
+            if C == self.input_dim:
+                # 重排为 [B*H*W, T, C] 进行时序编码，保持空间局部性与分辨率不变性
+                x_reshaped = x.permute(0, 3, 4, 1, 2).reshape(B * H * W, T, C)
+                residual = x_reshaped
+                
+                h = self.input_proj(x_reshaped)  # [B*H*W, T, hidden_dim]
+                if self.use_positional_encoding:
+                    h = self.pos_encoding(h)
+                
+                h = h.transpose(1, 2)  # [B*H*W, hidden_dim, T]
+                h = self.temporal_conv(h)  # [B*H*W, hidden_dim, T]
+                h = h.transpose(1, 2)  # [B*H*W, T, hidden_dim]
+                
+                out = self.output_proj(h)  # [B*H*W, T, C]
+                out = self.layer_norm(out + residual)
+                
+                out = out.reshape(B, H, W, T, C).permute(0, 3, 4, 1, 2).contiguous()
+                return {
+                    'encoded_sequence': out,
+                    'sequence_length': seq_len,
+                    'batch_size': batch_size
+                }
+            
+            # 模式 2: 全图展平空间维度 [B, T, C*H*W]
             flattened_dim = C * H * W
+            x_in = x.reshape(B, T, flattened_dim)
+            spatial_shape = (C, H, W)
         elif x.dim() == 3:  # [B, T, C]
             spatial_shape = None
             flattened_dim = x.size(-1)
+            x_in = x
         else:
-            raise ValueError(f"不支持的输入维度: {x.dim()}")
+            raise ValueError(f"不支持的输入维度: {x.dim()}，期望 3D [B, T, C] 或 5D [B, T, C, H, W]")
         
-        # 保存原始输入用于残差连接
-        residual = x
+        residual = x_in
+        dim_key = str(flattened_dim)
         
-        # 选择适当的投影层（避免动态创建）
-        if flattened_dim != self.input_dim:
-            # 使用预注册的投影层
-            dim_key = str(flattened_dim)
-            if dim_key in self.adaptive_input_proj:
-                input_proj = self.adaptive_input_proj[dim_key]
-                x = input_proj(x)  # [B, T, hidden_dim]
-            else:
-                # 如果维度不匹配且没有预注册层，使用原始输入投影并警告
-                import logging
-                logging.warning(f"未找到维度 {flattened_dim} 的预注册输入投影层，使用默认投影")
-                # 临时处理：使用原始输入投影，但可能会维度不匹配
-                if flattened_dim <= self.input_dim:
-                    # 如果展平维度较小，可以截断
-                    x = x[:, :, :self.input_dim]
-                    x = self.input_proj(x)
-                else:
-                    # 如果展平维度较大，需要填充
-                    padding = flattened_dim - self.input_dim
-                    x_padded = torch.nn.functional.pad(x, (0, padding))
-                    x = self.input_proj(x_padded[:, :, :self.input_dim])
+        # 输入投影
+        if flattened_dim == self.input_dim:
+            h = self.input_proj(x_in)
+        elif dim_key in self.adaptive_input_proj:
+            h = self.adaptive_input_proj[dim_key](x_in)
         else:
-            # 使用默认输入投影
-            x = self.input_proj(x)  # [B, T, hidden_dim]
+            raise ValueError(
+                f"TemporalEncoder 输入维度不匹配: 模型配置 input_dim={self.input_dim}，"
+                f"实际输入特征维度为 {flattened_dim} (C={x.shape[2] if x.dim() == 5 else flattened_dim})"
+            )
         
         # 位置编码
         if self.use_positional_encoding:
-            x = self.pos_encoding(x)
+            h = self.pos_encoding(h)
         
-        # 转换维度用于卷积: [B, T, C] -> [B, C, T]
-        x = x.transpose(1, 2)
+        # 时序卷积编码: [B, T, hidden_dim] -> [B, hidden_dim, T] -> [B, T, hidden_dim]
+        h = h.transpose(1, 2)
+        h = self.temporal_conv(h)
+        h = h.transpose(1, 2)
         
-        # 时序卷积编码
-        x = self.temporal_conv(x)  # [B, hidden_dim, T]
-        
-        # 转换回原始维度: [B, C, T] -> [B, T, C]
-        x = x.transpose(1, 2)
-        
-        # 选择适当的输出投影层
-        if flattened_dim != self.input_dim:
-            # 使用预注册的投影层
-            dim_key = str(flattened_dim)
-            if dim_key in self.adaptive_output_proj:
-                output_proj = self.adaptive_output_proj[dim_key]
-                x = output_proj(x)  # [B, T, flattened_dim]
-            else:
-                # 如果维度不匹配且没有预注册层，使用原始输出投影并调整
-                import logging
-                logging.warning(f"未找到维度 {flattened_dim} 的预注册输出投影层，使用默认投影")
-                x_hidden = self.output_proj(x)  # [B, T, input_dim]
-                # 调整回原始维度
-                if flattened_dim <= self.input_dim:
-                    x = x_hidden[:, :, :flattened_dim]
-                else:
-                    x = torch.nn.functional.pad(x_hidden, (0, flattened_dim - self.input_dim))
+        # 输出投影和残差连接
+        if flattened_dim == self.input_dim:
+            out = self.output_proj(h)
+            out = self.layer_norm(out + residual)
         else:
-            # 使用默认输出投影
-            x = self.output_proj(x)  # [B, T, input_dim]
+            out = self.adaptive_output_proj[dim_key](h)
+            out = self.adaptive_layer_norm[dim_key](out + residual)
         
-        # 残差连接和层归一化
-        if flattened_dim != self.input_dim:
-            # 使用预注册的层归一化
-            dim_key = str(flattened_dim)
-            if dim_key in self.adaptive_layer_norm:
-                layer_norm = self.adaptive_layer_norm[dim_key]
-                x = layer_norm(x + residual)
-            else:
-                # 如果维度不匹配且没有预注册层，使用原始层归一化并调整
-                import logging
-                logging.warning(f"未找到维度 {flattened_dim} 的预注册层归一化，使用默认归一化")
-                # 调整残差维度以匹配输出
-                if residual.shape[-1] != x.shape[-1]:
-                    if residual.shape[-1] < x.shape[-1]:
-                        residual = torch.nn.functional.pad(residual, (0, x.shape[-1] - residual.shape[-1]))
-                    else:
-                        residual = residual[:, :, :x.shape[-1]]
-                x = self.layer_norm(x + residual)
-        else:
-            # 使用默认层归一化
-            x = self.layer_norm(x + residual)
-        
-        # 恢复原始形状
+        # 恢复空间形状
         if spatial_shape is not None:
             C, H, W = spatial_shape
-            x = x.view(batch_size, seq_len, C, H, W)
+            out = out.reshape(batch_size, seq_len, C, H, W)
         
         return {
-            'encoded_sequence': x,
+            'encoded_sequence': out,
             'sequence_length': seq_len,
             'batch_size': batch_size
         }
@@ -570,12 +541,18 @@ if __name__ == "__main__":
     print(f"3D输出形状: {result_3d['encoded_sequence'].shape}")
     assert result_3d['encoded_sequence'].shape == x_3d.shape, "3D编码器输出形状不匹配"
     
-    # 测试5D输入 [B, T, C, H, W]
-    x_5d = torch.randn(2, 10, 3, 32, 32)  # [B, T, C, H, W]
-    result_5d = encoder(x_5d)
-    print(f"5D输入形状: {x_5d.shape}")
-    print(f"5D输出形状: {result_5d['encoded_sequence'].shape}")
-    assert result_5d['encoded_sequence'].shape == x_5d.shape, "5D编码器输出形状不匹配"
+    # 测试5D逐像素通道输入 [B, T, C, H, W] (C == input_dim)
+    x_5d_channel = torch.randn(2, 10, 64, 32, 32)
+    result_5d_channel = encoder(x_5d_channel)
+    print(f"5D通道模式输入形状: {x_5d_channel.shape}, 输出形状: {result_5d_channel['encoded_sequence'].shape}")
+    assert result_5d_channel['encoded_sequence'].shape == x_5d_channel.shape, "5D通道模式输出形状不匹配"
+    
+    # 测试5D全图展平输入 [B, T, C, H, W] (C*H*W == input_dim)
+    encoder_flat = create_temporal_encoder(input_dim=3 * 16 * 16)
+    x_5d_flat = torch.randn(2, 10, 3, 16, 16)
+    result_5d_flat = encoder_flat(x_5d_flat)
+    print(f"5D展平模式输入形状: {x_5d_flat.shape}, 输出形状: {result_5d_flat['encoded_sequence'].shape}")
+    assert result_5d_flat['encoded_sequence'].shape == x_5d_flat.shape, "5D展平模式输出形状不匹配"
     
     # 测试感受野计算
     receptive_field = encoder.get_receptive_field()

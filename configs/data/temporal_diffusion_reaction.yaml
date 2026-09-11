@@ -1,0 +1,25 @@
+# @package data
+
+# 真实扩散-反应时序数据模块配置 (全场真值时序窗口切片)
+_target_: datasets.real_diffusion_reaction_dataset.RealDiffusionReactionDataModule
+
+data_path: "data/DR2D/2D_diff-react_NA_NA.h5"
+T_in: 4
+T_out: 10
+train_ratio: 0.8
+val_ratio: 0.1
+test_ratio: 0.1
+time_step_start: 0
+time_step_end: 100
+time_step_stride: 1
+normalize: true
+normalize_sample_size: 64
+max_samples: null
+sample_limit: null
+
+dataloader:
+  batch_size: 4
+  val_batch_size: 4
+  num_workers: 0
+  pin_memory: false
+  persistent_workers: false

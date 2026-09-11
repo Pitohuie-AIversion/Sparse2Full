@@ -710,6 +710,19 @@ class TestModelConfigurations:
             
             assert output.shape == (1, 3, 128, 128)
 
+    def test_liif_arbitrary_coords(self, device):
+        """Test LIIFModel with arbitrary number of query coordinates without explicit cell"""
+        model = LIIFModel(in_channels=1, out_channels=1, img_size=64, encoder_dim=64, imnet_hidden=[64, 64])
+        model.to(device)
+        model.eval()
+
+        x = torch.randn(2, 1, 32, 32, device=device)
+        # N=73 arbitrary coordinates
+        coord = (torch.rand(2, 73, 2, device=device) * 2 - 1)
+        with torch.no_grad():
+            output = model(x, coord=coord)
+        assert output.shape == (2, 73, 1)
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

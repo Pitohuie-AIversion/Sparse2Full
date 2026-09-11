@@ -114,8 +114,10 @@ class TrainingArtifactManager:
         lr: float
     ) -> None:
         """记录每轮指标到日志、TensorBoard 与 metrics.jsonl"""
-        train_loss = float(train_results['total_loss'].item() if hasattr(train_results['total_loss'], 'item') else train_results['total_loss'])
-        val_loss = float(val_results['total_loss'].item() if hasattr(val_results['total_loss'], 'item') else val_results['total_loss'])
+        t_loss_obj = train_results.get('total_loss', train_results.get('loss', 0.0))
+        v_loss_obj = val_results.get('total_loss', val_results.get('loss', 0.0))
+        train_loss = float(t_loss_obj.item() if hasattr(t_loss_obj, 'item') else t_loss_obj)
+        val_loss = float(v_loss_obj.item() if hasattr(v_loss_obj, 'item') else v_loss_obj)
         
         rel_l2_raw = val_results.get('rel_l2', 0.0)
         val_rel_l2 = float(rel_l2_raw.mean().item() if hasattr(rel_l2_raw, 'mean') else (rel_l2_raw.item() if hasattr(rel_l2_raw, 'item') else rel_l2_raw))

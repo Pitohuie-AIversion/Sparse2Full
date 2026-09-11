@@ -18,6 +18,7 @@ class BatchProcessor:
     def __init__(self, config: Optional[DictConfig] = None, logger: Optional[logging.Logger] = None):
         self.config = config
         self.logger = logger or logging.getLogger(__name__)
+        self._logged_channel_warning = False
 
     def build_model_input(
         self, 
@@ -52,9 +53,13 @@ class BatchProcessor:
                 self.logger.debug(f"Using direct low-resolution input with shape: {raw_obs.shape}")
                 model_input = raw_obs
             else:
-                model_input = batch['baseline']
+                model_input = batch.get('baseline', batch.get('observation', batch.get('target', None)))
+                if model_input is None:
+                    raise KeyError(f"Batch missing direct observation, baseline or target. Available keys: {list(batch.keys())}")
         else:
-            baseline = batch['baseline']
+            baseline = batch.get('baseline', batch.get('observation', batch.get('target', None)))
+            if baseline is None:
+                raise KeyError(f"Batch missing baseline, observation or target tensors. Available keys: {list(batch.keys())}")
 
             # 处理时序维度
             if baseline.dim() == 5:  # [B, T, C, H, W]
@@ -110,15 +115,19 @@ class BatchProcessor:
                         "Check your observation mode, coords and mask configuration."
                     )
                 if model_input.shape[1] > expected_in:
-                    self.logger.warning(
-                        f"model_input channels ({model_input.shape[1]}) trimmed to expected {expected_in}"
-                    )
+                    if not self._logged_channel_warning:
+                        self.logger.warning(
+                            f"model_input channels ({model_input.shape[1]}) trimmed to expected {expected_in} (will suppress subsequent warnings)"
+                        )
+                        self._logged_channel_warning = True
                     model_input = model_input[:, :expected_in]
                 else:
                     pad_ch = expected_in - model_input.shape[1]
-                    self.logger.warning(
-                        f"model_input channels ({model_input.shape[1]}) padded with {pad_ch} zeros to reach expected {expected_in}"
-                    )
+                    if not self._logged_channel_warning:
+                        self.logger.warning(
+                            f"model_input channels ({model_input.shape[1]}) padded with {pad_ch} zeros to reach expected {expected_in} (will suppress subsequent warnings)"
+                        )
+                        self._logged_channel_warning = True
                     pad = torch.zeros(
                         model_input.shape[0], pad_ch, model_input.shape[2], model_input.shape[3],
                         device=model_input.device, dtype=model_input.dtype

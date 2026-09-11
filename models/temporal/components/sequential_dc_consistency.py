@@ -228,7 +228,7 @@ class SequentialConsistencyChecker:
             pred_diff = torch.abs(temporal_pred - spatial_pred)
             
             # 计算相对变化
-            relative_change = torch.norm(pred_diff) / torch.norm(spatial_pred)
+            relative_change = torch.norm(pred_diff) / (torch.norm(spatial_pred) + 1e-8)
             
             # 计算最大差异
             max_diff = torch.max(pred_diff)

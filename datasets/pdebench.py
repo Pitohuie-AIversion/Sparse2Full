@@ -459,19 +459,11 @@ class PDEBenchDataModule:
 
     def setup(self, stage: Optional[str] = None) -> None:
         cfg = self.config
-        # Use .get() or item access to avoid conflict with DictConfig methods like .keys()
-        if isinstance(cfg, DictConfig):
-            keys = list(cfg.get("keys", []))
-            normalize = bool(cfg.get("normalize", False))
-            image_size = cfg.get("image_size", None)
-            splits_dir = cfg.get("splits_dir", None)
-            obs_cfg_raw = cfg.get("observation")
-        else:
-            keys = list(cfg.get("keys", []))
-            normalize = bool(cfg.get("normalize", False))
-            image_size = cfg.get("image_size", None)
-            splits_dir = cfg.get("splits_dir", None)
-            obs_cfg_raw = cfg.get("observation")
+        keys = list(cfg.get("keys", []))
+        normalize = bool(cfg.get("normalize", False))
+        image_size = cfg.get("image_size", None)
+        splits_dir = cfg.get("splits_dir", None)
+        obs_cfg_raw = cfg.get("observation")
 
         if splits_dir is None:
             inferred_splits_dir = _as_path(self.data_path).parent / "splits"
@@ -541,20 +533,14 @@ class PDEBenchDataModule:
 
     def _dl_cfg(self) -> Dict[str, Any]:
         cfg = self.config
-        if isinstance(cfg, DictConfig):
-            dl = cfg.get("dataloader", {})
-            return {
-                "batch_size": int(dl.get("batch_size", cfg.get("batch_size", 1))),
-                "num_workers": int(dl.get("num_workers", cfg.get("num_workers", 0))),
-                "pin_memory": bool(dl.get("pin_memory", cfg.get("pin_memory", False))),
-                "persistent_workers": bool(dl.get("persistent_workers", cfg.get("persistent_workers", False))),
-            }
-        dl = cfg.get("dataloader", {})
+        dl = cfg.get("dataloader", {}) if hasattr(cfg, "get") else {}
+        num_workers = int(dl.get("num_workers", cfg.get("num_workers", 0)))
+        persistent = bool(dl.get("persistent_workers", cfg.get("persistent_workers", False)))
         return {
             "batch_size": int(dl.get("batch_size", cfg.get("batch_size", 1))),
-            "num_workers": int(dl.get("num_workers", cfg.get("num_workers", 0))),
+            "num_workers": num_workers,
             "pin_memory": bool(dl.get("pin_memory", cfg.get("pin_memory", False))),
-            "persistent_workers": bool(dl.get("persistent_workers", cfg.get("persistent_workers", False))),
+            "persistent_workers": bool(persistent and num_workers > 0),
         }
 
     def train_dataloader(self) -> DataLoader:

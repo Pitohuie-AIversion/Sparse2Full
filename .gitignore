@@ -65,6 +65,7 @@ tests/pytest.log
 
 # Data & Checkpoint directories
 data/
+!configs/data/
 datasets/data/
 external/
 tools/runs/

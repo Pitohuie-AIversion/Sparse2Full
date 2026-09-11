@@ -100,6 +100,8 @@ class TemporalVisualizer:
         # 计算全局颜色范围
         vmin = float(np.nanmin([np.nanmin(pred_np), np.nanmin(target_np)]))
         vmax = float(np.nanmax([np.nanmax(pred_np), np.nanmax(target_np)]))
+        if vmin >= vmax:
+            vmax = vmin + 1e-5
         norm = Normalize(vmin=vmin, vmax=vmax)
         
         for i, t in enumerate(time_steps):
@@ -168,7 +170,8 @@ class TemporalVisualizer:
                 errors['mae'].append(mae)
             
             if 'rel_l2' in metrics:
-                rel_l2 = np.sqrt(np.mean((pred_t - target_t) ** 2)) / np.sqrt(np.mean(target_t ** 2))
+                target_denom = np.sqrt(np.mean(target_t ** 2))
+                rel_l2 = np.sqrt(np.mean((pred_t - target_t) ** 2)) / (target_denom + 1e-8)
                 errors['rel_l2'].append(rel_l2)
         
         # 绘制曲线
@@ -278,8 +281,10 @@ class TemporalVisualizer:
         seq_len = pred_np.shape[0]
         
         # 计算全局颜色范围
-        vmin = min(pred_np.min(), target_np.min())
-        vmax = max(pred_np.max(), target_np.max())
+        vmin = float(min(pred_np.min(), target_np.min()))
+        vmax = float(max(pred_np.max(), target_np.max()))
+        if vmin >= vmax:
+            vmax = vmin + 1e-5
         
         fig, axes = plt.subplots(1, 3, figsize=(15, 5))
         
@@ -316,7 +321,7 @@ class TemporalVisualizer:
             # 更新误差图像
             error = np.abs(pred_np[frame] - target_np[frame])
             im3.set_array(error)
-            im3.set_clim(vmin=0, vmax=error.max())
+            im3.set_clim(vmin=0, vmax=max(float(error.max()), 1e-6))
             
             # 更新标题
             time_text.set_text(f'{title} - t={frame}')
