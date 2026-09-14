@@ -50,7 +50,9 @@ class UpsamplePixelShuffle(nn.Sequential):
 
     def __init__(self, scale: int, num_feat: int, out_feat: int = 1):
         m = []
-        if (scale & (scale - 1)) == 0:  # scale 是 2 的幂次 (2, 4, 8)
+        if scale == 1:
+            m.append(nn.Conv2d(num_feat, out_feat, 3, 1, 1, bias=True))
+        elif (scale & (scale - 1)) == 0:  # scale 是 2 的幂次 (2, 4, 8)
             for _ in range(int(math.log2(scale))):
                 m.append(nn.Conv2d(num_feat, 4 * num_feat, 3, 1, 1, bias=True))
                 m.append(nn.PixelShuffle(2))
@@ -62,7 +64,7 @@ class UpsamplePixelShuffle(nn.Sequential):
             m.append(nn.PReLU())
             m.append(nn.Conv2d(num_feat, out_feat, 3, 1, 1, bias=True))
         else:
-            raise ValueError(f"Unsupported upscale factor: {scale}, must be 2, 3, 4, or 8.")
+            raise ValueError(f"Unsupported upscale factor: {scale}, must be 1, 2, 3, 4, or 8.")
         super().__init__(*m)
 
 
@@ -183,6 +185,8 @@ class SwinFluidSR(BaseModel):
             x: [B, C_in, H_lr, W_lr] 低分辨率物理场输入
             返回: [B, C_out, H_hr, W_hr] 高分辨率重建全场 (H_hr = H_lr * upscale_factor)
         """
+        if not torch.isfinite(x).all():
+            x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
         H_in, W_in = x.shape[-2], x.shape[-1]
         
         # 1. 计算全局物理残差基底 (Global Physical Baseline)

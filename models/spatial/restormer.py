@@ -379,7 +379,7 @@ class Restormer(BaseModel):
             y: [B, C_out, H, W]
         """
         # 基础数值保护（不做强 clamp，避免限制回归幅度）
-        if torch.isnan(x).any() or torch.isinf(x).any():
+        if not torch.isfinite(x).all():
             x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
 
         inp = x

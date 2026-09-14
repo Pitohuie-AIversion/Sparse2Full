@@ -19,6 +19,7 @@ PDEBench稀疏观测重建评估脚本
 
 import os
 import sys
+import time
 import json
 import logging
 import argparse
@@ -76,7 +77,8 @@ class ComprehensiveEvaluator:
         
         # 存储所有指标和可视化数据
         self.all_metrics = []
-        self.vis_data = []  # 修改为vis_data以保持一致性
+        self.visualization_data = []
+        self.vis_data = self.visualization_data  # 保持两者引用一致
         
         # 初始化统一的可视化器
         self.visualizer = None  # 将在evaluate方法中初始化
@@ -96,8 +98,16 @@ class ComprehensiveEvaluator:
             total_params = sum(p.numel() for p in self.model.parameters())
             trainable_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
             
-            # 计算FLOPs（使用256x256输入）
-            input_size = self.config.evaluation.get('input_size', (1, 3, 256, 256))  # [B, C, H, W]
+            # 计算FLOPs（根据模型或配置自适应通道与尺寸）
+            input_size = self.config.evaluation.get('input_size', None)
+            if input_size is None:
+                in_ch = getattr(self.model, 'in_channels', None)
+                if in_ch is None and hasattr(self.config, 'model') and hasattr(self.config.model, 'get'):
+                    in_ch = self.config.model.get('in_channels', 4)
+                if in_ch is None:
+                    in_ch = 4
+                img_sz = getattr(self.model, 'img_size', 64)
+                input_size = (1, int(in_ch), int(img_sz), int(img_sz))
             dummy_input = torch.randn(input_size).to(self.device)
             
             try:
@@ -149,22 +159,40 @@ class ComprehensiveEvaluator:
                 'input_size': (1, 3, 256, 256)
             }
 
-    def _measure_inference_time(self, input_tensor: torch.Tensor, num_runs: int = 100) -> Dict[str, float]:
-        """测量推理延迟
+    def _measure_inference_time(
+        self,
+        input_or_batch: Union[torch.Tensor, Dict[str, torch.Tensor]],
+        num_runs: int = 50
+    ) -> Dict[str, Any]:
+        """测量推理延迟（支持直接输入 Tensor 或 batch 字典）
         
         Args:
-            input_tensor: 输入张量
+            input_or_batch: 输入张量或 batch 字典
             num_runs: 测试运行次数
             
         Returns:
-            延迟统计字典
+            延迟统计字典与详细时间列表
         """
         self.model.eval()
+        
+        if isinstance(input_or_batch, torch.Tensor):
+            model_input = input_or_batch.to(self.device)
+        else:
+            observation = input_or_batch['observation'].to(self.device)
+            baseline = input_or_batch.get('baseline', observation).to(self.device)
+            coords = input_or_batch.get('coords')
+            mask = input_or_batch.get('mask')
+            
+            model_input = baseline
+            if coords is not None:
+                model_input = torch.cat([model_input, coords.to(self.device)], dim=1)
+            if mask is not None:
+                model_input = torch.cat([model_input, mask.to(self.device)], dim=1)
         
         # 预热
         with torch.no_grad():
             for _ in range(10):
-                _ = self.model(input_tensor)
+                _ = self.model(model_input)
         
         # 同步GPU
         if self.device.type == 'cuda':
@@ -175,7 +203,7 @@ class ComprehensiveEvaluator:
         with torch.no_grad():
             for _ in range(num_runs):
                 start_time = time.perf_counter()
-                _ = self.model(input_tensor)
+                _ = self.model(model_input)
                 
                 if self.device.type == 'cuda':
                     torch.cuda.synchronize()
@@ -184,64 +212,13 @@ class ComprehensiveEvaluator:
                 times.append((end_time - start_time) * 1000)  # 转换为毫秒
         
         return {
-            'mean_ms': np.mean(times),
-            'std_ms': np.std(times),
-            'min_ms': np.min(times),
-            'max_ms': np.max(times),
-            'median_ms': np.median(times)
+            'mean_ms': float(np.mean(times)),
+            'std_ms': float(np.std(times)),
+            'min_ms': float(np.min(times)),
+            'max_ms': float(np.max(times)),
+            'median_ms': float(np.median(times)),
+            'times': times
         }
-
-    def _measure_inference_time(self, batch: Dict[str, torch.Tensor], num_runs: int = 50) -> List[float]:
-        """测量推理延迟
-        
-        Args:
-            batch: 输入batch
-            num_runs: 测试运行次数
-            
-        Returns:
-            延迟列表（毫秒）
-        """
-        self.model.eval()
-        
-        # 构建模型输入
-        target = batch['target'].to(self.device)
-        observation = batch['observation'].to(self.device)
-        
-        baseline = batch.get('baseline', observation).to(self.device)
-        coords = batch.get('coords')
-        mask = batch.get('mask')
-        
-        model_input = baseline
-        if coords is not None:
-            coords = coords.to(self.device)
-            model_input = torch.cat([model_input, coords], dim=1)
-        if mask is not None:
-            mask = mask.to(self.device)
-            model_input = torch.cat([model_input, mask], dim=1)
-        
-        # 预热
-        with torch.no_grad():
-            for _ in range(10):
-                _ = self.model(model_input)
-        
-        # 同步GPU
-        if self.device.type == 'cuda':
-            torch.cuda.synchronize()
-        
-        # 测量时间
-        times = []
-        with torch.no_grad():
-            for _ in range(num_runs):
-                start_time = time.perf_counter()
-                _ = self.model(model_input)
-                
-                if self.device.type == 'cuda':
-                    torch.cuda.synchronize()
-                
-                end_time = time.perf_counter()
-                times.append((end_time - start_time) * 1000)  # 转换为毫秒
-        
-        return times
 
     def _monitor_memory_usage(self, batch: Dict[str, torch.Tensor]) -> Dict[str, float]:
         """监控显存使用情况

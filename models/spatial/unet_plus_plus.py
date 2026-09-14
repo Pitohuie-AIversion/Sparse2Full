@@ -190,6 +190,8 @@ class UNetPlusPlus(BaseModel):
         Returns:
             y: [B, C_out, H, W]
         """
+        if not torch.isfinite(x).all():
+            x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
         feat: Dict[str, torch.Tensor] = {}
 
         # -------------------------

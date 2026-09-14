@@ -24,12 +24,13 @@ export PYTHONUNBUFFERED=1
 mkdir -p runs/SWVT_Tin4_Tout10_GPU0
 mkdir -p runs/SWVT_Tin8_Tout16_GPU1
 
-echo "1️⃣  启动 GPU 0 任务: 方案 A (Tin=4 -> Tout=10)..."
+echo "1️⃣  启动 GPU 0 任务: 方案 A (Tin=4 -> Tout=10) [断点恢复模式]..."
 CUDA_VISIBLE_DEVICES=0 python train_temporal.py \
     --config-name swvt_tin4_tout10 \
     experiment.name=SWVT_Tin4_Tout10_GPU0 \
     experiment.device=cuda:0 \
-    > runs/SWVT_Tin4_Tout10_GPU0/console.log 2>&1 &
+    experiment.resume=true \
+    >> runs/SWVT_Tin4_Tout10_GPU0/console.log 2>&1 &
 PID_GPU0=$!
 echo "   ✅ GPU 0 进程 PID: $PID_GPU0"
 
@@ -38,7 +39,8 @@ CUDA_VISIBLE_DEVICES=1 python train_temporal.py \
     --config-name swvt_tin8_tout16 \
     experiment.name=SWVT_Tin8_Tout16_GPU1 \
     experiment.device=cuda:0 \
-    > runs/SWVT_Tin8_Tout16_GPU1/console.log 2>&1 &
+    experiment.resume=true \
+    >> runs/SWVT_Tin8_Tout16_GPU1/console.log 2>&1 &
 PID_GPU1=$!
 echo "   ✅ GPU 1 进程 PID: $PID_GPU1"
 

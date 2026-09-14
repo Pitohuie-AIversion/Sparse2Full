@@ -95,7 +95,86 @@ class TemporalTrainer:
         self.curriculum_stage = 0
         self._init_curriculum()
         
+        # 尝试从检查点恢复训练
+        self._resume_checkpoint()
+        
         self.logger.info(f"TemporalTrainer initialized successfully. Output dir: {self.output_dir}")
+
+    def _resume_checkpoint(self) -> None:
+        """从检查点安全恢复训练状态 (Model, Optimizer, Scheduler, Scaler, Epoch, Step)"""
+        tr_cfg = getattr(self.config, 'train', {})
+        exp_cfg = getattr(self.config, 'experiment', {})
+        resume_path = getattr(tr_cfg, 'resume_from', None) or getattr(exp_cfg, 'resume_from', None)
+        
+        if not resume_path:
+            resume_flag = bool(getattr(exp_cfg, 'resume', False) or getattr(tr_cfg, 'resume', False))
+            if resume_flag:
+                candidate_paths = [
+                    self.output_dir / "last.ckpt",
+                    self.output_dir / "checkpoints" / "best.pth",
+                    self.output_dir / "best.ckpt"
+                ]
+                for p in candidate_paths:
+                    if p.is_file():
+                        resume_path = str(p)
+                        break
+
+        if not resume_path:
+            return
+
+        resume_p = Path(resume_path)
+        if not resume_p.is_file():
+            self.logger.warning(f"Resume checkpoint path not found: {resume_p}")
+            return
+
+        self.logger.info(f"Resuming training state from checkpoint: {resume_p}")
+        ckpt = torch.load(resume_p, map_location=self.device, weights_only=False)
+
+        # 1. 恢复模型权重
+        model_weights = ckpt.get('model_state_dict', ckpt.get('model', None))
+        if model_weights is not None:
+            self.model.load_state_dict(model_weights, strict=False)
+            self.logger.info("  ✅ Model state_dict loaded successfully.")
+
+        # 2. 恢复优化器状态
+        opt_state = ckpt.get('optimizer_state_dict', ckpt.get('optimizer', None))
+        if opt_state is not None and self.optimizer is not None:
+            try:
+                self.optimizer.load_state_dict(opt_state)
+                self.logger.info("  ✅ Optimizer state_dict loaded successfully.")
+            except Exception as e:
+                self.logger.warning(f"  ⚠️ Optimizer state_dict load failed: {e}")
+
+        # 3. 恢复调度器状态
+        sch_state = ckpt.get('scheduler_state_dict', ckpt.get('scheduler', None))
+        if sch_state is not None and self.scheduler is not None:
+            try:
+                self.scheduler.load_state_dict(sch_state)
+                self.logger.info("  ✅ Scheduler state_dict loaded successfully.")
+            except Exception as e:
+                self.logger.warning(f"  ⚠️ Scheduler state_dict load failed: {e}")
+
+        # 4. 恢复混合精度 Scaler
+        scaler_state = ckpt.get('scaler_state_dict', ckpt.get('scaler', None))
+        if scaler_state is not None and self.scaler is not None:
+            try:
+                self.scaler.load_state_dict(scaler_state)
+                self.logger.info("  ✅ AMP Scaler state_dict loaded successfully.")
+            except Exception as e:
+                self.logger.warning(f"  ⚠️ AMP Scaler load failed: {e}")
+
+        # 5. 恢复训练计数器与最优度量
+        if 'epoch' in ckpt:
+            self.current_epoch = int(ckpt['epoch']) + 1
+        if 'global_step' in ckpt:
+            self.global_step = int(ckpt['global_step'])
+        if 'best_val_loss' in ckpt:
+            self.best_val_loss = float(ckpt['best_val_loss'])
+
+        self.logger.info(
+            f"  🎯 Resumed successfully: Resuming at Epoch {self.current_epoch}, "
+            f"Global Step {self.global_step}, Best Val Loss {self.best_val_loss:.6f}"
+        )
 
     def _set_random_seed(self, seed: int) -> None:
         """设置全局确定性随机种子"""

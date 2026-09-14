@@ -20,6 +20,7 @@ Reference:
 from __future__ import annotations
 
 from typing import Optional, Tuple
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -42,7 +43,7 @@ class Upsampler(nn.Sequential):
         if scale == 1:
             pass
         elif scale in (2, 4, 8):
-            n = int(torch.log2(torch.tensor(scale)).item())
+            n = int(math.log2(scale))
             for _ in range(n):
                 m.append(nn.Conv2d(n_feats, 4 * n_feats, 3, 1, 1, bias=bias))
                 m.append(nn.PixelShuffle(2))
@@ -224,7 +225,7 @@ class RCAN(BaseModel):
                     nn.init.constant_(m.bias, 0)
 
     def forward(self, x: torch.Tensor, **kwargs) -> torch.Tensor:
-        if torch.isnan(x).any() or torch.isinf(x).any():
+        if not torch.isfinite(x).all():
             x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
 
         inp = x

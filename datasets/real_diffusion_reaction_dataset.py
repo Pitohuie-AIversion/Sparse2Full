@@ -302,12 +302,22 @@ class RealDiffusionReactionDataset(Dataset):
         
         print(f"📊 {self.split} 集: {len(assigned_samples)} 个样本, {len(self.indices)} 个序列")
     
+    @property
+    def effective_channels(self) -> int:
+        """获取实际选择的通道数"""
+        if isinstance(self.channel_index, int):
+            return 1
+        elif isinstance(self.selected_channels, list) and len(self.selected_channels) > 0:
+            return len(self.selected_channels)
+        return getattr(self, 'n_channels', 2)
+
     def _compute_normalization_stats(self):
         """计算归一化统计量"""
         if self.split != "train":
-            # 非训练集不计算统计量，使用预设值或从训练集加载
-            self.mean = torch.zeros(self.n_channels)
-            self.std = torch.ones(self.n_channels)
+            # 非训练集不计算统计量，使用匹配有效通道数的默认值（后续由 DataModule 覆盖为训练集统计量）
+            eff_ch = self.effective_channels
+            self.mean = torch.zeros(eff_ch, dtype=torch.float32)
+            self.std = torch.ones(eff_ch, dtype=torch.float32)
             return
 
         print("📈 计算归一化统计量...")
@@ -631,13 +641,14 @@ class RealDiffusionReactionDataModule(pl.LightningDataModule):
                 print(f"⚠️ 验证集RAM预加载失败: {_pre_err_v}")
 
             # 统一归一化统计：将训练集的mean/std传播到验证集
-            if getattr(self.train_dataset, 'mean', None) is not None and getattr(self.train_dataset, 'std', None) is not None:
+            eff_ch = getattr(self.val_dataset, 'effective_channels', 1)
+            if getattr(self, 'train_dataset', None) is not None and getattr(self.train_dataset, 'mean', None) is not None:
                 self.val_dataset.mean = self.train_dataset.mean.clone()
                 self.val_dataset.std = self.train_dataset.std.clone()
             else:
                 # 回退：如果训练集未计算统计量（极端情况），设置默认值
-                self.val_dataset.mean = torch.zeros(getattr(self.train_dataset, 'n_channels', 2), dtype=torch.float32)
-                self.val_dataset.std = torch.ones(getattr(self.train_dataset, 'n_channels', 2), dtype=torch.float32)
+                self.val_dataset.mean = torch.zeros(eff_ch, dtype=torch.float32)
+                self.val_dataset.std = torch.ones(eff_ch, dtype=torch.float32)
             
             # RAM预加载（可选）：仅在训练集执行一次，并将缓存共享到验证集，避免重复占用内存
             if self.preload_entire_dataset:
@@ -693,18 +704,22 @@ class RealDiffusionReactionDataModule(pl.LightningDataModule):
             )
 
             # 统一归一化统计：将训练集的mean/std传播到测试集
-            if getattr(self.train_dataset, 'mean', None) is not None and getattr(self.train_dataset, 'std', None) is not None:
+            eff_ch = getattr(self.test_dataset, 'effective_channels', 1)
+            if getattr(self, 'train_dataset', None) is not None and getattr(self.train_dataset, 'mean', None) is not None:
                 self.test_dataset.mean = self.train_dataset.mean.clone()
                 self.test_dataset.std = self.train_dataset.std.clone()
             else:
                 # 回退：极端情况下使用默认零均值/单位方差
-                self.test_dataset.mean = torch.zeros(getattr(self.train_dataset, 'n_channels', 2), dtype=torch.float32)
-                self.test_dataset.std = torch.ones(getattr(self.train_dataset, 'n_channels', 2), dtype=torch.float32)
+                self.test_dataset.mean = torch.zeros(eff_ch, dtype=torch.float32)
+                self.test_dataset.std = torch.ones(eff_ch, dtype=torch.float32)
 
-            # 若启用整数据 RAM 预加载，共享训练集缓存到测试集（浅拷贝引用）
+            # 若启用整数据 RAM 预加载，共享训练集缓存到测试集（浅拷贝引用）或独立加载
             if self.preload_entire_dataset:
-                self.test_dataset._preloaded = self.train_dataset._preloaded
-                self.test_dataset._use_ram_preload = True
+                if getattr(self, 'train_dataset', None) is not None and getattr(self.train_dataset, '_preloaded', None) is not None:
+                    self.test_dataset._preloaded = self.train_dataset._preloaded
+                    self.test_dataset._use_ram_preload = True
+                else:
+                    self.test_dataset.preload_all_samples(limit=self.sample_limit)
 
     def get_normalization_stats(self) -> Optional[Dict[str, torch.Tensor]]:
         """返回归一化统计，用于损失在原值域的计算"""

@@ -164,6 +164,29 @@ class RunsSummarizer:
         # 这对于 runs_3loss_ablation/A0_RecOnly 这种结构是必要的
         return exp_name, 2025
     
+    @staticmethod
+    def _extract_numeric_metrics(metrics: Dict[str, Any]) -> Dict[str, float]:
+        """安全提取数值型指标，过滤非数值/NaN/Inf数据"""
+        result = {}
+        for metric_name, stats in metrics.items():
+            val = None
+            if isinstance(stats, dict) and 'mean' in stats:
+                try:
+                    val = float(stats['mean'])
+                except (ValueError, TypeError):
+                    val = None
+            elif isinstance(stats, torch.Tensor):
+                try:
+                    val = float(stats.mean().item())
+                except (ValueError, TypeError):
+                    val = None
+            elif isinstance(stats, (int, float, np.number)):
+                val = float(stats)
+            
+            if val is not None and np.isfinite(val):
+                result[metric_name] = val
+        return result
+
     def aggregate_results(self) -> Dict[str, Dict[str, Dict[str, float]]]:
         """聚合所有方法的结果
         
@@ -173,20 +196,11 @@ class RunsSummarizer:
         aggregated = {}
         
         for method_name, seeds_results in self.all_results.items():
-            # 转换为指标列表格式
             metrics_list = []
             for seed, metrics in seeds_results.items():
-                # 将聚合指标转换为tensor格式（模拟）
-                tensor_metrics = {}
-                for metric_name, stats in metrics.items():
-                    if isinstance(stats, dict) and 'mean' in stats:
-                        # 已经是聚合格式，直接使用mean值
-                        tensor_metrics[metric_name] = torch.tensor([stats['mean']])
-                    else:
-                        # 原始值
-                        tensor_metrics[metric_name] = torch.tensor([stats])
-                
-                metrics_list.append(tensor_metrics)
+                tensor_metrics = self._extract_numeric_metrics(metrics)
+                if tensor_metrics:
+                    metrics_list.append(tensor_metrics)
             
             # 使用统计分析器聚合
             method_aggregated = self.analyzer.aggregate_metrics(metrics_list)
@@ -214,15 +228,11 @@ class RunsSummarizer:
         significance_results = {}
         
         # 准备基线数据
-        baseline_metrics_list = []
-        for seed, metrics in self.all_results[baseline_method].items():
-            tensor_metrics = {}
-            for metric_name, stats in metrics.items():
-                if isinstance(stats, dict) and 'mean' in stats:
-                    tensor_metrics[metric_name] = torch.tensor([stats['mean']])
-                else:
-                    tensor_metrics[metric_name] = torch.tensor([stats])
-            baseline_metrics_list.append(tensor_metrics)
+        baseline_metrics_list = [
+            self._extract_numeric_metrics(metrics)
+            for seed, metrics in self.all_results[baseline_method].items()
+        ]
+        baseline_metrics_list = [m for m in baseline_metrics_list if m]
         
         # 对每个方法进行显著性检验
         for method_name, seeds_results in self.all_results.items():
@@ -230,15 +240,11 @@ class RunsSummarizer:
                 continue
             
             # 准备方法数据
-            method_metrics_list = []
-            for seed, metrics in seeds_results.items():
-                tensor_metrics = {}
-                for metric_name, stats in metrics.items():
-                    if isinstance(stats, dict) and 'mean' in stats:
-                        tensor_metrics[metric_name] = torch.tensor([stats['mean']])
-                    else:
-                        tensor_metrics[metric_name] = torch.tensor([stats])
-                method_metrics_list.append(tensor_metrics)
+            method_metrics_list = [
+                self._extract_numeric_metrics(metrics)
+                for seed, metrics in seeds_results.items()
+            ]
+            method_metrics_list = [m for m in method_metrics_list if m]
             
             # 计算显著性检验
             method_significance = {}
@@ -313,13 +319,16 @@ class RunsSummarizer:
                     if (significance_results and method_name in significance_results and
                         metric in significance_results[method_name]):
                         sig_result = significance_results[method_name][metric]
-                        if isinstance(sig_result, dict) and sig_result.get('significant', False):
-                            if sig_result.get('p_value', 1.0) < 0.001:
-                                value_str += "***"
-                            elif sig_result.get('p_value', 1.0) < 0.01:
-                                value_str += "**"
-                            elif sig_result.get('p_value', 1.0) < 0.05:
-                                value_str += "*"
+                        if isinstance(sig_result, dict):
+                            is_sig = sig_result.get('is_significant', sig_result.get('significant', False))
+                            if is_sig:
+                                p_val = float(sig_result.get('p_value', 1.0))
+                                if p_val < 0.001:
+                                    value_str += "***"
+                                elif p_val < 0.01:
+                                    value_str += "**"
+                                elif p_val < 0.05:
+                                    value_str += "*"
                     
                     row += f" & {value_str}"
                 else:
@@ -424,10 +433,10 @@ class RunsSummarizer:
                     report.append(f"  {metric_name}: Test failed ({test_result['error']})")
                     continue
                 
-                t_stat = test_result.get('t_stat', 0)
-                p_value = test_result.get('p_value', 1)
-                cohen_d = test_result.get('cohen_d', 0)
-                significant = test_result.get('significant', False)
+                t_stat = float(test_result.get('t_stat', 0))
+                p_value = float(test_result.get('p_value', 1))
+                cohen_d = float(test_result.get('effect_size', test_result.get('cohen_d', 0)))
+                significant = bool(test_result.get('is_significant', test_result.get('significant', False)))
                 
                 sig_mark = "***" if significant else ""
                 effect_size = "large" if abs(cohen_d) > 0.8 else "medium" if abs(cohen_d) > 0.5 else "small"

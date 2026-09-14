@@ -16,6 +16,28 @@ def _validate_boundary(boundary: str) -> str:
     return boundary
 
 
+def _extract_scalar(val, default=0):
+    if val is None:
+        return default
+    if hasattr(val, 'item'):
+        try:
+            return val.item()
+        except (RuntimeError, ValueError):
+            if hasattr(val, 'numel') and val.numel() > 1:
+                return val[0].item() if len(val.shape) > 0 else float(val)
+            else:
+                return float(val)
+    return float(val) if isinstance(val, (int, float)) else default
+
+
+def _extract_boundary(val, default="mirror"):
+    if val is None:
+        return default
+    if isinstance(val, (list, tuple)):
+        return str(val[0]) if len(val) > 0 else default
+    return str(val)
+
+
 def _create_gaussian_kernel(
     kernel_size: Union[int, float],
     sigma: Union[float, int],
@@ -121,32 +143,11 @@ def _apply_sr_degradation(x: torch.Tensor, params: Dict) -> torch.Tensor:
 
     params: {task:'SR', scale:int, sigma:float, kernel_size:int, boundary:str}
     """
-    # 处理可能的tensor参数 - 确保转换为标量
-    def _extract_scalar(val, default=0):
-        if val is None:
-            return default
-        if hasattr(val, 'item'):
-            try:
-                return val.item()
-            except (RuntimeError, ValueError):
-                # 如果tensor有多个元素，取第一个或平均值
-                if hasattr(val, 'numel') and val.numel() > 1:
-                    return val[0].item() if len(val.shape) > 0 else float(val)
-                else:
-                    return float(val)
-        return float(val) if isinstance(val, (int, float)) else default
-    
     raw_scale = params.get("scale", params.get("scale_factor"))
     scale = int(_extract_scalar(raw_scale, 1))
     
     sigma = float(_extract_scalar(params.get("sigma"), 0.0))
     kernel_size = int(_extract_scalar(params.get("kernel_size"), 1))
-    def _extract_boundary(val, default="mirror"):
-        if val is None:
-            return default
-        if isinstance(val, (list, tuple)):
-            return str(val[0]) if len(val) > 0 else default
-        return str(val)
     boundary = _validate_boundary(_extract_boundary(params.get("boundary", "mirror")))
 
     # 模糊
@@ -180,27 +181,6 @@ def _apply_crop_degradation(x: torch.Tensor, params: Dict) -> torch.Tensor:
 
     params: {task:'Crop', crop_size:(h,w), crop_box:(x1,y1,x2,y2)?, boundary:str}
     """
-    # 处理可能的tensor参数 - 确保转换为标量
-    def _extract_scalar(val, default=0):
-        if val is None:
-            return default
-        if hasattr(val, 'item'):
-            try:
-                return val.item()
-            except (RuntimeError, ValueError):
-                # 如果tensor有多个元素，取第一个或平均值
-                if hasattr(val, 'numel') and val.numel() > 1:
-                    return val[0].item() if len(val.shape) > 0 else float(val)
-                else:
-                    return float(val)
-        return float(val) if isinstance(val, (int, float)) else default
-    
-    def _extract_boundary(val, default="mirror"):
-        if val is None:
-            return default
-        if isinstance(val, (list, tuple)):
-            return str(val[0]) if len(val) > 0 else default
-        return str(val)
     boundary = _validate_boundary(_extract_boundary(params.get("boundary", params.get("boundary_mode", "mirror"))))
     crop_size = params.get("crop_size")
     if crop_size is None:
@@ -303,9 +283,9 @@ def apply_degradation_operator(x: torch.Tensor, params: Optional[Dict] = None, *
         raise ValueError(f"Unknown task: {task}")
         
     # 4. 严格形状验证 (Strict Shape Validation)
-    # 如果 params 中包含真实观测 'y' (即 obs_data['y'])，必须保证输出形状一致
-    if "y" in params and params["y"] is not None:
-        target_obs = params["y"]
+    # 如果 eff_params 中包含真实观测 'y' (即 obs_data['y'])，必须保证输出形状一致
+    if "y" in eff_params and eff_params["y"] is not None:
+        target_obs = eff_params["y"]
         if isinstance(target_obs, torch.Tensor):
             # Relaxed check: allow 1 pixel mismatch due to padding/cropping logic differences
             h_diff = abs(y.shape[-2] - target_obs.shape[-2])
@@ -346,7 +326,18 @@ def verify_degradation_consistency(
     """
     with torch.no_grad():
         recon = apply_degradation_operator(target, h_params)
-        diff = recon - observation
+        obs = observation
+        if obs.device != recon.device:
+            obs = obs.to(recon.device)
+        if obs.dtype != recon.dtype:
+            obs = obs.to(recon.dtype)
+        if obs.shape[1] > recon.shape[1]:
+            obs = obs[:, :recon.shape[1]]
+        elif recon.shape[1] > obs.shape[1]:
+            recon = recon[:, :obs.shape[1]]
+        if recon.shape[-2:] != obs.shape[-2:]:
+            obs = F.interpolate(obs, size=recon.shape[-2:], mode="area")
+        diff = recon - obs
         mse = (diff.float() ** 2).mean().item()
         max_err = diff.abs().max().item()
         return {

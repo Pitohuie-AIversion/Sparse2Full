@@ -62,7 +62,11 @@ def main():
     target_seq = batch['target_sequence'].to(device) # [1, 10, 1, 128, 128]
     
     # 2. 加载 SWVT 模型
-    ckpt_path = project_root / "runs" / "test_swvt_gt_verify" / "checkpoints" / "best.pth"
+    ckpt_path = project_root / "runs" / "SWVT_Tin4_Tout10_GPU0" / "checkpoints" / "best.pth"
+    if not ckpt_path.is_file():
+        ckpt_path = project_root / "runs" / "SWVT_Tin4_Tout10_GPU0" / "best.ckpt"
+    if not ckpt_path.is_file():
+        ckpt_path = project_root / "runs" / "test_swvt_gt_verify" / "checkpoints" / "best.pth"
     model = create_model(
         "SWVT",
         in_channels=1,
@@ -160,6 +164,7 @@ def main():
 
     # 保存输出
     save_dirs = [
+        project_root / "runs" / "SWVT_Tin4_Tout10_GPU0" / "visualizations",
         project_root / "runs" / "test_swvt_128to128_seq" / "visualizations"
     ]
     

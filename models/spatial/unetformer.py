@@ -460,6 +460,8 @@ class UNetFormer(BaseModel):
         x: [B,C_in,H,W]
         y: [B,C_out,H,W]
         """
+        if not torch.isfinite(x).all():
+            x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
         # Encoder
         e1 = self.enc1(x)
         skips = [e1]

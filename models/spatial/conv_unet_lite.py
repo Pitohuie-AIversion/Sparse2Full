@@ -48,11 +48,13 @@ class ConvUNetLite(BaseModel):
         self.head = nn.Conv2d(embed_dim, out_channels, 3, padding=1)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if not torch.isfinite(x).all():
+            x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
         y = self.enc1(x)
-        y = self.block1(y)
-        y = self.pool(y)
+        skip = self.block1(y)
+        y = self.pool(skip)
         y = self.block2(y)
-        y = self.up(y)
+        y = self.up(y) + skip
         y = self.dec1(y)
         y = self.head(y)
         return y

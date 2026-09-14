@@ -185,12 +185,18 @@ class ModelBenchmark:
         return sample_configs
     
     def create_test_model(self, model_config: Dict[str, Any]) -> Optional[nn.Module]:
-        """创建测试模型"""
+        """创建测试模型（优先使用统一模型注册表）"""
+        model_type = model_config.get('type', model_config.get('name', 'unknown'))
         try:
-            model_type = model_config.get('type', 'unknown')
-            
+            # 1. 尝试统一模型注册表构建
+            model = create_model(model_config)
+            return model.to(self.device)
+        except Exception as e_reg:
+            logger.debug(f"Registry create_model failed for {model_type}: {e_reg}, trying direct legacy instantiation")
+
+        try:
             if model_type == 'SwinUNet':
-                from models.swin_unet import SwinUNet
+                from models.spatial.swin_unet import SwinUNet
                 model = SwinUNet(
                     in_channels=model_config.get('in_channels', 4),
                     out_channels=model_config.get('out_channels', 1),
@@ -202,7 +208,7 @@ class ModelBenchmark:
                     num_heads=model_config.get('num_heads', [3, 6])
                 )
             elif model_type == 'HybridModel':
-                from models.hybrid import HybridModel
+                from models.spatial.hybrid import HybridModel
                 model = HybridModel(
                     in_channels=model_config.get('in_channels', 4),
                     out_channels=model_config.get('out_channels', 1),
@@ -211,7 +217,7 @@ class ModelBenchmark:
                     num_layers=model_config.get('num_layers', 4)
                 )
             elif model_type == 'MLPModel':
-                from models.mlp import MLPModel
+                from models.spatial.mlp import MLPModel
                 model = MLPModel(
                     in_channels=model_config.get('in_channels', 4),
                     out_channels=model_config.get('out_channels', 1),
@@ -355,19 +361,19 @@ class ModelBenchmark:
         """计算准确性指标（使用模拟数据）"""
         model.eval()
         
-        # 创建模拟的ground truth
-        gt = torch.randn_like(test_input[:, :1])  # 只取第一个通道作为GT
-        
         with torch.no_grad():
             pred = model(test_input)
+        
+        # 创建与预测输出维度一致的模拟 ground truth
+        gt = torch.randn_like(pred)
         
         # 计算基本指标
         mse = torch.mean((pred - gt) ** 2).item()
         mae = torch.mean(torch.abs(pred - gt)).item()
         
         # Rel-L2误差
-        rel_l2 = torch.norm(pred - gt) / torch.norm(gt)
-        rel_l2 = rel_l2.item()
+        norm_gt = torch.norm(gt)
+        rel_l2 = (torch.norm(pred - gt) / (norm_gt + 1e-8)).item()
         
         # PSNR (假设值域为[0,1])
         psnr = -10 * np.log10(mse) if mse > 0 else 100.0
@@ -381,18 +387,23 @@ class ModelBenchmark:
     
     def benchmark_single_model(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """基准测试单个模型"""
-        model_name = config.get('model', {}).get('type', 'unknown')
+        model_cfg = config.get('model', {})
+        model_name = model_cfg.get('type', model_cfg.get('name', 'unknown'))
         print(f"\n🔍 基准测试模型: {model_name}")
         
         # 创建模型
-        model = self.create_test_model(config.get('model', {}))
+        model = self.create_test_model(model_cfg)
         if model is None:
             return {'error': 'Failed to create model'}
         
-        # 创建测试输入
+        # 创建测试输入（根据配置动态自适应通道与分辨率）
         batch_size = 4
-        channels = 4
-        height = width = 64
+        channels = int(model_cfg.get('in_channels', getattr(model, 'in_channels', 4)))
+        img_size = model_cfg.get('img_size', getattr(model, 'img_size', 64))
+        if isinstance(img_size, (list, tuple)):
+            height, width = int(img_size[0]), int(img_size[1])
+        else:
+            height = width = int(img_size)
         input_shape = (batch_size, channels, height, width)
         test_input = torch.randn(input_shape).to(self.device)
         

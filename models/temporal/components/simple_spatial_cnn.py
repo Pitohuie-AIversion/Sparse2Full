@@ -81,7 +81,7 @@ class SimpleSpatialCNN(nn.Module):
             Output tensor [B, C_out, H, W]
         """
         # Input validation
-        if torch.isnan(x).any() or torch.isinf(x).any():
+        if not torch.isfinite(x).all():
             x = torch.nan_to_num(x, nan=0.0, posinf=1e6, neginf=-1e6)
         
         # Input projection
@@ -92,14 +92,14 @@ class SimpleSpatialCNN(nn.Module):
             x = x + block(x)
             
             # Check for numerical issues
-            if torch.isnan(x).any() or torch.isinf(x).any():
+            if not torch.isfinite(x).all():
                 x = torch.nan_to_num(x, nan=0.0, posinf=1e6, neginf=-1e6)
         
         # Output projection
         x = self.output_proj(x)
         
         # Final numerical check
-        if torch.isnan(x).any() or torch.isinf(x).any():
+        if not torch.isfinite(x).all():
             x = torch.nan_to_num(x, nan=0.0, posinf=1e6, neginf=-1e6)
         
         return x

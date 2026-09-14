@@ -17,6 +17,7 @@
 """
 
 import logging
+import warnings
 from typing import Any
 
 import numpy as np
@@ -190,7 +191,7 @@ class MetricsCalculator:
         mse = torch.clamp(mse, min=1e-10)
         if max_val is None:
             dr = (target.amax(dim=(-2, -1)) - target.amin(dim=(-2, -1)))
-            dr = torch.clamp(dr, min=1e-6)
+            dr = torch.where(dr < 1e-6, torch.ones_like(dr), dr)
         else:
             dr = torch.full_like(mse, float(max_val))
         return 20.0 * torch.log10(dr / torch.sqrt(mse))
@@ -525,11 +526,21 @@ class StatisticalAnalyzer:
         arr1 = np.array(vals1)
         arr2 = np.array(vals2)
 
+        if np.allclose(arr1, arr2):
+            return {
+                't_stat': 0.0,
+                'p_value': 1.0,
+                'effect_size': 0.0,
+                'is_significant': False
+            }
+
         from scipy import stats
-        if len(arr1) == len(arr2):
-            t_stat, p_val = stats.ttest_rel(arr2, arr1)
-        else:
-            t_stat, p_val = stats.ttest_ind(arr2, arr1)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            if len(arr1) == len(arr2):
+                t_stat, p_val = stats.ttest_rel(arr2, arr1)
+            else:
+                t_stat, p_val = stats.ttest_ind(arr2, arr1)
 
         std_pooled = np.sqrt((np.var(arr1, ddof=1) + np.var(arr2, ddof=1)) / 2.0)
         effect_size = (np.mean(arr2) - np.mean(arr1)) / (std_pooled + 1e-8)
@@ -800,7 +811,7 @@ def compute_spectral_analysis(
     cov = (p0 * t0).mean(dim=-1)
     p_std = torch.sqrt((p0 * p0).mean(dim=-1) + eps)
     t_std = torch.sqrt((t0 * t0).mean(dim=-1) + eps)
-    frequency_correlation = cov / (p_std * t_std + eps)
+    frequency_correlation = torch.clamp(cov / (p_std * t_std + eps), min=-1.0, max=1.0)
 
     return {
         "power_spectrum_mse": power_spectrum_mse,

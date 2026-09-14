@@ -229,7 +229,7 @@ class RDN(BaseModel):
         Returns:
             y: [B, C_out, H*scale, W*scale]  (scale=1 => same resolution)
         """
-        if torch.isnan(x).any() or torch.isinf(x).any():
+        if not torch.isfinite(x).all():
             x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
 
         inp = x

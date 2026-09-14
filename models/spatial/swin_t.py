@@ -802,6 +802,8 @@ class SwinTransformerTiny(BaseModel):
         return x
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if not torch.isfinite(x).all():
+            x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
         x, x_downsample = self.forward_features(x)
         x = self.forward_up_features(x, x_downsample)
         x = self.up_x4(x)

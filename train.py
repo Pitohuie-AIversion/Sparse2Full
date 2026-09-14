@@ -171,7 +171,15 @@ class Trainer:
         self.model = create_model(self.config.model.name, **model_params)
         self.model = self.model.to(self.device)
         
-        model_info = self.model.get_model_info()
+        if hasattr(self.model, 'get_model_info'):
+            model_info = self.model.get_model_info()
+        else:
+            total_params = sum(p.numel() for p in self.model.parameters())
+            model_info = {
+                'name': self.model.__class__.__name__,
+                'parameters': total_params,
+                'parameters_M': total_params / 1e6
+            }
         self.logger.info(f"Model info: {model_info}")
         
         if hasattr(self.model, 'compute_flops'):
@@ -179,8 +187,9 @@ class Trainer:
             self.logger.info(f"Model FLOPs: {flops/1e9:.2f}G")
         
         batch_size = int(self.config.data.dataloader.batch_size) if hasattr(self.config.data, 'dataloader') else 16
-        memory_info = self.model.get_memory_usage(batch_size)
-        self.logger.info(f"Estimated memory usage: {memory_info}")
+        if hasattr(self.model, 'get_memory_usage'):
+            memory_info = self.model.get_memory_usage(batch_size)
+            self.logger.info(f"Estimated memory usage: {memory_info}")
         
         # 多卡 DataParallel
         tr_cfg = getattr(self.config, 'training', getattr(self.config, 'train', {}))
@@ -189,10 +198,11 @@ class Trainer:
             self.logger.info(f"Using {torch.cuda.device_count()} GPUs with DataParallel")
             self.model = nn.DataParallel(self.model)
         
-        # 梯度检查点
+        # 梯度检查点（兼容 DataParallel 包装）
         if tr_cfg.get('gradient_checkpointing', False):
-            if hasattr(self.model, 'enable_gradient_checkpointing'):
-                self.model.enable_gradient_checkpointing()
+            base_model = getattr(self.model, 'module', self.model)
+            if hasattr(base_model, 'enable_gradient_checkpointing'):
+                base_model.enable_gradient_checkpointing()
                 self.logger.info("Gradient checkpointing enabled")
 
     def _init_optimizer(self) -> None:

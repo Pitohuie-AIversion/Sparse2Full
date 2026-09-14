@@ -33,6 +33,20 @@ class DataConsistencyChecker:
         # 应用H到GT
         h_gt = apply_degradation_operator(gt_orig, h_params)
 
+        # 设备与类型对齐
+        if observation.device != h_gt.device:
+            observation = observation.to(h_gt.device)
+        if observation.dtype != h_gt.dtype:
+            observation = observation.to(h_gt.dtype)
+
+        # 通道对齐（若 observation 额外拼接了 mask 或坐标通道，自动截取对应物理场通道）
+        c_gt = h_gt.shape[1]
+        c_obs = observation.shape[1]
+        if c_obs > c_gt:
+            observation = observation[:, :c_gt]
+        elif c_gt > c_obs:
+            h_gt = h_gt[:, :c_obs]
+
         # 尺寸对齐
         if h_gt.shape[-2:] != observation.shape[-2:]:
             observation = F.interpolate(observation, size=h_gt.shape[-2:], mode='area')

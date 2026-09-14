@@ -10,16 +10,15 @@ class ConvGateBlock(nn.Module):
         super().__init__()
         self.norm = nn.BatchNorm2d(dim)
         self.dw = nn.Conv2d(dim, dim, 3, padding=1, groups=dim)
-        self.act = nn.GELU() # Added activation
+        self.act = nn.GELU()  # Added activation
         self.pw = nn.Conv2d(dim, dim, 1)
-        self.beta = nn.Parameter(torch.zeros(1))
         self.gamma = nn.Parameter(torch.zeros(1))
 
     def forward(self, x):
         y = self.dw(self.norm(x))
-        y = self.act(y) # Added activation
+        y = self.act(y)
         y = self.pw(y)
-        return x + self.beta * y + self.gamma * y
+        return x + self.gamma * y
 
 
 @register_model(name="conv_gate_lite", aliases=["ConvGateLite", "NAFNetLite"])
@@ -35,6 +34,8 @@ class ConvGateLite(BaseModel):
         self.head = nn.Conv2d(embed_dim, out_channels, 3, padding=1)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if not torch.isfinite(x).all():
+            x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
         y = self.stem(x)
         y = self.blocks(y)
         y = self.head(y)

@@ -109,7 +109,7 @@ class SpatialFeatureExtractor(nn.Module):
             features: [B, T, C_feat, H, W] 或 [B, C_feat, H, W]
         """
         # 输入稳定性检查
-        if torch.isnan(x).any() or torch.isinf(x).any():
+        if not torch.isfinite(x).all():
             print(f"WARNING: NaN/Inf detected in SpatialFeatureExtractor input")
             x = torch.nan_to_num(x, nan=0.0, posinf=1e3, neginf=-1e3)
         
@@ -127,7 +127,7 @@ class SpatialFeatureExtractor(nn.Module):
             features = self.backbone(x)
         
         # 输出稳定性检查
-        if torch.isnan(features).any() or torch.isinf(features).any():
+        if not torch.isfinite(features).all():
             print(f"WARNING: NaN/Inf detected in SpatialFeatureExtractor output")
             features = torch.nan_to_num(features, nan=0.0, posinf=1e3, neginf=-1e3)
         
@@ -302,7 +302,7 @@ class TemporalFeatureExtractor(nn.Module):
             features: [B, T, C_temp]
         """
         # 数值稳定性检查
-        if torch.isnan(x).any() or torch.isinf(x).any():
+        if not torch.isfinite(x).all():
             print(f"WARNING: NaN/Inf detected in TemporalFeatureExtractor input")
             x = torch.nan_to_num(x, nan=0.0, posinf=1e3, neginf=-1e3)
         
@@ -329,7 +329,7 @@ class TemporalFeatureExtractor(nn.Module):
         features = self.transformer(x)  # [B, T, temporal_dim]
         
         # 输出稳定性检查
-        if torch.isnan(features).any() or torch.isinf(features).any():
+        if not torch.isfinite(features).all():
             print(f"WARNING: NaN/Inf detected in TemporalFeatureExtractor output")
             features = torch.nan_to_num(features, nan=0.0, posinf=1e3, neginf=-1e3)
         
@@ -361,7 +361,7 @@ class TemporalPredictionHead(nn.Module):
             predictions: [B, T, C_out, H, W]
         """
         # 输入稳定性检查
-        if torch.isnan(temporal_features).any() or torch.isinf(temporal_features).any():
+        if not torch.isfinite(temporal_features).all():
             print(f"WARNING: NaN/Inf detected in TemporalPredictionHead input")
             temporal_features = torch.nan_to_num(temporal_features, nan=0.0, posinf=1e3, neginf=-1e3)
         
@@ -379,7 +379,7 @@ class TemporalPredictionHead(nn.Module):
         )
         
         # 输出稳定性检查
-        if torch.isnan(predictions).any() or torch.isinf(predictions).any():
+        if not torch.isfinite(predictions).all():
             print(f"WARNING: NaN/Inf detected in TemporalPredictionHead output")
             predictions = torch.nan_to_num(predictions, nan=0.0, posinf=1e3, neginf=-1e3)
         
@@ -800,7 +800,7 @@ class TemporalPredictionModule(nn.Module):
             final_pred = self.prediction_head(temporal_features)
 
         # 数值稳定性检查 - 最终输出
-        if torch.isnan(final_pred).any() or torch.isinf(final_pred).any():
+        if not torch.isfinite(final_pred).all():
             print(f"WARNING: NaN/Inf detected in final_pred")
             final_pred = torch.nan_to_num(final_pred, nan=0.0, posinf=1e6, neginf=-1e6)
         

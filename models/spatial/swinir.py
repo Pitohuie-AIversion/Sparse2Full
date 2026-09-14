@@ -588,6 +588,9 @@ class SwinIR(BaseModel):
         Returns:
             y: [B, C_out, H, W]
         """
+        if not torch.isfinite(x).all():
+            x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
+
         inp = x
 
         # 仅对窗口大小做 pad（同分辨率重建）

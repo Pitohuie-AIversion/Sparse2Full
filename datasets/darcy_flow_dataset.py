@@ -189,63 +189,67 @@ class DarcyFlowDataset(Dataset):
                 save_dict[f"{k}_std"] = self.stats_std[k].numpy()
             np.savez(stat_file, **save_dict)
 
+    def _get_h5(self):
+        """惰性获取 worker 专用的 HDF5 文件句柄"""
+        if getattr(self, '_h5', None) is None:
+            self._h5 = h5py.File(self.data_path, 'r', swmr=True)
+        return self._h5
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state.pop('_h5', None)
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self._h5 = None
+
+    def __del__(self):
+        if getattr(self, '_h5', None) is not None:
+            try:
+                self._h5.close()
+            except Exception:
+                pass
+            self._h5 = None
+
     def __len__(self):
         return len(self.indices)
 
     def __getitem__(self, idx):
         file_idx = self.indices[idx]
+        f = self._get_h5()
         
-        with h5py.File(self.data_path, 'r') as f:
-            # Read Data
-            # nu: (128, 128) usually
-            # tensor: (1, 128, 128) usually
+        # Read Data
+        data_dict = {}
+        for k in self.keys:
+            d = f[k][file_idx]
+            d = torch.from_numpy(d).float()
             
-            data_dict = {}
-            for k in self.keys:
-                d = f[k][file_idx]
-                d = torch.from_numpy(d).float()
-                
-                # Ensure shape (C, H, W)
-                if d.ndim == 2:
-                    d = d.unsqueeze(0)
-                
-                # Normalize
-                if self.normalize and k in self.stats_mean:
-                    d = (d - self.stats_mean[k]) / (self.stats_std[k] + 1e-8)
-                
-                data_dict[k] = d
+            # Ensure shape (C, H, W)
+            if d.ndim == 2:
+                d = d.unsqueeze(0)
+            
+            # Normalize
+            if self.normalize and k in self.stats_mean:
+                d = (d - self.stats_mean[k]) / (self.stats_std[k] + 1e-8)
+            
+            data_dict[k] = d
 
         # Construct return dict compatible with training pipeline
         # Pipeline expects: input_sequence [T, C, H, W], target_sequence [T, C, H, W]
         # For Darcy: T=1
-        
         tensor = data_dict["tensor"].unsqueeze(0) # [1, C, H, W]
         
         # Initialize input as tensor (default) or None
-        # We will determine input based on degradation
         inp = tensor.clone() 
         lr = None
 
         # Apply degradation if configured (e.g. for SR)
         if self.h_params and apply_degradation_operator:
-             # Ensure h_params has task
-             task = str(self.h_params.get("task", "")).lower()
-             if "sr" in task or "crop" in task:
-                 # Apply degradation to the target (HR solution)
-                 # tensor shape is [1, C, H, W]
-                 # Debug print for first few samples
-                 if idx < 5:
-                     print(f"DEBUG: Applying degradation. Params: {self.h_params}")
-                 
-                 lr = apply_degradation_operator(tensor, self.h_params)
-                 
-                 if idx < 5:
-                     print(f"DEBUG: LR shape: {lr.shape}, HR shape: {tensor.shape}")
-                 
-                 inp = lr # Input is the degraded observation
-        else:
-             if idx < 5:
-                 print(f"DEBUG: Degradation SKIPPED. h_params={bool(self.h_params)}, op={bool(apply_degradation_operator)}")
+            task = str(self.h_params.get("task", "")).lower()
+            if "sr" in task or "crop" in task:
+                lr = apply_degradation_operator(tensor, self.h_params)
+                inp = lr # Input is the degraded observation
         
         # If 'nu' exists, we could use it, but user requested to decouple.
         # So we strictly use LR -> HR.

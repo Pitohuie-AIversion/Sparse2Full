@@ -245,12 +245,33 @@ class PDEBenchBase(Dataset):
         s = s if s > 0 else 1.0
         return x * s + m
 
+    def _get_h5(self):
+        """获取或惰性打开当前 worker 的 HDF5 句柄（避免每步 open/close 系统开销）"""
+        if getattr(self, '_h5', None) is None:
+            import h5py
+            self._h5 = h5py.File(self.data_path, "r", swmr=True)
+        return self._h5
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state.pop('_h5', None)
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self._h5 = None
+
+    def __del__(self):
+        if getattr(self, '_h5', None) is not None:
+            try:
+                self._h5.close()
+            except Exception:
+                pass
+            self._h5 = None
+
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         cid = self.case_ids[idx]
-        import h5py
-
-        with h5py.File(self.data_path, "r") as f:
-            x = _load_case_tensor(f, cid, self.keys)
+        x = _load_case_tensor(self._get_h5(), cid, self.keys)
 
         if self.image_size is not None:
             _, h, w = x.shape

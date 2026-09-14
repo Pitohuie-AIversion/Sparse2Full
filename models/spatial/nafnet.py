@@ -322,6 +322,9 @@ class NAFNet(BaseModel):
         Returns:
             y: [B, C_out, H, W]
         """
+        if not torch.isfinite(x).all():
+            x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
+
         inp = x
         x, pad = _pad_to_multiple(x, self.pad_multiple)
 
@@ -371,5 +374,5 @@ class NAFNet(BaseModel):
 
 
 def create_nafnet(**kwargs) -> NAFNet:
-    """工厂函数（与项目内其他模型一致）"""
+    """Factory function for NAFNet."""
     return NAFNet(**kwargs)

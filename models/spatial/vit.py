@@ -543,7 +543,7 @@ class VisionTransformer(BaseModel):
         return img
 
     def forward(self, x: torch.Tensor, **kwargs) -> torch.Tensor:
-        if torch.isnan(x).any() or torch.isinf(x).any():
+        if not torch.isfinite(x).all():
             x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
 
         latent, grid = self.forward_encoder(x)

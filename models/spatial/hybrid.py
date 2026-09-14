@@ -20,6 +20,7 @@ Related (inspiration for window/shifted-window attention masking strategy):
 """
 
 from typing import Optional, List, Tuple, Dict
+from contextlib import nullcontext
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -136,6 +137,8 @@ class HybridModel(BaseModel):
         )
 
     def forward(self, x: torch.Tensor, **kwargs) -> torch.Tensor:
+        if not torch.isfinite(x).all():
+            x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
         x = self.input_proj(x)  # [B, fusion_channels, H, W]
 
         outputs: Dict[str, torch.Tensor] = {}
@@ -405,16 +408,19 @@ class FNOLayer(nn.Module):
         m1 = min(self.modes, H)
         m2 = min(self.modes, W // 2 + 1)
 
-        x_ft = torch.fft.rfft2(x, norm="ortho")  # [B, C, H, W//2+1]
-        out_ft = torch.zeros(B, C, H, W // 2 + 1, device=x.device, dtype=torch.complex64)
+        _autocast_ctx = torch.cuda.amp.autocast(enabled=False) if x.is_cuda else nullcontext()
+        with _autocast_ctx:
+            x_float = x.float()
+            x_ft = torch.fft.rfft2(x_float, norm="ortho")  # [B, C, H, W//2+1]
+            out_ft = torch.zeros(B, C, H, W // 2 + 1, device=x.device, dtype=torch.complex64)
 
-        w1 = self.weights1[:, :, :m1, :m2].to(torch.complex64)
-        w2 = self.weights2[:, :, :m1, :m2].to(torch.complex64)
+            w1 = self.weights1[:, :, :m1, :m2].to(torch.complex64)
+            w2 = self.weights2[:, :, :m1, :m2].to(torch.complex64)
 
-        out_ft[:, :, :m1, :m2] = torch.einsum("bixy,ioxy->boxy", x_ft[:, :, :m1, :m2].to(torch.complex64), w1)
-        out_ft[:, :, -m1:, :m2] = torch.einsum("bixy,ioxy->boxy", x_ft[:, :, -m1:, :m2].to(torch.complex64), w2)
+            out_ft[:, :, :m1, :m2] = torch.einsum("bixy,ioxy->boxy", x_ft[:, :, :m1, :m2].to(torch.complex64), w1)
+            out_ft[:, :, -m1:, :m2] = torch.einsum("bixy,ioxy->boxy", x_ft[:, :, -m1:, :m2].to(torch.complex64), w2)
 
-        x_spec = torch.fft.irfft2(out_ft, s=(H, W), norm="ortho")
+            x_spec = torch.fft.irfft2(out_ft, s=(H, W), norm="ortho").to(x.dtype)
         x_loc = self.conv1x1(x)
 
         return self.act(x + x_loc + x_spec)
